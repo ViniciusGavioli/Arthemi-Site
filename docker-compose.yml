@@ -1,0 +1,59 @@
+# Docker Compose para desenvolvimento local
+# Execute: docker-compose up -d
+
+version: '3.8'
+
+services:
+  # Banco de dados PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: arthemi-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: arthemi
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PgAdmin (opcional - interface gráfica para o banco)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: arthemi-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@arthemi.com.br
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - '5050:80'
+    depends_on:
+      - postgres
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:
+
+# Comandos úteis:
+# 
+# Subir apenas o PostgreSQL:
+#   docker-compose up -d postgres
+#
+# Subir tudo (incluindo PgAdmin):
+#   docker-compose --profile tools up -d
+#
+# Ver logs:
+#   docker-compose logs -f postgres
+#
+# Parar tudo:
+#   docker-compose down
+#
+# Limpar dados (CUIDADO - apaga o banco):
+#   docker-compose down -v

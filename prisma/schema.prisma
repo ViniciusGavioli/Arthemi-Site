@@ -1,0 +1,306 @@
+// ===========================================================
+// Schema Prisma - Espaço Arthemi
+// ===========================================================
+// Este schema define os modelos para o MVP do coworking de saúde
+// Inclui: Salas, Reservas, Usuários, Pacotes, Créditos e Produtos
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---- Modelo de Usuário ----
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  phone     String   @unique
+  role      UserRole @default(CUSTOMER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  bookings       Booking[]
+  packages       UserPackage[]
+  credits        Credit[]
+  subletRequests SubletRequest[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+}
+
+// ---- Modelo de Sala ----
+model Room {
+  id          String   @id @default(cuid())
+  name        String   // Ex: "Sala A", "Sala B", "Sala C"
+  slug        String   @unique
+  description String?
+  imageUrl    String?
+  capacity    Int      @default(2)
+  amenities   String[] // Lista de comodidades
+
+  // Preços (valores em centavos para evitar problemas de ponto flutuante)
+  hourlyRate     Int      @default(0) // Preço hora avulsa (usado como referência principal)
+  pricePerHour   Int      @default(0) // Alias para hourlyRate
+  pricePackage4  Int      @default(0) // Pacote 4 horas
+  pricePackage8  Int      @default(0) // Pacote 8 horas
+  priceShift     Int      @default(0) // Turno fixo (mensal 16h)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  bookings Booking[]
+  products Product[]
+
+  @@map("rooms")
+}
+
+// ---- Modelo de Reserva ----
+model Booking {
+  id        String        @id @default(cuid())
+  roomId    String
+  userId    String
+  productId String?       // Produto/pacote usado na reserva
+  startTime DateTime
+  endTime   DateTime
+  status    BookingStatus @default(PENDING)
+
+  // Pagamento
+  paymentId       String? // ID externo do MercadoPago
+  paymentStatus   PaymentStatus @default(PENDING)
+  amountPaid      Int           @default(0) // Em centavos
+  paymentMethod   String?
+
+  // Tipo de reserva
+  bookingType     BookingType @default(HOURLY)
+  packageUsageId  String? // Se usar horas de pacote
+
+  // Sublocação
+  isSublet        Boolean @default(false)
+  originalUserId  String? // Usuário original que sublocou
+  subletRequestId String?
+
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  room          Room           @relation(fields: [roomId], references: [id])
+  user          User           @relation(fields: [userId], references: [id])
+  product       Product?       @relation(fields: [productId], references: [id])
+  subletRequest SubletRequest? @relation(fields: [subletRequestId], references: [id])
+
+  @@index([roomId, startTime, endTime])
+  @@index([userId])
+  @@index([status])
+  @@map("bookings")
+}
+
+enum BookingStatus {
+  PENDING    // Aguardando pagamento
+  CONFIRMED  // Pagamento confirmado
+  CANCELLED  // Cancelada
+  COMPLETED  // Concluída
+  NO_SHOW    // Cliente não compareceu
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REFUNDED
+  IN_PROCESS
+}
+
+enum BookingType {
+  HOURLY    // Hora avulsa
+  PACKAGE   // Usando pacote de horas
+  SHIFT     // Turno fixo
+  SUBLET    // Sublocação
+}
+
+// ---- Modelo de Pacote de Horas ----
+model UserPackage {
+  id        String      @id @default(cuid())
+  userId    String
+  type      PackageType
+  
+  totalHours     Int     // Total de horas compradas
+  usedHours      Int     @default(0)
+  remainingHours Int     // Horas restantes
+  
+  purchaseDate   DateTime @default(now())
+  expiresAt      DateTime // 90 dias para 4h, 180 dias para 8h
+  
+  // Pagamento
+  paymentId     String?
+  paymentStatus PaymentStatus @default(PENDING)
+  amountPaid    Int           @default(0)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, expiresAt])
+  @@map("user_packages")
+}
+
+enum PackageType {
+  HOURS_4   // 4 horas - validade 90 dias
+  HOURS_8   // 8 horas - validade 180 dias
+}
+
+// ---- Modelo de Crédito por Sublocação ----
+model Credit {
+  id        String       @id @default(cuid())
+  userId    String
+  amount    Int          // Valor em centavos (50% do valor da hora)
+  type      CreditType
+  status    CreditStatus @default(PENDING)
+  
+  // Referência à sublocação que gerou o crédito
+  subletRequestId String?
+  
+  // Mês/Ano de referência (para controle do limite 1 crédito/mês)
+  referenceMonth Int
+  referenceYear  Int
+  
+  expiresAt DateTime?
+  usedAt    DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id])
+  subletRequest SubletRequest? @relation(fields: [subletRequestId], references: [id])
+
+  // Limite de 1 crédito por mês por usuário
+  @@unique([userId, referenceMonth, referenceYear])
+  @@index([userId, status])
+  @@map("credits")
+}
+
+enum CreditType {
+  SUBLET // Crédito por sublocação
+  PROMO  // Crédito promocional
+}
+
+enum CreditStatus {
+  PENDING   // Aguardando confirmação manual
+  CONFIRMED // Confirmado pelo admin
+  USED      // Utilizado
+  EXPIRED   // Expirado
+}
+
+// ---- Modelo de Solicitação de Sublocação ----
+model SubletRequest {
+  id        String            @id @default(cuid())
+  userId    String            // Quem está sublocando
+  date      DateTime          // Data do turno a sublocar
+  shiftType ShiftType         // Manhã ou Tarde
+  status    SubletStatus      @default(PENDING)
+  
+  // Admin que aprovou/rejeitou
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  reviewNotes String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id])
+  bookings Booking[]
+  credits  Credit[]
+
+  @@index([userId, status])
+  @@map("sublet_requests")
+}
+
+enum ShiftType {
+  MORNING   // Manhã (8h-12h)
+  AFTERNOON // Tarde (14h-18h)
+}
+
+enum SubletStatus {
+  PENDING   // Aguardando aprovação
+  APPROVED  // Aprovada
+  REJECTED  // Rejeitada
+  COMPLETED // Sublocação concluída
+}
+
+// ---- Modelo de Produtos/Pacotes ----
+model Product {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String      @unique
+  description String?
+  type        ProductType
+  
+  // Preços (em centavos)
+  price         Int
+  originalPrice Int?      // Para mostrar desconto
+  
+  // Configuração específica do produto
+  hoursIncluded  Int?     // Horas incluídas no pacote
+  validityDays   Int?     // Dias de validade
+  shiftType      ShiftType? // Para turnos fixos
+  
+  // Relação com sala (cada produto tem preço específico por sala)
+  roomId     String?
+  room       Room?    @relation(fields: [roomId], references: [id])
+  
+  isActive   Boolean  @default(true)
+  isFeatured Boolean  @default(false)
+  sortOrder  Int      @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relação com bookings
+  bookings   Booking[]
+
+  @@index([roomId])
+  @@map("products")
+}
+
+enum ProductType {
+  HOURLY_RATE    // Hora avulsa
+  PACKAGE_10H    // Pacote 10 horas
+  PACKAGE_20H    // Pacote 20 horas
+  PACKAGE_40H    // Pacote 40 horas
+  SHIFT_FIXED    // Turno fixo mensal (16h)
+  DAY_PASS       // Diária (8h seguidas)
+  SATURDAY_HOUR  // Sábado - hora avulsa
+  SATURDAY_5H    // Sábado - pacote 5h
+  PROMO          // Promocional
+}
+
+// ---- Model Payment ----
+model Payment {
+  id            String        @id @default(cuid())
+  bookingId     String?
+  userId        String
+  amount        Int           // Em centavos
+  status        PaymentStatus @default(PENDING)
+  method        String?       // pix, credit_card, etc
+  externalId    String?       // ID do MercadoPago
+  externalUrl   String?       // URL de pagamento (init_point)
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([externalId])
+  @@map("payments")
+}

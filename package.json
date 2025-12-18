@@ -17,7 +17,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "validate:env": "node scripts/validate-env.js"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.10",
@@ -26,18 +27,23 @@
     "@fullcalendar/react": "^6.1.10",
     "@fullcalendar/timegrid": "^6.1.10",
     "@prisma/client": "^5.7.0",
+    "cookie": "^1.1.1",
+    "date-fns": "^3.0.6",
+    "dotenv": "^17.2.3",
+    "lucide-react": "^0.561.0",
     "mercadopago": "^2.0.6",
     "next": "14.0.4",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
     "react-datepicker": "^4.25.0",
-    "date-fns": "^3.0.6",
+    "react-dom": "^18.2.0",
+    "resend": "^6.6.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.1",
     "@testing-library/jest-dom": "^6.1.6",
     "@testing-library/react": "^14.1.2",
+    "@types/cookie": "^0.6.0",
     "@types/jest": "^29.5.11",
     "@types/node": "^20.10.5",
     "@types/react": "^18.2.45",

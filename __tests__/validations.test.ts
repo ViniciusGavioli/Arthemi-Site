@@ -12,7 +12,7 @@ describe('Validations', () => {
       endTime: '2025-12-17T11:00:00.000Z',
       userEmail: 'test@example.com',
       userName: 'Test User',
-      userPhone: '11999999999',
+      userPhone: '(31) 99999-9999', // Formato brasileiro válido
       notes: 'Test booking',
     };
 
@@ -61,6 +61,7 @@ describe('Validations', () => {
         endTime: '2025-12-17T11:00:00.000Z',
         userEmail: 'test@example.com',
         userName: 'Test User',
+        userPhone: '(31) 99999-9999',
       });
       expect(result.success).toBe(true);
     });
@@ -71,9 +72,26 @@ describe('Validations', () => {
       const result = createUserSchema.safeParse({
         email: 'user@example.com',
         name: 'John Doe',
-        phone: '11999999999',
+        phone: '(11) 99999-9999', // Formato brasileiro válido
       });
       expect(result.success).toBe(true);
+    });
+
+    it('deve validar usuário sem telefone (opcional)', () => {
+      const result = createUserSchema.safeParse({
+        email: 'user@example.com',
+        name: 'John Doe',
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('deve rejeitar telefone inválido', () => {
+      const result = createUserSchema.safeParse({
+        email: 'user@example.com',
+        name: 'John Doe',
+        phone: '123', // muito curto
+      });
+      expect(result.success).toBe(false);
     });
 
     it('deve rejeitar nome muito curto', () => {

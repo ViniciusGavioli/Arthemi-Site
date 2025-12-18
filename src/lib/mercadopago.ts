@@ -4,9 +4,10 @@
 // Integração com MercadoPago ou modo mock se não houver token
 
 import { MercadoPagoConfig, Preference, Payment } from 'mercadopago';
+import { env } from './env';
 
-const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN || '';
-const mockMode = process.env.MOCK_PAYMENTS === 'true' || !accessToken;
+const accessToken = env.MERCADOPAGO_ACCESS_TOKEN;
+const mockMode = env.MOCK_PAYMENTS;
 
 /**
  * Verifica se está em modo mock

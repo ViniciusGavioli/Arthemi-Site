@@ -4,11 +4,13 @@
 
 import { useState } from 'react';
 import { GetServerSideProps } from 'next';
-import Head from 'next/head';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import RoomCard from '@/components/RoomCard';
 import BookingModal from '@/components/BookingModal';
+import SEO, { BreadcrumbSchema } from '@/components/SEO';
+import Layout from '@/components/Layout';
+import { PAGE_SEO } from '@/constants/seo';
 import { formatCurrency } from '@/lib/utils';
 
 interface Product {
@@ -53,44 +55,47 @@ export default function SalasPage({ rooms }: SalasPageProps) {
 
   return (
     <>
-      <Head>
-        <title>Salas | Espaço Arthemi</title>
-        <meta name="description" content="Conheça nossas salas equipadas para profissionais de saúde" />
-      </Head>
+      <SEO
+        title={PAGE_SEO.salas.title}
+        description={PAGE_SEO.salas.description}
+        keywords={PAGE_SEO.salas.keywords}
+        path="/salas"
+      />
+      <BreadcrumbSchema items={[
+        { name: 'Home', path: '/' },
+        { name: 'Salas e Preços', path: '/salas' },
+      ]} />
 
-      <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <header className="bg-white shadow-sm">
-          <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16 items-center">
-              <Link href="/" className="flex items-center space-x-2">
-                <span className="text-2xl font-bold text-primary-600">Arthemi</span>
-              </Link>
-              <div className="flex items-center space-x-6">
-                <Link href="/" className="text-gray-600 hover:text-primary-600 transition">
-                  Home
-                </Link>
-                <Link href="/admin" className="text-gray-600 hover:text-primary-600 transition">
-                  Admin
-                </Link>
-              </div>
-            </div>
-          </nav>
-        </header>
-
+      <Layout compactFooter>
         {/* Hero */}
-        <div className="bg-primary-600 text-white py-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h1 className="text-4xl font-bold mb-4">Nossas Salas</h1>
-            <p className="text-xl text-primary-100 max-w-2xl mx-auto">
-              Ambientes pensados para o conforto do profissional e do paciente. 
-              Reserve por hora, pacote ou turno fixo.
+        <div className="bg-accent-700 text-white py-16">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h1 className="text-4xl font-bold mb-4">Salas e Preços</h1>
+            <p className="text-xl text-accent-100 max-w-2xl mx-auto mb-6">
+              Preços claros, sem surpresas. O valor que você vê já inclui tudo: 
+              sala equipada, recepção, limpeza, internet e café.
+            </p>
+            <p className="text-accent-200 text-sm">
+              Sem taxa de adesão • Sem fidelidade • Sem custos extras
             </p>
           </div>
         </div>
 
         {/* Lista de Salas */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          {/* Intro de conforto */}
+          <div className="bg-white rounded-xl p-6 mb-12 border border-warm-200">
+            <h2 className="text-xl font-semibold text-primary-900 mb-2">
+              💡 Antes de ver os preços
+            </h2>
+            <p className="text-secondary-600">
+              Aqui não tem pegadinha. Você escolhe o que faz sentido para sua agenda: 
+              hora avulsa para flexibilidade, pacotes para economia, ou turno fixo para 
+              quem atende regularmente. Todos os valores já incluem recepção, limpeza, 
+              internet e café. É o preço final.
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {rooms.map((room) => (
               <RoomCard
@@ -103,37 +108,47 @@ export default function SalasPage({ rooms }: SalasPageProps) {
 
           {/* Tabela de Preços V3 por Sala */}
           <section className="mt-16">
-            <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">
-              Tabela de Preços V3
+            <h2 className="text-2xl font-bold text-primary-900 mb-4 text-center">
+              Tabela Completa de Preços
             </h2>
+            <p className="text-center text-secondary-600 mb-8 max-w-2xl mx-auto">
+              Compare as opções e escolha a que melhor se encaixa na sua rotina de atendimentos.
+            </p>
             
             {rooms.map((room) => (
               <div key={room.id} className="mb-8">
-                <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                  {room.name} - {room.slug === 'sala-a' ? 'Grande (com maca)' : 
-                                 room.slug === 'sala-b' ? 'Média (com maca)' : 
-                                 'Pequena (sem maca)'}
+                <h3 className="text-xl font-semibold text-primary-800 mb-4">
+                  {room.name} — {room.slug === 'sala-a' ? 'Grande, com maca' : 
+                                 room.slug === 'sala-b' ? 'Média, com maca' : 
+                                 'Compacta, sem maca'}
                 </h3>
-                <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                <p className="text-secondary-600 text-sm mb-4">
+                  {room.slug === 'sala-a' 
+                    ? 'Ideal para fisioterapia, massoterapia, procedimentos estéticos e atendimentos que precisam de maca e mais espaço.'
+                    : room.slug === 'sala-b'
+                    ? 'Perfeita para consultas médicas, nutrição e atendimentos que combinam conversa com avaliação física.'
+                    : 'Ótima para psicologia, terapia, coaching e atendimentos focados em conversa. Aconchegante e reservada.'}
+                </p>
+                <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-warm-200">
                   <table className="w-full">
-                    <thead className="bg-primary-50">
+                    <thead className="bg-warm-100">
                       <tr>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Produto</th>
-                        <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Horas</th>
-                        <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">Preço</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-primary-900">Produto</th>
+                        <th className="px-6 py-4 text-center text-sm font-semibold text-primary-900">Horas</th>
+                        <th className="px-6 py-4 text-right text-sm font-semibold text-primary-900">Preço</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-warm-100">
                       {room.products.map((product) => (
-                        <tr key={product.id} className="hover:bg-gray-50">
+                        <tr key={product.id} className="hover:bg-warm-50">
                           <td className="px-6 py-4">
-                            <span className="font-medium text-gray-900">{product.name.replace(` - ${room.name}`, '')}</span>
+                            <span className="font-medium text-primary-900">{product.name.replace(` - ${room.name}`, '')}</span>
                           </td>
-                          <td className="px-6 py-4 text-center text-gray-600">
+                          <td className="px-6 py-4 text-center text-secondary-600">
                             {product.hoursIncluded ? `${product.hoursIncluded}h` : '-'}
                           </td>
                           <td className="px-6 py-4 text-right">
-                            <span className="font-semibold text-primary-600">
+                            <span className="font-semibold text-accent-600">
                               {formatCurrency(product.price)}
                             </span>
                           </td>
@@ -145,17 +160,26 @@ export default function SalasPage({ rooms }: SalasPageProps) {
               </div>
             ))}
           </section>
-        </main>
 
-        {/* Footer */}
-        <footer className="bg-gray-900 text-white py-8 mt-16">
-          <div className="max-w-7xl mx-auto px-4 text-center">
-            <p className="text-gray-400">
-              © {new Date().getFullYear()} Espaço Arthemi. Todos os direitos reservados.
+          {/* Bloco de confiança */}
+          <section className="mt-16 bg-warm-100 rounded-xl p-8 text-center">
+            <h2 className="text-2xl font-bold text-primary-900 mb-4">
+              Sem letras miúdas
+            </h2>
+            <p className="text-secondary-600 max-w-2xl mx-auto mb-6">
+              O valor que você vê é o valor que você paga. Não cobramos taxa de adesão, 
+              não temos fidelidade e não há custos extras. Se precisar cancelar ou remarcar, 
+              basta avisar com 24 horas de antecedência.
             </p>
-          </div>
-        </footer>
-      </div>
+            <Link
+              href="/faq"
+              className="inline-block text-accent-600 font-medium hover:text-accent-700 transition"
+            >
+              Ver todas as dúvidas frequentes →
+            </Link>
+          </section>
+        </main>
+      </Layout>
 
       {/* Modal de Reserva */}
       {isModalOpen && selectedRoom && (

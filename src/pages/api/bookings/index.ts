@@ -7,11 +7,13 @@ import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { isAvailable } from '@/lib/availability';
 import { createPaymentPreference } from '@/lib/mercadopago';
+import { brazilianPhone } from '@/lib/validations';
+import { logUserAction } from '@/lib/audit';
 
 // Schema de validação com Zod
 const createBookingSchema = z.object({
   userName: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
-  userPhone: z.string().min(10, 'Telefone inválido').max(15),
+  userPhone: brazilianPhone,
   userEmail: z.string().email('Email inválido').optional(),
   productId: z.string().optional(),
   roomId: z.string().min(1, 'Sala é obrigatória'),
@@ -141,6 +143,24 @@ export default async function handler(
 
     // 8. Se payNow=true, criar preferência de pagamento
     let paymentUrl: string | undefined;
+
+    // ✅ LOG DE AUDITORIA - Reserva criada
+    await logUserAction(
+      'BOOKING_CREATED',
+      data.userEmail || data.userPhone,
+      'Booking',
+      booking.id,
+      {
+        roomId: data.roomId,
+        roomName: room.name,
+        startAt: data.startAt,
+        endAt: data.endAt,
+        amount,
+        hours,
+        payNow: data.payNow,
+      },
+      req
+    );
 
     if (data.payNow) {
       try {

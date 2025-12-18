@@ -1,61 +1,179 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
+import { logUserAction } from '@/lib/audit';
 
 /**
- * GET /api/bookings/[id] - Busca detalhes de uma reserva específica
+ * API /api/bookings/[id]
+ * GET - Busca detalhes de uma reserva específica
+ * PATCH - Atualiza status da reserva (cancelamento público)
  */
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
   const { id } = req.query;
 
   if (!id || typeof id !== 'string') {
     return res.status(400).json({ error: 'ID da reserva é obrigatório' });
   }
 
-  try {
-    const booking = await prisma.booking.findUnique({
-      where: { id },
-      include: {
-        room: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            hourlyRate: true,
+  // ========================================================
+  // GET - Buscar reserva
+  // ========================================================
+  if (req.method === 'GET') {
+    try {
+      const booking = await prisma.booking.findUnique({
+        where: { id },
+        include: {
+          room: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              hourlyRate: true,
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+            },
+          },
+          product: {
+            select: {
+              id: true,
+              name: true,
+              price: true,
+              type: true,
+            },
           },
         },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
-        product: {
-          select: {
-            id: true,
-            name: true,
-            price: true,
-            type: true,
-          },
-        },
-      },
-    });
+      });
 
-    if (!booking) {
-      return res.status(404).json({ error: 'Reserva não encontrada' });
+      if (!booking) {
+        return res.status(404).json({ error: 'Reserva não encontrada' });
+      }
+
+      return res.status(200).json(booking);
+    } catch (error) {
+      console.error('Get booking error:', error);
+      return res.status(500).json({ error: 'Erro ao buscar reserva' });
     }
-
-    return res.status(200).json(booking);
-  } catch (error) {
-    console.error('Get booking error:', error);
-    return res.status(500).json({ error: 'Erro ao buscar reserva' });
   }
+
+  // ========================================================
+  // PATCH - Cancelar reserva (público)
+  // ========================================================
+  if (req.method === 'PATCH') {
+    try {
+      const { action } = req.body;
+
+      // Apenas ação de cancelamento permitida publicamente
+      if (action !== 'cancel') {
+        return res.status(400).json({ 
+          error: 'Ação inválida. Use action: "cancel"' 
+        });
+      }
+
+      // Buscar reserva atual
+      const booking = await prisma.booking.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          status: true,
+          startTime: true,
+        },
+      });
+
+      if (!booking) {
+        return res.status(404).json({ error: 'Reserva não encontrada' });
+      }
+
+      // ====================================================
+      // REGRAS DE CANCELAMENTO
+      // ====================================================
+      
+      // 1. Não pode cancelar se já está cancelada
+      if (booking.status === 'CANCELLED') {
+        return res.status(400).json({ 
+          error: 'Esta reserva já foi cancelada',
+          code: 'ALREADY_CANCELLED'
+        });
+      }
+
+      // 2. Não pode cancelar se horário já iniciou
+      const now = new Date();
+      const startTime = new Date(booking.startTime);
+      
+      if (startTime <= now) {
+        return res.status(400).json({ 
+          error: 'Não é possível cancelar uma reserva que já iniciou ou passou',
+          code: 'ALREADY_STARTED'
+        });
+      }
+
+      // 3. Opcional: mínimo de X horas de antecedência
+      const hoursUntilStart = (startTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+      const MIN_HOURS_FOR_CANCEL = 2; // 2 horas de antecedência mínima
+      
+      if (hoursUntilStart < MIN_HOURS_FOR_CANCEL) {
+        return res.status(400).json({ 
+          error: `Cancelamento permitido apenas com ${MIN_HOURS_FOR_CANCEL} horas de antecedência`,
+          code: 'TOO_LATE',
+          hoursRemaining: Math.floor(hoursUntilStart)
+        });
+      }
+
+      // ====================================================
+      // EXECUTAR CANCELAMENTO
+      // ====================================================
+      const updatedBooking = await prisma.booking.update({
+        where: { id },
+        data: { 
+          status: 'CANCELLED',
+          updatedAt: new Date(),
+        },
+        include: {
+          room: { select: { name: true } },
+          user: { select: { name: true, email: true } },
+        },
+      });
+
+      console.log(`🚫 [BOOKING] Cancelada pelo cliente: ${id}`);
+
+      // ✅ LOG DE AUDITORIA - Reserva cancelada
+      await logUserAction(
+        'BOOKING_CANCELLED',
+        updatedBooking.user.email || 'unknown',
+        'Booking',
+        id,
+        {
+          roomName: updatedBooking.room.name,
+          cancelledBy: 'client',
+          hoursBeforeStart: Math.floor(hoursUntilStart),
+        },
+        req
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: 'Reserva cancelada com sucesso',
+        booking: {
+          id: updatedBooking.id,
+          status: updatedBooking.status,
+          roomName: updatedBooking.room.name,
+        }
+      });
+
+    } catch (error) {
+      console.error('Cancel booking error:', error);
+      return res.status(500).json({ error: 'Erro ao cancelar reserva' });
+    }
+  }
+
+  // Método não permitido
+  res.setHeader('Allow', ['GET', 'PATCH']);
+  return res.status(405).json({ error: `Método ${req.method} não permitido` });
 }

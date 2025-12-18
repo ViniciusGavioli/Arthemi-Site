@@ -1,24 +1,54 @@
+// ===========================================================
+// API: POST /api/payments/create
+// ===========================================================
+// Cria preferência de pagamento no MercadoPago
+
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { createPreference, isMockMode } from '@/lib/mercadopago';
+import { createPaymentPreference, isMockMode } from '@/lib/mercadopago';
 
 const createPaymentSchema = z.object({
-  bookingId: z.string().uuid(),
+  bookingId: z.string().min(1, 'bookingId é obrigatório'),
 });
+
+interface PaymentResponse {
+  success: boolean;
+  type: 'mercadopago' | 'mock';
+  preferenceId?: string;
+  initPoint?: string;
+  sandboxInitPoint?: string;
+  amount?: number;
+  error?: string;
+}
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse<PaymentResponse>
 ) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ 
+      success: false, 
+      type: 'mercadopago',
+      error: 'Método não permitido' 
+    });
   }
 
   try {
-    const { bookingId } = createPaymentSchema.parse(req.body);
+    // 1. Validar input
+    const validation = createPaymentSchema.safeParse(req.body);
+    
+    if (!validation.success) {
+      return res.status(400).json({ 
+        success: false, 
+        type: 'mercadopago',
+        error: validation.error.errors[0].message 
+      });
+    }
 
-    // Buscar booking com dados relacionados
+    const { bookingId } = validation.data;
+
+    // 2. Buscar booking com dados relacionados
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
@@ -29,81 +59,100 @@ export default async function handler(
     });
 
     if (!booking) {
-      return res.status(404).json({ error: 'Reserva não encontrada' });
+      return res.status(404).json({ 
+        success: false, 
+        type: 'mercadopago',
+        error: 'Reserva não encontrada' 
+      });
     }
 
-    if (booking.status !== 'PENDING') {
-      return res.status(400).json({ error: 'Reserva já processada' });
+    if (booking.status === 'CONFIRMED') {
+      return res.status(400).json({ 
+        success: false, 
+        type: 'mercadopago',
+        error: 'Reserva já foi confirmada' 
+      });
     }
 
-    // Calcular valor
+    if (booking.status === 'CANCELLED') {
+      return res.status(400).json({ 
+        success: false, 
+        type: 'mercadopago',
+        error: 'Reserva foi cancelada' 
+      });
+    }
+
+    // 3. Calcular valor
     const hours = Math.ceil(
       (booking.endTime.getTime() - booking.startTime.getTime()) / (1000 * 60 * 60)
     );
-    const unitPrice = booking.product?.price || booking.room.hourlyRate;
-    const totalAmount = unitPrice * hours;
+    
+    // Se tem produto, usa preço do produto. Senão, calcula por hora
+    let totalAmount: number;
+    let description: string;
+    
+    if (booking.product) {
+      totalAmount = booking.product.price;
+      description = booking.product.name;
+    } else {
+      totalAmount = booking.room.hourlyRate * hours;
+      description = `${hours}h em ${booking.room.name}`;
+    }
 
-    // Se está em modo mock, redirecionar para página de mock
+    // 4. Verificar modo mock
     if (isMockMode()) {
-      // Criar payment pendente no banco
-      const payment = await prisma.payment.create({
-        data: {
-          userId: booking.userId,
-          bookingId: booking.id,
-          externalId: `mock_${Date.now()}`,
-          status: 'PENDING',
-          amount: totalAmount,
-          method: 'mock',
-        },
-      });
-
-      const mockUrl = `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/mock-payment?bookingId=${bookingId}&paymentId=${payment.id}&amount=${totalAmount}`;
+      console.log('🎭 [MOCK] Pagamento simulado para booking:', bookingId);
+      
+      const mockUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/mock-payment?bookingId=${bookingId}&amount=${totalAmount}`;
       
       return res.status(200).json({
+        success: true,
         type: 'mock',
-        paymentId: payment.id,
-        redirectUrl: mockUrl,
+        initPoint: mockUrl,
+        sandboxInitPoint: mockUrl,
         amount: totalAmount,
       });
     }
 
-    // Modo real - criar preferência MercadoPago
-    const preference = await createPreference({
-      title: `Reserva ${booking.room.name} - ${booking.product?.name || 'Hora Avulsa'}`,
-      description: `Reserva de ${hours}h em ${booking.room.name}`,
-      quantity: 1,
-      unit_price: totalAmount,
+    // 5. Criar preferência no MercadoPago REAL
+    const preference = await createPaymentPreference({
       bookingId: booking.id,
+      title: `Reserva ${booking.room.name}`,
+      description: description,
+      unitPrice: totalAmount, // Já em centavos
+      quantity: 1,
+      buyerEmail: booking.user.email,
+      buyerName: booking.user.name,
     });
 
-    // Criar payment pendente
-    const payment = await prisma.payment.create({
+    console.log('💳 [MercadoPago] Preferência criada:', preference.id);
+
+    // 6. Atualizar booking com ID da preferência
+    await prisma.booking.update({
+      where: { id: bookingId },
       data: {
-        userId: booking.userId,
-        bookingId: booking.id,
-        externalId: preference.id,
-        status: 'PENDING',
-        amount: totalAmount,
-        method: 'mercadopago',
+        paymentId: preference.id,
+        paymentStatus: 'PENDING',
       },
     });
 
+    // 7. Retornar URLs de pagamento
     return res.status(200).json({
+      success: true,
       type: 'mercadopago',
-      paymentId: payment.id,
       preferenceId: preference.id,
-      initPoint: preference.init_point,
-      sandboxInitPoint: preference.sandbox_init_point,
+      initPoint: preference.initPoint,
+      sandboxInitPoint: preference.sandboxInitPoint,
       amount: totalAmount,
     });
+
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ 
-        error: 'Dados inválidos', 
-        details: error.errors 
-      });
-    }
-    console.error('Create payment error:', error);
-    return res.status(500).json({ error: 'Erro ao criar pagamento' });
+    console.error('❌ Erro ao criar pagamento:', error);
+    
+    return res.status(500).json({ 
+      success: false, 
+      type: 'mercadopago',
+      error: error instanceof Error ? error.message : 'Erro interno do servidor'
+    });
   }
 }

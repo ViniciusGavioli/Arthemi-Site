@@ -32,10 +32,20 @@ interface RoomCardProps {
 // Subtitulo baseado no slug
 const getSubtitle = (slug: string): string => {
   switch (slug) {
-    case 'sala-a': return 'Grande (com maca)';
-    case 'sala-b': return 'Média (com maca)';
-    case 'sala-c': return 'Pequena (sem maca)';
+    case 'sala-a': return 'Grande · Com maca';
+    case 'sala-b': return 'Média · Com maca';
+    case 'sala-c': return 'Compacta · Sem maca';
     default: return '';
+  }
+};
+
+// Descrição baseada no slug
+const getDescription = (slug: string): string => {
+  switch (slug) {
+    case 'sala-a': return 'Ideal para fisioterapia, massoterapia e procedimentos que precisam de espaço e maca.';
+    case 'sala-b': return 'Perfeita para consultas médicas, nutrição e atendimentos com avaliação física.';
+    case 'sala-c': return 'Ótima para psicologia, terapia e atendimentos focados em conversa.';
+    default: return 'Sala equipada para atendimentos de saúde.';
   }
 };
 
@@ -45,9 +55,9 @@ export default function RoomCard({ room, onReservar }: RoomCardProps) {
   const hourlyPrice = hourlyProduct?.price || room.hourlyRate || 0;
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 group">
+    <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 group border border-warm-200">
       {/* Imagem */}
-      <div className="relative h-48 overflow-hidden bg-gray-200">
+      <div className="relative h-48 overflow-hidden bg-warm-100">
         {room.imageUrl ? (
           <Image
             src={room.imageUrl}
@@ -56,13 +66,13 @@ export default function RoomCard({ room, onReservar }: RoomCardProps) {
             className="object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-100 to-primary-200">
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-warm-100 to-warm-200">
             <span className="text-6xl">🏥</span>
           </div>
         )}
         
         {/* Badge de capacidade */}
-        <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium text-gray-700">
+        <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium text-primary-800">
           👥 {room.capacity} pessoas
         </div>
       </div>
@@ -70,12 +80,12 @@ export default function RoomCard({ room, onReservar }: RoomCardProps) {
       {/* Conteúdo */}
       <div className="p-6">
         <div className="mb-2">
-          <h3 className="text-xl font-bold text-gray-900">{room.name}</h3>
-          <p className="text-sm text-primary-600 font-medium">{getSubtitle(room.slug)}</p>
+          <h3 className="text-xl font-bold text-primary-900">{room.name}</h3>
+          <p className="text-sm text-accent-600 font-medium">{getSubtitle(room.slug)}</p>
         </div>
         
-        <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-          {room.description || 'Sala equipada para atendimentos de saúde.'}
+        <p className="text-secondary-600 text-sm mb-4 line-clamp-2">
+          {room.description || getDescription(room.slug)}
         </p>
 
         {/* Amenidades */}
@@ -83,33 +93,33 @@ export default function RoomCard({ room, onReservar }: RoomCardProps) {
           {room.amenities.slice(0, 4).map((amenity, index) => (
             <span
               key={index}
-              className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded"
+              className="bg-warm-100 text-primary-800 text-xs px-2 py-1 rounded"
             >
               {amenity}
             </span>
           ))}
           {room.amenities.length > 4 && (
-            <span className="text-gray-500 text-xs py-1">
+            <span className="text-secondary-500 text-xs py-1">
               +{room.amenities.length - 4} mais
             </span>
           )}
         </div>
 
         {/* Preço e Botão */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+        <div className="flex items-center justify-between pt-4 border-t border-warm-200">
           <div>
-            <span className="text-sm text-gray-500">A partir de</span>
+            <span className="text-sm text-secondary-500">A partir de</span>
             <div>
-              <span className="text-2xl font-bold text-primary-600">
+              <span className="text-2xl font-bold text-accent-600">
                 {formatCurrency(hourlyPrice)}
               </span>
-              <span className="text-gray-500 text-sm">/hora</span>
+              <span className="text-secondary-500 text-sm">/hora</span>
             </div>
           </div>
           
           <button
             onClick={onReservar}
-            className="bg-primary-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-700 transition-colors"
+            className="bg-accent-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-accent-700 transition-colors"
           >
             Reservar
           </button>

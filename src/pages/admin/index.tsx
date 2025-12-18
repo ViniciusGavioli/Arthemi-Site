@@ -113,7 +113,7 @@ export default function AdminPage() {
   }
 
   // Atualizar status da reserva
-  async function updateBookingStatus(bookingId: string, status: string) {
+  async function updateBookingStatus(bookingId: string, status: string): Promise<void> {
     try {
       const res = await fetch(`/api/admin/bookings/${bookingId}`, {
         method: 'PATCH',
@@ -122,7 +122,7 @@ export default function AdminPage() {
       });
 
       if (res.ok) {
-        fetchBookings();
+        await fetchBookings();
         setSelectedBooking(null);
       }
     } catch (error) {
@@ -146,12 +146,22 @@ export default function AdminPage() {
               </h1>
               <span className="text-sm text-gray-500">Espaço Arthemi</span>
             </div>
-            <button
-              onClick={() => router.push('/')}
-              className="text-gray-600 hover:text-gray-800"
-            >
-              ← Voltar ao site
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => router.push('/')}
+                className="text-gray-600 hover:text-gray-800"
+              >
+                ← Voltar ao site
+              </button>
+              <button
+                onClick={() => {
+                  window.location.href = '/api/admin/auth/logout';
+                }}
+                className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-600 transition"
+              >
+                Sair
+              </button>
+            </div>
           </div>
         </header>
 
@@ -330,8 +340,19 @@ function BookingDetailModal({
   onClose: () => void;
   onUpdateStatus: (id: string, status: string) => void;
 }) {
+  const [updating, setUpdating] = useState<string | null>(null);
   const startDate = new Date(booking.startTime);
   const endDate = new Date(booking.endTime);
+
+  // Handler com loading
+  const handleUpdateStatus = async (status: string) => {
+    setUpdating(status);
+    try {
+      await onUpdateStatus(booking.id, status);
+    } finally {
+      setUpdating(null);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -422,18 +443,34 @@ function BookingDetailModal({
             <p className="text-sm font-medium text-gray-700 mb-2">Ações</p>
             {booking.status !== 'CONFIRMED' && (
               <button
-                onClick={() => onUpdateStatus(booking.id, 'CONFIRMED')}
-                className="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-medium transition-colors"
+                onClick={() => handleUpdateStatus('CONFIRMED')}
+                disabled={updating !== null}
+                className={`w-full py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
+                  updating !== null
+                    ? 'bg-gray-400 cursor-not-allowed text-white'
+                    : 'bg-green-500 hover:bg-green-600 text-white'
+                }`}
               >
-                ✓ Confirmar Reserva
+                {updating === 'CONFIRMED' && (
+                  <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                )}
+                {updating === 'CONFIRMED' ? 'Confirmando...' : '✓ Confirmar Reserva'}
               </button>
             )}
             {booking.status !== 'CANCELLED' && (
               <button
-                onClick={() => onUpdateStatus(booking.id, 'CANCELLED')}
-                className="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-medium transition-colors"
+                onClick={() => handleUpdateStatus('CANCELLED')}
+                disabled={updating !== null}
+                className={`w-full py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
+                  updating !== null
+                    ? 'bg-gray-400 cursor-not-allowed text-white'
+                    : 'bg-red-500 hover:bg-red-600 text-white'
+                }`}
               >
-                ✗ Cancelar Reserva
+                {updating === 'CANCELLED' && (
+                  <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                )}
+                {updating === 'CANCELLED' ? 'Cancelando...' : '✗ Cancelar Reserva'}
               </button>
             )}
             {booking.user.phone && (
@@ -441,14 +478,23 @@ function BookingDetailModal({
                 href={`https://wa.me/55${booking.user.phone.replace(/\D/g, '')}?text=Olá ${booking.user.name}! Sobre sua reserva no Espaço Arthemi...`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block w-full text-center bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-medium transition-colors"
+                className={`block w-full text-center py-2 rounded-lg font-medium transition-colors ${
+                  updating !== null
+                    ? 'bg-gray-300 cursor-not-allowed text-gray-500 pointer-events-none'
+                    : 'bg-green-600 hover:bg-green-700 text-white'
+                }`}
               >
                 💬 WhatsApp
               </a>
             )}
             <button
               onClick={onClose}
-              className="w-full border border-gray-300 text-gray-600 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              disabled={updating !== null}
+              className={`w-full border py-2 rounded-lg font-medium transition-colors ${
+                updating !== null
+                  ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                  : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+              }`}
             >
               Fechar
             </button>

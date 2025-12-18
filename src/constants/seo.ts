@@ -10,7 +10,7 @@ export const SITE_CONFIG = {
   tagline: 'Coworking de Saúde em Belo Horizonte',
   
   // URL do site (sem barra no final)
-  url: process.env.NEXT_PUBLIC_APP_URL || 'https://espacoarthemi.com.br',
+  url: process.env.NEXT_PUBLIC_APP_URL || 'https://arthemisaude.com',
   
   // Imagem padrão para Open Graph (1200x630 recomendado)
   // TODO: Criar imagem og-image.jpg (1200x630) com logo + tagline
@@ -45,12 +45,12 @@ export const BUSINESS_INFO = {
   // Contato
   phone: '+55 31 99999-9999', // TODO: Atualizar com telefone real
   whatsapp: '5531999999999',
-  email: 'contato@espacoarthemi.com.br',
+  email: 'contato@arthemisaude.com',
   
   // Redes sociais
   social: {
-    instagram: 'https://instagram.com/espacoarthemi',
-    facebook: 'https://facebook.com/espacoarthemi',
+    instagram: 'https://instagram.com/arthemisaude',
+    facebook: 'https://facebook.com/arthemisaude',
     // whatsapp link gerado dinamicamente
   },
   

@@ -10,7 +10,7 @@ import { SITE_CONFIG, BUSINESS_INFO, getFullUrl, getOgImageUrl } from '@/constan
 import '../styles/globals.css';
 
 // Domínio do Plausible (configurável via env)
-const PLAUSIBLE_DOMAIN = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || 'espacoarthemi.com.br';
+const PLAUSIBLE_DOMAIN = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || 'arthemisaude.com';
 const PLAUSIBLE_SCRIPT = process.env.NEXT_PUBLIC_PLAUSIBLE_SCRIPT || 'https://plausible.io/js/script.js';
 
 export default function App({ Component, pageProps }: AppProps) {

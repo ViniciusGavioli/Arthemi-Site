@@ -111,7 +111,6 @@ export default async function handler(
         status: 'CONFIRMED',
         paymentStatus: 'APPROVED',
         paymentId: payment.id,
-        paidAt: new Date(),
       },
     });
 

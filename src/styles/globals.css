@@ -15,6 +15,7 @@
 
 /* iOS Safari fixes */
 html {
+  text-size-adjust: 100%;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
 }
@@ -40,15 +41,14 @@ body {
 @supports (-webkit-touch-callout: none) {
   html {
     scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
   }
 }
 
 /* Fix para 100vh no iOS */
 .min-h-screen-ios {
   min-height: 100vh;
-  min-height: 100svh;
   min-height: -webkit-fill-available;
+  min-height: 100svh;
 }
 
 /* Inputs - previne zoom no iOS (mínimo 16px) */

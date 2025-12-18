@@ -260,7 +260,7 @@ export default function RoomGalleryModal({ isOpen, onClose, room }: RoomGalleryM
         <div className="p-3 sm:p-4 border-t border-warm-200 bg-white pb-safe">
           <Link
             href="/salas"
-            className="block w-full bg-gradient-to-r from-accent-600 to-accent-700 text-white text-center py-3 min-h-[48px] rounded-xl font-semibold hover:shadow-lg hover:shadow-accent-500/30 transition-all active:scale-[0.98] flex items-center justify-center"
+            className="w-full bg-gradient-to-r from-accent-600 to-accent-700 text-white text-center py-3 min-h-[48px] rounded-xl font-semibold hover:shadow-lg hover:shadow-accent-500/30 transition-all active:scale-[0.98] flex items-center justify-center"
           >
             Ver Preços e Reservar
           </Link>

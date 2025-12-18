@@ -99,7 +99,7 @@ export default function TermosPage() {
 
               <h3 className="text-xl font-medium mt-6 mb-3">3.3 Pagamento</h3>
               <p>
-                O pagamento é processado pelo <strong>MercadoPago</strong> no momento da reserva. 
+                O pagamento é processado via <strong>PIX</strong> no momento da reserva. 
                 Aceitamos cartão de crédito, débito, Pix e boleto (quando disponível).
               </p>
             </section>

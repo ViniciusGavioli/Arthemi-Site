@@ -4,7 +4,7 @@ import Head from 'next/head';
 
 /**
  * Página de Mock Payment para testes locais
- * Simula o checkout do MercadoPago
+ * Simula o checkout do Asaas (PIX)
  */
 export default function MockPaymentPage() {
   const router = useRouter();
@@ -178,7 +178,7 @@ export default function MockPaymentPage() {
                 Este é um ambiente de teste. Nenhuma cobrança real será feita.
               </p>
               <p className="mt-1">
-                Em produção, você será redirecionado ao MercadoPago.
+                Em produção, você verá o QR Code PIX do Asaas.
               </p>
             </div>
           </div>

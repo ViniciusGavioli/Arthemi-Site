@@ -65,17 +65,6 @@ export const createUserSchema = z.object({
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 
-// ---- Webhook MercadoPago ----
-
-export const mercadopagoWebhookSchema = z.object({
-  type: z.string(),
-  data: z.object({
-    id: z.string(),
-  }),
-});
-
-export type MercadopagoWebhookInput = z.infer<typeof mercadopagoWebhookSchema>;
-
 // ---- Mock Payment ----
 
 export const mockPaymentSchema = z.object({

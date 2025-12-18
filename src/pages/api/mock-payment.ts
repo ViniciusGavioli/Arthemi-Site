@@ -13,7 +13,7 @@ export default async function handler(
   }
 
   // Verificar se está em modo mock
-  if (process.env.MOCK_PAYMENTS !== 'true' && process.env.MERCADOPAGO_ACCESS_TOKEN) {
+  if (process.env.ASAAS_MOCK_MODE !== 'true' && process.env.ASAAS_API_KEY) {
     return res.status(403).json({ 
       error: 'Mock payments não habilitado em ambiente de produção' 
     });

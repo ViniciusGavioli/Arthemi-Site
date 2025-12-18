@@ -79,7 +79,7 @@ export default function PrivacidadePage() {
               <h3 className="text-xl font-medium mt-6 mb-3">2.3 Dados de pagamento</h3>
               <p>
                 Não armazenamos dados de cartão de crédito ou dados bancários. Os pagamentos são 
-                processados integralmente pelo <strong>MercadoPago</strong>, que possui sua própria 
+                processados integralmente pelo <strong>Asaas</strong>, que possui sua própria 
                 política de privacidade. Apenas recebemos confirmação de pagamento (aprovado/recusado) 
                 e o ID da transação.
               </p>
@@ -119,7 +119,7 @@ export default function PrivacidadePage() {
               <p>Seus dados podem ser compartilhados apenas com:</p>
               <ul className="list-disc pl-6 space-y-2">
                 <li>
-                  <strong>MercadoPago</strong> — processador de pagamentos. Recebe apenas os dados 
+                  <strong>Asaas</strong> — processador de pagamentos PIX. Recebe apenas os dados 
                   necessários para processar o pagamento (nome, e-mail, valor).
                 </li>
                 <li>

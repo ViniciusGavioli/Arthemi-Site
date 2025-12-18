@@ -24,7 +24,7 @@ MVP funcional para o site do Espaço Arthemi, um coworking especializado em prof
 - ✅ **Listagem pública de 3 salas** (Sala A/B/C) com fotos e preços V3
 - ✅ **Sistema de reservas** com validação de disponibilidade server-side
 - ✅ **Frontend de reserva** com seletor de data/hora
-- ✅ **Integração MercadoPago** (com modo mock para desenvolvimento)
+- ✅ **Integração Asaas** (PIX nativo com modo mock para desenvolvimento)
 - ✅ **Painel Admin** com calendário FullCalendar
 - ✅ **Regras de negócio essenciais**:
   - Validade de pacotes (90/180 dias)
@@ -46,7 +46,7 @@ MVP funcional para o site do Espaço Arthemi, um coworking especializado em prof
 | TailwindCSS | 3.4 | Estilização |
 | Prisma | 6.x | ORM |
 | PostgreSQL | 15+ | Banco de dados |
-| MercadoPago | 2.x | Pagamentos |
+| Asaas API | v3 | Pagamentos PIX |
 | FullCalendar | 6.x | Calendário admin |
 | Jest | 29.x | Testes unitários |
 | Playwright | 1.x | Testes E2E |
@@ -89,8 +89,9 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/arthemi?schema=publi
 # App
 NEXT_PUBLIC_URL="http://localhost:3000"
 
-# MercadoPago (opcional - funciona em modo mock sem isso)
-MERCADOPAGO_ACCESS_TOKEN=""
+# Asaas (opcional - funciona em modo mock sem isso)
+ASAAS_API_KEY=""
+ASAAS_MOCK_MODE="true"
 
 # Modo de pagamento simulado (true para desenvolvimento)
 MOCK_PAYMENTS="true"
@@ -177,7 +178,7 @@ arthemi-site/
 │   ├── lib/
 │   │   ├── availability.ts     # Verificação de disponibilidade
 │   │   ├── business-rules.ts   # Regras de negócio
-│   │   ├── mercadopago.ts      # Cliente MercadoPago
+│   │   ├── asaas.ts            # Cliente Asaas (PIX)
 │   │   ├── prisma.ts           # Cliente Prisma
 │   │   ├── utils.ts            # Utilitários
 │   │   └── validations.ts      # Schemas Zod
@@ -232,7 +233,7 @@ arthemi-site/
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
 | POST | `/api/payments/create` | Cria preferência de pagamento |
-| POST | `/api/payments/webhook` | Webhook MercadoPago |
+| POST | `/api/webhooks/asaas` | Webhook Asaas (PIX) |
 | POST | `/api/mock-payment` | Processa pagamento mock |
 
 ### Admin

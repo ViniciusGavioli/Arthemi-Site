@@ -1,12 +1,12 @@
 // ===========================================================
 // API: POST /api/payments/create
 // ===========================================================
-// Cria preferência de pagamento no MercadoPago
+// Cria cobrança PIX no Asaas para uma reserva
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { createPaymentPreference, isMockMode } from '@/lib/mercadopago';
+import { createBookingPayment, isMockMode, PixQrCode } from '@/lib/asaas';
 
 const createPaymentSchema = z.object({
   bookingId: z.string().min(1, 'bookingId é obrigatório'),
@@ -14,10 +14,11 @@ const createPaymentSchema = z.object({
 
 interface PaymentResponse {
   success: boolean;
-  type: 'mercadopago' | 'mock';
-  preferenceId?: string;
-  initPoint?: string;
-  sandboxInitPoint?: string;
+  type: 'asaas' | 'mock';
+  paymentId?: string;
+  invoiceUrl?: string;
+  pixQrCode?: PixQrCode;
+  pixCopyPaste?: string;
   amount?: number;
   error?: string;
 }
@@ -29,7 +30,7 @@ export default async function handler(
   if (req.method !== 'POST') {
     return res.status(405).json({ 
       success: false, 
-      type: 'mercadopago',
+      type: 'asaas',
       error: 'Método não permitido' 
     });
   }
@@ -41,7 +42,7 @@ export default async function handler(
     if (!validation.success) {
       return res.status(400).json({ 
         success: false, 
-        type: 'mercadopago',
+        type: 'asaas',
         error: validation.error.errors[0].message 
       });
     }
@@ -61,7 +62,7 @@ export default async function handler(
     if (!booking) {
       return res.status(404).json({ 
         success: false, 
-        type: 'mercadopago',
+        type: 'asaas',
         error: 'Reserva não encontrada' 
       });
     }
@@ -69,7 +70,7 @@ export default async function handler(
     if (booking.status === 'CONFIRMED') {
       return res.status(400).json({ 
         success: false, 
-        type: 'mercadopago',
+        type: 'asaas',
         error: 'Reserva já foi confirmada' 
       });
     }
@@ -77,17 +78,16 @@ export default async function handler(
     if (booking.status === 'CANCELLED') {
       return res.status(400).json({ 
         success: false, 
-        type: 'mercadopago',
+        type: 'asaas',
         error: 'Reserva foi cancelada' 
       });
     }
 
-    // 3. Calcular valor
+    // 3. Calcular valor e descrição
     const hours = Math.ceil(
       (booking.endTime.getTime() - booking.startTime.getTime()) / (1000 * 60 * 60)
     );
     
-    // Se tem produto, usa preço do produto. Senão, calcula por hora
     let totalAmount: number;
     let description: string;
     
@@ -99,7 +99,7 @@ export default async function handler(
       description = `${hours}h em ${booking.room.name}`;
     }
 
-    // 4. Verificar modo mock
+    // 4. Modo mock
     if (isMockMode()) {
       console.log('🎭 [MOCK] Pagamento simulado para booking:', bookingId);
       
@@ -108,41 +108,41 @@ export default async function handler(
       return res.status(200).json({
         success: true,
         type: 'mock',
-        initPoint: mockUrl,
-        sandboxInitPoint: mockUrl,
+        invoiceUrl: mockUrl,
+        pixCopyPaste: `00020126580014br.gov.bcb.pix0136mock-${bookingId}520400005303986540${(totalAmount / 100).toFixed(2)}5802BR6009SAO PAULO62070503***6304MOCK`,
         amount: totalAmount,
       });
     }
 
-    // 5. Criar preferência no MercadoPago REAL
-    const preference = await createPaymentPreference({
+    // 5. Criar cobrança PIX no Asaas
+    const result = await createBookingPayment({
       bookingId: booking.id,
-      title: `Reserva ${booking.room.name}`,
-      description: description,
-      unitPrice: totalAmount, // Já em centavos
-      quantity: 1,
-      buyerEmail: booking.user.email,
-      buyerName: booking.user.name,
+      customerName: booking.user.name,
+      customerEmail: booking.user.email,
+      customerPhone: booking.user.phone || '',
+      value: totalAmount, // Em centavos
+      description: `Reserva Espaço Arthemi - ${description}`,
     });
 
-    console.log('💳 [MercadoPago] Preferência criada:', preference.id);
+    console.log('💳 [Asaas] Cobrança criada:', result.paymentId);
 
-    // 6. Atualizar booking com ID da preferência
+    // 6. Atualizar booking com ID do pagamento
     await prisma.booking.update({
       where: { id: bookingId },
       data: {
-        paymentId: preference.id,
+        paymentId: result.paymentId,
         paymentStatus: 'PENDING',
       },
     });
 
-    // 7. Retornar URLs de pagamento
+    // 7. Retornar dados do pagamento
     return res.status(200).json({
       success: true,
-      type: 'mercadopago',
-      preferenceId: preference.id,
-      initPoint: preference.initPoint,
-      sandboxInitPoint: preference.sandboxInitPoint,
+      type: 'asaas',
+      paymentId: result.paymentId,
+      invoiceUrl: result.invoiceUrl,
+      pixQrCode: result.pixQrCode,
+      pixCopyPaste: result.pixQrCode?.payload,
       amount: totalAmount,
     });
 
@@ -151,7 +151,7 @@ export default async function handler(
     
     return res.status(500).json({ 
       success: false, 
-      type: 'mercadopago',
+      type: 'asaas',
       error: error instanceof Error ? error.message : 'Erro interno do servidor'
     });
   }

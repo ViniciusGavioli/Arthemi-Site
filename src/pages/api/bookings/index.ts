@@ -6,7 +6,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { isAvailable } from '@/lib/availability';
-import { createPaymentPreference } from '@/lib/mercadopago';
+import { createBookingPayment } from '@/lib/asaas';
 import { brazilianPhone } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
 
@@ -164,23 +164,22 @@ export default async function handler(
 
     if (data.payNow) {
       try {
-        const preference = await createPaymentPreference({
+        const paymentResult = await createBookingPayment({
           bookingId: booking.id,
-          title: `Reserva ${room.name} - Espaço Arthemi`,
-          description: `${hours}h em ${room.name}`,
-          unitPrice: amount,
-          quantity: 1,
-          buyerEmail: data.userEmail || `${data.userPhone}@placeholder.com`,
-          buyerName: data.userName,
+          customerName: data.userName,
+          customerEmail: data.userEmail || `${data.userPhone}@placeholder.com`,
+          customerPhone: data.userPhone,
+          value: amount, // Em centavos
+          description: `Reserva ${room.name} - ${hours}h`,
         });
 
-        paymentUrl = preference.initPoint;
+        paymentUrl = paymentResult.invoiceUrl;
 
-        // Atualizar booking com ID da preferência
+        // Atualizar booking com ID do pagamento
         await prisma.booking.update({
           where: { id: booking.id },
           data: {
-            paymentId: preference.id,
+            paymentId: paymentResult.paymentId,
           },
         });
 
@@ -191,12 +190,12 @@ export default async function handler(
             userId: user.id,
             amount,
             status: 'PENDING',
-            externalId: preference.id,
-            externalUrl: preference.initPoint,
+            externalId: paymentResult.paymentId,
+            externalUrl: paymentResult.invoiceUrl,
           },
         });
       } catch (paymentError) {
-        console.error('Erro ao criar preferência de pagamento:', paymentError);
+        console.error('Erro ao criar cobrança Asaas:', paymentError);
         // Booking foi criado, mas sem link de pagamento
       }
     }

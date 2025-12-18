@@ -51,16 +51,30 @@ const ENV_CONFIG: EnvVarConfig[] = [
     errorMessage: 'ADMIN_SESSION_SECRET deve ter pelo menos 16 caracteres',
   },
   
-  // === PAGAMENTOS (obrigatórias se MOCK_PAYMENTS=false) ===
+  // === PAGAMENTOS ASAAS (obrigatórias se ASAAS_MOCK_MODE=false) ===
   {
-    name: 'MERCADOPAGO_ACCESS_TOKEN',
+    name: 'ASAAS_API_KEY',
     required: false, // Validado condicionalmente
     sensitive: true,
   },
   {
-    name: 'MERCADOPAGO_PUBLIC_KEY',
-    required: false, // Validado condicionalmente
+    name: 'ASAAS_WEBHOOK_TOKEN',
+    required: false,
     sensitive: true,
+  },
+  {
+    name: 'ASAAS_SANDBOX',
+    required: false,
+    devDefault: 'true',
+    validator: (v) => v === 'true' || v === 'false',
+    errorMessage: 'ASAAS_SANDBOX deve ser "true" ou "false"',
+  },
+  {
+    name: 'ASAAS_MOCK_MODE',
+    required: false,
+    devDefault: 'true',
+    validator: (v) => v === 'true' || v === 'false',
+    errorMessage: 'ASAAS_MOCK_MODE deve ser "true" ou "false"',
   },
   
   // === CONFIGURAÇÃO ===
@@ -70,13 +84,6 @@ const ENV_CONFIG: EnvVarConfig[] = [
     devDefault: 'http://localhost:3000',
     validator: (v) => v.startsWith('http://') || v.startsWith('https://'),
     errorMessage: 'NEXT_PUBLIC_APP_URL deve ser uma URL válida',
-  },
-  {
-    name: 'MOCK_PAYMENTS',
-    required: false,
-    devDefault: 'true',
-    validator: (v) => v === 'true' || v === 'false',
-    errorMessage: 'MOCK_PAYMENTS deve ser "true" ou "false"',
   },
   
   // === EMAIL (opcional, mas recomendado em produção) ===
@@ -135,31 +142,33 @@ function validateEnvVar(config: EnvVarConfig): { error?: string; warning?: strin
 }
 
 /**
- * Validação especial para MercadoPago
- * Só é obrigatório se MOCK_PAYMENTS=false
+ * Validação especial para Asaas
+ * Só é obrigatório se ASAAS_MOCK_MODE=false
  */
-function validateMercadoPago(): { errors: string[]; warnings: string[] } {
+function validateAsaas(): { errors: string[]; warnings: string[] } {
   const errors: string[] = [];
   const warnings: string[] = [];
   
-  const mockPayments = process.env.MOCK_PAYMENTS;
-  const isMockMode = mockPayments === 'true' || !process.env.MERCADOPAGO_ACCESS_TOKEN;
+  const isMockMode = process.env.ASAAS_MOCK_MODE === 'true' || !process.env.ASAAS_API_KEY;
   
   if (isMockMode) {
-    warnings.push('⚠️  MOCK_PAYMENTS ativo - pagamentos simulados');
+    warnings.push('⚠️  ASAAS_MOCK_MODE ativo - pagamentos simulados (PIX mock)');
     return { errors, warnings };
   }
   
   // Modo real - validar credenciais
-  if (!process.env.MERCADOPAGO_ACCESS_TOKEN) {
-    errors.push('❌ MERCADOPAGO_ACCESS_TOKEN obrigatório quando MOCK_PAYMENTS=false');
-  } else if (!process.env.MERCADOPAGO_ACCESS_TOKEN.startsWith('APP_USR-') &&
-             !process.env.MERCADOPAGO_ACCESS_TOKEN.startsWith('TEST-')) {
-    errors.push('❌ MERCADOPAGO_ACCESS_TOKEN inválido (deve começar com APP_USR- ou TEST-)');
+  if (!process.env.ASAAS_API_KEY) {
+    errors.push('❌ ASAAS_API_KEY obrigatório quando ASAAS_MOCK_MODE=false');
+  } else if (!process.env.ASAAS_API_KEY.startsWith('$aact_')) {
+    warnings.push('⚠️  ASAAS_API_KEY parece inválida (deve começar com $aact_)');
   }
   
-  if (!process.env.MERCADOPAGO_PUBLIC_KEY) {
-    warnings.push('⚠️  MERCADOPAGO_PUBLIC_KEY não definida (necessária para checkout frontend)');
+  if (!process.env.ASAAS_WEBHOOK_TOKEN) {
+    warnings.push('⚠️  ASAAS_WEBHOOK_TOKEN não definido - webhooks não autenticados');
+  }
+  
+  if (process.env.ASAAS_SANDBOX === 'true') {
+    warnings.push('⚠️  ASAAS_SANDBOX ativo - usando ambiente de testes');
   }
   
   return { errors, warnings };
@@ -176,18 +185,18 @@ export function validateEnv(): ValidationResult {
   
   // Validar cada variável configurada
   for (const config of ENV_CONFIG) {
-    // Pular MercadoPago (validação especial)
-    if (config.name.startsWith('MERCADOPAGO_')) continue;
+    // Pular Asaas (validação especial)
+    if (config.name.startsWith('ASAAS_')) continue;
     
     const result = validateEnvVar(config);
     if (result.error) errors.push(result.error);
     if (result.warning) warnings.push(result.warning);
   }
   
-  // Validação especial MercadoPago
-  const mpResult = validateMercadoPago();
-  errors.push(...mpResult.errors);
-  warnings.push(...mpResult.warnings);
+  // Validação especial Asaas
+  const asaasResult = validateAsaas();
+  errors.push(...asaasResult.errors);
+  warnings.push(...asaasResult.warnings);
   
   // Mostrar resultados
   if (warnings.length > 0) {
@@ -248,20 +257,23 @@ export const env = {
     return process.env.ADMIN_SESSION_SECRET || 'dev-secret-change-in-production';
   },
   
-  // MercadoPago
-  get MERCADOPAGO_ACCESS_TOKEN(): string {
-    return process.env.MERCADOPAGO_ACCESS_TOKEN || '';
+  // Asaas
+  get ASAAS_API_KEY(): string {
+    return process.env.ASAAS_API_KEY || '';
   },
-  get MERCADOPAGO_PUBLIC_KEY(): string {
-    return process.env.MERCADOPAGO_PUBLIC_KEY || '';
+  get ASAAS_WEBHOOK_TOKEN(): string {
+    return process.env.ASAAS_WEBHOOK_TOKEN || '';
+  },
+  get ASAAS_SANDBOX(): boolean {
+    return process.env.ASAAS_SANDBOX === 'true';
+  },
+  get ASAAS_MOCK_MODE(): boolean {
+    return process.env.ASAAS_MOCK_MODE === 'true' || !process.env.ASAAS_API_KEY;
   },
   
   // App
   get NEXT_PUBLIC_APP_URL(): string {
     return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  },
-  get MOCK_PAYMENTS(): boolean {
-    return process.env.MOCK_PAYMENTS === 'true' || !process.env.MERCADOPAGO_ACCESS_TOKEN;
   },
   
   // Meta

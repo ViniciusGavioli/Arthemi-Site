@@ -49,27 +49,32 @@ const getDescription = (slug: string): string => {
   }
 };
 
+// Imagem principal de cada sala
+const getRoomImage = (slug: string): string => {
+  switch (slug) {
+    case 'sala-a': return '/images/sala-a/foto-1.jpeg';
+    case 'sala-b': return '/images/sala-b/02-1.jpeg';
+    case 'sala-c': return '/images/sala-c/03-1.jpeg';
+    default: return '/images/hero/banner.jpeg';
+  }
+};
+
 export default function RoomCard({ room, onReservar }: RoomCardProps) {
   // Pega o preço da hora avulsa do produto ou do hourlyRate da sala
   const hourlyProduct = room.products?.find(p => p.type === 'HOURLY_RATE');
   const hourlyPrice = hourlyProduct?.price || room.hourlyRate || 0;
+  const imageUrl = getRoomImage(room.slug);
 
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 group border border-warm-200">
       {/* Imagem */}
       <div className="relative h-48 overflow-hidden bg-warm-100">
-        {room.imageUrl ? (
-          <Image
-            src={room.imageUrl}
-            alt={room.name}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-warm-100 to-warm-200">
-            <span className="text-6xl">🏥</span>
-          </div>
-        )}
+        <Image
+          src={imageUrl}
+          alt={room.name}
+          fill
+          className="object-cover group-hover:scale-105 transition-transform duration-300"
+        />
         
         {/* Badge de capacidade */}
         <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium text-primary-800">

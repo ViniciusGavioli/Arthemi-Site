@@ -2,10 +2,12 @@
 // Home Page - Espaço Arthemi (Design Premium)
 // ===========================================================
 
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import SEO from '@/components/SEO';
 import Layout from '@/components/Layout';
+import RoomGalleryModal from '@/components/RoomGalleryModal';
 import { PAGE_SEO } from '@/constants/seo';
 import { 
   Sparkles, 
@@ -23,9 +25,37 @@ import {
   Stethoscope,
   Brain,
   Leaf,
+  Eye,
 } from 'lucide-react';
 
+// Dados das salas para o modal
+const roomsData = [
+  {
+    name: 'Sala A',
+    slug: 'sala-a',
+    description: 'Grande · Com maca',
+    features: ['Espaçosa', 'Maca profissional', 'Ar-condicionado', 'Pia com água quente', 'Armário', 'Boa iluminação'],
+    price: 'R$ 59,99',
+  },
+  {
+    name: 'Sala B',
+    slug: 'sala-b',
+    description: 'Média · Com maca',
+    features: ['Tamanho médio', 'Maca profissional', 'Ar-condicionado', 'Pia', 'Armário', 'Ambiente acolhedor'],
+    price: 'R$ 49,99',
+  },
+  {
+    name: 'Sala C',
+    slug: 'sala-c',
+    description: 'Compacta · Sem maca',
+    features: ['Compacta e funcional', 'Cadeiras confortáveis', 'Ar-condicionado', 'Mesa de atendimento', 'Ambiente privativo'],
+    price: 'R$ 39,99',
+  },
+];
+
 export default function Home() {
+  const [selectedRoom, setSelectedRoom] = useState<typeof roomsData[0] | null>(null);
+
   return (
     <>
       <SEO
@@ -37,10 +67,10 @@ export default function Home() {
 
       <Layout headerVariant="fixed" className="overflow-x-hidden">
         {/* Hero Section - Full Impact */}
-        <section className="relative min-h-screen flex items-center pt-16 overflow-hidden">
+        <section className="relative min-h-[100svh] flex items-center pt-20 pb-8 overflow-hidden">
           {/* Background Image */}
           <Image 
-            src="/images/IMG-20251217-WA0136.jpg" 
+            src="/images/hero/banner.jpeg" 
             alt="Espaço Arthemi"
             fill
             className="object-cover"
@@ -92,17 +122,17 @@ export default function Home() {
               </p>
 
               {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12 px-4">
                 <Link
                   href="/salas"
-                  className="group bg-gradient-to-r from-accent-600 to-accent-700 text-white px-8 py-4 rounded-full font-bold text-lg hover:shadow-2xl hover:shadow-accent-500/30 transition-all duration-300 hover:-translate-y-1 flex items-center justify-center gap-2"
+                  className="group bg-gradient-to-r from-accent-600 to-accent-700 text-white px-8 py-4 min-h-[52px] rounded-full font-bold text-lg hover:shadow-2xl hover:shadow-accent-500/30 transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                   Ver Salas e Preços
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <Link
                   href="/como-funciona"
-                  className="bg-warm-100 text-primary-800 px-8 py-4 rounded-full font-bold text-lg border-2 border-warm-300 hover:border-accent-400 hover:text-accent-700 transition-all duration-300 flex items-center justify-center gap-2"
+                  className="bg-warm-100 text-primary-800 px-8 py-4 min-h-[52px] rounded-full font-bold text-lg border-2 border-warm-300 hover:border-accent-400 hover:text-accent-700 transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                   <Calendar className="w-5 h-5" />
                   Como Funciona
@@ -297,15 +327,25 @@ export default function Home() {
             
             <div className="grid md:grid-cols-3 gap-8">
               {/* Sala A */}
-              <div className="group relative rounded-3xl overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white border border-warm-200">
+              <div 
+                className="group relative rounded-3xl overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white border border-warm-200 cursor-pointer"
+                onClick={() => setSelectedRoom(roomsData[0])}
+              >
                 <div className="relative w-full h-48">
                   <Image 
-                    src="/images/IMG-20251217-WA0141.jpg" 
+                    src="/images/sala-a/foto-1.jpeg" 
                     alt="Sala A"
                     fill
-                    className="object-cover"
+                    className="object-cover group-hover:scale-105 transition-transform duration-500"
                     sizes="(max-width: 768px) 100vw, 33vw"
                   />
+                  {/* Overlay com botão Ver Fotos */}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white text-primary-800 px-4 py-2 rounded-full font-semibold flex items-center gap-2">
+                      <Eye className="w-4 h-4" />
+                      Ver Fotos
+                    </span>
+                  </div>
                 </div>
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-3">
@@ -327,18 +367,28 @@ export default function Home() {
               </div>
               
               {/* Sala B - Featured */}
-              <div className="group relative rounded-3xl overflow-hidden hover:shadow-2xl hover:shadow-accent-500/30 transition-all duration-500 hover:-translate-y-2 md:scale-105 bg-white border-2 border-accent-500">
+              <div 
+                className="group relative rounded-3xl overflow-hidden hover:shadow-2xl hover:shadow-accent-500/30 transition-all duration-500 hover:-translate-y-2 md:scale-105 bg-white border-2 border-accent-500 cursor-pointer"
+                onClick={() => setSelectedRoom(roomsData[1])}
+              >
                 <div className="absolute -top-px left-1/2 -translate-x-1/2 bg-accent-600 text-white px-4 py-1 rounded-b-lg text-sm font-bold z-10">
                   Mais popular
                 </div>
                 <div className="relative w-full h-48">
                   <Image 
-                    src="/images/IMG-20251217-WA0140.jpg" 
+                    src="/images/sala-b/02-1.jpeg" 
                     alt="Sala B"
                     fill
-                    className="object-cover"
+                    className="object-cover group-hover:scale-105 transition-transform duration-500"
                     sizes="(max-width: 768px) 100vw, 33vw"
                   />
+                  {/* Overlay com botão Ver Fotos */}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white text-primary-800 px-4 py-2 rounded-full font-semibold flex items-center gap-2">
+                      <Eye className="w-4 h-4" />
+                      Ver Fotos
+                    </span>
+                  </div>
                 </div>
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-3">
@@ -360,15 +410,25 @@ export default function Home() {
               </div>
               
               {/* Sala C */}
-              <div className="group relative rounded-3xl overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white border border-warm-200">
+              <div 
+                className="group relative rounded-3xl overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white border border-warm-200 cursor-pointer"
+                onClick={() => setSelectedRoom(roomsData[2])}
+              >
                 <div className="relative w-full h-48">
                   <Image 
-                    src="/images/IMG-20251217-WA0139.jpg" 
+                    src="/images/sala-c/03-1.jpeg" 
                     alt="Sala C"
                     fill
-                    className="object-cover"
+                    className="object-cover group-hover:scale-105 transition-transform duration-500"
                     sizes="(max-width: 768px) 100vw, 33vw"
                   />
+                  {/* Overlay com botão Ver Fotos */}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white text-primary-800 px-4 py-2 rounded-full font-semibold flex items-center gap-2">
+                      <Eye className="w-4 h-4" />
+                      Ver Fotos
+                    </span>
+                  </div>
                 </div>
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-3">
@@ -419,14 +479,14 @@ export default function Home() {
             
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {[
-                '/images/IMG-20251217-WA0157.jpg',
-                '/images/IMG-20251217-WA0156.jpg',
-                '/images/IMG-20251217-WA0155.jpg',
-                '/images/IMG-20251217-WA0154.jpg',
-                '/images/IMG-20251217-WA0153.jpg',
-                '/images/IMG-20251217-WA0141.jpg',
-                '/images/IMG-20251217-WA0140.jpg',
-                '/images/IMG-20251217-WA0139.jpg',
+                '/images/sala-a/foto-1.jpeg',
+                '/images/sala-a/foto-2.jpeg',
+                '/images/sala-a/foto-3.jpeg',
+                '/images/sala-a/foto-4.jpeg',
+                '/images/sala-c/03-1.jpeg',
+                '/images/sala-c/03-2.jpeg',
+                '/images/espaco/Recepcao.jpeg',
+                '/images/espaco/Recepcao-01.jpeg',
               ].map((src, i) => (
                 <div 
                   key={i} 
@@ -584,6 +644,15 @@ export default function Home() {
           </div>
         </section>
       </Layout>
+
+      {/* Modal de Galeria */}
+      {selectedRoom && (
+        <RoomGalleryModal
+          isOpen={!!selectedRoom}
+          onClose={() => setSelectedRoom(null)}
+          room={selectedRoom}
+        />
+      )}
     </>
   );
 }

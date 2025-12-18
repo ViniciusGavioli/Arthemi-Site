@@ -15,7 +15,7 @@ export const SITE_CONFIG = {
   // Imagem padrão para Open Graph (1200x630 recomendado)
   // TODO: Criar imagem og-image.jpg (1200x630) com logo + tagline
   // Por enquanto usa uma foto do espaço
-  ogImage: '/images/IMG-20251217-WA0141.jpg',
+  ogImage: '/images/hero/banner.jpeg',
   
   // Cores da marca
   themeColor: '#8B7355',

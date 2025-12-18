@@ -33,20 +33,20 @@ export default function Header({ variant = 'sticky' }: HeaderProps) {
   const isActive = (href: string) => router.pathname === href;
   
   const positionClass = variant === 'fixed' 
-    ? 'fixed top-0 left-0 right-0' 
+    ? 'fixed top-0 left-0 right-0 pt-safe' 
     : 'sticky top-0';
 
   return (
     <header className={`${positionClass} z-50 bg-warm-50/90 backdrop-blur-lg border-b border-warm-200`}>
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16 items-center">
+        <div className="flex justify-between min-h-[64px] items-center">
           {/* Logo */}
           <Link href="/" className="flex items-center">
             <Image 
-              src="/images/IMG-20251217-WA0034.jpg" 
+              src="/images/Logo/logo.png" 
               alt="Espaço Arthemi" 
-              width={120}
-              height={48}
+              width={140}
+              height={56}
               className="h-12 w-auto"
               priority
             />
@@ -80,7 +80,7 @@ export default function Header({ variant = 'sticky' }: HeaderProps) {
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="md:hidden p-2"
             aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
-            aria-expanded={mobileMenuOpen ? 'true' : 'false'}
+            aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>

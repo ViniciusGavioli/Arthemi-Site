@@ -215,18 +215,18 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
   // Se reserva foi criada com sucesso
   if (success) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 modal-backdrop">
-        <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center modal-content">
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 modal-backdrop overflow-y-auto">
+        <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 sm:p-8 text-center modal-content my-4">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <span className="text-4xl">✅</span>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Reserva Criada!</h2>
-          <p className="text-gray-600 mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Reserva Criada!</h2>
+          <p className="text-gray-600 mb-6 text-sm sm:text-base">
             Sua reserva foi criada com sucesso. Em breve você receberá uma confirmação.
           </p>
           <button
             onClick={onClose}
-            className="bg-primary-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-700 transition"
+            className="bg-primary-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-700 transition min-h-[48px] w-full sm:w-auto"
           >
             Fechar
           </button>
@@ -237,10 +237,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
 
   return (
     <div 
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 modal-backdrop"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4 modal-backdrop overflow-y-auto"
       onClick={(e) => !submitting && e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto modal-content">
+      <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto modal-content my-2 sm:my-4">
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b">
           <div>
@@ -278,7 +278,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
               value={formData.userName}
               onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
               disabled={submitting}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition text-base ${
                 submitting
                   ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
                   : 'border-gray-300'
@@ -581,15 +581,15 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
           </div>
 
           {/* Botões */}
-          <div className="flex gap-4 pt-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 pb-safe">
             <button
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className={`flex-1 px-4 py-3 border rounded-lg font-semibold transition ${
+              className={`flex-1 px-4 py-3 min-h-[48px] border rounded-lg font-semibold transition text-base ${
                 submitting
                   ? 'border-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                  : 'border-gray-300 text-gray-700 hover:bg-gray-50 active:bg-gray-100'
               }`}
             >
               Cancelar
@@ -597,10 +597,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
             <button
               type="submit"
               disabled={submitting}
-              className={`flex-1 px-4 py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2 ${
+              className={`flex-1 px-4 py-3 min-h-[48px] rounded-lg font-semibold transition flex items-center justify-center gap-2 text-base ${
                 submitting
                   ? 'bg-gray-400 cursor-not-allowed text-white'
-                  : 'bg-primary-600 text-white hover:bg-primary-700'
+                  : 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800'
               }`}
             >
               {submitting && (

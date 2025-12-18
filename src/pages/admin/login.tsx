@@ -53,9 +53,9 @@ export default function AdminLogin() {
           {/* Logo */}
           <div className="text-center mb-8">
             <img 
-              src="/images/IMG-20251217-WA0034.jpg" 
+              src="/images/Logo/logo.png" 
               alt="Espaço Arthemi" 
-              className="h-16 w-auto mx-auto mb-4"
+              className="h-20 w-auto mx-auto mb-4"
             />
             <h1 className="text-2xl font-bold text-primary-900">
               Painel Administrativo

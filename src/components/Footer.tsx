@@ -59,11 +59,11 @@ export default function Footer({ compact = false }: FooterProps) {
           <div className="md:col-span-2">
             <div className="mb-4">
               <Image 
-                src="/images/IMG-20251217-WA0034.jpg" 
+                src="/images/Logo/logo.png" 
                 alt="Espaço Arthemi" 
-                width={140}
-                height={56}
-                className="h-14 w-auto"
+                width={160}
+                height={64}
+                className="h-14 w-auto brightness-0 invert"
               />
             </div>
             <p className="text-warm-500 mb-6 max-w-md">

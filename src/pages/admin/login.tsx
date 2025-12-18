@@ -5,6 +5,7 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import Image from 'next/image';
 
 export default function AdminLogin() {
   const router = useRouter();
@@ -52,10 +53,13 @@ export default function AdminLogin() {
         <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
           {/* Logo */}
           <div className="text-center mb-8">
-            <img 
+            <Image 
               src="/images/Logo/logo.png" 
               alt="Espaço Arthemi" 
+              width={200}
+              height={80}
               className="h-20 w-auto mx-auto mb-4"
+              priority
             />
             <h1 className="text-2xl font-bold text-primary-900">
               Painel Administrativo

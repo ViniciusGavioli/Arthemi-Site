@@ -80,7 +80,7 @@ export default function AdminPage() {
       if (res.ok) {
         const data = await res.json();
         setBookings(data.bookings || []);
-        setStats(data.stats || stats);
+        setStats(s => data.stats || s);
       }
     } catch (error) {
       console.error('Error fetching bookings:', error);

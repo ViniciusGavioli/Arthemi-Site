@@ -178,6 +178,27 @@ model Payment {
   @@map("payments")
 }
 
+model AuditLog {
+  id         String      @id @default(uuid())
+  action     AuditAction
+  source     AuditSource
+  actorId    String?
+  actorEmail String?
+  actorIp    String?
+  userAgent  String?
+  targetType String?
+  targetId   String?
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+
+  @@index([action])
+  @@index([source])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@index([actorEmail])
+  @@map("audit_logs")
+}
+
 enum UserRole {
   CUSTOMER
   ADMIN
@@ -247,54 +268,21 @@ enum ProductType {
   PROMO
 }
 
-// ============================================
-// AUDIT LOGS - Rastreabilidade de Ações
-// ============================================
-
 enum AuditAction {
-  BOOKING_CREATED // Reserva criada
-  BOOKING_CONFIRMED // Pagamento confirmado
-  BOOKING_CANCELLED // Reserva cancelada
-  BOOKING_EXPIRED // Reserva expirou sem pagamento
-  PAYMENT_RECEIVED // Webhook de pagamento recebido
-  PAYMENT_FAILED // Webhook de falha de pagamento
-  ADMIN_LOGIN // Admin fez login
-  ADMIN_LOGOUT // Admin fez logout
-  ADMIN_BOOKING_VIEW // Admin visualizou reserva
-  ADMIN_BOOKING_UPDATE // Admin atualizou reserva
+  BOOKING_CREATED
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  BOOKING_EXPIRED
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  ADMIN_LOGIN
+  ADMIN_LOGOUT
+  ADMIN_BOOKING_VIEW
+  ADMIN_BOOKING_UPDATE
 }
 
 enum AuditSource {
-  USER // Ação do cliente
-  ADMIN // Ação do administrador
-  SYSTEM // Ação automática (webhook, cron)
-}
-
-model AuditLog {
-  id     String      @id @default(uuid())
-  action AuditAction // O que aconteceu
-  source AuditSource // Quem iniciou (user/admin/system)
-
-  // Ator (quem fez)
-  actorId    String? // ID do usuário ou admin (null para system)
-  actorEmail String? // Email para referência
-  actorIp    String? // IP da requisição
-  userAgent  String? // User-Agent do navegador
-
-  // Alvo (o que foi afetado)
-  targetType String? // Ex: "Booking", "User", "Payment"
-  targetId   String? // ID do recurso afetado
-
-  // Detalhes extras
-  metadata Json? // Dados adicionais em JSON
-
-  createdAt DateTime @default(now())
-
-  // Índices para consultas rápidas
-  @@index([action])
-  @@index([source])
-  @@index([targetType, targetId])
-  @@index([createdAt])
-  @@index([actorEmail])
-  @@map("audit_logs")
+  USER
+  ADMIN
+  SYSTEM
 }

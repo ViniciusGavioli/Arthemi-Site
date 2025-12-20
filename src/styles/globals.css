@@ -160,6 +160,12 @@ button, a, [role="button"] {
   }
 }
 
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+
 /* Animações utilitárias */
 .animate-fadeIn {
   animation: fadeIn 0.2s ease-out;
@@ -167,4 +173,8 @@ button, a, [role="button"] {
 
 .animate-slideUp {
   animation: slideUp 0.3s ease-out;
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-out;
 }

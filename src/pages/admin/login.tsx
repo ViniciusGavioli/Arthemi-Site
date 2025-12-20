@@ -49,77 +49,94 @@ export default function AdminLogin() {
         <meta name="robots" content="noindex, nofollow" />
       </Head>
 
-      <div className="min-h-screen bg-warm-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
-          {/* Logo */}
-          <div className="text-center mb-8">
-            <Image 
-              src="/images/Logo/logo.png" 
-              alt="Espaço Arthemi" 
-              width={200}
-              height={80}
-              className="h-20 w-auto mx-auto mb-4"
-              priority
-            />
-            <h1 className="text-2xl font-bold text-primary-900">
-              Painel Administrativo
-            </h1>
-            <p className="text-secondary-600 text-sm mt-1">
-              Acesso restrito
-            </p>
-          </div>
-
-          {/* Formulário */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                {error}
+      <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-950 flex items-center justify-center p-4">
+        {/* Background pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+        </div>
+        
+        <div className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-10 animate-fadeIn">
+          {/* Glow effect */}
+          <div className="absolute -inset-1 bg-gradient-to-r from-accent-500 to-primary-500 rounded-3xl blur-xl opacity-20" />
+          
+          <div className="relative">
+            {/* Logo */}
+            <div className="text-center mb-10">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl shadow-lg mb-6">
+                <Image 
+                  src="/images/Logo/logo.png" 
+                  alt="Espaço Arthemi" 
+                  width={50}
+                  height={50}
+                  className="w-12 h-12 brightness-0 invert"
+                  priority
+                />
               </div>
-            )}
-
-            <div>
-              <label 
-                htmlFor="password" 
-                className="block text-sm font-medium text-primary-800 mb-2"
-              >
-                Senha de Administrador
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Digite a senha"
-                required
-                autoFocus
-                className="w-full px-4 py-3 border border-warm-300 rounded-lg focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition"
-              />
+              <h1 className="text-2xl font-bold text-gray-800">
+                Painel Administrativo
+              </h1>
+              <p className="text-gray-500 text-sm mt-2">
+                Entre com sua senha para acessar
+              </p>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading || !password}
-              className="w-full bg-accent-600 text-white py-3 rounded-lg font-semibold hover:bg-accent-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <span className="animate-spin">⏳</span>
-                  Entrando...
-                </>
-              ) : (
-                'Entrar'
+            {/* Formulário */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2 animate-shake">
+                  <span>❌</span>
+                  {error}
+                </div>
               )}
-            </button>
-          </form>
 
-          {/* Link voltar */}
-          <div className="mt-6 text-center">
-            <button 
-              onClick={() => router.push('/')}
-              className="text-secondary-500 hover:text-accent-600 text-sm transition"
-            >
-              ← Voltar para o site
-            </button>
+              <div>
+                <label 
+                  htmlFor="password" 
+                  className="block text-sm font-semibold text-gray-700 mb-2"
+                >
+                  🔐 Senha de Acesso
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  autoFocus
+                  className="w-full px-5 py-4 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-accent-500/20 focus:border-accent-500 transition-all text-lg"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || !password}
+                className="w-full bg-gradient-to-r from-accent-500 to-accent-600 text-white py-4 rounded-xl font-bold text-lg hover:from-accent-600 hover:to-accent-700 hover:shadow-xl hover:shadow-accent-500/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none flex items-center justify-center gap-3"
+              >
+                {loading ? (
+                  <>
+                    <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Entrando...
+                  </>
+                ) : (
+                  <>
+                    <span>🚀</span>
+                    Entrar no Painel
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* Link voltar */}
+            <div className="mt-8 text-center">
+              <button 
+                onClick={() => router.push('/')}
+                className="text-gray-400 hover:text-accent-600 text-sm transition-colors inline-flex items-center gap-2"
+              >
+                <span>←</span>
+                Voltar para o site
+              </button>
+            </div>
           </div>
         </div>
       </div>

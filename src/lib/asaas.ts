@@ -215,6 +215,8 @@ export async function createPayment(
   if (mockMode) {
     console.log('🎭 [MOCK] Criando cobrança:', input);
     const mockId = `pay_mock_${Date.now()}`;
+    // Valor em reais para exibição (input.value já está em reais aqui)
+    const amountInCents = Math.round(input.value * 100);
     return {
       id: mockId,
       dateCreated: new Date().toISOString(),
@@ -225,7 +227,8 @@ export async function createPayment(
       billingType: input.billingType,
       status: 'PENDING',
       dueDate: input.dueDate,
-      invoiceUrl: `${process.env.NEXT_PUBLIC_APP_URL}/mock-payment?id=${mockId}&booking=${input.externalReference}`,
+      // CORREÇÃO: Incluir amount na URL do mock para exibição correta
+      invoiceUrl: `${process.env.NEXT_PUBLIC_APP_URL}/mock-payment?id=${mockId}&booking=${input.externalReference}&amount=${amountInCents}`,
       externalReference: input.externalReference,
     };
   }

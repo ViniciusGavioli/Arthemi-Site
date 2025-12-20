@@ -15,7 +15,8 @@ export default function MockPaymentPage() {
 
   // bookingId pode vir de diferentes params dependendo da origem
   const resolvedBookingId = bookingId || booking;
-  const displayAmount = amount ? Number(amount) : 0;
+  // amount vem em centavos da API, converter para reais
+  const displayAmount = amount ? Number(amount) / 100 : 0;
 
   async function handlePayment(status: 'approved' | 'rejected' | 'pending') {
     setProcessing(true);

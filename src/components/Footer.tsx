@@ -40,6 +40,7 @@ export default function Footer({ compact = false }: FooterProps) {
                 <Link href="/como-funciona" className="hover:text-warm-100 transition">Como Funciona</Link>
                 <Link href="/salas" className="hover:text-warm-100 transition">Salas e Preços</Link>
                 <Link href="/faq" className="hover:text-warm-100 transition">Perguntas Frequentes</Link>
+                <Link href="/admin" className="hover:text-warm-100 transition text-warm-600">Área Admin</Link>
               </div>
             </div>
           </div>

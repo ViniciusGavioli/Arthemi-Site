@@ -28,7 +28,19 @@ export const MIN_CANCELLATION_HOURS = 24;
 // Horário mínimo de antecedência para reagendamento (horas)
 export const MIN_RESCHEDULE_HOURS = 24;
 
+// Buffer de limpeza entre reservas (minutos)
+// Este tempo é bloqueado automaticamente após cada reserva para limpeza/organização
+export const BUFFER_MINUTES = 30;
+
 // ---- Validação de Disponibilidade ----
+
+/**
+ * Adiciona o buffer de limpeza ao horário de término
+ * O buffer é aplicado APÓS a reserva existente, bloqueando o horário para limpeza
+ */
+function addBufferToEndTime(date: Date): Date {
+  return new Date(date.getTime() + BUFFER_MINUTES * 60 * 1000);
+}
 
 interface AvailabilityCheck {
   roomId: string;
@@ -39,6 +51,7 @@ interface AvailabilityCheck {
 
 /**
  * Verifica se um horário está disponível para reserva
+ * Considera o buffer de 30 minutos após cada reserva existente para limpeza
  */
 export async function checkAvailability({
   roomId,
@@ -46,31 +59,30 @@ export async function checkAvailability({
   endTime,
   excludeBookingId,
 }: AvailabilityCheck): Promise<{ available: boolean; conflictingBookings?: unknown[] }> {
-  const conflictingBookings = await prisma.booking.findMany({
+  // Busca todas as reservas ativas da sala
+  const existingBookings = await prisma.booking.findMany({
     where: {
       roomId,
       status: {
         in: ['PENDING', 'CONFIRMED'],
       },
       id: excludeBookingId ? { not: excludeBookingId } : undefined,
-      OR: [
-        // Nova reserva começa durante uma existente
-        {
-          startTime: { lte: startTime },
-          endTime: { gt: startTime },
-        },
-        // Nova reserva termina durante uma existente
-        {
-          startTime: { lt: endTime },
-          endTime: { gte: endTime },
-        },
-        // Nova reserva engloba uma existente
-        {
-          startTime: { gte: startTime },
-          endTime: { lte: endTime },
-        },
-      ],
     },
+  });
+
+  // Filtra reservas que conflitam considerando o buffer de limpeza
+  // O buffer de 30 minutos é adicionado ao endTime de cada reserva existente
+  const conflictingBookings = existingBookings.filter((booking) => {
+    const bookingStart = new Date(booking.startTime).getTime();
+    // endTime + BUFFER_MINUTES = tempo total bloqueado pela reserva
+    const bookingEndWithBuffer = addBufferToEndTime(new Date(booking.endTime)).getTime();
+    
+    const newStart = startTime.getTime();
+    const newEnd = endTime.getTime();
+
+    // Verifica sobreposição:
+    // A nova reserva conflita se começar antes do fim+buffer E terminar depois do início
+    return newStart < bookingEndWithBuffer && newEnd > bookingStart;
   });
 
   return {

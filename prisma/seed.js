@@ -21,6 +21,7 @@ const PRICES_V3 = {
     imageUrl: '/images/sala-a.jpg',
     capacity: 4,
     size: 20,
+    tier: 1, // Sala premium (hierarquia: pode usar crédito em A, B ou C)
     amenities: ['Maca profissional', 'Ar-condicionado', 'Wi-Fi', 'Pia com água quente', 'Armário', 'Espelho'],
     prices: {
       HOURLY_RATE: 5999,      // R$ 59,99
@@ -41,6 +42,7 @@ const PRICES_V3 = {
     imageUrl: '/images/sala-b.jpg',
     capacity: 3,
     size: 15,
+    tier: 2, // Sala intermediária (pode usar crédito em B ou C)
     amenities: ['Maca profissional', 'Ar-condicionado', 'Wi-Fi', 'Pia', 'Armário'],
     prices: {
       HOURLY_RATE: 4999,      // R$ 49,99
@@ -61,6 +63,7 @@ const PRICES_V3 = {
     imageUrl: '/images/sala-c.jpg',
     capacity: 2,
     size: 10,
+    tier: 3, // Sala básica (só pode usar crédito em C)
     amenities: ['Ar-condicionado', 'Wi-Fi', 'Mesa de atendimento', 'Cadeiras confortáveis', 'Armário'],
     prices: {
       HOURLY_RATE: 3999,      // R$ 39,99
@@ -126,6 +129,7 @@ async function main() {
         imageUrl: roomData.imageUrl,
         capacity: roomData.capacity,
         amenities: roomData.amenities,
+        tier: roomData.tier, // Hierarquia: 1=A, 2=B, 3=C
         hourlyRate: roomData.prices.HOURLY_RATE,
         // Campos extras para compatibilidade
         pricePerHour: roomData.prices.HOURLY_RATE,
@@ -135,7 +139,7 @@ async function main() {
       },
     });
     rooms.push(room);
-    console.log(`  ✅ ${room.name} - Hora: R$ ${(roomData.prices.HOURLY_RATE / 100).toFixed(2)}`);
+    console.log(`  ✅ ${room.name} (Tier ${roomData.tier}) - Hora: R$ ${(roomData.prices.HOURLY_RATE / 100).toFixed(2)}`);
   }
 
   console.log(`✅ ${rooms.length} salas criadas`);

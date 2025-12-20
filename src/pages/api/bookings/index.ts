@@ -9,6 +9,11 @@ import { isAvailable } from '@/lib/availability';
 import { createBookingPayment } from '@/lib/asaas';
 import { brazilianPhone } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
+import { 
+  getAvailableCreditsForRoom, 
+  consumeCreditsForBooking,
+  getCreditBalanceForRoom,
+} from '@/lib/business-rules';
 
 // Schema de validação com Zod
 const createBookingSchema = z.object({
@@ -20,6 +25,7 @@ const createBookingSchema = z.object({
   startAt: z.string().datetime({ message: 'Data/hora de início inválida' }),
   endAt: z.string().datetime({ message: 'Data/hora de término inválida' }),
   payNow: z.boolean().default(false),
+  useCredits: z.boolean().default(false), // Usar créditos disponíveis
   notes: z.string().optional(),
 });
 
@@ -29,8 +35,10 @@ interface ApiResponse {
   success: boolean;
   bookingId?: string;
   paymentUrl?: string;
+  creditsUsed?: number;
+  amountToPay?: number;
   error?: string;
-  details?: any;
+  details?: unknown;
 }
 
 export default async function handler(
@@ -126,6 +134,32 @@ export default async function handler(
       }
     }
 
+    // 6.1 Verificar e aplicar créditos se solicitado
+    let creditsUsed = 0;
+    let creditIds: string[] = [];
+    let amountToPay = amount;
+
+    if (data.useCredits) {
+      const availableCredits = await getCreditBalanceForRoom(user.id, data.roomId, startAt);
+      
+      if (availableCredits > 0) {
+        // Calcular quanto pode usar de crédito
+        const creditsToUse = Math.min(availableCredits, amount);
+        amountToPay = amount - creditsToUse;
+        
+        // Consumir créditos (será feito após criar booking)
+        const consumeResult = await consumeCreditsForBooking(
+          user.id,
+          data.roomId,
+          creditsToUse,
+          startAt
+        );
+        
+        creditsUsed = consumeResult.totalConsumed;
+        creditIds = consumeResult.creditIds;
+      }
+    }
+
     // 7. Criar booking com status RESERVED
     const booking = await prisma.booking.create({
       data: {
@@ -133,11 +167,13 @@ export default async function handler(
         roomId: data.roomId,
         startTime: startAt,
         endTime: endAt,
-        status: 'PENDING', // Aguardando pagamento
-        paymentStatus: 'PENDING',
-        amountPaid: 0,
+        status: amountToPay > 0 ? 'PENDING' : 'CONFIRMED', // Confirmado se pago com créditos
+        paymentStatus: amountToPay > 0 ? 'PENDING' : 'APPROVED',
+        amountPaid: creditsUsed, // Valor "pago" via créditos
         bookingType: 'HOURLY',
         notes: data.notes || null,
+        creditsUsed,
+        creditIds,
       },
     });
 
@@ -156,21 +192,34 @@ export default async function handler(
         startAt: data.startAt,
         endAt: data.endAt,
         amount,
+        amountToPay,
+        creditsUsed,
         hours,
         payNow: data.payNow,
+        useCredits: data.useCredits,
       },
       req
     );
 
-    if (data.payNow) {
+    // Se pagou 100% com créditos, não precisa de pagamento
+    if (amountToPay <= 0) {
+      return res.status(201).json({
+        success: true,
+        bookingId: booking.id,
+        creditsUsed,
+        amountToPay: 0,
+      });
+    }
+
+    if (data.payNow && amountToPay > 0) {
       try {
         const paymentResult = await createBookingPayment({
           bookingId: booking.id,
           customerName: data.userName,
           customerEmail: data.userEmail || `${data.userPhone}@placeholder.com`,
           customerPhone: data.userPhone,
-          value: amount, // Em centavos
-          description: `Reserva ${room.name} - ${hours}h`,
+          value: amountToPay, // Valor restante após créditos
+          description: `Reserva ${room.name} - ${hours}h${creditsUsed > 0 ? ` (R$ ${(creditsUsed/100).toFixed(2)} em créditos)` : ''}`,
         });
 
         paymentUrl = paymentResult.invoiceUrl;
@@ -188,7 +237,7 @@ export default async function handler(
           data: {
             bookingId: booking.id,
             userId: user.id,
-            amount,
+            amount: amountToPay,
             status: 'PENDING',
             externalId: paymentResult.paymentId,
             externalUrl: paymentResult.invoiceUrl,
@@ -205,6 +254,8 @@ export default async function handler(
       success: true,
       bookingId: booking.id,
       paymentUrl,
+      creditsUsed,
+      amountToPay,
     });
   } catch (error) {
     console.error('Erro ao criar reserva:', error);

@@ -24,23 +24,26 @@ model User {
 }
 
 model Room {
-  id            String    @id @default(cuid())
+  id            String        @id @default(cuid())
   name          String
-  slug          String    @unique
+  slug          String        @unique
   description   String?
   imageUrl      String?
-  capacity      Int       @default(2)
+  capacity      Int           @default(2)
   amenities     String[]
-  hourlyRate    Int       @default(0)
-  pricePerHour  Int       @default(0)
-  pricePackage4 Int       @default(0)
-  pricePackage8 Int       @default(0)
-  priceShift    Int       @default(0)
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  hourlyRate    Int           @default(0)
+  pricePerHour  Int           @default(0)
+  pricePackage4 Int           @default(0)
+  pricePackage8 Int           @default(0)
+  priceShift    Int           @default(0)
+  tier          Int           @default(1) // 1=Sala A (premium), 2=Sala B, 3=Sala C
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
   bookings      Booking[]
   products      Product[]
+  credits       Credit[]
+  packages      UserPackage[]
 
   @@map("rooms")
 }
@@ -63,6 +66,10 @@ model Booking {
   originalUserId  String?
   subletRequestId String?
   notes           String?
+  // Campos para rastreamento de créditos
+  creditsUsed     Int            @default(0)  // Valor em centavos consumido de créditos
+  creditIds       String[]       // IDs dos créditos consumidos
+  isManual        Boolean        @default(false) // Reserva criada manualmente pelo admin
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   product         Product?       @relation(fields: [productId], references: [id])
@@ -79,6 +86,7 @@ model Booking {
 model UserPackage {
   id             String        @id @default(cuid())
   userId         String
+  roomId         String?       // Sala específica do pacote (null = genérico)
   type           PackageType
   totalHours     Int
   usedHours      Int           @default(0)
@@ -92,18 +100,23 @@ model UserPackage {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   user           User          @relation(fields: [userId], references: [id])
+  room           Room?         @relation(fields: [roomId], references: [id])
 
   @@index([userId, expiresAt])
+  @@index([roomId])
   @@map("user_packages")
 }
 
 model Credit {
   id              String         @id @default(cuid())
   userId          String
-  amount          Int
+  roomId          String?        // Sala específica do crédito (determina hierarquia)
+  amount          Int            // Valor em centavos
+  remainingAmount Int            @default(0) // Valor restante (para uso parcial)
   type            CreditType
   status          CreditStatus   @default(PENDING)
   subletRequestId String?
+  sourceBookingId String?        // Booking que originou o crédito (cancelamento)
   referenceMonth  Int
   referenceYear   Int
   expiresAt       DateTime?
@@ -112,9 +125,10 @@ model Credit {
   updatedAt       DateTime       @updatedAt
   subletRequest   SubletRequest? @relation(fields: [subletRequestId], references: [id])
   user            User           @relation(fields: [userId], references: [id])
+  room            Room?          @relation(fields: [roomId], references: [id])
 
-  @@unique([userId, referenceMonth, referenceYear])
   @@index([userId, status])
+  @@index([roomId])
   @@map("credits")
 }
 
@@ -235,6 +249,9 @@ enum PackageType {
 enum CreditType {
   SUBLET
   PROMO
+  CANCELLATION  // Crédito gerado por cancelamento
+  SATURDAY      // Crédito específico para sábado
+  MANUAL        // Crédito criado manualmente pelo admin
 }
 
 enum CreditStatus {
@@ -273,8 +290,12 @@ enum AuditAction {
   BOOKING_CONFIRMED
   BOOKING_CANCELLED
   BOOKING_EXPIRED
+  BOOKING_MANUAL_CREATED
   PAYMENT_RECEIVED
   PAYMENT_FAILED
+  CREDIT_CREATED
+  CREDIT_USED
+  CREDIT_EXPIRED
   ADMIN_LOGIN
   ADMIN_LOGOUT
   ADMIN_BOOKING_VIEW

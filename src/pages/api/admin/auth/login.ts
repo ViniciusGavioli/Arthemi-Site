@@ -55,11 +55,9 @@ export default async function handler(
   // ✅ LOG DE AUDITORIA - Admin login
   await logAdminAction(
     'ADMIN_LOGIN',
-    'admin',
-    'admin@arthemi.com.br',
-    undefined,
-    undefined,
-    { loginMethod: 'password' },
+    'Admin',
+    'session',
+    { loginMethod: 'password', email: 'admin@arthemi.com.br' },
     req
   );
   

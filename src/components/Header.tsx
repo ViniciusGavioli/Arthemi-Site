@@ -80,7 +80,7 @@ export default function Header({ variant = 'sticky' }: HeaderProps) {
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="md:hidden p-2"
             aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
-            aria-expanded={mobileMenuOpen ? 'true' : 'false'}
+            aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>

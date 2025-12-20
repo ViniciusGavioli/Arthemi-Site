@@ -3,8 +3,9 @@
 // ===========================================================
 // Implementa as regras essenciais do MVP
 
-import { addDays, differenceInHours, isBefore, addMonths } from 'date-fns';
+import { addDays, differenceInHours, isBefore, addMonths, isSaturday } from 'date-fns';
 import { prisma } from './prisma';
+import type { Credit, Room } from '@prisma/client';
 
 // ---- Constantes ----
 export const PACKAGE_VALIDITY = {
@@ -31,6 +32,305 @@ export const MIN_RESCHEDULE_HOURS = 24;
 // Buffer de limpeza entre reservas (minutos)
 // Este tempo é bloqueado automaticamente após cada reserva para limpeza/organização
 export const BUFFER_MINUTES = 30;
+
+// Validade padrão de créditos em meses
+export const CREDIT_VALIDITY_MONTHS = 6;
+
+// ===========================================================
+// SISTEMA DE CRÉDITOS COM HIERARQUIA
+// ===========================================================
+
+/**
+ * Verifica se um crédito pode ser usado em uma sala específica
+ * Regra de hierarquia: Crédito de sala superior pode ser usado em salas inferiores
+ * - Tier 1 (Sala A) → pode usar em A, B, C
+ * - Tier 2 (Sala B) → pode usar em B, C
+ * - Tier 3 (Sala C) → só pode usar em C
+ * 
+ * @param creditRoomTier Tier da sala do crédito (1, 2 ou 3). Se null, crédito é genérico
+ * @param targetRoomTier Tier da sala alvo da reserva
+ * @returns true se o crédito pode ser usado
+ */
+export function canUseCredit(creditRoomTier: number | null, targetRoomTier: number): boolean {
+  // Crédito genérico (sem sala específica) pode ser usado em qualquer sala
+  if (creditRoomTier === null) {
+    return true;
+  }
+  // Crédito de sala superior (tier menor) pode ser usado em sala igual ou inferior (tier maior ou igual)
+  return creditRoomTier <= targetRoomTier;
+}
+
+/**
+ * Verifica se um crédito de sábado pode ser usado na data da reserva
+ * @param credit Crédito a ser validado
+ * @param bookingDate Data da reserva
+ * @returns true se válido
+ */
+export function validateSaturdayCredit(credit: Credit, bookingDate: Date): boolean {
+  // Se não é crédito de sábado, sempre válido
+  if (credit.type !== 'SATURDAY') {
+    return true;
+  }
+  // Crédito de sábado só pode ser usado em sábados
+  return isSaturday(bookingDate);
+}
+
+/**
+ * Busca créditos disponíveis de um usuário para uma sala específica
+ * Considera hierarquia: créditos de salas superiores também são retornados
+ * 
+ * @param userId ID do usuário
+ * @param roomId ID da sala alvo
+ * @param bookingDate Data da reserva (para validar créditos de sábado)
+ * @returns Lista de créditos disponíveis ordenados por prioridade
+ */
+export async function getAvailableCreditsForRoom(
+  userId: string,
+  roomId: string,
+  bookingDate: Date
+): Promise<(Credit & { room: Room | null })[]> {
+  const now = new Date();
+
+  // Busca a sala alvo para obter o tier
+  const targetRoom = await prisma.room.findUnique({
+    where: { id: roomId },
+  });
+
+  if (!targetRoom) {
+    return [];
+  }
+
+  // Busca todos os créditos disponíveis do usuário
+  const allCredits = await prisma.credit.findMany({
+    where: {
+      userId,
+      status: 'CONFIRMED',
+      usedAt: null,
+      remainingAmount: { gt: 0 },
+      OR: [
+        { expiresAt: null },
+        { expiresAt: { gt: now } },
+      ],
+    },
+    include: {
+      room: true,
+    },
+    orderBy: [
+      { expiresAt: 'asc' }, // Primeiro os que vencem antes
+      { createdAt: 'asc' }, // Depois os mais antigos
+    ],
+  });
+
+  // Filtra créditos que podem ser usados nesta sala (hierarquia + sábado)
+  const validCredits = allCredits.filter((credit) => {
+    // Verifica hierarquia
+    const creditTier = credit.room?.tier ?? null;
+    if (!canUseCredit(creditTier, targetRoom.tier)) {
+      return false;
+    }
+
+    // Verifica se é sábado (para créditos de sábado)
+    if (!validateSaturdayCredit(credit, bookingDate)) {
+      return false;
+    }
+
+    return true;
+  });
+
+  // Ordena: créditos específicos da sala primeiro, depois genéricos
+  return validCredits.sort((a, b) => {
+    // Créditos da mesma sala têm prioridade
+    if (a.roomId === roomId && b.roomId !== roomId) return -1;
+    if (b.roomId === roomId && a.roomId !== roomId) return 1;
+    return 0;
+  });
+}
+
+/**
+ * Calcula o saldo total de créditos disponíveis para uma sala
+ */
+export async function getCreditBalanceForRoom(
+  userId: string,
+  roomId: string,
+  bookingDate: Date = new Date()
+): Promise<number> {
+  const credits = await getAvailableCreditsForRoom(userId, roomId, bookingDate);
+  return credits.reduce((sum, c) => sum + c.remainingAmount, 0);
+}
+
+/**
+ * Consome créditos para uma reserva
+ * Retorna os IDs dos créditos consumidos e o valor total consumido
+ * 
+ * @param userId ID do usuário
+ * @param roomId ID da sala
+ * @param amount Valor a consumir (em centavos)
+ * @param bookingDate Data da reserva
+ * @returns { creditIds, totalConsumed }
+ */
+export async function consumeCreditsForBooking(
+  userId: string,
+  roomId: string,
+  amount: number,
+  bookingDate: Date
+): Promise<{ creditIds: string[]; totalConsumed: number }> {
+  const credits = await getAvailableCreditsForRoom(userId, roomId, bookingDate);
+  
+  let remaining = amount;
+  const usedCreditIds: string[] = [];
+  let totalConsumed = 0;
+
+  for (const credit of credits) {
+    if (remaining <= 0) break;
+
+    const toConsume = Math.min(credit.remainingAmount, remaining);
+    
+    await prisma.credit.update({
+      where: { id: credit.id },
+      data: {
+        remainingAmount: { decrement: toConsume },
+        usedAt: credit.remainingAmount === toConsume ? new Date() : null,
+        status: credit.remainingAmount === toConsume ? 'USED' : 'CONFIRMED',
+      },
+    });
+
+    usedCreditIds.push(credit.id);
+    totalConsumed += toConsume;
+    remaining -= toConsume;
+  }
+
+  return { creditIds: usedCreditIds, totalConsumed };
+}
+
+/**
+ * Converte um cancelamento em crédito
+ * NÃO gera reembolso em dinheiro
+ * 
+ * @param bookingId ID da reserva cancelada
+ * @returns Crédito criado ou null se não aplicável
+ */
+export async function convertCancellationToCredit(bookingId: string): Promise<Credit | null> {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { room: true },
+  });
+
+  if (!booking || booking.status === 'CANCELLED') {
+    return null;
+  }
+
+  // Só gera crédito se teve pagamento ou uso de crédito
+  const valueToCredit = booking.amountPaid + booking.creditsUsed;
+  if (valueToCredit <= 0) {
+    return null;
+  }
+
+  // Verifica antecedência mínima para gerar crédito
+  if (!canCancelWithRefund(booking.startTime)) {
+    return null;
+  }
+
+  const now = new Date();
+  const expiresAt = addMonths(now, CREDIT_VALIDITY_MONTHS);
+
+  // Cria crédito para a mesma sala da reserva
+  const credit = await prisma.credit.create({
+    data: {
+      userId: booking.userId,
+      roomId: booking.roomId,
+      amount: valueToCredit,
+      remainingAmount: valueToCredit,
+      type: 'CANCELLATION',
+      status: 'CONFIRMED',
+      sourceBookingId: bookingId,
+      referenceMonth: now.getMonth() + 1,
+      referenceYear: now.getFullYear(),
+      expiresAt,
+    },
+  });
+
+  // Atualiza booking para cancelado
+  await prisma.booking.update({
+    where: { id: bookingId },
+    data: { status: 'CANCELLED' },
+  });
+
+  return credit;
+}
+
+/**
+ * Cria crédito manualmente (admin)
+ */
+export async function createManualCredit(params: {
+  userId: string;
+  roomId?: string;
+  amount: number;
+  type: 'PROMO' | 'MANUAL' | 'SATURDAY';
+  expiresInMonths?: number;
+  notes?: string;
+}): Promise<Credit> {
+  const now = new Date();
+  const expiresAt = addMonths(now, params.expiresInMonths ?? CREDIT_VALIDITY_MONTHS);
+
+  return prisma.credit.create({
+    data: {
+      userId: params.userId,
+      roomId: params.roomId ?? null,
+      amount: params.amount,
+      remainingAmount: params.amount,
+      type: params.type,
+      status: 'CONFIRMED',
+      referenceMonth: now.getMonth() + 1,
+      referenceYear: now.getFullYear(),
+      expiresAt,
+    },
+  });
+}
+
+/**
+ * Busca saldo total de créditos do usuário por sala
+ */
+export async function getUserCreditsSummary(userId: string): Promise<{
+  total: number;
+  byRoom: { roomId: string | null; roomName: string; amount: number; tier: number | null }[];
+}> {
+  const credits = await prisma.credit.findMany({
+    where: {
+      userId,
+      status: 'CONFIRMED',
+      usedAt: null,
+      remainingAmount: { gt: 0 },
+      OR: [
+        { expiresAt: null },
+        { expiresAt: { gt: new Date() } },
+      ],
+    },
+    include: { room: true },
+  });
+
+  const byRoomMap = new Map<string, { roomId: string | null; roomName: string; amount: number; tier: number | null }>();
+
+  for (const credit of credits) {
+    const key = credit.roomId ?? 'generic';
+    const existing = byRoomMap.get(key);
+    
+    if (existing) {
+      existing.amount += credit.remainingAmount;
+    } else {
+      byRoomMap.set(key, {
+        roomId: credit.roomId,
+        roomName: credit.room?.name ?? 'Genérico',
+        amount: credit.remainingAmount,
+        tier: credit.room?.tier ?? null,
+      });
+    }
+  }
+
+  const total = credits.reduce((sum, c) => sum + c.remainingAmount, 0);
+  const byRoom = Array.from(byRoomMap.values()).sort((a, b) => (a.tier ?? 99) - (b.tier ?? 99));
+
+  return { total, byRoom };
+}
 
 // ---- Validação de Disponibilidade ----
 

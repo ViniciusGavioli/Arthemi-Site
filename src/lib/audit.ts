@@ -19,8 +19,12 @@ export type AuditAction =
   | 'BOOKING_CONFIRMED'
   | 'BOOKING_CANCELLED'
   | 'BOOKING_EXPIRED'
+  | 'BOOKING_MANUAL_CREATED'
   | 'PAYMENT_RECEIVED'
   | 'PAYMENT_FAILED'
+  | 'CREDIT_CREATED'
+  | 'CREDIT_USED'
+  | 'CREDIT_EXPIRED'
   | 'ADMIN_LOGIN'
   | 'ADMIN_LOGOUT'
   | 'ADMIN_BOOKING_VIEW'
@@ -156,21 +160,20 @@ export async function logUserAction(
 
 /**
  * Helper para logs de admin
+ * Aceita assinatura flexível para facilitar uso
  */
 export async function logAdminAction(
   action: AuditAction,
-  adminId: string,
-  adminEmail: string,
-  targetType?: string,
-  targetId?: string,
+  targetType: string,
+  targetId: string,
   metadata?: Record<string, unknown>,
   req?: NextApiRequest
 ): Promise<void> {
   return logAudit({
     action,
     source: 'ADMIN',
-    actorId: adminId,
-    actorEmail: adminEmail,
+    actorId: null,
+    actorEmail: 'admin',
     targetType,
     targetId,
     metadata,

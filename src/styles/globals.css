@@ -15,8 +15,8 @@
 
 /* iOS Safari fixes */
 html {
-  text-size-adjust: 100%;
   -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -158,4 +158,13 @@ button, a, [role="button"] {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Animações utilitárias */
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease-out;
 }

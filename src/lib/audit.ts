@@ -28,7 +28,11 @@ export type AuditAction =
   | 'ADMIN_LOGIN'
   | 'ADMIN_LOGOUT'
   | 'ADMIN_BOOKING_VIEW'
-  | 'ADMIN_BOOKING_UPDATE';
+  | 'ADMIN_BOOKING_UPDATE'
+  | 'USER_LOGIN'
+  | 'USER_LOGOUT'
+  | 'USER_MAGIC_LINK_REQUESTED'
+  | 'USER_MAGIC_LINK_RATE_LIMITED';
 
 export type AuditSource = 'USER' | 'ADMIN' | 'SYSTEM';
 
@@ -38,6 +42,8 @@ export interface AuditLogParams {
   source: AuditSource;
   actorId?: string | null;
   actorEmail?: string | null;
+  actorIp?: string | null;
+  userAgent?: string | null;
   targetType?: string | null;
   targetId?: string | null;
   metadata?: Record<string, unknown> | null;
@@ -65,17 +71,19 @@ export async function logAudit({
   source,
   actorId = null,
   actorEmail = null,
+  actorIp: providedActorIp = null,
+  userAgent: providedUserAgent = null,
   targetType = null,
   targetId = null,
   metadata = null,
   req
 }: AuditLogParams): Promise<void> {
   try {
-    // Extrair IP e User-Agent da request (se disponível)
-    let actorIp: string | null = null;
-    let userAgent: string | null = null;
+    // Extrair IP e User-Agent da request (se disponível) ou usar valores fornecidos
+    let actorIp: string | null = providedActorIp;
+    let userAgent: string | null = providedUserAgent;
     
-    if (req) {
+    if (req && !actorIp) {
       // IP: tentar headers de proxy primeiro
       const forwarded = req.headers['x-forwarded-for'];
       if (typeof forwarded === 'string') {
@@ -86,7 +94,9 @@ export async function logAudit({
         // Fallback para socket
         actorIp = req.socket?.remoteAddress || null;
       }
-      
+    }
+    
+    if (req && !userAgent) {
       // User-Agent
       const ua = req.headers['user-agent'];
       if (typeof ua === 'string') {

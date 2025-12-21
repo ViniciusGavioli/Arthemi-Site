@@ -1,9 +1,14 @@
 // ===========================================================
 // API: GET /api/user/bookings - Reservas do usuário
 // ===========================================================
+// Suporta autenticação via cookie (sessão) OU via phone (legacy)
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
+import { decodeSessionToken } from '@/lib/magic-link';
+
+// Nome do cookie de sessão
+const USER_SESSION_COOKIE = 'user_session';
 
 // Tipo estendido temporário até Prisma types atualizarem
 interface ExtendedBooking {
@@ -61,27 +66,32 @@ export default async function handler(
   try {
     const { phone, status, upcoming, page = '1', limit = '10' } = req.query;
 
-    if (!phone || typeof phone !== 'string') {
-      return res.status(400).json({
-        success: false,
-        error: 'Phone é obrigatório',
-      });
+    let userId: string | null = null;
+
+    // Primeiro tenta autenticação via cookie (nova forma)
+    const sessionToken = req.cookies[USER_SESSION_COOKIE];
+    if (sessionToken) {
+      userId = decodeSessionToken(sessionToken);
     }
 
-    // Buscar usuário
-    const user = await prisma.user.findUnique({
-      where: { phone },
-    });
+    // Fallback para phone (forma antiga, para compatibilidade)
+    if (!userId && phone && typeof phone === 'string') {
+      const user = await prisma.user.findUnique({
+        where: { phone },
+        select: { id: true },
+      });
+      userId = user?.id ?? null;
+    }
 
-    if (!user) {
-      return res.status(404).json({
+    if (!userId) {
+      return res.status(401).json({
         success: false,
-        error: 'Usuário não encontrado',
+        error: 'Não autenticado',
       });
     }
 
     // Construir filtros
-    const where: Record<string, unknown> = { userId: user.id };
+    const where: Record<string, unknown> = { userId };
 
     if (status && typeof status === 'string') {
       where.status = status.toUpperCase();

@@ -8,17 +8,18 @@ datasource db {
 }
 
 model User {
-  id             String          @id @default(cuid())
-  email          String          @unique
-  name           String
-  phone          String          @unique
-  role           UserRole        @default(CUSTOMER)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  bookings       Booking[]
-  credits        Credit[]
-  subletRequests SubletRequest[]
-  packages       UserPackage[]
+  id              String           @id @default(cuid())
+  email           String           @unique
+  name            String
+  phone           String           @unique
+  role            UserRole         @default(CUSTOMER)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  bookings        Booking[]
+  credits         Credit[]
+  subletRequests  SubletRequest[]
+  packages        UserPackage[]
+  magicLinkTokens MagicLinkToken[]
 
   @@map("users")
 }
@@ -192,6 +193,34 @@ model Payment {
   @@map("payments")
 }
 
+// ===========================================================
+// Magic Link Token - Autenticação do Cliente
+// ===========================================================
+model MagicLinkToken {
+  id          String    @id @default(cuid())
+  userId      String
+  tokenHash   String    @unique  // SHA-256 do token (nunca salvar token raw)
+  expiresAt   DateTime           // 12 horas após criação
+  usedAt      DateTime?          // Quando foi usado (null = não usado)
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("magic_link_tokens")
+}
+
+// Rate limit para magic links (3 por hora por email)
+model MagicLinkRateLimit {
+  id        String   @id @default(cuid())
+  email     String
+  attempts  Int      @default(1)
+  windowStart DateTime @default(now())
+  
+  @@unique([email])
+  @@map("magic_link_rate_limits")
+}
+
 model AuditLog {
   id         String      @id @default(uuid())
   action     AuditAction
@@ -300,6 +329,10 @@ enum AuditAction {
   ADMIN_LOGOUT
   ADMIN_BOOKING_VIEW
   ADMIN_BOOKING_UPDATE
+  USER_LOGIN
+  USER_LOGOUT
+  USER_MAGIC_LINK_REQUESTED
+  USER_MAGIC_LINK_RATE_LIMITED
 }
 
 enum AuditSource {

@@ -1,10 +1,15 @@
 // ===========================================================
 // API: GET /api/user/credits - Créditos do usuário
 // ===========================================================
+// Suporta autenticação via cookie (sessão) OU via phone (legacy)
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getAvailableCreditsForRoom, getUserCreditsSummary } from '@/lib/business-rules';
+import { decodeSessionToken } from '@/lib/magic-link';
+
+// Nome do cookie de sessão
+const USER_SESSION_COOKIE = 'user_session';
 
 // Tipos temporários para novos campos (até TS atualizar cache do Prisma)
 interface ExtendedCredit {
@@ -61,22 +66,27 @@ export default async function handler(
   try {
     const { phone, roomId, date } = req.query;
 
-    if (!phone || typeof phone !== 'string') {
-      return res.status(400).json({
-        success: false,
-        error: 'Phone é obrigatório',
-      });
+    let userId: string | null = null;
+
+    // Primeiro tenta autenticação via cookie (nova forma)
+    const sessionToken = req.cookies[USER_SESSION_COOKIE];
+    if (sessionToken) {
+      userId = decodeSessionToken(sessionToken);
     }
 
-    // Buscar usuário
-    const user = await prisma.user.findUnique({
-      where: { phone },
-    });
+    // Fallback para phone (forma antiga, para compatibilidade)
+    if (!userId && phone && typeof phone === 'string') {
+      const user = await prisma.user.findUnique({
+        where: { phone },
+        select: { id: true },
+      });
+      userId = user?.id ?? null;
+    }
 
-    if (!user) {
-      return res.status(404).json({
+    if (!userId) {
+      return res.status(401).json({
         success: false,
-        error: 'Usuário não encontrado',
+        error: 'Não autenticado',
       });
     }
 
@@ -92,7 +102,7 @@ export default async function handler(
         });
       }
 
-      const availableCreditsRaw = await getAvailableCreditsForRoom(user.id, roomId, bookingDate);
+      const availableCreditsRaw = await getAvailableCreditsForRoom(userId, roomId, bookingDate);
       // Cast para tipo estendido
       const availableCredits = availableCreditsRaw as unknown as ExtendedCredit[];
       const totalAvailable = availableCredits.reduce((sum, c) => sum + (c.remainingAmount || c.amount), 0);
@@ -119,12 +129,12 @@ export default async function handler(
     }
 
     // Caso geral: retorna resumo + lista completa
-    const summary = await getUserCreditsSummary(user.id);
+    const summary = await getUserCreditsSummary(userId);
 
     // Cast para any temporário - Prisma types ainda não atualizados no TS
     const allCredits = await (prisma.credit as any).findMany({
       where: {
-        userId: user.id,
+        userId,
         status: { in: ['PENDING', 'CONFIRMED'] },
         remainingAmount: { gt: 0 },
         OR: [

@@ -15,6 +15,8 @@ import {
   validateWebhookToken, 
   isPaymentConfirmed,
 } from '@/lib/asaas';
+import { createMagicLink } from '@/lib/magic-link';
+import { getUserCreditsSummary } from '@/lib/business-rules';
 
 // Cache de idempotência (em produção, usar Redis)
 const processedEvents = new Set<string>();
@@ -130,7 +132,7 @@ export default async function handler(
       },
     });
 
-    // 9. Enviar email de confirmação
+    // 9. Enviar email de confirmação com magic link
     try {
       const hours = Math.ceil(
         (booking.endTime.getTime() - booking.startTime.getTime()) / (1000 * 60 * 60)
@@ -139,6 +141,26 @@ export default async function handler(
       const dateFormatted = format(booking.startTime, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
       const startFormatted = format(booking.startTime, 'HH:mm');
       const endFormatted = format(booking.endTime, 'HH:mm');
+      
+      // Gera magic link para acesso direto à conta
+      let magicLinkToken: string | undefined;
+      try {
+        const magicLinkResult = await createMagicLink(booking.user.email);
+        if (magicLinkResult.success && magicLinkResult.token) {
+          magicLinkToken = magicLinkResult.token;
+        }
+      } catch (mlError) {
+        console.warn('⚠️ [Asaas Webhook] Erro ao gerar magic link:', mlError);
+      }
+
+      // Calcula saldo de créditos do usuário
+      let creditBalance = 0;
+      try {
+        const creditsSummary = await getUserCreditsSummary(booking.userId);
+        creditBalance = creditsSummary.total;
+      } catch (credError) {
+        console.warn('⚠️ [Asaas Webhook] Erro ao calcular saldo:', credError);
+      }
       
       await sendBookingConfirmationEmail({
         userName: booking.user.name,
@@ -151,6 +173,8 @@ export default async function handler(
         duration: `${hours}h`,
         amountPaid: payment.value * 100, // Converter para centavos
         paymentMethod: 'PIX',
+        magicLinkToken,
+        creditBalance,
       });
       
       console.log(`📧 [Asaas Webhook] Email enviado: ${booking.user.email}`);

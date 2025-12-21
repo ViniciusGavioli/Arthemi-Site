@@ -20,16 +20,20 @@ export default async function handler(
   }
 
   try {
-    const { bookingId, paymentId, status, method } = req.body;
+    const { bookingId, paymentId, method } = req.body;
+    let { status } = req.body;
 
     if (!bookingId || !status) {
       return res.status(400).json({ error: 'bookingId e status são obrigatórios' });
     }
 
+    // Normalizar status para uppercase (Prisma enum)
+    status = status.toUpperCase();
+
     // Mapear status para booking
-    const bookingStatus = status === 'approved' 
+    const bookingStatus = status === 'APPROVED' 
       ? 'CONFIRMED' 
-      : status === 'rejected' 
+      : status === 'REJECTED' 
         ? 'CANCELLED' 
         : 'PENDING';
 

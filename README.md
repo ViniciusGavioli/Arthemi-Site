@@ -132,6 +132,8 @@ Quando você abrir o projeto no VS Code:
 
 Para instruções detalhadas sobre configuração e uso do VS Code, veja o **[Guia de Setup do VS Code](.vscode/SETUP.md)**.
 
+**💡 Problemas de conexão?** Consulte o [Guia de Solução de Problemas](docs/TROUBLESHOOTING.md) para resolver problemas comuns com VS Code, Git e autenticação.
+
 ---
 
 ## 🐘 Banco de Dados

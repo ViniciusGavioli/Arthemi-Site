@@ -109,7 +109,27 @@
       ],
       "dependsOrder": "sequence",
       "problemMatcher": [],
-      "detail": "Complete development environment setup"
+      "detail": "Complete development environment setup (Note: wait for Docker to be fully ready before running Prisma commands)"
+    },
+    {
+      "label": "wait:docker",
+      "type": "shell",
+      "command": "echo 'Waiting for PostgreSQL...' && sleep 5 && until docker-compose exec -T db pg_isready; do sleep 2; done && echo 'PostgreSQL is ready!'",
+      "problemMatcher": [],
+      "detail": "Wait for Docker PostgreSQL to be ready"
+    },
+    {
+      "label": "setup:dev-safe",
+      "dependsOn": [
+        "docker:up",
+        "wait:docker",
+        "prisma:generate",
+        "prisma:migrate",
+        "seed"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": [],
+      "detail": "Complete development environment setup with database readiness check"
     }
   ]
 }

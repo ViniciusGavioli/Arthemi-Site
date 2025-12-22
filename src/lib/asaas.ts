@@ -459,6 +459,7 @@ export interface CreateBookingPaymentInput {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  customerCpf: string; // CPF obrigatório para Asaas
   value: number; // Em centavos
   description: string;
   dueDate?: string;
@@ -483,6 +484,7 @@ export async function createBookingPayment(
     name: input.customerName,
     email: input.customerEmail,
     phone: input.customerPhone,
+    cpfCnpj: input.customerCpf, // CPF obrigatório para Asaas
   });
 
   // 2. Calcular data de vencimento (hoje + 1 dia se não especificado)

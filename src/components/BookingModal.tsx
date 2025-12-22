@@ -47,6 +47,7 @@ interface BookingFormData {
   userName: string;
   userPhone: string;
   userEmail: string;
+  userCpf: string;
   date: Date | null;
   startHour: number;
   duration: number;
@@ -55,11 +56,27 @@ interface BookingFormData {
   notes: string;
 }
 
+// Função para formatar CPF (XXX.XXX.XXX-XX)
+function maskCpf(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+}
+
+// Validar CPF (apenas quantidade de dígitos)
+function isValidCpf(cpf: string): boolean {
+  const digits = cpf.replace(/\D/g, '');
+  return digits.length === 11;
+}
+
 export default function BookingModal({ room, products, onClose }: BookingModalProps) {
   const [formData, setFormData] = useState<BookingFormData>({
     userName: '',
     userPhone: '',
     userEmail: '',
+    userCpf: '',
     date: null,
     startHour: 9,
     duration: 1,
@@ -71,6 +88,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [cpfError, setCpfError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   
@@ -175,6 +193,14 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
       const startAt = setMinutes(setHours(formData.date, formData.startHour), 0);
       const endAt = addHours(startAt, formData.duration);
 
+      // Validar CPF antes de enviar
+      if (!isValidCpf(formData.userCpf)) {
+        setCpfError('CPF inválido (11 dígitos)');
+        setSubmitting(false);
+        return;
+      }
+      setCpfError(null);
+
       const response = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -182,6 +208,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
           userName: formData.userName,
           userPhone: formData.userPhone,
           userEmail: formData.userEmail || undefined,
+          userCpf: formData.userCpf.replace(/\D/g, ''), // Enviar só dígitos
           roomId: room.id,
           productId: formData.productId || undefined,
           startAt: startAt.toISOString(),
@@ -349,6 +376,36 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
               }`}
               placeholder="seu@email.com"
             />
+          </div>
+
+          {/* CPF */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              CPF *
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={formData.userCpf}
+              onChange={(e) => {
+                const masked = maskCpf(e.target.value);
+                setFormData({ ...formData, userCpf: masked });
+                if (cpfError && isValidCpf(masked)) setCpfError(null);
+              }}
+              disabled={submitting}
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
+                submitting
+                  ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                  : cpfError
+                    ? 'border-red-300 bg-red-50'
+                    : 'border-gray-300'
+              }`}
+              placeholder="000.000.000-00"
+              required
+            />
+            {cpfError && (
+              <p className="mt-1 text-sm text-red-600">{cpfError}</p>
+            )}
           </div>
 
           {/* Data */}

@@ -20,6 +20,7 @@ const createBookingSchema = z.object({
   userName: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   userPhone: brazilianPhone,
   userEmail: z.string().email('Email inválido').optional(),
+  userCpf: z.string().length(11, 'CPF deve ter 11 dígitos').regex(/^\d+$/, 'CPF deve conter apenas números'),
   productId: z.string().optional(),
   roomId: z.string().min(1, 'Sala é obrigatória'),
   startAt: z.string().datetime({ message: 'Data/hora de início inválida' }),
@@ -218,6 +219,7 @@ export default async function handler(
           customerName: data.userName,
           customerEmail: data.userEmail || `${data.userPhone}@placeholder.com`,
           customerPhone: data.userPhone,
+          customerCpf: data.userCpf, // CPF para Asaas
           value: amountToPay, // Valor restante após créditos
           description: `Reserva ${room.name} - ${hours}h${creditsUsed > 0 ? ` (R$ ${(creditsUsed/100).toFixed(2)} em créditos)` : ''}`,
         });

@@ -12,7 +12,7 @@ import { env } from './env';
 function getAsaasApiUrl(): string {
   return process.env.ASAAS_SANDBOX === 'true'
     ? 'https://sandbox.asaas.com/api/v3'
-    : 'https://api.asaas.com/api/v3';
+    : 'https://www.asaas.com/api/v3';
 }
 
 function getApiKey(): string {

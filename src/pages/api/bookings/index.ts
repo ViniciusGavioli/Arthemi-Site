@@ -269,10 +269,17 @@ export default async function handler(
       amountToPay,
     });
   } catch (error) {
-    console.error('Erro ao criar reserva:', error);
+    // LOG DETALHADO PARA DEBUG
+    console.error('❌ [/api/bookings] ERRO CRÍTICO:', {
+      message: error instanceof Error ? error.message : 'Erro desconhecido',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+      body: req.body,
+    });
+    
     return res.status(500).json({
       success: false,
-      error: 'Erro interno ao criar reserva',
+      error: error instanceof Error ? error.message : 'Erro interno ao criar reserva',
     });
   }
 }

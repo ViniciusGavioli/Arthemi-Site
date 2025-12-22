@@ -4,6 +4,27 @@ Este guia ajuda a resolver problemas comuns ao trabalhar com o projeto Arthemi n
 
 ---
 
+## ⚡ Solução Rápida para Autenticação Git
+
+**Problema mais comum**: "Repository not found" ou "Authentication failed"
+
+**Solução mais rápida**:
+```bash
+# Instale o GitHub CLI (se não tiver)
+# Ubuntu/Debian: sudo apt install gh
+# macOS: brew install gh
+# Windows: winget install --id GitHub.cli
+
+# Faça login
+gh auth login
+# Escolha: GitHub.com > HTTPS > Login with a web browser
+# Siga as instruções na tela
+```
+
+Veja mais detalhes na [seção de Autenticação Git](#-problemas-de-autenticação-git).
+
+---
+
 ## 🔌 Problemas de Conexão com VS Code
 
 ### Problema: "Erro ao conectar com VS Code"
@@ -57,7 +78,45 @@ Isso geralmente acontece quando:
 
 #### Soluções:
 
-1. **Configurar Autenticação com Personal Access Token (PAT)**
+1. **Usar GitHub CLI (Recomendado - Mais Fácil)**
+   
+   O GitHub CLI é a maneira mais simples e moderna de autenticar:
+   
+   a. Instale o GitHub CLI:
+   ```bash
+   # Ubuntu/Debian
+   sudo apt install gh
+   
+   # macOS
+   brew install gh
+   
+   # Windows (via winget)
+   winget install --id GitHub.cli
+   
+   # Ou baixe de: https://cli.github.com/
+   ```
+   
+   b. Faça login:
+   ```bash
+   gh auth login
+   ```
+   
+   Siga as instruções interativas:
+   - Escolha "GitHub.com"
+   - Escolha "HTTPS" (recomendado)
+   - Escolha "Login with a web browser" (mais fácil)
+   - Copie o código de 8 dígitos mostrado
+   - Pressione Enter para abrir o navegador
+   - Cole o código no navegador e autorize
+   
+   c. Verifique se está autenticado:
+   ```bash
+   gh auth status
+   ```
+   
+   Pronto! Agora você pode usar `git pull`, `git push` normalmente.
+
+2. **Configurar Autenticação com Personal Access Token (PAT)**
    
    a. Crie um Personal Access Token no GitHub:
    ```
@@ -75,7 +134,7 @@ Isso geralmente acontece quando:
    # Senha: seu_token_copiado
    ```
 
-2. **Usar SSH em vez de HTTPS**
+3. **Usar SSH em vez de HTTPS**
    
    a. Gere uma chave SSH (se não tiver):
    ```bash
@@ -95,7 +154,7 @@ Isso geralmente acontece quando:
    git remote set-url origin git@github.com:ViniciusGavioli/Arthemi-Site.git
    ```
 
-3. **Verificar URL do Remote**
+4. **Verificar URL do Remote**
    ```bash
    # Ver a URL atual
    git remote -v
@@ -108,7 +167,7 @@ Isso geralmente acontece quando:
    git remote set-url origin https://github.com/ViniciusGavioli/Arthemi-Site
    ```
 
-4. **Configurar Git Credential Helper**
+5. **Configurar Git Credential Helper**
    ```bash
    # Linux
    git config --global credential.helper cache

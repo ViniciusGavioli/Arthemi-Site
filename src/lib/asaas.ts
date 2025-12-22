@@ -21,13 +21,25 @@ function getApiKey(): string {
 
 /**
  * Verifica se está em modo mock (avaliado em runtime)
+ * PRODUÇÃO: Se tem API key válida e está em produção, NUNCA é mock
  */
 export function isMockMode(): boolean {
   const apiKey = process.env.ASAAS_API_KEY || '';
   const mockModeEnv = process.env.ASAAS_MOCK_MODE;
+  const isProduction = process.env.NODE_ENV === 'production';
   
-  // Mock mode se: não tem API key OU ASAAS_MOCK_MODE está explicitamente 'true'
-  return !apiKey || mockModeEnv === 'true';
+  // Se não tem API key, sempre mock
+  if (!apiKey || !apiKey.startsWith('$aact_')) {
+    return true;
+  }
+  
+  // Em produção com API key válida: só mock se explicitamente 'true'
+  if (isProduction) {
+    return mockModeEnv === 'true';
+  }
+  
+  // Em dev: mock por padrão, a menos que ASAAS_MOCK_MODE='false'
+  return mockModeEnv !== 'false';
 }
 
 // ============================================================

@@ -394,16 +394,26 @@ export async function deletePayment(paymentId: string): Promise<boolean> {
 
 /**
  * Valida token do webhook
+ * SEGURANÇA: Em produção, REJEITA se token não está configurado
  */
 export function validateWebhookToken(token: string | null): boolean {
   const expectedToken = process.env.ASAAS_WEBHOOK_TOKEN;
+  const isProduction = process.env.NODE_ENV === 'production';
+  const isMock = isMockMode();
   
-  // Se não configurou token, aceita qualquer um (não recomendado em produção)
+  // Em produção SEM mock: token é OBRIGATÓRIO
+  if (isProduction && !isMock && !expectedToken) {
+    console.error('🚨 [SEGURANÇA] ASAAS_WEBHOOK_TOKEN não configurado em produção!');
+    return false;
+  }
+  
+  // Em desenvolvimento ou mock: aceita se não configurou (apenas warning)
   if (!expectedToken) {
     console.warn('⚠️ ASAAS_WEBHOOK_TOKEN não configurado - webhook não autenticado');
     return true;
   }
   
+  // Validação real do token
   return token === expectedToken;
 }
 

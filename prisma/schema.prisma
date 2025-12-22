@@ -221,6 +221,25 @@ model MagicLinkRateLimit {
   @@map("magic_link_rate_limits")
 }
 
+// ===========================================================
+// Webhook Event - Idempotência para webhooks Asaas
+// ===========================================================
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  eventId     String   @unique  // ID do evento do Asaas
+  eventType   String             // PAYMENT_RECEIVED, etc
+  paymentId   String?            // ID do pagamento no Asaas
+  bookingId   String?            // ID do booking relacionado
+  status      String   @default("PROCESSED")  // PROCESSED, FAILED, SKIPPED
+  payload     Json?              // Payload completo para debug
+  processedAt DateTime @default(now())
+  
+  @@index([eventId])
+  @@index([paymentId])
+  @@index([processedAt])
+  @@map("webhook_events")
+}
+
 model AuditLog {
   id         String      @id @default(uuid())
   action     AuditAction

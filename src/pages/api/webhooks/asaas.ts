@@ -2,12 +2,12 @@
 // API: POST /api/webhooks/asaas
 // ===========================================================
 // Recebe notificações de pagamento do Asaas
+// Idempotência garantida por banco de dados (WebhookEvent)
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
 import { sendBookingConfirmationEmail } from '@/lib/email';
-import { formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
@@ -18,8 +18,22 @@ import {
 import { createMagicLink } from '@/lib/magic-link';
 import { getUserCreditsSummary } from '@/lib/business-rules';
 
-// Cache de idempotência (em produção, usar Redis)
-const processedEvents = new Set<string>();
+// Idempotência via banco de dados (WebhookEvent table)
+
+// Helper: verifica se produto é pacote de horas
+function isPackageProduct(type: string): boolean {
+  return ['PACKAGE_10H', 'PACKAGE_20H', 'PACKAGE_40H'].includes(type);
+}
+
+// Helper: retorna horas do pacote
+function getPackageHours(type: string): number {
+  switch (type) {
+    case 'PACKAGE_10H': return 10;
+    case 'PACKAGE_20H': return 20;
+    case 'PACKAGE_40H': return 40;
+    default: return 0;
+  }
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -57,20 +71,27 @@ export default async function handler(
       status: payment.status,
     });
 
-    // 3. Idempotência - evitar processar mesmo evento duas vezes
-    if (processedEvents.has(eventId)) {
+    // 3. Idempotência via banco de dados - evitar processar mesmo evento duas vezes
+    const existingEvent = await prisma.webhookEvent.findUnique({
+      where: { eventId },
+    });
+
+    if (existingEvent) {
       console.log(`⏭️ [Asaas Webhook] Evento já processado: ${eventId}`);
-      return res.status(200).json({ received: true, skipped: true });
+      return res.status(200).json({ received: true, skipped: true, processedAt: existingEvent.processedAt });
     }
 
-    // Marcar como processado
-    processedEvents.add(eventId);
-
-    // Limpar cache antigo (manter últimos 1000)
-    if (processedEvents.size > 1000) {
-      const toDelete = Array.from(processedEvents).slice(0, 500);
-      toDelete.forEach(id => processedEvents.delete(id));
-    }
+    // Registrar evento ANTES de processar (para garantir idempotência mesmo em crash)
+    await prisma.webhookEvent.create({
+      data: {
+        eventId,
+        eventType: event,
+        paymentId: payment.id,
+        bookingId: bookingId || null,
+        status: 'PROCESSING',
+        payload: payload as object,
+      },
+    });
 
     // 4. Verificar se é evento de pagamento confirmado
     if (!isPaymentConfirmed(event)) {
@@ -113,10 +134,76 @@ export default async function handler(
         status: 'CONFIRMED',
         paymentStatus: 'APPROVED',
         paymentId: payment.id,
+        amountPaid: Math.round(payment.value * 100), // Converter reais para centavos
       },
     });
 
     console.log(`✅ [Asaas Webhook] Reserva confirmada: ${bookingId}`);
+
+    // 7.1. Atualizar Payment table se existir
+    try {
+      await prisma.payment.updateMany({
+        where: { 
+          OR: [
+            { externalId: payment.id },
+            { bookingId: bookingId },
+          ]
+        },
+        data: {
+          status: 'APPROVED',
+          paidAt: new Date(),
+        },
+      });
+    } catch (paymentError) {
+      console.warn('⚠️ [Asaas Webhook] Erro ao atualizar Payment:', paymentError);
+    }
+
+    // 7.2. Criar Credit se for pacote de horas
+    let creditCreated = false;
+    if (booking.product && isPackageProduct(booking.product.type)) {
+      try {
+        const hoursIncluded = booking.product.hoursIncluded || getPackageHours(booking.product.type);
+        const creditAmount = hoursIncluded * (booking.room?.hourlyRate || booking.product.price / hoursIncluded);
+        
+        // Calcular expiração (90 dias padrão para pacotes)
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + (booking.product.validityDays || 90));
+        
+        await prisma.credit.create({
+          data: {
+            userId: booking.userId,
+            roomId: booking.roomId,
+            amount: creditAmount,
+            remainingAmount: creditAmount,
+            type: 'MANUAL', // Crédito gerado por compra de pacote
+            status: 'CONFIRMED',
+            referenceMonth: new Date().getMonth() + 1,
+            referenceYear: new Date().getFullYear(),
+            expiresAt,
+          },
+        });
+        
+        creditCreated = true;
+        console.log(`💳 [Asaas Webhook] Crédito criado: ${creditAmount} centavos para user ${booking.userId}`);
+        
+        // Log de auditoria para crédito
+        await logAudit({
+          action: 'CREDIT_CREATED',
+          source: 'SYSTEM',
+          targetType: 'Credit',
+          targetId: booking.userId,
+          metadata: {
+            amount: creditAmount,
+            productId: booking.product.id,
+            productType: booking.product.type,
+            bookingId,
+            paymentId: payment.id,
+          },
+        });
+      } catch (creditError) {
+        console.error('❌ [Asaas Webhook] Erro ao criar crédito:', creditError);
+      }
+    }
 
     // 8. Log de auditoria
     await logAudit({
@@ -183,7 +270,13 @@ export default async function handler(
       // Não falhar o webhook por erro de email
     }
 
-    // 10. Responder sucesso
+    // 11. Atualizar WebhookEvent como processado com sucesso
+    await prisma.webhookEvent.update({
+      where: { eventId },
+      data: { status: 'PROCESSED' },
+    });
+
+    // 12. Responder sucesso
     return res.status(200).json({ 
       received: true,
       bookingId,
@@ -192,6 +285,19 @@ export default async function handler(
 
   } catch (error) {
     console.error('❌ [Asaas Webhook] Erro:', error);
+    
+    // Tentar marcar evento como falho
+    try {
+      const payload = req.body as AsaasWebhookPayload;
+      if (payload?.id) {
+        await prisma.webhookEvent.update({
+          where: { eventId: payload.id },
+          data: { status: 'FAILED' },
+        });
+      }
+    } catch {
+      // Ignora erro ao atualizar status
+    }
     
     // Retornar 200 para evitar retry infinito em erros de código
     // Em produção, enviar para fila de reprocessamento

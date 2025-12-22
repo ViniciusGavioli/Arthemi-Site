@@ -8,17 +8,25 @@ Este guia ajuda a resolver problemas comuns ao trabalhar com o projeto Arthemi n
 
 **Problema mais comum**: "Repository not found" ou "Authentication failed"
 
-**Solução mais rápida**:
+**Solução completa**:
 ```bash
-# Instale o GitHub CLI (se não tiver)
+# 1. Instale o GitHub CLI (se não tiver)
 # Ubuntu/Debian: sudo apt install gh
 # macOS: brew install gh
 # Windows: winget install --id GitHub.cli
 
-# Faça login
+# 2. Faça login
 gh auth login
 # Escolha: GitHub.com > HTTPS > Login with a web browser
 # Siga as instruções na tela
+
+# 3. Verifique se funcionou
+gh auth status
+
+# 4. Agora você pode usar Git normalmente
+git pull origin main
+git push origin main
+# Ou qualquer outro comando Git
 ```
 
 Veja mais detalhes na [seção de Autenticação Git](#-problemas-de-autenticação-git).
@@ -114,7 +122,20 @@ Isso geralmente acontece quando:
    gh auth status
    ```
    
-   Pronto! Agora você pode usar `git pull`, `git push` normalmente.
+   d. Teste com comandos Git:
+   ```bash
+   # Puxar mudanças do repositório
+   git pull origin main
+   
+   # Fazer suas mudanças e commit
+   git add .
+   git commit -m "sua mensagem"
+   
+   # Enviar suas mudanças
+   git push origin main
+   ```
+   
+   ✅ Pronto! A autenticação está configurada e você pode usar Git normalmente.
 
 2. **Configurar Autenticação com Personal Access Token (PAT)**
    

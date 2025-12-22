@@ -1,0 +1,115 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev",
+      "type": "npm",
+      "script": "dev",
+      "problemMatcher": [],
+      "detail": "Start Next.js development server",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "build",
+      "type": "npm",
+      "script": "build",
+      "problemMatcher": [],
+      "detail": "Build the Next.js application for production",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "lint",
+      "type": "npm",
+      "script": "lint",
+      "problemMatcher": ["$eslint-stylish"],
+      "detail": "Run ESLint on the project"
+    },
+    {
+      "label": "test",
+      "type": "npm",
+      "script": "test",
+      "problemMatcher": [],
+      "detail": "Run Jest unit tests",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "test:watch",
+      "type": "npm",
+      "script": "test:watch",
+      "problemMatcher": [],
+      "detail": "Run Jest in watch mode",
+      "isBackground": true
+    },
+    {
+      "label": "test:e2e",
+      "type": "npm",
+      "script": "test:e2e",
+      "problemMatcher": [],
+      "detail": "Run Playwright E2E tests"
+    },
+    {
+      "label": "prisma:generate",
+      "type": "npm",
+      "script": "generate",
+      "problemMatcher": [],
+      "detail": "Generate Prisma Client"
+    },
+    {
+      "label": "prisma:migrate",
+      "type": "npm",
+      "script": "migrate",
+      "problemMatcher": [],
+      "detail": "Run Prisma migrations"
+    },
+    {
+      "label": "prisma:studio",
+      "type": "npm",
+      "script": "db:studio",
+      "problemMatcher": [],
+      "detail": "Open Prisma Studio",
+      "isBackground": true
+    },
+    {
+      "label": "seed",
+      "type": "npm",
+      "script": "seed",
+      "problemMatcher": [],
+      "detail": "Seed database with initial data"
+    },
+    {
+      "label": "docker:up",
+      "type": "shell",
+      "command": "docker-compose up -d",
+      "problemMatcher": [],
+      "detail": "Start PostgreSQL with Docker Compose"
+    },
+    {
+      "label": "docker:down",
+      "type": "shell",
+      "command": "docker-compose down",
+      "problemMatcher": [],
+      "detail": "Stop Docker Compose services"
+    },
+    {
+      "label": "setup:dev",
+      "dependsOn": [
+        "docker:up",
+        "prisma:generate",
+        "prisma:migrate",
+        "seed"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": [],
+      "detail": "Complete development environment setup"
+    }
+  ]
+}

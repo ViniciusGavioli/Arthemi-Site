@@ -9,6 +9,7 @@ MVP funcional para o site do Espaço Arthemi, um coworking especializado em prof
 - [Pré-requisitos](#-pré-requisitos)
 - [Instalação](#-instalação)
 - [Configuração](#-configuração)
+- [VS Code Setup](#-vs-code-setup)
 - [Rodando o Projeto](#-rodando-o-projeto)
 - [Estrutura do Projeto](#-estrutura-do-projeto)
 - [API Endpoints](#-api-endpoints)
@@ -59,6 +60,7 @@ MVP funcional para o site do Espaço Arthemi, um coworking especializado em prof
 - Node.js 18+ (recomendado 20 LTS)
 - npm ou yarn
 - PostgreSQL 15+ **OU** Docker
+- Visual Studio Code (recomendado para desenvolvimento)
 
 ---
 
@@ -96,6 +98,39 @@ ASAAS_MOCK_MODE="true"
 # Modo de pagamento simulado (true para desenvolvimento)
 MOCK_PAYMENTS="true"
 ```
+
+---
+
+## 💻 VS Code Setup
+
+Este projeto inclui configurações otimizadas do VS Code para melhorar sua experiência de desenvolvimento.
+
+### Configuração Automática
+
+Quando você abrir o projeto no VS Code:
+
+1. **Extensões Recomendadas**: Você verá uma notificação para instalar extensões essenciais (ESLint, Prettier, Tailwind, Prisma, etc.). Clique em "Instalar".
+
+2. **Configurações do Workspace**: As configurações já estão pré-configuradas em `.vscode/settings.json`:
+   - Formatação automática ao salvar
+   - ESLint com auto-fix
+   - Suporte completo para TypeScript
+   - IntelliSense otimizado
+
+3. **Debugging**: Configurações de debug prontas para usar:
+   - Debug do Next.js (server-side, client-side, full-stack)
+   - Debug de testes Jest
+   - Debug de testes Playwright
+
+4. **Tasks**: Tasks NPM integradas acessíveis via `Ctrl+Shift+B`:
+   - Comandos de desenvolvimento (dev, build, lint)
+   - Comandos de teste (test, test:watch, test:e2e)
+   - Comandos do Prisma (generate, migrate, studio)
+   - Comandos Docker (up, down)
+
+### Guia Completo
+
+Para instruções detalhadas sobre configuração e uso do VS Code, veja o **[Guia de Setup do VS Code](.vscode/SETUP.md)**.
 
 ---
 

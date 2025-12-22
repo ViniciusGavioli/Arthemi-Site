@@ -197,13 +197,18 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
         throw new Error(data.error || 'Erro ao criar reserva');
       }
 
-      // Se tem paymentUrl, redireciona para pagamento
-      if (data.paymentUrl) {
-        window.location.href = data.paymentUrl;
-        return;
+      // Se tem valor a pagar, DEVE ter paymentUrl
+      if (data.amountToPay > 0) {
+        if (data.paymentUrl) {
+          window.location.href = data.paymentUrl;
+          return;
+        } else {
+          // ERRO CRÍTICO: tem valor a pagar mas não gerou link
+          throw new Error('Erro ao gerar pagamento. Tente novamente.');
+        }
       }
 
-      // Sucesso sem pagamento
+      // Sucesso SEM pagamento (100% pago com créditos)
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao processar reserva');

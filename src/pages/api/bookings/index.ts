@@ -244,8 +244,19 @@ export default async function handler(
           },
         });
       } catch (paymentError) {
-        console.error('Erro ao criar cobrança Asaas:', paymentError);
-        // Booking foi criado, mas sem link de pagamento
+        console.error('❌ Erro ao criar cobrança Asaas:', paymentError);
+        
+        // CRÍTICO: Cancelar booking se não conseguiu criar pagamento
+        await prisma.booking.update({
+          where: { id: booking.id },
+          data: { status: 'CANCELLED' },
+        });
+        
+        return res.status(500).json({
+          success: false,
+          error: 'Erro ao gerar pagamento. Tente novamente.',
+          details: paymentError instanceof Error ? paymentError.message : 'Erro desconhecido',
+        });
       }
     }
 

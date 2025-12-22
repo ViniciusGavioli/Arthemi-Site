@@ -9,18 +9,25 @@ import { env } from './env';
 // CONFIGURAÇÃO
 // ============================================================
 
-const ASAAS_API_URL = process.env.ASAAS_SANDBOX === 'true'
-  ? 'https://sandbox.asaas.com/api/v3'
-  : 'https://api.asaas.com/api/v3';
+function getAsaasApiUrl(): string {
+  return process.env.ASAAS_SANDBOX === 'true'
+    ? 'https://sandbox.asaas.com/api/v3'
+    : 'https://api.asaas.com/api/v3';
+}
 
-const apiKey = process.env.ASAAS_API_KEY || '';
-const mockMode = !apiKey || process.env.ASAAS_MOCK_MODE === 'true';
+function getApiKey(): string {
+  return process.env.ASAAS_API_KEY || '';
+}
 
 /**
- * Verifica se está em modo mock
+ * Verifica se está em modo mock (avaliado em runtime)
  */
 export function isMockMode(): boolean {
-  return mockMode;
+  const apiKey = process.env.ASAAS_API_KEY || '';
+  const mockModeEnv = process.env.ASAAS_MOCK_MODE;
+  
+  // Mock mode se: não tem API key OU ASAAS_MOCK_MODE está explicitamente 'true'
+  return !apiKey || mockModeEnv === 'true';
 }
 
 // ============================================================
@@ -128,11 +135,14 @@ async function asaasRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  if (mockMode) {
+  if (isMockMode()) {
     throw new Error('Asaas está em modo mock - configure ASAAS_API_KEY');
   }
 
-  const response = await fetch(`${ASAAS_API_URL}${endpoint}`, {
+  const apiKey = getApiKey();
+  const apiUrl = getAsaasApiUrl();
+
+  const response = await fetch(`${apiUrl}${endpoint}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -166,7 +176,7 @@ async function asaasRequest<T>(
 export async function findOrCreateCustomer(
   input: CreateCustomerInput
 ): Promise<AsaasCustomer> {
-  if (mockMode) {
+  if (isMockMode()) {
     console.log('🎭 [MOCK] Criando cliente:', input);
     return {
       id: `cus_mock_${Date.now()}`,
@@ -212,7 +222,7 @@ export async function findOrCreateCustomer(
 export async function createPayment(
   input: CreatePaymentInput
 ): Promise<AsaasPayment> {
-  if (mockMode) {
+  if (isMockMode()) {
     console.log('🎭 [MOCK] Criando cobrança:', input);
     const mockId = `pay_mock_${Date.now()}`;
     // Valor em reais para exibição (input.value já está em reais aqui)
@@ -253,7 +263,7 @@ export async function createPayment(
  * Busca detalhes de uma cobrança
  */
 export async function getPayment(paymentId: string): Promise<AsaasPayment | null> {
-  if (mockMode) {
+  if (isMockMode()) {
     console.log('🎭 [MOCK] Buscando cobrança:', paymentId);
     return {
       id: paymentId,
@@ -283,7 +293,7 @@ export async function getPayment(paymentId: string): Promise<AsaasPayment | null
 export async function getPaymentByExternalReference(
   externalReference: string
 ): Promise<AsaasPayment | null> {
-  if (mockMode) {
+  if (isMockMode()) {
     return null;
   }
 
@@ -302,7 +312,7 @@ export async function getPaymentByExternalReference(
  * Obtém QR Code PIX de uma cobrança
  */
 export async function getPixQrCode(paymentId: string): Promise<PixQrCode | null> {
-  if (mockMode) {
+  if (isMockMode()) {
     console.log('🎭 [MOCK] Gerando QR Code PIX:', paymentId);
     // Retorna um QR code mock (placeholder)
     return {
@@ -332,7 +342,7 @@ export async function refundPayment(
   value?: number,
   description?: string
 ): Promise<boolean> {
-  if (mockMode) {
+  if (isMockMode()) {
     console.log('🎭 [MOCK] Estornando cobrança:', paymentId);
     return true;
   }
@@ -361,7 +371,7 @@ export async function refundPayment(
  * Cancela/remove uma cobrança pendente
  */
 export async function deletePayment(paymentId: string): Promise<boolean> {
-  if (mockMode) {
+  if (isMockMode()) {
     console.log('🎭 [MOCK] Cancelando cobrança:', paymentId);
     return true;
   }

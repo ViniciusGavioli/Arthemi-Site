@@ -263,7 +263,9 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
       // Se tem valor a pagar, DEVE ter paymentUrl
       if (data.amountToPay > 0) {
         if (data.paymentUrl) {
-          window.location.href = data.paymentUrl;
+          // Abrir pagamento em nova aba e redirecionar para pending
+          window.open(data.paymentUrl, '_blank');
+          window.location.href = '/booking/pending';
           return;
         } else {
           // ERRO CRÍTICO: tem valor a pagar mas não gerou link

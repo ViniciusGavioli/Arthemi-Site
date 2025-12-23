@@ -255,20 +255,14 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
         throw new Error(data.error || 'Erro ao criar reserva');
       }
 
-      // Salvar bookingId no localStorage para recuperar na página pending
-      if (data.bookingId) {
-        localStorage.setItem('lastBookingId', data.bookingId);
-      }
-
       // Se tem valor a pagar, DEVE ter paymentUrl
       if (data.amountToPay > 0) {
         if (data.paymentUrl) {
-          // Abrir pagamento em nova aba e redirecionar para pending
-          window.open(data.paymentUrl, '_blank');
-          window.location.href = '/booking/pending';
+          localStorage.setItem('lastBookingId', data.bookingId);
+          localStorage.setItem('lastPaymentUrl', data.paymentUrl);
+          window.location.href = `/booking/pending?booking=${data.bookingId}`;
           return;
         } else {
-          // ERRO CRÍTICO: tem valor a pagar mas não gerou link
           throw new Error('Erro ao gerar pagamento. Tente novamente.');
         }
       }

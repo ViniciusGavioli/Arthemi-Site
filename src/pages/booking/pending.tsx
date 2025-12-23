@@ -7,9 +7,10 @@ export default function BookingPendingPage() {
   const router = useRouter();
   const { booking: bookingFromQuery } = router.query;
   const [bookingId, setBookingId] = useState<string | null>(null);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [paymentOpened, setPaymentOpened] = useState(false);
 
-  // Recuperar bookingId da query ou localStorage
   useEffect(() => {
     if (bookingFromQuery && typeof bookingFromQuery === 'string') {
       setBookingId(bookingFromQuery);
@@ -19,9 +20,15 @@ export default function BookingPendingPage() {
         setBookingId(stored);
       }
     }
+
+    if (typeof window !== 'undefined') {
+      const storedUrl = localStorage.getItem('lastPaymentUrl');
+      if (storedUrl) {
+        setPaymentUrl(storedUrl);
+      }
+    }
   }, [bookingFromQuery]);
 
-  // Polling para verificar status do pagamento
   useEffect(() => {
     if (!bookingId) return;
 
@@ -32,9 +39,11 @@ export default function BookingPendingPage() {
           const data = await res.json();
           if (data.status === 'CONFIRMED') {
             localStorage.removeItem('lastBookingId');
+            localStorage.removeItem('lastPaymentUrl');
             router.push(`/booking/success?booking=${bookingId}`);
           } else if (data.status === 'CANCELLED') {
             localStorage.removeItem('lastBookingId');
+            localStorage.removeItem('lastPaymentUrl');
             router.push(`/booking/failure?booking=${bookingId}`);
           }
         }
@@ -55,9 +64,11 @@ export default function BookingPendingPage() {
         const data = await res.json();
         if (data.status === 'CONFIRMED') {
           localStorage.removeItem('lastBookingId');
+          localStorage.removeItem('lastPaymentUrl');
           router.push(`/booking/success?booking=${bookingId}`);
         } else if (data.status === 'CANCELLED') {
           localStorage.removeItem('lastBookingId');
+          localStorage.removeItem('lastPaymentUrl');
           router.push(`/booking/failure?booking=${bookingId}`);
         } else {
           alert('Pagamento ainda pendente. Continue aguardando.');
@@ -70,6 +81,13 @@ export default function BookingPendingPage() {
     }
   }
 
+  function handleOpenPayment() {
+    if (paymentUrl) {
+      window.open(paymentUrl, '_blank');
+      setPaymentOpened(true);
+    }
+  }
+
   return (
     <>
       <Head>
@@ -78,7 +96,6 @@ export default function BookingPendingPage() {
 
       <div className="min-h-screen bg-gradient-to-b from-yellow-50 to-white flex items-center justify-center p-4">
         <div className="max-w-md w-full text-center">
-          {/* Ícone de Pendente */}
           <div className="mb-6">
             <div className="w-24 h-24 mx-auto bg-yellow-100 rounded-full flex items-center justify-center">
               <svg
@@ -97,40 +114,52 @@ export default function BookingPendingPage() {
             </div>
           </div>
 
-          {/* Mensagem */}
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            Aguardando Pagamento
+            {paymentOpened ? 'Aguardando Pagamento' : 'Realizar Pagamento'}
           </h1>
           <p className="text-gray-600 mb-8">
-            Estamos processando seu pagamento. Isso pode levar alguns minutos.
+            {paymentOpened 
+              ? 'Estamos verificando seu pagamento. Isso pode levar alguns minutos.'
+              : 'Clique no botão abaixo para abrir a página de pagamento PIX.'}
           </p>
 
-          {/* Status */}
-          <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="w-3 h-3 bg-yellow-400 rounded-full animate-bounce"></div>
-              <div className="w-3 h-3 bg-yellow-400 rounded-full animate-bounce [animation-delay:0.1s]"></div>
-              <div className="w-3 h-3 bg-yellow-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-            </div>
-            <p className="text-gray-600">
-              Verificando automaticamente a cada 5 segundos...
-            </p>
-          </div>
+          {paymentUrl && !paymentOpened && (
+            <button
+              onClick={handleOpenPayment}
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-lg font-semibold text-lg transition-colors mb-6 flex items-center justify-center gap-2"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              Ir para Pagamento PIX
+            </button>
+          )}
 
-          {/* Instruções para Pix */}
+          {paymentOpened && (
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <div className="w-3 h-3 bg-yellow-400 rounded-full animate-bounce"></div>
+                <div className="w-3 h-3 bg-yellow-400 rounded-full animate-bounce [animation-delay:0.1s]"></div>
+                <div className="w-3 h-3 bg-yellow-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+              </div>
+              <p className="text-gray-600">
+                Verificando automaticamente a cada 5 segundos...
+              </p>
+            </div>
+          )}
+
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 text-left">
             <h3 className="font-semibold text-blue-800 mb-2">
-              💡 Se você escolheu Pix
+              💡 Instruções do PIX
             </h3>
             <ul className="text-sm text-blue-700 space-y-1">
-              <li>• Abra o app do seu banco</li>
+              <li>• Clique em &quot;Ir para Pagamento PIX&quot;</li>
               <li>• Escaneie o QR Code ou copie o código</li>
-              <li>• Confirme o pagamento</li>
-              <li>• Aguarde a confirmação nesta página</li>
+              <li>• Pague no app do seu banco</li>
+              <li>• Volte aqui e aguarde a confirmação</li>
             </ul>
           </div>
 
-          {/* Código da Reserva */}
           {bookingId && (
             <div className="bg-gray-100 rounded-lg p-4 mb-8">
               <p className="text-sm text-gray-500 mb-1">Código da Reserva</p>
@@ -140,15 +169,24 @@ export default function BookingPendingPage() {
             </div>
           )}
 
-          {/* Botões */}
           <div className="space-y-3">
-            <button
-              onClick={handleCheckStatus}
-              disabled={checking}
-              className="block w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
-            >
-              {checking ? 'Verificando...' : 'Verificar Status Agora'}
-            </button>
+            {paymentOpened && (
+              <button
+                onClick={handleCheckStatus}
+                disabled={checking}
+                className="block w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
+              >
+                {checking ? 'Verificando...' : 'Verificar Status Agora'}
+              </button>
+            )}
+            {paymentUrl && paymentOpened && (
+              <button
+                onClick={handleOpenPayment}
+                className="block w-full border border-green-500 text-green-600 py-3 rounded-lg font-semibold hover:bg-green-50 transition-colors"
+              >
+                Abrir Pagamento Novamente
+              </button>
+            )}
             <Link
               href="/"
               className="block w-full border border-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
@@ -157,7 +195,6 @@ export default function BookingPendingPage() {
             </Link>
           </div>
 
-          {/* Aviso */}
           <div className="mt-8 text-sm text-gray-500">
             <p>
               Você receberá um e-mail assim que o pagamento for confirmado.

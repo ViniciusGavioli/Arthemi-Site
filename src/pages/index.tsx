@@ -604,10 +604,10 @@ export default function Home() {
                     <div>
                       <p className="font-semibold text-primary-900">Contato</p>
                       <a 
-                        href="tel:+5531999999999" 
+                        href="tel:+5531984916090" 
                         className="text-accent-600 hover:text-accent-700 transition"
                       >
-                        (31) 99999-9999
+                        (31) 98491-6090
                       </a>
                     </div>
                   </div>

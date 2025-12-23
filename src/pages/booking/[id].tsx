@@ -381,7 +381,7 @@ export default function BookingDetailsPage() {
 
               {/* Link WhatsApp */}
               <a
-                href={`https://wa.me/5531999999999?text=Olá! Tenho uma dúvida sobre minha reserva ${booking.id.slice(0, 8).toUpperCase()}`}
+                href={`https://wa.me/5531984916090?text=Olá! Tenho uma dúvida sobre minha reserva ${booking.id.slice(0, 8).toUpperCase()}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block w-full py-3 bg-green-500 text-white rounded-lg font-semibold text-center hover:bg-green-600 transition"

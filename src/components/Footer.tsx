@@ -4,7 +4,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { MapPin, Phone, Mail } from 'lucide-react';
+import { MapPin, Phone, Mail, MessageCircle } from 'lucide-react';
 import { BUSINESS_INFO } from '@/constants/seo';
 
 interface FooterProps {
@@ -92,6 +92,15 @@ export default function Footer({ compact = false }: FooterProps) {
           <div>
             <h3 className="text-warm-100 font-bold mb-4">Contato</h3>
             <div className="flex flex-col gap-3">
+              <a 
+                href={`https://wa.me/${BUSINESS_INFO.whatsapp}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 hover:text-warm-100 transition text-green-400"
+              >
+                <MessageCircle className="w-4 h-4" />
+                WhatsApp
+              </a>
               <a 
                 href={`tel:${BUSINESS_INFO.phone.replace(/\s/g, '')}`} 
                 className="flex items-center gap-2 hover:text-warm-100 transition"

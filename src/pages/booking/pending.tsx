@@ -146,7 +146,7 @@ export default function BookingPendingPage() {
             </p>
             <p className="mt-2">
               Problemas?{' '}
-              <a href="https://wa.me/5511999999999" className="text-primary hover:underline">
+              <a href="https://wa.me/5531984916090" className="text-primary hover:underline">
                 Fale conosco
               </a>
             </p>

@@ -26,9 +26,15 @@ const createBookingSchema = z.object({
   startAt: z.string().datetime({ message: 'Data/hora de início inválida' }),
   endAt: z.string().datetime({ message: 'Data/hora de término inválida' }),
   payNow: z.boolean().default(false),
-  useCredits: z.boolean().default(false), // Usar créditos disponíveis
+  useCredits: z.boolean().default(false),
+  couponCode: z.string().optional(),
   notes: z.string().optional(),
 });
+
+// Cupons válidos (hardcoded por simplicidade)
+const VALID_COUPONS: Record<string, { discountType: 'fixed' | 'percent'; value: number; description: string }> = {
+  'TESTE50': { discountType: 'fixed', value: -1, description: 'Cupom de teste - R$ 0,50' }, // -1 = preço fixo de 50 centavos
+};
 
 type CreateBookingInput = z.infer<typeof createBookingSchema>;
 
@@ -132,6 +138,26 @@ export default async function handler(
       });
       if (product) {
         amount = product.price;
+      }
+    }
+
+    // 6.0.1 Aplicar cupom de desconto se fornecido
+    let couponApplied: string | null = null;
+    if (data.couponCode) {
+      const couponKey = data.couponCode.toUpperCase().trim();
+      const coupon = VALID_COUPONS[couponKey];
+      
+      if (coupon) {
+        if (coupon.discountType === 'fixed' && coupon.value === -1) {
+          // Cupom especial: preço fixo de 50 centavos
+          amount = 50;
+        } else if (coupon.discountType === 'fixed') {
+          amount = Math.max(0, amount - coupon.value);
+        } else if (coupon.discountType === 'percent') {
+          amount = Math.round(amount * (1 - coupon.value / 100));
+        }
+        couponApplied = couponKey;
+        console.log(`🎫 Cupom ${couponKey} aplicado: ${coupon.description}`);
       }
     }
 

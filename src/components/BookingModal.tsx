@@ -53,6 +53,7 @@ interface BookingFormData {
   duration: number;
   productType: 'hourly' | 'package';
   productId: string;
+  couponCode: string;
   notes: string;
 }
 
@@ -82,6 +83,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     duration: 1,
     productType: 'hourly',
     productId: '',
+    couponCode: '',
     notes: '',
   });
 
@@ -208,12 +210,13 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
           userName: formData.userName,
           userPhone: formData.userPhone,
           userEmail: formData.userEmail || undefined,
-          userCpf: formData.userCpf.replace(/\D/g, ''), // Enviar só dígitos
+          userCpf: formData.userCpf.replace(/\D/g, ''),
           roomId: room.id,
           productId: formData.productId || undefined,
           startAt: startAt.toISOString(),
           endAt: endAt.toISOString(),
           payNow: true,
+          couponCode: formData.couponCode || undefined,
           notes: formData.notes || undefined,
         }),
       });
@@ -569,6 +572,25 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
               </select>
             </div>
           )}
+
+          {/* Cupom de Desconto */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Cupom de Desconto
+            </label>
+            <input
+              type="text"
+              value={formData.couponCode}
+              onChange={(e) => setFormData({ ...formData, couponCode: e.target.value.toUpperCase() })}
+              disabled={submitting}
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
+                submitting
+                  ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                  : 'border-gray-300'
+              }`}
+              placeholder="Digite seu cupom (opcional)"
+            />
+          </div>
 
           {/* Observações */}
           <div>

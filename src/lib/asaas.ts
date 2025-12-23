@@ -211,8 +211,26 @@ export async function findOrCreateCustomer(
   );
 
   if (searchResult.data.length > 0) {
-    console.log('✅ Cliente encontrado:', searchResult.data[0].id);
-    return searchResult.data[0];
+    const existingCustomer = searchResult.data[0];
+    console.log('✅ Cliente encontrado:', existingCustomer.id);
+    
+    // Se cliente existente não tem CPF mas input tem, atualizar
+    if (!existingCustomer.cpfCnpj && input.cpfCnpj) {
+      console.log('🔄 Atualizando CPF do cliente:', existingCustomer.id);
+      const updatedCustomer = await asaasRequest<AsaasCustomer>(
+        `/customers/${existingCustomer.id}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({
+            cpfCnpj: input.cpfCnpj,
+          }),
+        }
+      );
+      console.log('✅ CPF atualizado:', updatedCustomer.id);
+      return updatedCustomer;
+    }
+    
+    return existingCustomer;
   }
 
   // Criar novo cliente

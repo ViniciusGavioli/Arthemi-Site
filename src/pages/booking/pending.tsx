@@ -5,42 +5,60 @@ import { useEffect, useState } from 'react';
 
 export default function BookingPendingPage() {
   const router = useRouter();
-  const { booking } = router.query;
+  const { booking: bookingFromQuery } = router.query;
+  const [bookingId, setBookingId] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+
+  // Recuperar bookingId da query ou localStorage
+  useEffect(() => {
+    if (bookingFromQuery && typeof bookingFromQuery === 'string') {
+      setBookingId(bookingFromQuery);
+    } else if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('lastBookingId');
+      if (stored) {
+        setBookingId(stored);
+      }
+    }
+  }, [bookingFromQuery]);
 
   // Polling para verificar status do pagamento
   useEffect(() => {
-    if (!booking) return;
+    if (!bookingId) return;
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/bookings/${booking}`);
+        const res = await fetch(`/api/bookings/${bookingId}`);
         if (res.ok) {
           const data = await res.json();
           if (data.status === 'CONFIRMED') {
-            router.push(`/booking/success?booking=${booking}`);
+            localStorage.removeItem('lastBookingId');
+            router.push(`/booking/success?booking=${bookingId}`);
           } else if (data.status === 'CANCELLED') {
-            router.push(`/booking/failure?booking=${booking}`);
+            localStorage.removeItem('lastBookingId');
+            router.push(`/booking/failure?booking=${bookingId}`);
           }
         }
       } catch (error) {
         console.error('Error checking status:', error);
       }
-    }, 5000); // Verifica a cada 5 segundos
+    }, 5000);
 
     return () => clearInterval(interval);
-  }, [booking, router]);
+  }, [bookingId, router]);
 
   async function handleCheckStatus() {
+    if (!bookingId) return;
     setChecking(true);
     try {
-      const res = await fetch(`/api/bookings/${booking}`);
+      const res = await fetch(`/api/bookings/${bookingId}`);
       if (res.ok) {
         const data = await res.json();
         if (data.status === 'CONFIRMED') {
-          router.push(`/booking/success?booking=${booking}`);
+          localStorage.removeItem('lastBookingId');
+          router.push(`/booking/success?booking=${bookingId}`);
         } else if (data.status === 'CANCELLED') {
-          router.push(`/booking/failure?booking=${booking}`);
+          localStorage.removeItem('lastBookingId');
+          router.push(`/booking/failure?booking=${bookingId}`);
         } else {
           alert('Pagamento ainda pendente. Continue aguardando.');
         }
@@ -113,11 +131,11 @@ export default function BookingPendingPage() {
           </div>
 
           {/* Código da Reserva */}
-          {booking && (
+          {bookingId && (
             <div className="bg-gray-100 rounded-lg p-4 mb-8">
               <p className="text-sm text-gray-500 mb-1">Código da Reserva</p>
               <p className="font-mono text-lg text-gray-800">
-                {String(booking).slice(0, 8).toUpperCase()}
+                {bookingId.slice(0, 8).toUpperCase()}
               </p>
             </div>
           )}

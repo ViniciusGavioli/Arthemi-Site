@@ -81,9 +81,6 @@ export interface CreatePaymentInput {
   description: string;
   externalReference: string; // bookingId
   billingType: BillingType;
-  callback?: {
-    successUrl: string;
-  };
 }
 
 export interface AsaasPayment {
@@ -292,9 +289,6 @@ export async function createPayment(
       dueDate: input.dueDate,
       description: input.description,
       externalReference: input.externalReference,
-      callback: {
-        successUrl: `${process.env.NEXT_PUBLIC_APP_URL}/booking/pending?booking=${input.externalReference}`,
-      },
     }),
   });
 

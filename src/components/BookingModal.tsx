@@ -255,6 +255,11 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
         throw new Error(data.error || 'Erro ao criar reserva');
       }
 
+      // Salvar bookingId no localStorage para recuperar na página pending
+      if (data.bookingId) {
+        localStorage.setItem('lastBookingId', data.bookingId);
+      }
+
       // Se tem valor a pagar, DEVE ter paymentUrl
       if (data.amountToPay > 0) {
         if (data.paymentUrl) {

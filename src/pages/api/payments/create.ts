@@ -120,6 +120,7 @@ export default async function handler(
       customerName: booking.user.name,
       customerEmail: booking.user.email,
       customerPhone: booking.user.phone || '',
+      customerCpf: booking.user.cpf || '',
       value: totalAmount, // Em centavos
       description: `Reserva Espaço Arthemi - ${description}`,
     });

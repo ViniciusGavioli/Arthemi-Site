@@ -143,13 +143,41 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
   const hourlyProduct = products.find(p => p.type === 'HOURLY_RATE');
   const hourlyPrice = hourlyProduct?.price || room.hourlyRate || 0;
 
-  // Calcular valor total
+  // Cupons válidos (deve estar sincronizado com o backend)
+  const VALID_COUPONS: Record<string, { discountType: 'fixed' | 'percent'; value: number; description: string }> = {
+    'TESTE50': { discountType: 'fixed', value: -1, description: 'Cupom de teste - R$ 5,00' },
+  };
+
+  // Calcular valor total (com cupom aplicado)
   const getTotalPrice = () => {
+    let basePrice: number;
     if (formData.productType === 'package' && formData.productId) {
       const product = products.find((p) => p.id === formData.productId);
-      return product?.price || 0;
+      basePrice = product?.price || 0;
+    } else {
+      basePrice = hourlyPrice * formData.duration;
     }
-    return hourlyPrice * formData.duration;
+
+    // Aplicar cupom se válido
+    const couponKey = formData.couponCode.toUpperCase().trim();
+    const coupon = VALID_COUPONS[couponKey];
+    if (coupon) {
+      if (coupon.discountType === 'fixed' && coupon.value === -1) {
+        return 500; // R$ 5,00 em centavos
+      } else if (coupon.discountType === 'fixed') {
+        return Math.max(0, basePrice - coupon.value);
+      } else if (coupon.discountType === 'percent') {
+        return Math.round(basePrice * (1 - coupon.value / 100));
+      }
+    }
+
+    return basePrice;
+  };
+
+  // Verificar se cupom é válido (para exibir feedback)
+  const isCouponValid = () => {
+    const couponKey = formData.couponCode.toUpperCase().trim();
+    return couponKey && VALID_COUPONS[couponKey];
   };
 
   // Opções de horário (8h às 19h)
@@ -586,10 +614,20 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
               className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
                 submitting
                   ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
-                  : 'border-gray-300'
+                  : isCouponValid()
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-300'
               }`}
               placeholder="Digite seu cupom (opcional)"
             />
+            {isCouponValid() && (
+              <p className="mt-1 text-sm text-green-600 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Cupom aplicado! Novo valor: {formatCurrency(getTotalPrice())}
+              </p>
+            )}
           </div>
 
           {/* Observações */}

@@ -33,7 +33,7 @@ const createBookingSchema = z.object({
 
 // Cupons válidos (hardcoded por simplicidade)
 const VALID_COUPONS: Record<string, { discountType: 'fixed' | 'percent'; value: number; description: string }> = {
-  'TESTE50': { discountType: 'fixed', value: -1, description: 'Cupom de teste - R$ 0,50' }, // -1 = preço fixo de 50 centavos
+  'TESTE50': { discountType: 'fixed', value: -1, description: 'Cupom de teste - R$ 5,00' }, // -1 = preço fixo de R$ 5,00 (mínimo Asaas)
 };
 
 type CreateBookingInput = z.infer<typeof createBookingSchema>;
@@ -149,8 +149,8 @@ export default async function handler(
       
       if (coupon) {
         if (coupon.discountType === 'fixed' && coupon.value === -1) {
-          // Cupom especial: preço fixo de 50 centavos
-          amount = 50;
+          // Cupom especial: preço fixo de R$ 5,00 (mínimo Asaas)
+          amount = 500;
         } else if (coupon.discountType === 'fixed') {
           amount = Math.max(0, amount - coupon.value);
         } else if (coupon.discountType === 'percent') {

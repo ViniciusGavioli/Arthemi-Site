@@ -76,6 +76,7 @@ export default function Home() {
             fill
             className="object-cover object-center"
             priority
+            quality={90}
             sizes="100vw"
           />
           <div className="absolute inset-0 bg-gradient-to-br from-primary-950/85 via-secondary-900/75 to-primary-950/85" />
@@ -322,6 +323,7 @@ export default function Home() {
                     alt="Consultório 1 | Prime"
                     fill
                     className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                    quality={85}
                     sizes="(max-width: 768px) 100vw, 33vw"
                   />
                   {/* Overlay com botão Ver Fotos */}
@@ -364,6 +366,7 @@ export default function Home() {
                     alt="Consultório 2 | Executive"
                     fill
                     className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                    quality={85}
                     sizes="(max-width: 768px) 100vw, 33vw"
                   />
                   {/* Overlay com botão Ver Fotos */}
@@ -403,6 +406,7 @@ export default function Home() {
                     alt="Consultório 3 | Essential"
                     fill
                     className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                    quality={85}
                     sizes="(max-width: 768px) 100vw, 33vw"
                   />
                   {/* Overlay com botão Ver Fotos */}
@@ -479,6 +483,7 @@ export default function Home() {
                     alt={`Espaço Arthemi ${i + 1}`}
                     fill
                     className="object-cover group-hover:scale-110 transition-transform duration-500"
+                    quality={85}
                     sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />

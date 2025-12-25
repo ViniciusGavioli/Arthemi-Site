@@ -13,6 +13,8 @@ const nextConfig = {
         hostname: 'via.placeholder.com',
       },
     ],
+    // Desabilitar otimização para usar imagens em qualidade original
+    unoptimized: true,
   },
 };
 

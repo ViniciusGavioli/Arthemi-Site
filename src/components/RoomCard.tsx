@@ -32,9 +32,19 @@ interface RoomCardProps {
 // Subtitulo baseado no slug
 const getSubtitle = (slug: string): string => {
   switch (slug) {
-    case 'sala-a': return 'Grande · Com maca';
-    case 'sala-b': return 'Média · Com maca';
-    case 'sala-c': return 'Compacta · Sem maca';
+    case 'sala-a': return 'Espaço premium';
+    case 'sala-b': return 'Consultório amplo';
+    case 'sala-c': return 'Espaço intimista';
+    default: return '';
+  }
+};
+
+// Nome do consultório baseado no slug
+const getRoomName = (slug: string): string => {
+  switch (slug) {
+    case 'sala-a': return 'Consultório 1 | Prime';
+    case 'sala-b': return 'Consultório 2 | Executive';
+    case 'sala-c': return 'Consultório 3 | Essential';
     default: return '';
   }
 };
@@ -42,10 +52,10 @@ const getSubtitle = (slug: string): string => {
 // Descrição baseada no slug
 const getDescription = (slug: string): string => {
   switch (slug) {
-    case 'sala-a': return 'Ideal para fisioterapia, massoterapia e procedimentos que precisam de espaço e maca.';
-    case 'sala-b': return 'Perfeita para consultas médicas, nutrição e atendimentos com avaliação física.';
-    case 'sala-c': return 'Ótima para psicologia, terapia e atendimentos focados em conversa.';
-    default: return 'Sala equipada para atendimentos de saúde.';
+    case 'sala-a': return 'Consultório amplo com maca e circulação livre 360º.';
+    case 'sala-b': return 'Consultório amplo com maca e circulação livre 360º.';
+    case 'sala-c': return 'Consultório acolhedor com poltronas confortáveis.';
+    default: return 'Consultório equipado para atendimentos de saúde.';
   }
 };
 
@@ -68,24 +78,19 @@ export default function RoomCard({ room, onReservar }: RoomCardProps) {
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 group border border-warm-200">
       {/* Imagem */}
-      <div className="relative h-48 overflow-hidden bg-warm-100">
+      <div className="relative h-48 sm:h-56 overflow-hidden bg-warm-100">
         <Image
           src={imageUrl}
-          alt={room.name}
+          alt={getRoomName(room.slug)}
           fill
-          className="object-cover group-hover:scale-105 transition-transform duration-300"
+          className="object-cover object-center group-hover:scale-105 transition-transform duration-300"
         />
-        
-        {/* Badge de capacidade */}
-        <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium text-primary-800">
-          👥 {room.capacity} pessoas
-        </div>
       </div>
 
       {/* Conteúdo */}
       <div className="p-6">
         <div className="mb-2">
-          <h3 className="text-xl font-bold text-primary-900">{room.name}</h3>
+          <h3 className="text-lg sm:text-xl font-bold text-primary-900">{getRoomName(room.slug)}</h3>
           <p className="text-sm text-accent-600 font-medium">{getSubtitle(room.slug)}</p>
         </div>
         

@@ -71,7 +71,7 @@ export default function Home() {
         <section className="relative min-h-[100svh] flex items-center pt-20 pb-8 overflow-hidden">
           {/* Background Image */}
           <Image 
-            src="/images/espaco/Recepcao-01.jpeg" 
+            src="/images/espaco/Recepcao.jpeg" 
             alt="Recepção do Espaço Arthemi"
             fill
             className="object-cover object-center"

@@ -362,7 +362,7 @@ export default function Home() {
                 </div>
                 <div className="relative w-full h-48 sm:h-56">
                   <Image 
-                    src="/images/sala-b/02-1.jpeg" 
+                    src="/images/sala-b/02-3.jpeg" 
                     alt="Consultório 2 | Executive"
                     fill
                     className="object-cover object-center group-hover:scale-105 transition-transform duration-500"

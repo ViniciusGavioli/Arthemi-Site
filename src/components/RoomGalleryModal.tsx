@@ -35,7 +35,7 @@ const roomImages: Record<string, { images: string[]; video?: string }> = {
   },
   'sala-b': {
     images: [
-      '/images/sala-b/02-1.jpeg',
+      '/images/sala-b/02-3.jpeg',
       '/images/sala-b/02-3.jpeg',
       '/images/sala-b/02-4.jpeg',
       '/images/sala-b/02-5.jpeg',

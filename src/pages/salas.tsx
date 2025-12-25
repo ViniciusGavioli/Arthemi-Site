@@ -138,7 +138,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
             {rooms.map((room, index) => {
               const galleryData = roomsGalleryData[index];
               const imageUrl = room.slug === 'sala-a' ? '/images/sala-a/foto-1.jpeg' : 
-                               room.slug === 'sala-b' ? '/images/sala-b/02-1.jpeg' : 
+                               room.slug === 'sala-b' ? '/images/sala-b/02-3.jpeg' : 
                                '/images/sala-c/03-1.jpeg';
               return (
                 <div 

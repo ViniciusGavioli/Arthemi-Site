@@ -65,8 +65,8 @@ export default function FAQ() {
       answer: 'Apenas o que for específico do seu atendimento. Insumos básicos como lençol descartável, papel toalha e álcool em gel já estão disponíveis. Se você usa materiais ou equipamentos específicos da sua especialidade, pode trazer e guardar em um espaço reservado (converse conosco sobre isso).'
     },
     {
-      question: 'Qual a diferença entre as salas?',
-      answer: 'Temos três salas: a Sala A é a maior, com maca, ideal para fisioterapia, massoterapia e procedimentos. A Sala B é média, também com maca, boa para consultas médicas e nutrição. A Sala C é menor, sem maca, perfeita para psicologia, terapia e atendimentos focados em conversa. Todas têm ar-condicionado, boa iluminação e privacidade.'
+      question: 'Qual a diferença entre os consultórios?',
+      answer: 'Temos três opções: o Consultório 1 | Prime é o mais amplo, com maca e circulação 360º, ideal para fisioterapia, massoterapia e procedimentos. O Consultório 2 | Executive também tem maca, ótimo para consultas médicas e nutrição. O Consultório 3 | Essential é mais intimista, com poltronas, perfeito para psicologia e terapia. Todos têm ar-condicionado, boa iluminação e privacidade.'
     },
     {
       question: 'Como funciona o pagamento?',
@@ -92,7 +92,7 @@ export default function FAQ() {
       />
       <BreadcrumbSchema items={[
         { name: 'Home', path: '/' },
-        { name: 'Dúvidas Frequentes', path: '/faq' },
+        { name: 'Perguntas frequentes', path: '/faq' },
       ]} />
       <FAQSchema faqs={faqs} />
 
@@ -101,7 +101,7 @@ export default function FAQ() {
         <section className="bg-warm-100 py-16">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h1 className="text-4xl md:text-5xl font-bold text-primary-900 mb-4">
-              Perguntas Frequentes
+              Perguntas frequentes
             </h1>
             <p className="text-xl text-secondary-600 max-w-2xl mx-auto">
               Respostas diretas para as dúvidas mais comuns sobre o Espaço Arthemi.
@@ -159,7 +159,7 @@ export default function FAQ() {
               href="/salas"
               className="inline-block bg-warm-100 text-accent-700 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-warm-200 transition"
             >
-              Ver Salas e Preços
+              Ver consultórios e preços
             </Link>
           </div>
         </section>

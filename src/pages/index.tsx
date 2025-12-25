@@ -18,7 +18,6 @@ import {
   CheckCircle2, 
   ArrowRight,
   MapPin,
-  Phone,
   Calendar,
   Users,
   Heart,
@@ -143,7 +142,7 @@ export default function Home() {
                   href="/salas"
                   className="group bg-gradient-to-r from-accent-600 to-accent-700 text-white px-8 py-4 min-h-[52px] rounded-full font-bold text-lg hover:shadow-2xl hover:shadow-accent-500/30 transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] flex items-center justify-center gap-2"
                 >
-                  Ver Salas e Preços
+                  Ver consultórios e preços
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <Link
@@ -151,7 +150,7 @@ export default function Home() {
                   className="bg-warm-100 text-primary-800 px-8 py-4 min-h-[52px] rounded-full font-bold text-lg border-2 border-warm-300 hover:border-accent-400 hover:text-accent-700 transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                   <Calendar className="w-5 h-5" />
-                  Como Funciona
+                  Como funciona
                 </Link>
               </div>
             </div>
@@ -524,7 +523,7 @@ export default function Home() {
               href="/salas"
               className="inline-flex items-center gap-2 bg-gradient-to-r from-accent-500 to-accent-600 text-white px-10 py-5 rounded-full font-bold text-xl hover:shadow-2xl hover:shadow-accent-500/30 transition-all duration-300 hover:-translate-y-1"
             >
-              Quero Conhecer as Salas
+              Ver consultórios e preços
               <ArrowRight className="w-6 h-6" />
             </Link>
           </div>

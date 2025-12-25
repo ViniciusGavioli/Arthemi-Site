@@ -18,7 +18,7 @@ export default function ComoFunciona() {
       />
       <BreadcrumbSchema items={[
         { name: 'Home', path: '/' },
-        { name: 'Como Funciona', path: '/como-funciona' },
+        { name: 'Como funciona', path: '/como-funciona' },
       ]} />
 
       <Layout compactFooter>

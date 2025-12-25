@@ -92,7 +92,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
       />
       <BreadcrumbSchema items={[
         { name: 'Home', path: '/' },
-        { name: 'Salas e Preços', path: '/salas' },
+        { name: 'Consultórios e preços', path: '/salas' },
       ]} />
 
       <Layout compactFooter>

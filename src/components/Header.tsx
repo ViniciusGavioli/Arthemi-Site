@@ -41,21 +41,6 @@ export default function Header({ variant = 'sticky' }: HeaderProps) {
 
   return (
     <header className={`${positionClass} z-50 bg-warm-50/90 backdrop-blur-lg border-b border-warm-200`}>
-      {/* Barra superior com contato */}
-      <div className="bg-primary-800 text-warm-100 py-2">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-end">
-          <a
-            href={whatsappLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-sm font-medium hover:text-accent-300 transition-colors"
-          >
-            <MessageCircle className="w-4 h-4" />
-            Fale conosco
-          </a>
-        </div>
-      </div>
-      
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between min-h-[64px] items-center">
           {/* Logo */}
@@ -85,6 +70,15 @@ export default function Header({ variant = 'sticky' }: HeaderProps) {
                 {link.label}
               </Link>
             ))}
+            <a
+              href={whatsappLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-primary-700 hover:text-accent-600 transition font-medium"
+            >
+              <MessageCircle className="w-4 h-4" />
+              Fale conosco
+            </a>
             <Link 
               href="/salas" 
               className="bg-gradient-to-r from-accent-600 to-accent-700 text-white px-6 py-2.5 rounded-full font-semibold hover:shadow-lg hover:shadow-accent-500/30 transition-all duration-300 hover:-translate-y-0.5"

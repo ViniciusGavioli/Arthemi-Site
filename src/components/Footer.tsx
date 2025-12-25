@@ -14,7 +14,7 @@ interface FooterProps {
 
 export default function Footer({ compact = false }: FooterProps) {
   const currentYear = new Date().getFullYear();
-  const googleMapsLink = 'https://maps.app.goo.gl/HZhGDQJwDLcBSqJf7';
+  const googleMapsLink = 'https://www.google.com/maps/place/Espa%C3%A7o+Arthemi+-+Coworking+de+Sa%C3%BAde+em+BH/@-19.9245428,-43.922652,17z';
   const whatsappLink = `https://wa.me/${BUSINESS_INFO.whatsapp}`;
 
   if (compact) {

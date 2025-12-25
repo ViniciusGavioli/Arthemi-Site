@@ -599,7 +599,7 @@ export default function Home() {
 
                 <div className="mt-8 pt-6 border-t border-warm-200">
                   <a
-                    href="https://maps.app.goo.gl/HZhGDQJwDLcBSqJf7"
+                    href="https://www.google.com/maps/place/Espa%C3%A7o+Arthemi+-+Coworking+de+Sa%C3%BAde+em+BH/@-19.9245428,-43.922652,17z"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 w-full bg-accent-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-accent-700 transition"
@@ -613,7 +613,7 @@ export default function Home() {
               {/* Mapa embed */}
               <div className="lg:col-span-2 rounded-3xl overflow-hidden shadow-lg shadow-warm-200/50 bg-warm-200">
                 <iframe
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1875.4!2d-43.9306!3d-19.9200!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xa699e13f9a6c8b%3A0x8c9a5a3a9c9c9c9c!2sAv.%20Brasil%2C%20248%20-%20Santa%20Efig%C3%AAnia%2C%20Belo%20Horizonte%20-%20MG!5e0!3m2!1spt-BR!2sbr!4v1702857600000!5m2!1spt-BR!2sbr"
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1875.4!2d-43.922652!3d-19.9245428!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xa699518a3297b3%3A0xff0a67224623033e!2sEspa%C3%A7o%20Arthemi%20-%20Coworking%20de%20Sa%C3%BAde%20em%20BH!5e0!3m2!1spt-BR!2sbr!4v1702857600000!5m2!1spt-BR!2sbr"
                   width="100%"
                   height="100%"
                   style={{ border: 0, minHeight: '400px' }}

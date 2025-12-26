@@ -146,11 +146,13 @@ export default function BookingDetailsPage() {
       return { allowed: false, reason: 'A reserva já iniciou ou passou' };
     }
 
+    // Regra: cancelamento só permitido com 48h de antecedência
     const hoursUntilStart = (startTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-    if (hoursUntilStart < 2) {
+    const MIN_HOURS = 48;
+    if (hoursUntilStart < MIN_HOURS) {
       return { 
         allowed: false, 
-        reason: 'Cancelamento permitido apenas com 2h de antecedência' 
+        reason: 'Cancelamentos só podem ser feitos com no mínimo 48 horas de antecedência.' 
       };
     }
 

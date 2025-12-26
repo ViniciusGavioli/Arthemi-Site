@@ -25,7 +25,8 @@ export const SUBLET_CREDIT_PERCENTAGE = 0.5; // 50% do valor
 export const MAX_CREDITS_PER_MONTH = 1;
 
 // Horário mínimo de antecedência para cancelamento (horas)
-export const MIN_CANCELLATION_HOURS = 24;
+// DECISÃO DE PRODUTO: Cancelamentos só são permitidos com 48h de antecedência
+export const MIN_CANCELLATION_HOURS = 48;
 
 // Horário mínimo de antecedência para reagendamento (horas)
 export const MIN_RESCHEDULE_HOURS = 24;

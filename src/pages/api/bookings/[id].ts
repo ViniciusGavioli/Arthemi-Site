@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { logUserAction } from '@/lib/audit';
+import { MIN_CANCELLATION_HOURS } from '@/lib/business-rules';
 
 /**
  * API /api/bookings/[id]
@@ -114,15 +115,15 @@ export default async function handler(
         });
       }
 
-      // 3. Opcional: mínimo de X horas de antecedência
+      // 3. OBRIGATÓRIO: mínimo de 48 horas de antecedência
       const hoursUntilStart = (startTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-      const MIN_HOURS_FOR_CANCEL = 2; // 2 horas de antecedência mínima
       
-      if (hoursUntilStart < MIN_HOURS_FOR_CANCEL) {
+      if (hoursUntilStart < MIN_CANCELLATION_HOURS) {
         return res.status(400).json({ 
-          error: `Cancelamento permitido apenas com ${MIN_HOURS_FOR_CANCEL} horas de antecedência`,
+          error: `Cancelamentos só são permitidos com no mínimo ${MIN_CANCELLATION_HOURS} horas de antecedência.`,
           code: 'TOO_LATE',
-          hoursRemaining: Math.floor(hoursUntilStart)
+          hoursRemaining: Math.floor(hoursUntilStart),
+          minHoursRequired: MIN_CANCELLATION_HOURS
         });
       }
 

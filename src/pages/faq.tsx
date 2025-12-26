@@ -50,7 +50,7 @@ export default function FAQ() {
     },
     {
       question: 'Posso remarcar ou cancelar uma reserva?',
-      answer: 'Sim. Pedimos apenas que você avise com pelo menos 24 horas de antecedência. Assim conseguimos reorganizar a agenda e liberar o horário para outros profissionais. Cancelamentos em cima da hora podem ter a cobrança mantida.'
+      answer: 'Sim. Pedimos apenas que você avise com pelo menos 48 horas de antecedência. Assim conseguimos reorganizar a agenda e liberar o horário para outros profissionais. Cancelamentos com menos de 48h não são permitidos e a cobrança é mantida.'
     },
     {
       question: 'O que está incluso no valor?',

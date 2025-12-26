@@ -5,6 +5,9 @@
 
 import { env } from './env';
 
+import { timingSafeEqual } from 'crypto';
+import rateLimiter from './asaas-limiter';
+
 // ============================================================
 // CONFIGURAÇÃO
 // ============================================================
@@ -154,6 +157,8 @@ async function asaasRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  await rateLimiter.acquireToken();
+
   if (isMockMode()) {
     throw new Error('Asaas está em modo mock - configure ASAAS_API_KEY');
   }
@@ -161,28 +166,41 @@ async function asaasRequest<T>(
   const apiKey = getApiKey();
   const apiUrl = getAsaasApiUrl();
 
-  const response = await fetch(`${apiUrl}${endpoint}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'access_token': apiKey,
-      ...options.headers,
-    },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000); // 15 segundos
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    console.error('❌ Asaas API Error:', {
-      status: response.status,
-      error,
+  try {
+    const response = await fetch(`${apiUrl}${endpoint}`, {
+      ...options,
+      signal: controller.signal, 
+      headers: {
+        'Content-Type': 'application/json',
+        'access_token': apiKey,
+        ...options.headers,
+      },
     });
-    throw new Error(
-      error.errors?.[0]?.description ||
-      `Erro Asaas: ${response.status}`
-    );
-  }
 
-  return response.json();
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      console.error('❌ Asaas API Error:', {
+        status: response?.status,
+        endpoint,
+        timestamp: new Date().toISOString(),
+      });
+      throw new Error('Erro na integração com gateway de pagamento');
+    }
+
+    return response.json();
+  } catch (error) {
+    clearTimeout(timeout); // Limpar timeout mesmo em erro
+    
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Timeout na comunicação com Asaas (15s)');
+    }
+    
+    throw error;
+  }
 }
 
 // ============================================================
@@ -450,9 +468,27 @@ export function validateWebhookToken(token: string | null): boolean {
     return true;
   }
   
+  // Token não fornecido
+  if (!token) {
+    return false;
+  }
+  
   // Validação real do token
-  return token === expectedToken;
+  return safeCompare(token, expectedToken);
 }
+
+
+ /**
+  * Comparação segura de strings para evitar timing attacks
+  */
+  export function safeCompare(a: string, b: string): boolean {
+    const bufA = Buffer.from(a, 'utf8');
+    const bufB = Buffer.from(b, 'utf8');
+
+    if (bufA.length !== bufB.length) return false;
+
+    return timingSafeEqual(bufA, bufB);
+  }
 
 /**
  * Verifica se o evento indica pagamento confirmado
@@ -467,6 +503,38 @@ export function isPaymentConfirmed(event: AsaasWebhookEvent): boolean {
 export function isPaymentStatusConfirmed(status: AsaasPaymentStatus): boolean {
   return status === 'RECEIVED' || status === 'CONFIRMED';
 }
+
+  // ============================================================
+  // HELPERS DE CONVERSÃO DE MOEDA
+  // ============================================================
+
+  /**
+   * Converte reais para centavos
+   * @example realToCents(70.00) → 7000
+   */
+  export function realToCents(reais: number): number {
+    return Math.round(reais * 100);
+  }
+
+  /**
+   * Converte centavos para reais
+   * @example centsToReal(7000) → 70.00
+   */
+  export function centsToReal(cents: number): number {
+    return cents / 100;
+  }
+
+  /**
+   * Formata valor para exibição
+   * @example formatCurrency(7000) → "R$ 70,00"
+   */
+  export function formatCurrency(cents: number): string {
+    const reais = centsToReal(cents);
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(reais);
+  }
 
 // ============================================================
 // TIPOS PARA INTEGRAÇÃO
@@ -512,7 +580,7 @@ export async function createBookingPayment(
   // 3. Criar cobrança PIX
   const payment = await createPayment({
     customerId: customer.id,
-    value: input.value / 100, // Converter centavos para reais
+    value: centsToReal(input.value), // Converter centavos para reais
     dueDate,
     description: input.description,
     externalReference: input.bookingId,

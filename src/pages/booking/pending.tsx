@@ -174,7 +174,7 @@ export default function BookingPendingPage() {
               <button
                 onClick={handleCheckStatus}
                 disabled={checking}
-                className="block w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
+                className="block w-full border border-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
               >
                 {checking ? 'Verificando...' : 'Verificar Status Agora'}
               </button>

@@ -11,7 +11,7 @@
     "lint": "next lint",
     "migrate": "prisma migrate dev",
     "migrate:prod": "prisma migrate deploy",
-    "seed": "tsx prisma/seed.ts",
+    "seed": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "generate": "prisma generate",
@@ -20,9 +20,6 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "validate:env": "node scripts/validate-env.js"
-  },
-  "prisma": {
-    "seed": "node prisma/seed.js"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.10",

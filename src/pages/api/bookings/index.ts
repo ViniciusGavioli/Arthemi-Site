@@ -13,6 +13,7 @@ import {
   getAvailableCreditsForRoom, 
   consumeCreditsForBooking,
   getCreditBalanceForRoom,
+  validateBookingWindow,
 } from '@/lib/business-rules';
 
 // Schema de validação com Zod
@@ -108,6 +109,26 @@ export default async function handler(
       return res.status(409).json({
         success: false,
         error: 'Horário não disponível. Já existe uma reserva neste período.',
+      });
+    }
+
+    // 4.1 Validar janela de reserva (30 dias para horas/pacotes)
+    // Se tem productId, busca o tipo do produto para validar
+    let productType: string | null = null;
+    if (data.productId) {
+      const product = await prisma.product.findUnique({
+        where: { id: data.productId },
+        select: { type: true },
+      });
+      productType = product?.type || null;
+    }
+
+    // Valida se a data está dentro da janela permitida para o tipo de produto
+    const windowValidation = validateBookingWindow(startAt, productType);
+    if (!windowValidation.valid) {
+      return res.status(400).json({
+        success: false,
+        error: windowValidation.error || 'Data de reserva inválida',
       });
     }
 

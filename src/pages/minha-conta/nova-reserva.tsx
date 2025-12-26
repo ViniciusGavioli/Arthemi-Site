@@ -52,6 +52,10 @@ export default function NovaReservaPage() {
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
+  // Janela de reserva (30 dias para horas/pacotes)
+  const [maxBookingDate, setMaxBookingDate] = useState<Date | null>(null);
+  const [hasBookingLimit, setHasBookingLimit] = useState(false);
+
   // Erro
   const [error, setError] = useState('');
 
@@ -83,6 +87,16 @@ export default function NovaReservaPage() {
         if (creditsData.summary) {
           setTotalCredits(creditsData.summary.total);
           setCreditsByRoom(creditsData.summary.byRoom || []);
+        }
+      }
+
+      // Busca janela de reserva (30 dias para horas/pacotes, ilimitado para turnos)
+      const windowRes = await fetch(`/api/user/booking-window?userId=${authData.user.id}`);
+      if (windowRes.ok) {
+        const windowData = await windowRes.json();
+        setHasBookingLimit(windowData.hasLimit);
+        if (windowData.maxDate) {
+          setMaxBookingDate(new Date(windowData.maxDate));
         }
       }
 
@@ -200,8 +214,16 @@ export default function NovaReservaPage() {
     }
   }
 
-  // Gera próximos 30 dias
-  const dateOptions = Array.from({ length: 30 }, (_, i) => addDays(startOfDay(new Date()), i + 1));
+  // Gera próximos dias disponíveis (30 dias para horas/pacotes, mais para turnos)
+  const maxDays = hasBookingLimit ? 30 : 365; // Se tem limite, 30 dias; se não, 1 ano
+  const dateOptions = Array.from({ length: maxDays }, (_, i) => addDays(startOfDay(new Date()), i + 1))
+    .filter(date => {
+      // Se tem data máxima, filtra apenas datas até lá
+      if (maxBookingDate) {
+        return !isAfter(date, maxBookingDate);
+      }
+      return true;
+    });
 
   if (loading) {
     return (
@@ -311,6 +333,17 @@ export default function NovaReservaPage() {
           {selectedRoom && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">2. Escolha a data</h2>
+              
+              {/* Aviso sobre janela de 30 dias */}
+              {hasBookingLimit && maxBookingDate && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                  <p className="text-sm text-blue-800">
+                    ℹ️ Reservas com créditos de horas/pacotes podem ser feitas com até 30 dias de antecedência.
+                    Data máxima: <strong>{format(maxBookingDate, 'dd/MM/yyyy', { locale: ptBR })}</strong>
+                  </p>
+                </div>
+              )}
+
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {dateOptions.slice(0, 14).map((date) => (
                   <button

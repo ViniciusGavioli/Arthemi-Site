@@ -3,7 +3,8 @@
 // ===========================================================
 // Implementa as regras essenciais do MVP
 
-import { addDays, differenceInHours, isBefore, addMonths, isSaturday } from 'date-fns';
+import { addDays, differenceInHours, isBefore, addMonths, isSaturday, startOfDay, isAfter, format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { prisma } from './prisma';
 import type { Credit, Room } from '@prisma/client';
 
@@ -35,6 +36,11 @@ export const BUFFER_MINUTES = 30;
 
 // Validade padrão de créditos em meses
 export const CREDIT_VALIDITY_MONTHS = 6;
+
+// Janela de reserva para créditos de horas avulsas e pacotes (dias)
+// Créditos de hora avulsa/pacotes só podem ser usados para reservar até 30 dias no futuro
+// Turnos fixos não têm limitação de janela (podem reservar o ano todo)
+export const HOURLY_BOOKING_WINDOW_DAYS = 30;
 
 // ===========================================================
 // SISTEMA DE CRÉDITOS COM HIERARQUIA
@@ -389,6 +395,127 @@ export async function checkAvailability({
     available: conflictingBookings.length === 0,
     conflictingBookings: conflictingBookings.length > 0 ? conflictingBookings : undefined,
   };
+}
+
+// ---- Validação de Janela de Reserva ----
+
+/**
+ * Determina se um tipo de produto é turno fixo
+ * Turnos fixos não têm limitação de janela de reserva
+ */
+export function isShiftProduct(productType: string): boolean {
+  return productType === 'SHIFT_FIXED';
+}
+
+/**
+ * Determina se um tipo de produto está sujeito à janela de 30 dias
+ * Horas avulsas e pacotes só podem reservar até 30 dias no futuro
+ */
+export function hasBookingWindowLimit(productType: string): boolean {
+  return ['HOURLY_RATE', 'PACKAGE_10H', 'PACKAGE_20H', 'PACKAGE_40H', 'DAY_PASS', 'SATURDAY_5H'].includes(productType);
+}
+
+/**
+ * Valida se uma data de reserva está dentro da janela permitida
+ * 
+ * Regras:
+ * - Turnos fixos (SHIFT_FIXED): Sem limitação, podem reservar qualquer data futura
+ * - Horas avulsas/pacotes: Limitados a 30 dias no futuro
+ * 
+ * @param bookingDate Data da reserva desejada
+ * @param productType Tipo de produto/crédito sendo usado
+ * @returns { valid: boolean, maxDate?: Date, error?: string }
+ */
+export function validateBookingWindow(
+  bookingDate: Date,
+  productType: string | null
+): { valid: boolean; maxDate?: Date; error?: string } {
+  // Se não tem tipo de produto (pagamento direto), permite reservar
+  // ou se é turno fixo, não tem limitação
+  if (!productType || isShiftProduct(productType)) {
+    return { valid: true };
+  }
+
+  // Verifica se este tipo de produto tem limitação de janela
+  if (!hasBookingWindowLimit(productType)) {
+    return { valid: true };
+  }
+
+  // Calcula data máxima permitida (hoje + 30 dias)
+  const today = startOfDay(new Date());
+  const maxDate = addDays(today, HOURLY_BOOKING_WINDOW_DAYS);
+  const bookingDateStart = startOfDay(bookingDate);
+
+  // Verifica se a data está dentro da janela
+  if (isAfter(bookingDateStart, maxDate)) {
+    return {
+      valid: false,
+      maxDate,
+      error: `Reservas com créditos de horas/pacotes podem ser feitas com até ${HOURLY_BOOKING_WINDOW_DAYS} dias de antecedência. Data máxima: ${format(maxDate, 'dd/MM/yyyy', { locale: ptBR })}.`,
+    };
+  }
+
+  // Não pode ser no passado
+  if (isBefore(bookingDateStart, today)) {
+    return {
+      valid: false,
+      error: 'Não é possível reservar datas no passado.',
+    };
+  }
+
+  return { valid: true, maxDate };
+}
+
+/**
+ * Calcula a data máxima permitida para reserva baseado nos créditos do usuário
+ * 
+ * Regra:
+ * - Usuários com turno fixo ATIVO podem reservar sem limitação (datas do turno)
+ * - Usuários usando créditos de pacotes/horas estão limitados a 30 dias
+ * 
+ * @param userId ID do usuário
+ * @returns Data máxima permitida ou null se não há limitação (usuário tem turno fixo)
+ */
+export async function getMaxBookingDate(userId: string): Promise<Date | null> {
+  // Busca reservas de turno fixo do usuário (confirmadas, futuras)
+  const now = new Date();
+  const shiftBookings = await prisma.booking.findMany({
+    where: {
+      userId,
+      bookingType: 'SHIFT',
+      status: 'CONFIRMED',
+      endTime: { gte: now },
+    },
+  });
+
+  // Se tem turno fixo ativo, sem limitação de janela
+  if (shiftBookings.length > 0) {
+    return null;
+  }
+
+  // Busca todos os créditos ativos do usuário
+  const credits = await prisma.credit.findMany({
+    where: {
+      userId,
+      status: 'CONFIRMED',
+      usedAt: null,
+      remainingAmount: { gt: 0 },
+      OR: [
+        { expiresAt: null },
+        { expiresAt: { gt: now } },
+      ],
+    },
+  });
+
+  // Se não tem créditos nem turnos, sem limitação (pagamento direto)
+  if (credits.length === 0) {
+    return null;
+  }
+
+  // Usuário tem créditos mas não tem turno fixo ativo
+  // Aplica janela de 30 dias
+  const today = startOfDay(new Date());
+  return addDays(today, HOURLY_BOOKING_WINDOW_DAYS);
 }
 
 // ---- Pacotes de Horas ----

@@ -50,27 +50,27 @@ export default function FAQ() {
     },
     {
       question: 'Posso remarcar ou cancelar uma reserva?',
-      answer: 'Sim. Pedimos apenas que você avise com pelo menos 48 horas de antecedência. Assim conseguimos reorganizar a agenda e liberar o horário para outros profissionais. Cancelamentos com menos de 48h não são permitidos e a cobrança é mantida.'
+      answer: 'Sim. Caso realize o cancelamento ou remarcação com 48h de antecedência, você poderá reutilizar o crédito para marcar um novo horário, sem qualquer ônus.'
     },
     {
       question: 'O que está incluso no valor?',
-      answer: 'Tudo o que você precisa para atender: sala mobiliada, ar-condicionado, recepção para seus pacientes, limpeza entre atendimentos, internet de alta velocidade, café e água, e acesso ao prontuário online. Não há taxas extras ou custos escondidos.'
+      answer: 'Tudo o que você precisa para atender: consultório profissional, ar-condicionado, recepção, ambiente limpo, internet de alta velocidade, café e água. Não há taxas extras ou custos escondidos.'
     },
     {
-      question: 'Como funciona o sábado?',
-      answer: 'Aos sábados o espaço funciona com horários reduzidos e valores diferenciados. Você pode reservar por hora ou um bloco de 5 horas com desconto. Os valores estão na página de preços. A estrutura é a mesma dos dias de semana: recepção, limpeza e tudo incluso.'
+      question: 'Posso atender aos sábados?',
+      answer: 'Sim. O espaço funciona aos sábados em horário reduzido, de 8h às 12h. Você pode reservar o consultório por hora ou por turno, conforme sua preferência.'
     },
     {
       question: 'Preciso levar alguma coisa?',
-      answer: 'Apenas o que for específico do seu atendimento. Insumos básicos como lençol descartável, papel toalha e álcool em gel já estão disponíveis. Se você usa materiais ou equipamentos específicos da sua especialidade, pode trazer e guardar em um espaço reservado (converse conosco sobre isso).'
+      answer: 'Apenas o que for específico para o seu atendimento. Os insumos básicos para atendimento, além do seu conforto e dos seus pacientes, estarão sempre disponíveis.'
     },
     {
       question: 'Qual a diferença entre os consultórios?',
-      answer: 'Temos três opções: o Consultório 1 | Prime é o mais amplo, com maca e circulação 360º, ideal para fisioterapia, massoterapia e procedimentos. O Consultório 2 | Executive também tem maca, ótimo para consultas médicas e nutrição. O Consultório 3 | Essential é mais intimista, com poltronas, perfeito para psicologia e terapia. Todos têm ar-condicionado, boa iluminação e privacidade.'
+      answer: 'O Consultório 1 | Prime e o Consultório 2 | Executive contam com maca com circulação livre (360º), sendo ideais para médicos, nutricionistas, fisioterapeutas, massoterapeutas, terapeutas e fonoaudiólogos.\n\nJá o Consultório 3 | Essential não conta com maca. Ele foi projetado de forma mais intimista, equipado com poltronas confortáveis, sendo ideal para atendimentos de psicólogos, psiquiatras e terapeutas.'
     },
     {
       question: 'Como funciona o pagamento?',
-      answer: 'O pagamento é feito online, no momento da reserva, via Pix ou cartão de crédito. É rápido e seguro. Você recebe a confirmação por e-mail na hora. Para turnos fixos mensais, a cobrança é recorrente no início de cada mês.'
+      answer: 'O pagamento é feito online, no momento da reserva, via Pix ou cartão de crédito. É rápido e seguro, com confirmação enviada por e-mail imediatamente.\n\nPara turnos fixos, a cobrança é mensal, realizada no início de cada mês, de forma recorrente no cartão de crédito (sem comprometer o limite total do cartão).'
     },
     {
       question: 'Posso atender pacientes de convênio?',
@@ -78,7 +78,7 @@ export default function FAQ() {
     },
     {
       question: 'O espaço oferece recepcionista?',
-      answer: 'Sim. Nossa recepção recebe seus pacientes, confirma a agenda e avisa você quando eles chegam. Você não precisa se preocupar com isso — pode focar no atendimento.'
+      answer: 'Sim. Nossa recepção recebe o paciente, comunica a chegada e faz a condução até o consultório. Serviços de secretariado profissional, como confirmação de consultas, gestão de agenda e emissão de recibos, podem ser contratados à parte. Consulte nossa equipe.'
     }
   ];
 
@@ -130,10 +130,10 @@ export default function FAQ() {
         <section className="py-16 bg-warm-100">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-2xl font-bold text-primary-900 mb-4">
-              Ainda tem alguma dúvida?
+              Ainda tem alguma pergunta?
             </h2>
             <p className="text-secondary-600 mb-6">
-              Fale com a gente. Respondemos rápido e sem enrolação.
+              Fale conosco! Estamos à disposição para responder qualquer dúvida.
             </p>
             <a
               href="https://wa.me/5531984916090"

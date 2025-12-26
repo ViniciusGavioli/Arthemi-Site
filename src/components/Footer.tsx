@@ -4,7 +4,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { MapPin, Phone, Mail, MessageCircle } from 'lucide-react';
+import { MapPin, Phone, MessageCircle } from 'lucide-react';
 import { BUSINESS_INFO } from '@/constants/seo';
 
 interface FooterProps {
@@ -14,6 +14,8 @@ interface FooterProps {
 
 export default function Footer({ compact = false }: FooterProps) {
   const currentYear = new Date().getFullYear();
+  const googleMapsLink = 'https://www.google.com/maps/place/Espa%C3%A7o+Arthemi+-+Coworking+de+Sa%C3%BAde+em+BH/@-19.9245428,-43.922652,17z';
+  const whatsappLink = `https://wa.me/${BUSINESS_INFO.whatsapp}`;
 
   if (compact) {
     return (
@@ -22,25 +24,45 @@ export default function Footer({ compact = false }: FooterProps) {
           <div className="grid md:grid-cols-3 gap-8">
             <div>
               <h3 className="text-warm-100 font-bold text-lg mb-4">Espaço Arthemi</h3>
-              <p className="text-sm">
-                Coworking de saúde em Belo Horizonte.<br />
-                Salas prontas para você atender.
+              <p className="text-sm mb-2">
+                Coworking de saúde em Belo Horizonte. Consultórios prontos para você atender com profissionalismo e praticidade.
               </p>
-            </div>
-            <div>
-              <h3 className="text-warm-100 font-bold text-lg mb-4">Localização</h3>
-              <p className="text-sm">
-                {BUSINESS_INFO.address.neighborhood}<br />
-                {BUSINESS_INFO.address.city} — {BUSINESS_INFO.address.stateCode}
-              </p>
+              <a 
+                href={googleMapsLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-accent-400 hover:text-accent-300 transition"
+              >
+                Área Hospitalar, Belo Horizonte – MG
+              </a>
             </div>
             <div>
               <h3 className="text-warm-100 font-bold text-lg mb-4">Links</h3>
               <div className="flex flex-col gap-2 text-sm">
-                <Link href="/como-funciona" className="hover:text-warm-100 transition">Como Funciona</Link>
-                <Link href="/salas" className="hover:text-warm-100 transition">Salas e Preços</Link>
-                <Link href="/faq" className="hover:text-warm-100 transition">Perguntas Frequentes</Link>
-                <Link href="/admin" className="hover:text-warm-100 transition text-warm-600">Área Admin</Link>
+                <Link href="/como-funciona" className="hover:text-warm-100 transition">Como funciona</Link>
+                <Link href="/salas" className="hover:text-warm-100 transition">Consultórios e preços</Link>
+                <Link href="/faq" className="hover:text-warm-100 transition">Perguntas frequentes</Link>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-warm-100 font-bold text-lg mb-4">Contato</h3>
+              <div className="flex flex-col gap-2 text-sm">
+                <a 
+                  href={whatsappLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 hover:text-warm-100 transition text-green-400"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  WhatsApp
+                </a>
+                <a 
+                  href="tel:+5531984916090"
+                  className="flex items-center gap-2 hover:text-warm-100 transition"
+                >
+                  <Phone className="w-4 h-4" />
+                  (31) 98491-6090
+                </a>
               </div>
             </div>
           </div>
@@ -67,24 +89,27 @@ export default function Footer({ compact = false }: FooterProps) {
                 className="h-14 w-auto brightness-0 invert"
               />
             </div>
-            <p className="text-warm-500 mb-6 max-w-md">
-              Coworking de saúde em Belo Horizonte. Salas prontas para você atender com 
-              profissionalismo, sem dor de cabeça.
+            <p className="text-warm-500 mb-4 max-w-md">
+              Coworking de saúde em Belo Horizonte. Consultórios prontos para você atender com profissionalismo e praticidade.
             </p>
-            <div className="flex items-center gap-2 text-sm">
-              <MapPin className="w-4 h-4 text-accent-500" />
-              {BUSINESS_INFO.address.neighborhood}, {BUSINESS_INFO.address.city} — {BUSINESS_INFO.address.stateCode}
-            </div>
+            <a 
+              href={googleMapsLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-sm text-accent-400 hover:text-accent-300 transition"
+            >
+              <MapPin className="w-4 h-4" />
+              Área Hospitalar, Belo Horizonte – MG
+            </a>
           </div>
           
           {/* Links */}
           <div>
             <h3 className="text-warm-100 font-bold mb-4">Links</h3>
             <div className="flex flex-col gap-3">
-              <Link href="/como-funciona" className="hover:text-warm-100 transition">Como Funciona</Link>
-              <Link href="/salas" className="hover:text-warm-100 transition">Salas e Preços</Link>
-              <Link href="/faq" className="hover:text-warm-100 transition">Perguntas Frequentes</Link>
-              <Link href="/admin" className="hover:text-warm-100 transition">Área Admin</Link>
+              <Link href="/como-funciona" className="hover:text-warm-100 transition">Como funciona</Link>
+              <Link href="/salas" className="hover:text-warm-100 transition">Consultórios e preços</Link>
+              <Link href="/faq" className="hover:text-warm-100 transition">Perguntas frequentes</Link>
             </div>
           </div>
           
@@ -93,7 +118,7 @@ export default function Footer({ compact = false }: FooterProps) {
             <h3 className="text-warm-100 font-bold mb-4">Contato</h3>
             <div className="flex flex-col gap-3">
               <a 
-                href={`https://wa.me/${BUSINESS_INFO.whatsapp}`}
+                href={whatsappLink}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 hover:text-warm-100 transition text-green-400"
@@ -102,18 +127,11 @@ export default function Footer({ compact = false }: FooterProps) {
                 WhatsApp
               </a>
               <a 
-                href={`tel:${BUSINESS_INFO.phone.replace(/\s/g, '')}`} 
+                href="tel:+5531984916090" 
                 className="flex items-center gap-2 hover:text-warm-100 transition"
               >
                 <Phone className="w-4 h-4" />
-                {BUSINESS_INFO.phone.replace('+55 ', '(').replace(' ', ') ')}
-              </a>
-              <a 
-                href={`mailto:${BUSINESS_INFO.email}`} 
-                className="flex items-center gap-2 hover:text-warm-100 transition"
-              >
-                <Mail className="w-4 h-4" />
-                {BUSINESS_INFO.email}
+                (31) 98491-6090
               </a>
             </div>
           </div>

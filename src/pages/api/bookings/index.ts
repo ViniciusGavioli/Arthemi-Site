@@ -13,6 +13,7 @@ import {
   getAvailableCreditsForRoom, 
   consumeCreditsForBooking,
   getCreditBalanceForRoom,
+  validateBookingWindow,
 } from '@/lib/business-rules';
 
 // Schema de validação com Zod

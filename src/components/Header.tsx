@@ -8,7 +8,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, MessageCircle } from 'lucide-react';
+import { BUSINESS_INFO } from '@/constants/seo';
 
 interface NavLink {
   href: string;
@@ -16,8 +17,8 @@ interface NavLink {
 }
 
 const navLinks: NavLink[] = [
-  { href: '/como-funciona', label: 'Como Funciona' },
-  { href: '/salas', label: 'Salas e Preços' },
+  { href: '/como-funciona', label: 'Como funciona' },
+  { href: '/salas', label: 'Consultórios e preços' },
   { href: '/faq', label: 'Dúvidas' },
 ];
 
@@ -35,6 +36,8 @@ export default function Header({ variant = 'sticky' }: HeaderProps) {
   const positionClass = variant === 'fixed' 
     ? 'fixed top-0 left-0 right-0 pt-safe' 
     : 'sticky top-0';
+
+  const whatsappLink = `https://wa.me/${BUSINESS_INFO.whatsapp}?text=Olá! Gostaria de saber mais sobre o Espaço Arthemi.`;
 
   return (
     <header className={`${positionClass} z-50 bg-warm-50/90 backdrop-blur-lg border-b border-warm-200`}>
@@ -67,11 +70,20 @@ export default function Header({ variant = 'sticky' }: HeaderProps) {
                 {link.label}
               </Link>
             ))}
+            <a
+              href={whatsappLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-primary-700 hover:text-accent-600 transition font-medium"
+            >
+              <MessageCircle className="w-4 h-4" />
+              Fale conosco
+            </a>
             <Link 
               href="/salas" 
               className="bg-gradient-to-r from-accent-600 to-accent-700 text-white px-6 py-2.5 rounded-full font-semibold hover:shadow-lg hover:shadow-accent-500/30 transition-all duration-300 hover:-translate-y-0.5"
             >
-              Reservar Sala
+              Reservar consultório
             </Link>
           </div>
 
@@ -109,8 +121,18 @@ export default function Header({ variant = 'sticky' }: HeaderProps) {
                 className="bg-accent-600 text-white px-6 py-3 rounded-full font-semibold text-center"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Reservar Sala
+                Reservar consultório
               </Link>
+              <a
+                href={whatsappLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 text-primary-700 font-medium py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <MessageCircle className="w-5 h-5" />
+                Fale conosco
+              </a>
             </div>
           </div>
         )}

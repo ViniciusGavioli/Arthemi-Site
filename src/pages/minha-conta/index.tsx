@@ -201,7 +201,7 @@ export default function MinhaContaPage() {
                   <span className="text-2xl">📅</span>
                   <div>
                     <p className="font-medium text-gray-900">Nova Reserva</p>
-                    <p className="text-sm text-gray-600">Agendar usando seu saldo</p>
+                    <p className="text-sm text-gray-600">Reservar usando seu saldo</p>
                   </div>
                 </Link>
 

@@ -4,6 +4,95 @@
 
 import { z } from 'zod';
 
+// ===========================================================
+// Validador de CPF (Algoritmo Oficial)
+// ===========================================================
+
+/**
+ * CPFs inválidos conhecidos (sequências repetidas)
+ * Estes são matematicamente válidos mas não existem na Receita Federal
+ */
+const INVALID_CPFS = [
+  '00000000000',
+  '11111111111',
+  '22222222222',
+  '33333333333',
+  '44444444444',
+  '55555555555',
+  '66666666666',
+  '77777777777',
+  '88888888888',
+  '99999999999',
+];
+
+/**
+ * Calcula um dígito verificador do CPF
+ * @param digits - Array de dígitos (9 para primeiro verificador, 10 para segundo)
+ * @param weights - Pesos para multiplicação (10→2 para primeiro, 11→2 para segundo)
+ * @returns Dígito verificador calculado
+ */
+function calculateVerifierDigit(digits: number[], weights: number[]): number {
+  let sum = 0;
+  for (let i = 0; i < digits.length; i++) {
+    sum += digits[i] * weights[i];
+  }
+  const remainder = sum % 11;
+  return remainder < 2 ? 0 : 11 - remainder;
+}
+
+/**
+ * Valida um CPF brasileiro usando o algoritmo oficial
+ * 
+ * Regras implementadas:
+ * 1. Remove caracteres não numéricos
+ * 2. Verifica se tem exatamente 11 dígitos
+ * 3. Bloqueia CPFs com todos os dígitos iguais (00000000000, etc.)
+ * 4. Calcula e valida o primeiro dígito verificador (posição 10)
+ * 5. Calcula e valida o segundo dígito verificador (posição 11)
+ * 
+ * @param cpf - CPF a ser validado (com ou sem formatação)
+ * @returns true se o CPF é válido, false caso contrário
+ */
+export function validateCPF(cpf: string): boolean {
+  // Remove caracteres não numéricos
+  const cleanCPF = cpf.replace(/\D/g, '');
+
+  // Deve ter exatamente 11 dígitos
+  if (cleanCPF.length !== 11) {
+    return false;
+  }
+
+  // Bloqueia CPFs inválidos conhecidos (sequências repetidas)
+  if (INVALID_CPFS.includes(cleanCPF)) {
+    return false;
+  }
+
+  // Converte para array de números
+  const digits = cleanCPF.split('').map(Number);
+
+  // Calcula primeiro dígito verificador
+  // Usa os 9 primeiros dígitos com pesos 10, 9, 8, 7, 6, 5, 4, 3, 2
+  const firstWeights = [10, 9, 8, 7, 6, 5, 4, 3, 2];
+  const firstVerifier = calculateVerifierDigit(digits.slice(0, 9), firstWeights);
+
+  // Valida primeiro dígito verificador
+  if (firstVerifier !== digits[9]) {
+    return false;
+  }
+
+  // Calcula segundo dígito verificador
+  // Usa os 10 primeiros dígitos com pesos 11, 10, 9, 8, 7, 6, 5, 4, 3, 2
+  const secondWeights = [11, 10, 9, 8, 7, 6, 5, 4, 3, 2];
+  const secondVerifier = calculateVerifierDigit(digits.slice(0, 10), secondWeights);
+
+  // Valida segundo dígito verificador
+  if (secondVerifier !== digits[10]) {
+    return false;
+  }
+
+  return true;
+}
+
 // ---- Validador de Telefone Brasileiro ----
 
 const phoneRegex = /^\(?[1-9]{2}\)?\s?9?[0-9]{4}-?[0-9]{4}$/;

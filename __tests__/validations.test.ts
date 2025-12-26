@@ -2,9 +2,91 @@
 // Testes: Validações
 // ===========================================================
 
-import { createBookingSchema, createUserSchema, mockPaymentSchema } from '@/lib/validations';
+import { createBookingSchema, createUserSchema, mockPaymentSchema, validateCPF } from '@/lib/validations';
 
 describe('Validations', () => {
+  // ===========================================================
+  // Testes: validateCPF
+  // ===========================================================
+  describe('validateCPF', () => {
+    // CPFs válidos para teste (gerados por algoritmo)
+    it('deve aceitar CPF válido', () => {
+      expect(validateCPF('52998224725')).toBe(true); // CPF válido de teste
+    });
+
+    it('deve aceitar CPF válido com formatação', () => {
+      expect(validateCPF('529.982.247-25')).toBe(true);
+    });
+
+    it('deve aceitar CPF válido com espaços', () => {
+      expect(validateCPF(' 529 982 247 25 ')).toBe(true);
+    });
+
+    // CPFs inválidos
+    it('deve rejeitar CPF com dígitos verificadores errados', () => {
+      expect(validateCPF('52998224700')).toBe(false); // Dígitos verificadores incorretos
+    });
+
+    it('deve rejeitar CPF com menos de 11 dígitos', () => {
+      expect(validateCPF('123456789')).toBe(false);
+    });
+
+    it('deve rejeitar CPF com mais de 11 dígitos', () => {
+      expect(validateCPF('123456789012')).toBe(false);
+    });
+
+    it('deve rejeitar CPF vazio', () => {
+      expect(validateCPF('')).toBe(false);
+    });
+
+    // CPFs inválidos conhecidos (sequências repetidas)
+    it('deve rejeitar CPF 00000000000', () => {
+      expect(validateCPF('00000000000')).toBe(false);
+    });
+
+    it('deve rejeitar CPF 11111111111', () => {
+      expect(validateCPF('11111111111')).toBe(false);
+    });
+
+    it('deve rejeitar CPF 22222222222', () => {
+      expect(validateCPF('22222222222')).toBe(false);
+    });
+
+    it('deve rejeitar CPF 33333333333', () => {
+      expect(validateCPF('33333333333')).toBe(false);
+    });
+
+    it('deve rejeitar CPF 44444444444', () => {
+      expect(validateCPF('44444444444')).toBe(false);
+    });
+
+    it('deve rejeitar CPF 55555555555', () => {
+      expect(validateCPF('55555555555')).toBe(false);
+    });
+
+    it('deve rejeitar CPF 66666666666', () => {
+      expect(validateCPF('66666666666')).toBe(false);
+    });
+
+    it('deve rejeitar CPF 77777777777', () => {
+      expect(validateCPF('77777777777')).toBe(false);
+    });
+
+    it('deve rejeitar CPF 88888888888', () => {
+      expect(validateCPF('88888888888')).toBe(false);
+    });
+
+    it('deve rejeitar CPF 99999999999', () => {
+      expect(validateCPF('99999999999')).toBe(false);
+    });
+
+    // Mais CPFs válidos para garantir algoritmo
+    it('deve aceitar outros CPFs válidos', () => {
+      expect(validateCPF('11144477735')).toBe(true); // CPF válido de teste
+      expect(validateCPF('12345678909')).toBe(true); // CPF válido de teste
+    });
+  });
+
   describe('createBookingSchema', () => {
     const validBooking = {
       roomId: 'room-123',

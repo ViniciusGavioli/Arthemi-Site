@@ -6,7 +6,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { createBookingPayment } from '@/lib/asaas';
-import { brazilianPhone } from '@/lib/validations';
+import { brazilianPhone, validateCPF } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { 
@@ -103,6 +103,15 @@ export default async function handler(
       return res.status(429).json({
         success: false,
         error: `Muitas reservas recentes. Tente novamente após ${phoneRateLimit.resetAt.toLocaleTimeString('pt-BR')}.`,
+      });
+    }
+
+    // VALIDAÇÃO REAL DE CPF - Backend é fonte da verdade
+    if (!validateCPF(data.userCpf)) {
+      console.error(`[BOOKING] CPF inválido rejeitado: ${data.userCpf.slice(0, 3)}***`);
+      return res.status(400).json({
+        success: false,
+        error: 'CPF inválido. Verifique os dados e tente novamente.',
       });
     }
 

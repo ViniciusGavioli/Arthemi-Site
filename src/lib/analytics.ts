@@ -1,5 +1,5 @@
 /**
- * Analytics - Integração com Plausible
+ * Analytics - Integração com Plausible + Meta Pixel
  * 
  * Plausible é privacy-first:
  * - Não usa cookies
@@ -7,8 +7,20 @@
  * - Não precisa de banner de consentimento (LGPD)
  * - Script leve (~1KB)
  * 
+ * Meta Pixel (opcional):
+ * - Ativado via NEXT_PUBLIC_META_PIXEL_ID
+ * - Eventos padrão: PageView, ViewContent, Lead, InitiateCheckout, Purchase
+ * - Falhas não afetam o funcionamento do site
+ * 
  * @see https://plausible.io/docs
  */
+
+import {
+  trackViewContent,
+  trackLead,
+  trackInitiateCheckout,
+  trackPurchase,
+} from './meta-pixel';
 
 // Tipos para eventos customizados
 export type AnalyticsEvent = 
@@ -85,11 +97,14 @@ export function trackPageview(url?: string): void {
 
 /**
  * Helpers para eventos específicos do funil
+ * Disparam eventos no Plausible E no Meta Pixel (quando configurado)
  */
 export const analytics = {
   // Quando usuário abre o modal de reserva
   bookingStarted: (roomName: string) => {
     trackEvent('booking_started', { room: roomName });
+    // Meta Pixel: Lead
+    trackLead({ contentName: roomName, contentCategory: 'Reserva' });
   },
   
   // Quando usuário preenche o formulário
@@ -100,11 +115,23 @@ export const analytics = {
   // Quando usuário clica em "Reservar" (antes do pagamento)
   bookingSubmitted: (roomName: string, value: number) => {
     trackEvent('booking_submitted', { room: roomName, value });
+    // Meta Pixel: InitiateCheckout
+    trackInitiateCheckout({
+      contentIds: [roomName],
+      contentName: roomName,
+      value: value,
+    });
   },
   
   // Quando pagamento é confirmado (chamado na página de sucesso)
   bookingCompleted: (roomName: string, value: number) => {
     trackEvent('booking_completed', { room: roomName, value });
+    // Meta Pixel: Purchase
+    trackPurchase({
+      contentIds: [roomName],
+      contentName: roomName,
+      value: value,
+    });
   },
   
   // Quando usuário cancela reserva
@@ -113,8 +140,15 @@ export const analytics = {
   },
   
   // Quando usuário visualiza detalhes de uma sala
-  roomViewed: (roomName: string) => {
+  roomViewed: (roomName: string, value?: number) => {
     trackEvent('room_viewed', { room: roomName });
+    // Meta Pixel: ViewContent
+    trackViewContent({
+      contentId: roomName,
+      contentName: roomName,
+      contentCategory: 'Sala',
+      value: value,
+    });
   },
   
   // Quando usuário abre uma pergunta do FAQ

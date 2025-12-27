@@ -2,18 +2,40 @@
 // _app.tsx - Componente raiz do Next.js
 // ===========================================================
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/router';
 import type { AppProps } from 'next/app';
 import Head from 'next/head';
 import Script from 'next/script';
 import { LocalBusinessSchema, WebSiteSchema } from '@/components/SEO';
 import { SITE_CONFIG, BUSINESS_INFO, getFullUrl, getOgImageUrl } from '@/constants/seo';
+import { getMetaPixelScript, getMetaPixelId, trackPageView } from '@/lib/meta-pixel';
 import '../styles/globals.css';
 
 // Domínio do Plausible (configurável via env)
 const PLAUSIBLE_DOMAIN = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || 'arthemisaude.com';
 const PLAUSIBLE_SCRIPT = process.env.NEXT_PUBLIC_PLAUSIBLE_SCRIPT || 'https://plausible.io/js/script.js';
 
+// Meta Pixel ID e Script
+const META_PIXEL_ID = getMetaPixelId();
+const META_PIXEL_SCRIPT = getMetaPixelScript();
+
 export default function App({ Component, pageProps }: AppProps) {
+  const router = useRouter();
+
+  // Dispara PageView em cada navegação (SPA)
+  useEffect(() => {
+    const handleRouteChange = () => {
+      // Dispara PageView do Meta Pixel em cada navegação
+      trackPageView();
+    };
+
+    router.events.on('routeChangeComplete', handleRouteChange);
+    return () => {
+      router.events.off('routeChangeComplete', handleRouteChange);
+    };
+  }, [router.events]);
+
   return (
     <>
       <Head>
@@ -64,6 +86,26 @@ export default function App({ Component, pageProps }: AppProps) {
           src={PLAUSIBLE_SCRIPT}
           strategy="afterInteractive"
         />
+      )}
+
+      {/* Meta Pixel - Apenas em produção e se configurado */}
+      {process.env.NODE_ENV === 'production' && META_PIXEL_ID && META_PIXEL_SCRIPT && (
+        <>
+          <Script
+            id="meta-pixel"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{ __html: META_PIXEL_SCRIPT }}
+          />
+          <noscript>
+            <img
+              height="1"
+              width="1"
+              style={{ display: 'none' }}
+              src={`https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1`}
+              alt=""
+            />
+          </noscript>
+        </>
       )}
       
       <Component {...pageProps} />

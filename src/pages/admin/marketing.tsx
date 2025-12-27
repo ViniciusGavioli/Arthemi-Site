@@ -181,6 +181,7 @@ export default function MarketingPage() {
                     checked={settings.META_PIXEL_ID?.isActive || false}
                     onChange={(e) => updateSetting('META_PIXEL_ID', 'isActive', e.target.checked)}
                     className="sr-only peer"
+                    aria-label="Ativar tracking do Meta Pixel"
                   />
                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-100 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
                 </label>
@@ -251,6 +252,7 @@ export default function MarketingPage() {
                   checked={settings.GA_MEASUREMENT_ID?.isActive || false}
                   onChange={(e) => updateSetting('GA_MEASUREMENT_ID', 'isActive', e.target.checked)}
                   className="sr-only peer"
+                  aria-label="Ativar Google Analytics"
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-100 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
               </label>
@@ -306,6 +308,7 @@ export default function MarketingPage() {
                   checked={settings.GTM_ID?.isActive || false}
                   onChange={(e) => updateSetting('GTM_ID', 'isActive', e.target.checked)}
                   className="sr-only peer"
+                  aria-label="Ativar Google Tag Manager"
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-100 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
               </label>

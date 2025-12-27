@@ -373,3 +373,24 @@ model RateLimit {
   @@index([windowStart])
   @@map("rate_limits")
 }
+
+// ===========================================================
+// Settings - Configurações do sistema (Marketing, Integrações)
+// ===========================================================
+// Armazena configurações dinâmicas que não exigem rebuild
+// Formato key-value com tipagem e metadata
+
+model Setting {
+  id          String   @id @default(cuid())
+  key         String   @unique // ex: "META_PIXEL_ID", "GA_MEASUREMENT_ID"
+  value       String   // Valor da configuração
+  type        String   @default("string") // string, boolean, number, json
+  category    String   @default("general") // general, marketing, integrations
+  description String?  // Descrição para UI
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@map("settings")
+}

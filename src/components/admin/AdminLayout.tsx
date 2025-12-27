@@ -19,6 +19,7 @@ const menuItems = [
   { href: '/admin/clientes', icon: '👥', label: 'Clientes' },
   { href: '/admin/nova-reserva', icon: '➕', label: 'Nova Reserva' },
   { href: '/admin/auditoria', icon: '📋', label: 'Auditoria' },
+  { href: '/admin/marketing', icon: '📈', label: 'Marketing & Integrações' },
 ];
 
 export default function AdminLayout({ children, title = 'Admin' }: AdminLayoutProps) {

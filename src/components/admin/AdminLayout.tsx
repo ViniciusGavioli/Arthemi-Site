@@ -20,6 +20,7 @@ const menuItems = [
   { href: '/admin/nova-reserva', icon: '➕', label: 'Nova Reserva' },
   { href: '/admin/auditoria', icon: '📋', label: 'Auditoria' },
   { href: '/admin/marketing', icon: '📈', label: 'Marketing & Integrações' },
+  { href: '/admin/status', icon: '🖥️', label: 'Status do Sistema' },
 ];
 
 export default function AdminLayout({ children, title = 'Admin' }: AdminLayoutProps) {

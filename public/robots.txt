@@ -1,0 +1,18 @@
+# ===========================================================
+# robots.txt - Espaço Arthemi
+# ===========================================================
+# Permite indexação de páginas públicas
+# Bloqueia áreas administrativas e APIs
+
+User-agent: *
+Allow: /
+
+# Bloquear áreas restritas
+Disallow: /admin/
+Disallow: /api/
+Disallow: /minha-conta/
+Disallow: /auth/
+Disallow: /booking/
+
+# Sitemap
+Sitemap: https://arthemisaude.com/sitemap.xml

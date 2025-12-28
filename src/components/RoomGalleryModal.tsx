@@ -4,12 +4,12 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { X, ChevronLeft, ChevronRight, Play } from 'lucide-react';
 
 interface RoomGalleryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onReservar?: () => void;
   room: {
     name: string;
     slug: string;
@@ -54,7 +54,7 @@ const roomImages: Record<string, { images: string[]; video?: string }> = {
   },
 };
 
-export default function RoomGalleryModal({ isOpen, onClose, onReservar, room }: RoomGalleryModalProps) {
+export default function RoomGalleryModal({ isOpen, onClose, room }: RoomGalleryModalProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showVideo, setShowVideo] = useState(false);
 
@@ -256,15 +256,12 @@ export default function RoomGalleryModal({ isOpen, onClose, onReservar, room }: 
                   <span className="text-secondary-500">/hora</span>
                 </div>
               </div>
-              <button
-                onClick={() => {
-                  onClose();
-                  if (onReservar) onReservar();
-                }}
+              <Link
+                href="/salas"
                 className="flex-1 w-full sm:w-auto bg-gradient-to-r from-accent-600 to-accent-700 text-white text-center py-4 px-8 rounded-xl font-semibold text-lg hover:shadow-lg hover:shadow-accent-500/30 transition-all active:scale-[0.98] flex items-center justify-center"
               >
-                Reservar agora
-              </button>
+                Ver preços e reservar
+              </Link>
             </div>
           </div>
         </div>

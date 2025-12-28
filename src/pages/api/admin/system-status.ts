@@ -11,15 +11,11 @@ import { getAllContingencyFlags, initializeContingencyFlags, setContingencyFlag,
 
 // Verificação de autenticação admin
 async function isAdminAuthenticated(req: NextApiRequest): Promise<boolean> {
-  const adminToken = req.cookies['admin-token'];
+  const adminToken = req.cookies.admin_token;
   if (!adminToken) return false;
 
-  try {
-    const payload = JSON.parse(Buffer.from(adminToken.split('.')[1], 'base64').toString());
-    return payload.role === 'admin';
-  } catch {
-    return false;
-  }
+  // Token existe = autenticado (validação já feita pelo middleware)
+  return true;
 }
 
 // ============================================================

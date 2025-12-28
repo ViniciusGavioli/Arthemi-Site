@@ -2,11 +2,10 @@
 // Página /salas - Lista de Salas com RoomCard
 // ===========================================================
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { GetServerSideProps } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/router';
 import { prisma } from '@/lib/prisma';
 import RoomCard from '@/components/RoomCard';
 import BookingModal from '@/components/BookingModal';
@@ -44,24 +43,9 @@ interface SalasPageProps {
 }
 
 export default function SalasPage({ rooms }: SalasPageProps) {
-  const router = useRouter();
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [galleryRoom, setGalleryRoom] = useState<{ name: string; slug: string; description: string; features: string[]; price: string } | null>(null);
-
-  // Verifica se há parâmetro 'reservar' na URL para abrir modal automaticamente
-  useEffect(() => {
-    const { reservar } = router.query;
-    if (reservar && typeof reservar === 'string') {
-      const roomToBook = rooms.find(r => r.slug === reservar);
-      if (roomToBook) {
-        setSelectedRoom(roomToBook);
-        setIsModalOpen(true);
-        // Limpa o parâmetro da URL sem recarregar a página
-        router.replace('/salas', undefined, { shallow: true });
-      }
-    }
-  }, [router.query, rooms, router]);
 
   // Dados para modal de galeria
   const roomsGalleryData = [
@@ -159,10 +143,12 @@ export default function SalasPage({ rooms }: SalasPageProps) {
               return (
                 <div 
                   key={room.id}
-                  className="group relative rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 bg-white border border-warm-200 cursor-pointer"
-                  onClick={() => setGalleryRoom(galleryData)}
+                  className="group relative rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 bg-white border border-warm-200"
                 >
-                  <div className="relative w-full h-48 sm:h-56">
+                  <div 
+                    className="relative w-full h-48 sm:h-56 cursor-pointer"
+                    onClick={() => setGalleryRoom(galleryData)}
+                  >
                     <Image 
                       src={imageUrl}
                       alt={galleryData.name}
@@ -180,9 +166,17 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                   <div className="p-5">
                     <h3 className="text-lg font-bold text-primary-900 mb-1">{galleryData.name}</h3>
                     <p className="text-sm text-accent-600 font-medium mb-3">{galleryData.description}</p>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-xl font-bold text-accent-600">{galleryData.price}</span>
-                      <span className="text-secondary-500 text-sm">/hora</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-xl font-bold text-accent-600">{galleryData.price}</span>
+                        <span className="text-secondary-500 text-sm">/hora</span>
+                      </div>
+                      <button
+                        onClick={() => handleReservar(room)}
+                        className="bg-accent-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-accent-700 transition-colors"
+                      >
+                        Reservar
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -319,18 +313,6 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                         </tbody>
                       </table>
                     </div>
-                    {/* Botão Reservar */}
-                    <div className="p-4 bg-warm-50 border-t border-warm-200 flex justify-center">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleReservar(room);
-                        }}
-                        className="bg-accent-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-accent-700 transition-colors shadow-md hover:shadow-lg"
-                      >
-                        Reservar este consultório
-                      </button>
-                    </div>
                   </div>
                 </div>
               );
@@ -372,13 +354,6 @@ export default function SalasPage({ rooms }: SalasPageProps) {
           isOpen={!!galleryRoom}
           onClose={() => setGalleryRoom(null)}
           room={galleryRoom}
-          onReservar={() => {
-            // Encontrar a room correspondente pelo slug
-            const roomToBook = rooms.find(r => r.slug === galleryRoom.slug);
-            if (roomToBook) {
-              handleReservar(roomToBook);
-            }
-          }}
         />
       )}
     </>

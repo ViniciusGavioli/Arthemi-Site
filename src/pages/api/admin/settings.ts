@@ -46,8 +46,12 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse>
 ) {
-  // Verificar autenticação admin (cookie já verificado pelo middleware)
-  
+  // Verificar autenticação admin
+  const adminToken = req.cookies.admin_token;
+  if (!adminToken) {
+    return res.status(401).json({ success: false, error: 'Não autorizado' });
+  }
+
   try {
     if (req.method === 'GET') {
       return await handleGet(req, res);

@@ -13,7 +13,11 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // TODO: Adicionar autenticação admin
+  // Verificar autenticação admin
+  const adminToken = req.cookies.admin_token;
+  if (!adminToken) {
+    return res.status(401).json({ error: 'Não autorizado' });
+  }
 
   const { id } = req.query;
 

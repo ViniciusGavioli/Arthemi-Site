@@ -51,6 +51,12 @@ export default async function handler(
     });
   }
 
+  // Verificar autenticação admin
+  const adminToken = req.cookies.admin_token;
+  if (!adminToken) {
+    return res.status(401).json({ success: false, error: 'Não autorizado' });
+  }
+
   try {
     // ========================================================
     // PARÂMETROS DE CONSULTA

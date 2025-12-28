@@ -12,11 +12,11 @@ export default async function handler(
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // TODO: Adicionar autenticação admin
-  // const session = await getSession({ req });
-  // if (!session || session.user.role !== 'ADMIN') {
-  //   return res.status(401).json({ error: 'Não autorizado' });
-  // }
+  // Verificar autenticação admin
+  const adminToken = req.cookies.admin_token;
+  if (!adminToken) {
+    return res.status(401).json({ error: 'Não autorizado' });
+  }
 
   try {
     const { roomId, status, startDate, endDate } = req.query;

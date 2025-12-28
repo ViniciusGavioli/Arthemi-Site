@@ -124,6 +124,25 @@ button, a, [role="button"] {
   border-left-width: 4px !important;
 }
 
+/* Resource TimeGrid - Headers das salas */
+.fc-resource-area {
+  width: 100px !important;
+}
+
+.fc-datagrid-cell-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.fc-resource-header {
+  font-weight: 600;
+  color: #1f2937;
+}
+
 /* DatePicker customizations */
 .react-datepicker {
   font-family: inherit !important;

@@ -17,8 +17,16 @@ import BookingDetailModal from '@/components/admin/BookingDetailModal';
 const FullCalendar = dynamic(() => import('@fullcalendar/react'), { ssr: false });
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
+import resourceTimeGridPlugin from '@fullcalendar/resource-timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import ptBrLocale from '@fullcalendar/core/locales/pt-br';
+
+// Resources (salas) para o calendário
+const calendarResources = [
+  { id: 'sala-a', title: 'Sala A' },
+  { id: 'sala-b', title: 'Sala B' },
+  { id: 'sala-c', title: 'Sala C' },
+];
 
 // Tipos
 interface Booking {
@@ -120,14 +128,23 @@ export default function ReservasPage() {
     return true;
   });
 
-  // Eventos do calendário
+  // Mapear nome da sala para resourceId
+  const roomToResourceId: Record<string, string> = {
+    'Sala A': 'sala-a',
+    'Sala B': 'sala-b',
+    'Sala C': 'sala-c',
+  };
+
+  // Eventos do calendário com resourceId
   const calendarEvents = filteredBookings.map(booking => ({
     id: booking.id,
-    title: `${booking.room.name} - ${booking.user.name}`,
+    title: booking.user.name,
     start: booking.startTime,
     end: booking.endTime,
+    resourceId: roomToResourceId[booking.room.name] || 'sala-a',
     backgroundColor: statusColorsCalendar[booking.status] || '#6b7280',
     borderColor: roomColorsCalendar[booking.room.name] || '#6b7280',
+    textColor: '#ffffff',
     extendedProps: { booking },
   }));
 
@@ -345,13 +362,27 @@ export default function ReservasPage() {
             </div>
           ) : view === 'calendar' ? (
             <FullCalendar
-              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-              initialView="timeGridWeek"
+              plugins={[dayGridPlugin, timeGridPlugin, resourceTimeGridPlugin, interactionPlugin]}
+              initialView="resourceTimeGridDay"
+              resources={calendarResources}
               locale={ptBrLocale}
+              timeZone="America/Sao_Paulo"
               headerToolbar={{
                 left: 'prev,next today',
                 center: 'title',
-                right: 'dayGridMonth,timeGridWeek,timeGridDay',
+                right: 'resourceTimeGridDay,resourceTimeGridWeek,dayGridMonth',
+              }}
+              views={{
+                resourceTimeGridWeek: {
+                  type: 'resourceTimeGrid',
+                  duration: { weeks: 1 },
+                  buttonText: 'Semana',
+                },
+                resourceTimeGridDay: {
+                  type: 'resourceTimeGrid',
+                  duration: { days: 1 },
+                  buttonText: 'Dia',
+                },
               }}
               events={calendarEvents}
               eventClick={(info) => {
@@ -360,9 +391,14 @@ export default function ReservasPage() {
               }}
               slotMinTime="07:00:00"
               slotMaxTime="22:00:00"
+              slotDuration="01:00:00"
+              slotEventOverlap={false}
+              eventDisplay="block"
               allDaySlot={false}
-              height={600}
+              height={650}
               nowIndicator
+              resourceAreaWidth="100px"
+              resourceAreaHeaderContent="Salas"
               businessHours={{
                 daysOfWeek: [1, 2, 3, 4, 5, 6],
                 startTime: '08:00',

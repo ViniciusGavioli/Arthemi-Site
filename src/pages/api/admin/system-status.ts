@@ -172,17 +172,76 @@ export default async function handler(
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      const recentBookings = await prisma.booking.count({
-        where: {
-          createdAt: { gte: today },
-        },
-      });
+      // Início do mês atual
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      
+      const [
+        recentBookings, 
+        pendingBookings, 
+        confirmedCount,
+        receitaFaturadaResult,
+        receitaPrevistaResult,
+        receitaPendenteResult,
+      ] = await Promise.all([
+        // Reservas criadas hoje
+        prisma.booking.count({
+          where: {
+            createdAt: { gte: today },
+          },
+        }),
+        // Pendentes (global)
+        prisma.booking.count({
+          where: {
+            status: 'PENDING',
+          },
+        }),
+        // Confirmadas do mês
+        prisma.booking.count({
+          where: {
+            startTime: { gte: startOfMonth },
+            status: 'CONFIRMED',
+          },
+        }),
+        // Receita faturada: CONFIRMED + (APPROVED ou manual)
+        prisma.booking.aggregate({
+          where: {
+            startTime: { gte: startOfMonth },
+            status: 'CONFIRMED',
+            OR: [
+              { paymentStatus: 'APPROVED' },
+              { isManual: true },
+            ],
+          },
+          _sum: { amountPaid: true },
+          _count: { id: true },
+        }),
+        // Receita prevista: CONFIRMED + PENDING payment
+        prisma.booking.aggregate({
+          where: {
+            startTime: { gte: startOfMonth },
+            status: 'CONFIRMED',
+            paymentStatus: 'PENDING',
+            isManual: false,
+          },
+          _sum: { amountPaid: true },
+        }),
+        // Receita pendente: status PENDING
+        prisma.booking.aggregate({
+          where: {
+            status: 'PENDING',
+          },
+          _sum: { amountPaid: true },
+        }),
+      ]);
 
-      const pendingBookings = await prisma.booking.count({
-        where: {
-          status: 'PENDING',
-        },
-      });
+      // Calcular métricas financeiras
+      const receitaFaturada = receitaFaturadaResult._sum.amountPaid || 0;
+      const receitaPrevista = receitaPrevistaResult._sum.amountPaid || 0;
+      const receitaPendente = receitaPendenteResult._sum.amountPaid || 0;
+      const totalFaturadas = receitaFaturadaResult._count.id || 0;
+      const ticketMedio = totalFaturadas > 0 ? Math.round(receitaFaturada / totalFaturadas) : 0;
 
       return res.status(200).json({
         timestamp: new Date().toISOString(),
@@ -198,6 +257,16 @@ export default async function handler(
         summary: {
           reservasHoje: recentBookings,
           reservasPendentes: pendingBookings,
+          confirmadas: confirmedCount,
+          receita: receitaFaturada,
+          // Métricas financeiras expandidas
+          financeiro: {
+            receitaFaturada,
+            receitaPrevista,
+            receitaPendente,
+            receitaTotal: receitaFaturada + receitaPrevista,
+            ticketMedio,
+          },
         },
       });
     } catch (error) {

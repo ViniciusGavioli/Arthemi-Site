@@ -26,6 +26,8 @@
     "@fullcalendar/daygrid": "^6.1.10",
     "@fullcalendar/interaction": "^6.1.10",
     "@fullcalendar/react": "^6.1.10",
+    "@fullcalendar/resource": "^6.1.20",
+    "@fullcalendar/resource-timegrid": "^6.1.20",
     "@fullcalendar/timegrid": "^6.1.10",
     "cookie": "^1.1.1",
     "date-fns": "^3.6.0",

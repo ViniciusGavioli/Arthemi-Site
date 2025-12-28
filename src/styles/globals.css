@@ -104,6 +104,43 @@ button, a, [role="button"] {
 
 .fc-event {
   cursor: pointer;
+  overflow: hidden;
+}
+
+.fc-event-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.fc-event-time {
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.fc-timegrid-event {
+  border-left-width: 4px !important;
+}
+
+/* Resource TimeGrid - Headers das salas */
+.fc-resource-area {
+  width: 100px !important;
+}
+
+.fc-datagrid-cell-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.fc-resource-header {
+  font-weight: 600;
+  color: #1f2937;
 }
 
 /* DatePicker customizations */

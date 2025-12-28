@@ -42,46 +42,71 @@ export default async function handler(
       }
     }
 
-    // Buscar reservas
-    const bookings = await prisma.booking.findMany({
-      where,
-      include: {
-        room: {
-          select: {
-            id: true,
-            name: true,
+    // Stats globais: início do mês atual (UTC)
+    const startOfMonth = new Date();
+    startOfMonth.setUTCDate(1);
+    startOfMonth.setUTCHours(0, 0, 0, 0);
+
+    // Buscar reservas filtradas + stats globais em paralelo
+    const [bookings, confirmedCount, revenueResult] = await Promise.all([
+      // Reservas filtradas (para lista/calendário)
+      prisma.booking.findMany({
+        where,
+        include: {
+          room: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+            },
+          },
+          product: {
+            select: {
+              id: true,
+              name: true,
+              price: true,
+            },
           },
         },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
+        orderBy: {
+          startTime: 'asc',
         },
-        product: {
-          select: {
-            id: true,
-            name: true,
-            price: true,
-          },
+      }),
+      // Confirmadas do mês (global)
+      prisma.booking.count({
+        where: {
+          startTime: { gte: startOfMonth },
+          status: 'CONFIRMED',
         },
-      },
-      orderBy: {
-        startTime: 'asc',
-      },
-    });
+      }),
+      // Receita do mês: CONFIRMED + (APPROVED ou manual)
+      prisma.booking.aggregate({
+        where: {
+          startTime: { gte: startOfMonth },
+          status: 'CONFIRMED',
+          OR: [
+            { paymentStatus: 'APPROVED' },
+            { isManual: true },
+          ],
+        },
+        _sum: { amountPaid: true },
+      }),
+    ]);
 
     // Calcular estatísticas
     const stats = {
       total: bookings.length,
-      confirmed: bookings.filter(b => b.status === 'CONFIRMED').length,
       pending: bookings.filter(b => b.status === 'PENDING').length,
       cancelled: bookings.filter(b => b.status === 'CANCELLED').length,
-      revenue: bookings
-        .filter(b => b.status === 'CONFIRMED' && b.paymentStatus === 'APPROVED')
-        .reduce((sum, b) => sum + (b.amountPaid || 0), 0),
+      confirmed: confirmedCount,
+      revenue: revenueResult._sum.amountPaid || 0,
     };
 
     return res.status(200).json({ bookings, stats });

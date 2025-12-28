@@ -20,25 +20,38 @@ interface Booking {
   user: { id: string; name: string; phone: string | null; email: string };
 }
 
-interface Stats {
-  total: number;
-  confirmed: number;
-  pending: number;
-  cancelled: number;
-  revenue: number;
+interface DashboardStats {
+  reservasHoje: number;
+  reservasPendentes: number;
+  confirmadas: number;
+  receita: number;
+  financeiro?: {
+    receitaFaturada: number;
+    receitaPrevista: number;
+    receitaPendente: number;
+    receitaTotal: number;
+    ticketMedio: number;
+  };
 }
 
 export default function DashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<Stats>({ total: 0, confirmed: 0, pending: 0, cancelled: 0, revenue: 0 });
+  const [stats, setStats] = useState<DashboardStats>({ reservasHoje: 0, reservasPendentes: 0, confirmadas: 0, receita: 0 });
   const [todayBookings, setTodayBookings] = useState<Booking[]>([]);
   const [pendingBookings, setPendingBookings] = useState<Booking[]>([]);
 
   useEffect(() => {
     async function fetchDashboardData() {
       try {
-        // Buscar reservas de hoje
+        // Buscar stats do system-status (fonte de verdade única)
+        const statusRes = await fetch('/api/admin/system-status');
+        if (statusRes.ok) {
+          const statusData = await statusRes.json();
+          setStats(statusData.summary || { reservasHoje: 0, reservasPendentes: 0, confirmadas: 0, receita: 0 });
+        }
+
+        // Buscar reservas de hoje para lista de próximas reservas
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const tomorrow = new Date(today);
@@ -53,10 +66,9 @@ export default function DashboardPage() {
         if (res.ok) {
           const data = await res.json();
           setTodayBookings(data.bookings || []);
-          setStats(s => data.stats || s);
         }
 
-        // Buscar pendentes
+        // Buscar pendentes para lista
         const pendingRes = await fetch('/api/admin/bookings?status=PENDING');
         if (pendingRes.ok) {
           const pendingData = await pendingRes.json();
@@ -97,30 +109,61 @@ export default function DashboardPage() {
         <StatCard
           icon="📅"
           label="Reservas Hoje"
-          value={activeToday.length}
+          value={stats.reservasHoje}
           color="primary"
           onClick={() => router.push('/admin/reservas?filter=today')}
         />
         <StatCard
           icon="⏳"
           label="Pendentes"
-          value={pendingBookings.length}
-          color={pendingBookings.length > 0 ? 'yellow' : 'gray'}
+          value={stats.reservasPendentes}
+          color={stats.reservasPendentes > 0 ? 'yellow' : 'gray'}
           onClick={() => router.push('/admin/reservas?status=PENDING')}
         />
         <StatCard
           icon="✓"
           label="Confirmadas"
-          value={stats.confirmed}
+          value={stats.confirmadas}
           color="green"
         />
         <StatCard
           icon="💰"
           label="Receita"
-          value={formatCurrency(stats.revenue)}
+          value={formatCurrency(stats.receita)}
           color="blue"
         />
       </div>
+
+      {/* Métricas Financeiras Detalhadas */}
+      {stats.financeiro && (
+        <Card className="mb-6">
+          <CardContent>
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">📊 Métricas Financeiras (Mês Atual)</h2>
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="text-center p-3 bg-green-50 rounded-lg">
+                <p className="text-xs text-green-600 font-medium">Faturada</p>
+                <p className="text-lg font-bold text-green-700">{formatCurrency(stats.financeiro.receitaFaturada)}</p>
+              </div>
+              <div className="text-center p-3 bg-blue-50 rounded-lg">
+                <p className="text-xs text-blue-600 font-medium">Prevista</p>
+                <p className="text-lg font-bold text-blue-700">{formatCurrency(stats.financeiro.receitaPrevista)}</p>
+              </div>
+              <div className="text-center p-3 bg-yellow-50 rounded-lg">
+                <p className="text-xs text-yellow-600 font-medium">Pendente</p>
+                <p className="text-lg font-bold text-yellow-700">{formatCurrency(stats.financeiro.receitaPendente)}</p>
+              </div>
+              <div className="text-center p-3 bg-purple-50 rounded-lg">
+                <p className="text-xs text-purple-600 font-medium">Total Esperado</p>
+                <p className="text-lg font-bold text-purple-700">{formatCurrency(stats.financeiro.receitaTotal)}</p>
+              </div>
+              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-600 font-medium">Ticket Médio</p>
+                <p className="text-lg font-bold text-gray-700">{formatCurrency(stats.financeiro.ticketMedio)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Próxima Reserva */}

@@ -23,6 +23,16 @@ export default async function handler(
   // GET - Buscar reserva
   // ========================================================
   if (req.method === 'GET') {
+    // ======================================================
+    // CACHE CONTROL: Dados transacionais NUNCA devem ser cacheados
+    // O status da reserva muda via webhook (PENDING → CONFIRMED)
+    // e o cliente precisa receber dados frescos em cada polling.
+    // ======================================================
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+
     try {
       const booking = await prisma.booking.findUnique({
         where: { id },

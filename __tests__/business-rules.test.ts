@@ -163,7 +163,7 @@ describe('Business Rules', () => {
 
   describe('canCancelWithRefund', () => {
     it('deve permitir cancelamento com reembolso com mais de 24h de antecedência', () => {
-      const bookingTime = addHours(new Date(), 25);
+      const bookingTime = addHours(new Date(), 49);
       expect(canCancelWithRefund(bookingTime)).toBe(true);
     });
 
@@ -199,8 +199,8 @@ describe('Business Rules', () => {
       expect(MIN_RESCHEDULE_HOURS).toBe(24);
     });
 
-    it('MIN_CANCELLATION_HOURS deve ser 24', () => {
-      expect(MIN_CANCELLATION_HOURS).toBe(24);
+    it('MIN_CANCELLATION_HOURS deve ser 48', () => {
+      expect(MIN_CANCELLATION_HOURS).toBe(48);
     });
 
     it('SUBLET_CREDIT_PERCENTAGE deve ser 50%', () => {

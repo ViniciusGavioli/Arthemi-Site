@@ -72,12 +72,17 @@ export default async function handler(
         if (payment) {
           const isConfirmed = isPaymentStatusConfirmed(payment.status);
           console.log(`🔄 [BOOKING] Verificando pagamento da reserva ${booking.id}: status pagamento = ${payment.status}, confirmado = ${isConfirmed}`);
+          console.log('booking.status=', booking.status);
+          
           // atualizar o status da reserva se necessário
           if (isConfirmed && booking.status !== 'CONFIRMED') {
+            // atualizar o payment status
+            console.log(`✅ [BOOKING] Atualizando status da reserva ${booking.id} para CONFIRMED`);
             prisma.booking.update({
               where: { id: booking.id },
               data: { status: 'CONFIRMED' },
             });
+         
           } else if (!isConfirmed && booking.status !== 'PENDING') {
             prisma.booking.update({
               where: { id: booking.id },

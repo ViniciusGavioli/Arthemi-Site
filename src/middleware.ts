@@ -38,27 +38,16 @@ export function middleware(request: NextRequest) {
 // HANDLER ADMIN
 // ============================================================
 function handleAdminRoutes(request: NextRequest, pathname: string): NextResponse {
-  // Permite acesso à página de login
   if (publicAdminRoutes.includes(pathname)) {
     return NextResponse.next();
   }
 
-  // Verifica cookie de autenticação
   const adminToken = request.cookies.get('admin_token')?.value;
 
   if (!adminToken) {
     const loginUrl = new URL('/admin/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
-  }
-
-  // Valida o token
-  const expectedToken = generateAdminToken();
-  
-  if (adminToken !== expectedToken) {
-    const response = NextResponse.redirect(new URL('/admin/login', request.url));
-    response.cookies.delete('admin_token');
-    return response;
   }
 
   return NextResponse.next();

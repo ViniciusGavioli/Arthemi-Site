@@ -68,6 +68,7 @@ export default async function handler(
         return res.status(404).json({ error: 'Reserva não encontrada' });
       }
 
+      // Verificar no asaas se o pagamento foi realizado e atualizar status da reserva se necessário
       try {
           const payment = await getPaymentByExternalReference(booking.id);
           
@@ -75,34 +76,22 @@ export default async function handler(
               console.log(`⚠️ [BOOKING] Nenhum pagamento encontrado para a reserva ${booking.id}`);
               return;
           }
-          
           const isConfirmed = isPaymentStatusConfirmed(payment.status);
-          console.log(`🔄 [BOOKING] Verificando pagamento da reserva ${booking.id}: status pagamento = ${payment.status}, confirmado = ${isConfirmed}`);
-          console.log('booking.status=', booking.status);
-          
           if (isConfirmed && booking.status !== 'CONFIRMED') {
-              console.log(`✅ [BOOKING] Atualizando status da reserva ${booking.id} para CONFIRMED`);
-              
               await prisma.booking.update({
                   where: { id: booking.id },
                   data: { status: 'CONFIRMED' },
               });
-              console.log(`✅ [BOOKING] Reserva ${booking.id} atualizada para CONFIRMED`);
-              
           } else if (!isConfirmed && booking.status !== 'PENDING') {
               await prisma.booking.update({
                   where: { id: booking.id },
                   data: { status: 'PENDING' },
               });
-              console.log(`🔄 [BOOKING] Reserva ${booking.id} atualizada para PENDING`);
           } else {
-              console.log(`ℹ️ [BOOKING] Reserva ${booking.id} não precisa de atualização`);
           }
-          
       } catch (error) {
           console.error(`❌ [BOOKING] Erro ao processar pagamento da reserva ${booking.id}:`, error);
       }
-
       return res.status(200).json(booking);
     } catch (error) {
       console.error('Get booking error:', error);

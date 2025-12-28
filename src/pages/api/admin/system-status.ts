@@ -172,17 +172,44 @@ export default async function handler(
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      const recentBookings = await prisma.booking.count({
-        where: {
-          createdAt: { gte: today },
-        },
-      });
-
-      const pendingBookings = await prisma.booking.count({
-        where: {
-          status: 'PENDING',
-        },
-      });
+      // Início do mês atual
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      
+      const [recentBookings, pendingBookings, confirmedCount, revenueResult] = await Promise.all([
+        // Reservas criadas hoje
+        prisma.booking.count({
+          where: {
+            createdAt: { gte: today },
+          },
+        }),
+        // Pendentes (global)
+        prisma.booking.count({
+          where: {
+            status: 'PENDING',
+          },
+        }),
+        // Confirmadas do mês
+        prisma.booking.count({
+          where: {
+            startTime: { gte: startOfMonth },
+            status: 'CONFIRMED',
+          },
+        }),
+        // Receita do mês
+        prisma.booking.aggregate({
+          where: {
+            startTime: { gte: startOfMonth },
+            status: 'CONFIRMED',
+            OR: [
+              { paymentStatus: 'APPROVED' },
+              { isManual: true },
+            ],
+          },
+          _sum: { amountPaid: true },
+        }),
+      ]);
 
       return res.status(200).json({
         timestamp: new Date().toISOString(),
@@ -198,6 +225,8 @@ export default async function handler(
         summary: {
           reservasHoje: recentBookings,
           reservasPendentes: pendingBookings,
+          confirmadas: confirmedCount,
+          receita: revenueResult._sum.amountPaid || 0,
         },
       });
     } catch (error) {

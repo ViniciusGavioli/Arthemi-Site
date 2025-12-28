@@ -2,10 +2,11 @@
 // Página /salas - Lista de Salas com RoomCard
 // ===========================================================
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GetServerSideProps } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/router';
 import { prisma } from '@/lib/prisma';
 import RoomCard from '@/components/RoomCard';
 import BookingModal from '@/components/BookingModal';
@@ -43,9 +44,24 @@ interface SalasPageProps {
 }
 
 export default function SalasPage({ rooms }: SalasPageProps) {
+  const router = useRouter();
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [galleryRoom, setGalleryRoom] = useState<{ name: string; slug: string; description: string; features: string[]; price: string } | null>(null);
+
+  // Verifica se há parâmetro 'reservar' na URL para abrir modal automaticamente
+  useEffect(() => {
+    const { reservar } = router.query;
+    if (reservar && typeof reservar === 'string') {
+      const roomToBook = rooms.find(r => r.slug === reservar);
+      if (roomToBook) {
+        setSelectedRoom(roomToBook);
+        setIsModalOpen(true);
+        // Limpa o parâmetro da URL sem recarregar a página
+        router.replace('/salas', undefined, { shallow: true });
+      }
+    }
+  }, [router.query, rooms, router]);
 
   // Dados para modal de galeria
   const roomsGalleryData = [
@@ -356,6 +372,13 @@ export default function SalasPage({ rooms }: SalasPageProps) {
           isOpen={!!galleryRoom}
           onClose={() => setGalleryRoom(null)}
           room={galleryRoom}
+          onReservar={() => {
+            // Encontrar a room correspondente pelo slug
+            const roomToBook = rooms.find(r => r.slug === galleryRoom.slug);
+            if (roomToBook) {
+              handleReservar(roomToBook);
+            }
+          }}
         />
       )}
     </>

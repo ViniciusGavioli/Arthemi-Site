@@ -639,6 +639,10 @@ export default function Home() {
           isOpen={!!selectedRoom}
           onClose={() => setSelectedRoom(null)}
           room={selectedRoom}
+          onReservar={() => {
+            // Redirecionar para página de salas com a sala selecionada
+            window.location.href = `/salas?reservar=${selectedRoom.slug}`;
+          }}
         />
       )}
     </>

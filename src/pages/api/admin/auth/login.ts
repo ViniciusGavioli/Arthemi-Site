@@ -35,7 +35,7 @@ export default async function handler(
   if (password !== adminPassword) {
     // Delay para evitar brute force
     await new Promise(resolve => setTimeout(resolve, 1000));
-    return res.status(401).json({ success: false, error: 'Senha incorreta' + adminPassword });
+    return res.status(401).json({ success: false, error: 'Senha incorreta'});
   }
 
   // Gera token de sessão

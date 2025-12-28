@@ -25,6 +25,13 @@ interface DashboardStats {
   reservasPendentes: number;
   confirmadas: number;
   receita: number;
+  financeiro?: {
+    receitaFaturada: number;
+    receitaPrevista: number;
+    receitaPendente: number;
+    receitaTotal: number;
+    ticketMedio: number;
+  };
 }
 
 export default function DashboardPage() {
@@ -126,6 +133,37 @@ export default function DashboardPage() {
           color="blue"
         />
       </div>
+
+      {/* Métricas Financeiras Detalhadas */}
+      {stats.financeiro && (
+        <Card className="mb-6">
+          <CardContent>
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">📊 Métricas Financeiras (Mês Atual)</h2>
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="text-center p-3 bg-green-50 rounded-lg">
+                <p className="text-xs text-green-600 font-medium">Faturada</p>
+                <p className="text-lg font-bold text-green-700">{formatCurrency(stats.financeiro.receitaFaturada)}</p>
+              </div>
+              <div className="text-center p-3 bg-blue-50 rounded-lg">
+                <p className="text-xs text-blue-600 font-medium">Prevista</p>
+                <p className="text-lg font-bold text-blue-700">{formatCurrency(stats.financeiro.receitaPrevista)}</p>
+              </div>
+              <div className="text-center p-3 bg-yellow-50 rounded-lg">
+                <p className="text-xs text-yellow-600 font-medium">Pendente</p>
+                <p className="text-lg font-bold text-yellow-700">{formatCurrency(stats.financeiro.receitaPendente)}</p>
+              </div>
+              <div className="text-center p-3 bg-purple-50 rounded-lg">
+                <p className="text-xs text-purple-600 font-medium">Total Esperado</p>
+                <p className="text-lg font-bold text-purple-700">{formatCurrency(stats.financeiro.receitaTotal)}</p>
+              </div>
+              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-600 font-medium">Ticket Médio</p>
+                <p className="text-lg font-bold text-gray-700">{formatCurrency(stats.financeiro.ticketMedio)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Próxima Reserva */}

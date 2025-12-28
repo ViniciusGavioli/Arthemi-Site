@@ -177,7 +177,14 @@ export default async function handler(
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
       
-      const [recentBookings, pendingBookings, confirmedCount, revenueResult] = await Promise.all([
+      const [
+        recentBookings, 
+        pendingBookings, 
+        confirmedCount,
+        receitaFaturadaResult,
+        receitaPrevistaResult,
+        receitaPendenteResult,
+      ] = await Promise.all([
         // Reservas criadas hoje
         prisma.booking.count({
           where: {
@@ -197,7 +204,7 @@ export default async function handler(
             status: 'CONFIRMED',
           },
         }),
-        // Receita do mês
+        // Receita faturada: CONFIRMED + (APPROVED ou manual)
         prisma.booking.aggregate({
           where: {
             startTime: { gte: startOfMonth },
@@ -208,8 +215,33 @@ export default async function handler(
             ],
           },
           _sum: { amountPaid: true },
+          _count: { id: true },
+        }),
+        // Receita prevista: CONFIRMED + PENDING payment
+        prisma.booking.aggregate({
+          where: {
+            startTime: { gte: startOfMonth },
+            status: 'CONFIRMED',
+            paymentStatus: 'PENDING',
+            isManual: false,
+          },
+          _sum: { amountPaid: true },
+        }),
+        // Receita pendente: status PENDING
+        prisma.booking.aggregate({
+          where: {
+            status: 'PENDING',
+          },
+          _sum: { amountPaid: true },
         }),
       ]);
+
+      // Calcular métricas financeiras
+      const receitaFaturada = receitaFaturadaResult._sum.amountPaid || 0;
+      const receitaPrevista = receitaPrevistaResult._sum.amountPaid || 0;
+      const receitaPendente = receitaPendenteResult._sum.amountPaid || 0;
+      const totalFaturadas = receitaFaturadaResult._count.id || 0;
+      const ticketMedio = totalFaturadas > 0 ? Math.round(receitaFaturada / totalFaturadas) : 0;
 
       return res.status(200).json({
         timestamp: new Date().toISOString(),
@@ -226,7 +258,15 @@ export default async function handler(
           reservasHoje: recentBookings,
           reservasPendentes: pendingBookings,
           confirmadas: confirmedCount,
-          receita: revenueResult._sum.amountPaid || 0,
+          receita: receitaFaturada,
+          // Métricas financeiras expandidas
+          financeiro: {
+            receitaFaturada,
+            receitaPrevista,
+            receitaPendente,
+            receitaTotal: receitaFaturada + receitaPrevista,
+            ticketMedio,
+          },
         },
       });
     } catch (error) {

@@ -303,6 +303,18 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                         </tbody>
                       </table>
                     </div>
+                    {/* Botão Reservar */}
+                    <div className="p-4 bg-warm-50 border-t border-warm-200 flex justify-center">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleReservar(room);
+                        }}
+                        className="bg-accent-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-accent-700 transition-colors shadow-md hover:shadow-lg"
+                      >
+                        Reservar este consultório
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

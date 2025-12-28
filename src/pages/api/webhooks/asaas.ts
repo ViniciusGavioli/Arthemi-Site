@@ -282,8 +282,11 @@ export default async function handler(
         metadata: {
           paymentId: sanitizeString(payment.id),
           value: payment.value,
+          valueCents: realToCents(payment.value),
           billingType: sanitizeString(payment.billingType),
           event: sanitizeString(event),
+          origin: 'webhook',
+          eventId: sanitizeString(eventId),
         },
       }),
       3000,

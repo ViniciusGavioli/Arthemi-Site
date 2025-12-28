@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getPayment, isPaymentStatusConfirmed, realToCents } from '@/lib/asaas';
+import { logAudit } from '@/lib/audit';
 
 /**
  * API para reprocessar pagamentos pendentes
@@ -100,6 +101,10 @@ function mapAsaasStatusToPaymentStatus(asaasStatus: string): 'PENDING' | 'APPROV
  */
 async function handlePost(req: NextApiRequest, res: NextApiResponse) {
   const { bookingIds } = req.body as { bookingIds?: string[] };
+  const startTime = Date.now();
+
+  // Log início do backfill
+  console.log('🔄 [Backfill] Iniciando execução via API');
 
   // Se bookingIds não for fornecido, processa todos os pendentes
   const whereClause = bookingIds?.length
@@ -202,6 +207,24 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
         data: updateData,
       });
 
+      // Log de auditoria para cada pagamento recuperado
+      if (isConfirmed) {
+        await logAudit({
+          action: 'PAYMENT_BACKFILL',
+          source: 'ADMIN',
+          targetType: 'Booking',
+          targetId: booking.id,
+          metadata: {
+            paymentId: booking.paymentId,
+            asaasStatus: asaasPayment.status,
+            value: asaasPayment.value,
+            valueCents: realToCents(asaasPayment.value),
+            origin: 'backfill-api',
+          },
+          req,
+        });
+      }
+
       results.updated++;
       if (isConfirmed) {
         results.totalRevenue += asaasPayment.value;
@@ -225,9 +248,32 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
     }
   }
 
+  const duration = Date.now() - startTime;
+
+  // Log de auditoria para execução completa do backfill
+  await logAudit({
+    action: 'ADMIN_BACKFILL_EXECUTED',
+    source: 'ADMIN',
+    targetType: 'System',
+    targetId: 'backfill',
+    metadata: {
+      total: results.total,
+      updated: results.updated,
+      skipped: results.skipped,
+      errors: results.errors,
+      totalRevenue: results.totalRevenue,
+      durationMs: duration,
+      origin: 'backfill-api',
+    },
+    req,
+  });
+
+  console.log(`✅ [Backfill] Concluído em ${duration}ms: ${results.updated} atualizadas, R$ ${results.totalRevenue.toFixed(2)} recuperados`);
+
   return res.status(200).json({
     success: true,
     results,
+    durationMs: duration,
     message: `Backfill concluído: ${results.updated} atualizadas, ${results.skipped} ignoradas, ${results.errors} erros. Receita recuperada: R$ ${results.totalRevenue.toFixed(2)}`,
   });
 }

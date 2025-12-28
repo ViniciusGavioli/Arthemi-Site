@@ -18,6 +18,7 @@ import {
 } from '@/lib/asaas';
 import { createMagicLink } from '@/lib/magic-link';
 import { getUserCreditsSummary } from '@/lib/business-rules';
+import { sendBookingConfirmationNotification } from '@/lib/booking-notifications';
 
 
 // Idempotência via banco de dados (WebhookEvent table)
@@ -293,67 +294,23 @@ export default async function handler(
       'log de auditoria de pagamento'
     );
 
-    // 9. Enviar email de confirmação com magic link
+    // 9. Enviar email de confirmação de forma assíncrona (não bloquear webhook)
     try {
-      const hours = Math.ceil(
-        (booking.endTime.getTime() - booking.startTime.getTime()) / (1000 * 60 * 60)
-      );
-      
-      const dateFormatted = format(booking.startTime, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
-      const startFormatted = format(booking.startTime, 'HH:mm');
-      const endFormatted = format(booking.endTime, 'HH:mm');
-      
-      // Gera magic link para acesso direto à conta
-      let magicLinkToken: string | undefined;
-      try {
-        const magicLinkResult = await withTimeout(
-          createMagicLink(booking.user.email),
-          3000,
-          'geração de magic link'
-        );
-        if (magicLinkResult.success && magicLinkResult.token) {
-          magicLinkToken = magicLinkResult.token;
-        }
-      } catch (mlError) {
-        console.warn('⚠️ [Asaas Webhook] Erro ao gerar magic link:', mlError);
-      }
-
-      // Calcula saldo de créditos do usuário
-      let creditBalance = 0;
-      try {
-        const creditsSummary = await withTimeout(
-          getUserCreditsSummary(booking.userId),
-          3000,
-          'cálculo de saldo de créditos'
-        );
-        creditBalance = creditsSummary.total;
-      } catch (credError) {
-        console.warn('⚠️ [Asaas Webhook] Erro ao calcular saldo:', credError);
-      }
-      
-      await withTimeout(
-        sendBookingConfirmationEmail({
-          userName: booking.user.name,
-          userEmail: booking.user.email,
-          bookingId: booking.id,
-          roomName: booking.room.name,
-          date: dateFormatted,
-          startTime: startFormatted,
-          endTime: endFormatted,
-          duration: `${hours}h`,
-          amountPaid: payment.value * 100, // Converter para centavos
-          paymentMethod: 'PIX',
-          magicLinkToken,
-          creditBalance,
-        }),
-        10000,
-        'envio de email de confirmação'
-      );
-      
-      console.log(`📧 [Asaas Webhook] Email enviado: ${booking.user.email}`);
+      // Enviar em background sem esperar
+      sendBookingConfirmationNotification(bookingId)
+        .then(success => {
+          if (success) {
+            console.log(`📧 [Asaas Webhook] Email de confirmação enviado em background para ${bookingId}`);
+          } else {
+            console.warn(`⚠️ [Asaas Webhook] Falha ao enviar email em background para ${bookingId}`);
+          }
+        })
+        .catch(error => {
+          console.error('⚠️ [Asaas Webhook] Erro no envio background de email:', error);
+        });
+        
     } catch (emailError) {
-      console.error('⚠️ [Asaas Webhook] Erro ao enviar email:', emailError);
-      // Não falhar o webhook por erro de email
+      console.error('⚠️ [Asaas Webhook] Erro ao agendar envio de email:', emailError);
     }
 
     // 11. Atualizar WebhookEvent como processado com sucesso

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { logUserAction } from '@/lib/audit';
 import { MIN_CANCELLATION_HOURS } from '@/lib/business-rules';
 import { getPaymentByExternalReference, isPaymentStatusConfirmed } from '@/lib/asaas';
+import { sendBookingConfirmationNotification } from '@/lib/booking-notifications';
 
 /**
  * API /api/bookings/[id]
@@ -70,28 +71,45 @@ export default async function handler(
 
       // Verificar no asaas se o pagamento foi realizado e atualizar status da reserva se necessário
       try {
-          const payment = await getPaymentByExternalReference(booking.id);
+      const payment = await getPaymentByExternalReference(booking.id);
+      
+      if (!payment) {
+        console.log(`⚠️ [BOOKING] Nenhum pagamento encontrado para a reserva ${booking.id}`);
+      } else {
+        const isConfirmed = isPaymentStatusConfirmed(payment.status);
+        
+        if (isConfirmed && booking.status !== 'CONFIRMED') {
+          // Atualizar status
+          await prisma.booking.update({
+            where: { id: booking.id },
+            data: { 
+              status: 'CONFIRMED',
+              paymentStatus: 'APPROVED',
+            },
+          });
           
-          if (!payment) {
-              console.log(`⚠️ [BOOKING] Nenhum pagamento encontrado para a reserva ${booking.id}`);
-              return;
+          console.log(`✅ [BOOKING] Reserva ${booking.id} atualizada para CONFIRMED`);
+          
+          // ENVIAR EMAIL DE CONFIRMAÇÃO
+          try {
+            await sendBookingConfirmationNotification(booking.id);
+            console.log(`📧 [BOOKING] Email de confirmação enviado para ${booking.id}`);
+          } catch (emailError) {
+            console.error('⚠️ [BOOKING] Erro ao enviar email:', emailError);
+            // Não falha a requisição por erro de email
           }
-          const isConfirmed = isPaymentStatusConfirmed(payment.status);
-          if (isConfirmed && booking.status !== 'CONFIRMED') {
-              await prisma.booking.update({
-                  where: { id: booking.id },
-                  data: { status: 'CONFIRMED' },
-              });
-          } else if (!isConfirmed && booking.status !== 'PENDING') {
-              await prisma.booking.update({
-                  where: { id: booking.id },
-                  data: { status: 'PENDING' },
-              });
-          } else {
-          }
-      } catch (error) {
-          console.error(`❌ [BOOKING] Erro ao processar pagamento da reserva ${booking.id}:`, error);
+          
+        } else if (!isConfirmed && booking.status !== 'PENDING') {
+          await prisma.booking.update({
+            where: { id: booking.id },
+            data: { status: 'PENDING' },
+          });
+          console.log(`🔄 [BOOKING] Reserva ${booking.id} atualizada para PENDING`);
+        }
       }
+    } catch (error) {
+      console.error(`❌ [BOOKING] Erro ao processar pagamento da reserva ${booking.id}:`, error);
+    }
       return res.status(200).json(booking);
     } catch (error) {
       console.error('Get booking error:', error);

@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { logUserAction } from '@/lib/audit';
 import { MIN_CANCELLATION_HOURS } from '@/lib/business-rules';
+import { getPaymentByExternalReference, isPaymentStatusConfirmed } from '@/lib/asaas';
 
 /**
  * API /api/bookings/[id]
@@ -56,6 +57,28 @@ export default async function handler(
       if (!booking) {
         return res.status(404).json({ error: 'Reserva não encontrada' });
       }
+
+      getPaymentByExternalReference(booking.id).then(payment => {
+        if (payment) {
+          const isConfirmed = isPaymentStatusConfirmed(payment.status);
+          console.log(`🔄 [BOOKING] Verificando pagamento da reserva ${booking.id}: status pagamento = ${payment.status}, confirmado = ${isConfirmed}`);
+          // atualizar o status da reserva se necessário
+          if (isConfirmed && booking.status !== 'CONFIRMED') {
+            prisma.booking.update({
+              where: { id: booking.id },
+              data: { status: 'CONFIRMED' },
+            });
+          } else if (!isConfirmed && booking.status !== 'PENDING') {
+            prisma.booking.update({
+              where: { id: booking.id },
+              data: { status: 'PENDING' },
+            });
+          }
+        } else {
+          console.log(`⚠️ [BOOKING] Nenhum pagamento encontrado para a reserva ${booking.id}`);
+          console.log(`Detalhes da requisição:`, payment);
+        }
+      });
 
       return res.status(200).json(booking);
     } catch (error) {

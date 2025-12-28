@@ -104,6 +104,24 @@ button, a, [role="button"] {
 
 .fc-event {
   cursor: pointer;
+  overflow: hidden;
+}
+
+.fc-event-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.fc-event-time {
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.fc-timegrid-event {
+  border-left-width: 4px !important;
 }
 
 /* DatePicker customizations */

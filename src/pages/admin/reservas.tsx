@@ -128,6 +128,8 @@ export default function ReservasPage() {
     end: booking.endTime,
     backgroundColor: statusColorsCalendar[booking.status] || '#6b7280',
     borderColor: roomColorsCalendar[booking.room.name] || '#6b7280',
+    borderWidth: 4,
+    textColor: '#ffffff',
     extendedProps: { booking },
   }));
 
@@ -348,6 +350,7 @@ export default function ReservasPage() {
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
               initialView="timeGridWeek"
               locale={ptBrLocale}
+              timeZone="America/Sao_Paulo"
               headerToolbar={{
                 left: 'prev,next today',
                 center: 'title',
@@ -360,6 +363,9 @@ export default function ReservasPage() {
               }}
               slotMinTime="07:00:00"
               slotMaxTime="22:00:00"
+              slotDuration="01:00:00"
+              slotEventOverlap={false}
+              eventDisplay="block"
               allDaySlot={false}
               height={600}
               nowIndicator

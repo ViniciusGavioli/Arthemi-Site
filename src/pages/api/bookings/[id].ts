@@ -68,32 +68,40 @@ export default async function handler(
         return res.status(404).json({ error: 'Reserva não encontrada' });
       }
 
-      getPaymentByExternalReference(booking.id).then(payment => {
-        if (payment) {
+      try {
+          const payment = await getPaymentByExternalReference(booking.id);
+          
+          if (!payment) {
+              console.log(`⚠️ [BOOKING] Nenhum pagamento encontrado para a reserva ${booking.id}`);
+              return;
+          }
+          
           const isConfirmed = isPaymentStatusConfirmed(payment.status);
           console.log(`🔄 [BOOKING] Verificando pagamento da reserva ${booking.id}: status pagamento = ${payment.status}, confirmado = ${isConfirmed}`);
           console.log('booking.status=', booking.status);
           
-          // atualizar o status da reserva se necessário
           if (isConfirmed && booking.status !== 'CONFIRMED') {
-            // atualizar o payment status
-            console.log(`✅ [BOOKING] Atualizando status da reserva ${booking.id} para CONFIRMED`);
-            prisma.booking.update({
-              where: { id: booking.id },
-              data: { status: 'CONFIRMED' },
-            });
-         
+              console.log(`✅ [BOOKING] Atualizando status da reserva ${booking.id} para CONFIRMED`);
+              
+              await prisma.booking.update({
+                  where: { id: booking.id },
+                  data: { status: 'CONFIRMED' },
+              });
+              console.log(`✅ [BOOKING] Reserva ${booking.id} atualizada para CONFIRMED`);
+              
           } else if (!isConfirmed && booking.status !== 'PENDING') {
-            prisma.booking.update({
-              where: { id: booking.id },
-              data: { status: 'PENDING' },
-            });
+              await prisma.booking.update({
+                  where: { id: booking.id },
+                  data: { status: 'PENDING' },
+              });
+              console.log(`🔄 [BOOKING] Reserva ${booking.id} atualizada para PENDING`);
+          } else {
+              console.log(`ℹ️ [BOOKING] Reserva ${booking.id} não precisa de atualização`);
           }
-        } else {
-          console.log(`⚠️ [BOOKING] Nenhum pagamento encontrado para a reserva ${booking.id}`);
-          console.log(`Detalhes da requisição:`, payment);
-        }
-      });
+          
+      } catch (error) {
+          console.error(`❌ [BOOKING] Erro ao processar pagamento da reserva ${booking.id}:`, error);
+      }
 
       return res.status(200).json(booking);
     } catch (error) {

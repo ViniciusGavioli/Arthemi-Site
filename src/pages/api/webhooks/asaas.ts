@@ -77,7 +77,7 @@ export default async function handler(
   res: NextApiResponse
 ) {
   // Apenas POST
-  if (req.method !== 'POST') {
+  if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Método não permitido' });
   }
 

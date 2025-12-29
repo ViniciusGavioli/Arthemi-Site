@@ -20,8 +20,11 @@ const purchaseCreditsSchema = z.object({
   userEmail: z.string().email('Email inválido').optional(),
   userCpf: z.string().length(11, 'CPF deve ter 11 dígitos').regex(/^\d+$/, 'CPF deve conter apenas números'),
   roomId: z.string().min(1, 'Sala é obrigatória'),
-  productId: z.string().min(1, 'Produto é obrigatório'),
+  productId: z.string().optional(), // Pacote específico
+  hours: z.number().min(1).max(20).optional(), // OU horas avulsas
   couponCode: z.string().optional(),
+}).refine(data => data.productId || data.hours, {
+  message: 'Deve informar productId ou hours',
 });
 
 // Cupons válidos
@@ -89,26 +92,6 @@ export default async function handler(
       });
     }
 
-    // Buscar produto
-    const product = await prisma.product.findUnique({
-      where: { id: data.productId },
-    });
-
-    if (!product || !product.isActive) {
-      return res.status(404).json({
-        success: false,
-        error: 'Produto não encontrado ou inativo.',
-      });
-    }
-
-    // Verificar que é um pacote (não hora avulsa)
-    if (product.type === 'HOURLY_RATE') {
-      return res.status(400).json({
-        success: false,
-        error: 'Use o fluxo de reserva para hora avulsa.',
-      });
-    }
-
     // Verificar sala
     const room = await prisma.room.findUnique({
       where: { id: data.roomId },
@@ -121,8 +104,50 @@ export default async function handler(
       });
     }
 
-    // Calcular valor
-    let amount = product.price;
+    // Determinar se é compra de horas avulsas ou pacote
+    let creditHours: number;
+    let amount: number;
+    let productName: string;
+    let validityDays = 365; // padrão 1 ano
+
+    if (data.hours) {
+      // Compra de horas avulsas
+      creditHours = data.hours;
+      amount = room.hourlyRate * data.hours;
+      productName = `${data.hours} hora${data.hours > 1 ? 's' : ''} avulsa${data.hours > 1 ? 's' : ''}`;
+    } else if (data.productId) {
+      // Compra de pacote
+      const product = await prisma.product.findUnique({
+        where: { id: data.productId },
+      });
+
+      if (!product || !product.isActive) {
+        return res.status(404).json({
+          success: false,
+          error: 'Produto não encontrado ou inativo.',
+        });
+      }
+
+      // Verificar que é um pacote (não hora avulsa)
+      if (product.type === 'HOURLY_RATE') {
+        return res.status(400).json({
+          success: false,
+          error: 'Use o fluxo de reserva para hora avulsa.',
+        });
+      }
+
+      creditHours = product.hoursIncluded || 0;
+      amount = product.price;
+      productName = product.name;
+      validityDays = product.validityDays || 365;
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: 'Deve informar hours ou productId.',
+      });
+    }
+
+    // Aplicar cupom
     let couponApplied: string | null = null;
 
     if (data.couponCode) {
@@ -167,11 +192,9 @@ export default async function handler(
       }
 
       // Criar crédito PENDENTE (será ativado após pagamento)
-      // Valor em centavos baseado nas horas do pacote * hourlyRate da sala
-      const creditHours = product.hoursIncluded || 0;
       const creditAmount = creditHours * room.hourlyRate; // Valor em centavos
       const now = new Date();
-      const expiresAt = addDays(now, product.validityDays || 365);
+      const expiresAt = addDays(now, validityDays);
 
       const credit = await tx.credit.create({
         data: {
@@ -187,7 +210,7 @@ export default async function handler(
         },
       });
 
-      return { user, credit, creditHours };
+      return { user, credit };
     });
 
     // Criar pagamento no Asaas
@@ -198,7 +221,7 @@ export default async function handler(
       customerCpf: data.userCpf,
       customerEmail: data.userEmail || `${data.userPhone}@temp.arthemi.com.br`,
       value: amount, // Em centavos
-      description: `${product.name} - ${room.name}`,
+      description: `${productName} - ${room.name}`,
     });
 
     if (!paymentResult || !paymentResult.invoiceUrl) {
@@ -225,8 +248,8 @@ export default async function handler(
       {
         roomId: data.roomId,
         roomName: room.name,
-        productName: product.name,
-        hours: result.creditHours,
+        productName,
+        hours: creditHours,
         amount,
         couponApplied,
         paymentId: paymentResult.paymentId,
@@ -234,7 +257,7 @@ export default async function handler(
       }
     );
 
-    console.log(`[CREDIT] Compra iniciada: ${result.credit.id} - ${product.name} - R$ ${(amount / 100).toFixed(2)}`);
+    console.log(`[CREDIT] Compra iniciada: ${result.credit.id} - ${productName} - R$ ${(amount / 100).toFixed(2)}`);
 
     return res.status(201).json({
       success: true,

@@ -271,8 +271,11 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     analytics.bookingSubmitted(room.name, getTotalPrice());
 
     try {
-      // Se é PACOTE → usa endpoint de crédito (sem criar booking)
+      // Se é PACOTE/CRÉDITO → usa endpoint de crédito (sem criar booking)
       if (formData.productType === 'package') {
+        // Determinar se é horas avulsas ou pacote
+        const isHourlyCredit = formData.productId === 'hourly_credit';
+        
         const response = await fetch('/api/credits/purchase', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -282,7 +285,9 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
             userEmail: formData.userEmail || undefined,
             userCpf: formData.userCpf.replace(/\D/g, ''),
             roomId: room.id,
-            productId: formData.productId,
+            // Se é hora avulsa, envia hours; se é pacote, envia productId
+            productId: isHourlyCredit ? undefined : formData.productId,
+            hours: isHourlyCredit ? formData.duration : undefined,
             couponCode: formData.couponCode || undefined,
           }),
         });
@@ -556,28 +561,92 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
           {formData.productType === 'package' && (
             <>
               <div>
-                <label htmlFor="package-select-top" className="block text-sm font-medium text-gray-700 mb-1">
-                  Selecionar Pacote
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  O que você quer comprar?
                 </label>
-                <select
-                  id="package-select-top"
-                  aria-label="Selecionar pacote"
-                  value={formData.productId}
-                  onChange={(e) => setFormData({ ...formData, productId: e.target.value })}
-                  disabled={submitting}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                    submitting
-                      ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
-                      : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Selecione...</option>
+                
+                {/* Opção: Horas Avulsas */}
+                <div className="space-y-3">
+                  <div 
+                    className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                      formData.productId === 'hourly_credit' 
+                        ? 'border-accent-500 bg-accent-50' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => setFormData({ ...formData, productId: 'hourly_credit' })}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold text-gray-900">⏱️ Horas Avulsas</div>
+                        <div className="text-sm text-gray-500">Compre horas para usar quando quiser</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-accent-600">{formatCurrency(hourlyPrice)}/hora</div>
+                      </div>
+                    </div>
+                    
+                    {formData.productId === 'hourly_credit' && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <label htmlFor="hours-credit-select" className="block text-sm font-medium text-gray-700 mb-1">
+                          Quantas horas?
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <select
+                            id="hours-credit-select"
+                            aria-label="Quantidade de horas"
+                            value={formData.duration}
+                            onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })}
+                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent-500"
+                          >
+                            {[1, 2, 3, 4, 5, 6, 8, 10].map((h) => (
+                              <option key={h} value={h}>{h} hora{h > 1 ? 's' : ''}</option>
+                            ))}
+                          </select>
+                          <div className="text-lg font-bold text-gray-900">
+                            = {formatCurrency(hourlyPrice * formData.duration)}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Divisor */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 border-t border-gray-200"></div>
+                    <span className="text-sm text-gray-400">ou escolha um pacote</span>
+                    <div className="flex-1 border-t border-gray-200"></div>
+                  </div>
+
+                  {/* Pacotes */}
                   {filteredProducts.filter(p => p.type !== 'HOURLY_RATE').map((product) => (
-                    <option key={product.id} value={product.id}>
-                      {product.name} - {formatCurrency(product.price)}
-                    </option>
+                    <div 
+                      key={product.id}
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        formData.productId === product.id 
+                          ? 'border-accent-500 bg-accent-50' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => setFormData({ ...formData, productId: product.id })}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-semibold text-gray-900">{product.name}</div>
+                          {product.hoursIncluded && (
+                            <div className="text-sm text-gray-500">{product.hoursIncluded} horas incluídas</div>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <div className="font-bold text-accent-600">{formatCurrency(product.price)}</div>
+                          {product.hoursIncluded && (
+                            <div className="text-xs text-green-600">
+                              {formatCurrency(Math.round(product.price / product.hoursIncluded))}/hora
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   ))}
-                </select>
+                </div>
               </div>
 
               {/* Aviso claro sobre créditos */}

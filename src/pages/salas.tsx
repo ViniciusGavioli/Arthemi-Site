@@ -14,7 +14,23 @@ import SEO, { BreadcrumbSchema } from '@/components/SEO';
 import Layout from '@/components/Layout';
 import { PAGE_SEO } from '@/constants/seo';
 import { formatCurrency } from '@/lib/utils';
+import { PRICES_V3, formatPrice } from '@/constants/prices';
 import { Lightbulb, CheckCircle2, Eye } from 'lucide-react';
+
+// Helper para calcular menor preço por hora de uma sala
+function getLowestHourlyPrice(salaKey: 'SALA_A' | 'SALA_B' | 'SALA_C'): number {
+  const prices = PRICES_V3[salaKey].prices;
+  
+  // Calcular preço por hora de cada opção
+  const hourlyOptions = [
+    prices.HOURLY_RATE,                    // Hora avulsa
+    prices.PACKAGE_10H / 10,               // Pacote 10h
+    prices.PACKAGE_20H / 20,               // Pacote 20h
+    prices.PACKAGE_40H / 40,               // Pacote 40h
+  ];
+  
+  return Math.min(...hourlyOptions);
+}
 
 interface Product {
   id: string;
@@ -45,30 +61,27 @@ interface SalasPageProps {
 export default function SalasPage({ rooms }: SalasPageProps) {
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [galleryRoom, setGalleryRoom] = useState<{ name: string; slug: string; description: string; features: string[]; price: string } | null>(null);
+  const [galleryRoom, setGalleryRoom] = useState<{ name: string; slug: string } | null>(null);
 
-  // Dados para modal de galeria
+  // Dados para modal de galeria e cards (com preço calculado dinamicamente)
   const roomsGalleryData = [
     {
       name: 'Consultório 1 | Prime',
       slug: 'sala-a',
       description: 'Espaço premium',
-      features: ['Espaço premium', 'Consultório amplo', 'Maca com circulação livre (360º)', 'Ar-condicionado', 'Lavatório', 'Armário', 'Iluminação'],
-      price: 'R$ 59,99',
+      price: formatPrice(getLowestHourlyPrice('SALA_A')),
     },
     {
       name: 'Consultório 2 | Executive',
       slug: 'sala-b',
       description: 'Consultório amplo',
-      features: ['Consultório amplo', 'Maca com circulação livre (360º)', 'Ar-condicionado', 'Lavatório', 'Armário', 'Iluminação'],
-      price: 'R$ 49,99',
+      price: formatPrice(getLowestHourlyPrice('SALA_B')),
     },
     {
       name: 'Consultório 3 | Essential',
       slug: 'sala-c',
-      description: 'Consultório acolhedor',
-      features: ['Consultório acolhedor', 'Espaço intimista', 'Poltronas', 'Ar-condicionado', 'Lavatório', 'Iluminação'],
-      price: 'R$ 39,99',
+      description: 'Espaço intimista',
+      price: formatPrice(getLowestHourlyPrice('SALA_C')),
     },
   ];
 
@@ -80,6 +93,18 @@ export default function SalasPage({ rooms }: SalasPageProps) {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedRoom(null);
+  };
+
+  // Handler para reservar direto da galeria
+  const handleReservarFromGallery = () => {
+    if (galleryRoom) {
+      const room = rooms.find(r => r.slug === galleryRoom.slug);
+      if (room) {
+        setGalleryRoom(null); // Fecha galeria
+        setSelectedRoom(room);
+        setIsModalOpen(true); // Abre modal de reserva
+      }
+    }
   };
 
   return (
@@ -112,19 +137,19 @@ export default function SalasPage({ rooms }: SalasPageProps) {
         {/* Lista de Salas */}
         <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           {/* Bloco de inclusões */}
-          <div className="bg-accent-50 rounded-xl p-6 mb-12 border border-accent-200">
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-accent-100 rounded-full flex items-center justify-center">
-                <Lightbulb className="w-5 h-5 text-accent-600" />
+          <div className="bg-accent-50 rounded-xl p-8 mb-12 border border-accent-200">
+            <div className="flex items-start gap-5">
+              <div className="flex-shrink-0 w-12 h-12 bg-accent-100 rounded-full flex items-center justify-center">
+                <Lightbulb className="w-6 h-6 text-accent-600" />
               </div>
-              <div>
-                <h2 className="text-lg font-semibold text-primary-900 mb-3">
+              <div className="flex-1">
+                <h2 className="text-lg font-semibold text-primary-900 mb-5">
                   A reserva do consultório inclui:
                 </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                  {['Consultório profissional', 'Internet', 'Recepção', 'Limpeza', 'Café e água'].map((item, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-accent-600 flex-shrink-0" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-4">
+                  {['Consultório profissional', 'Internet de alta velocidade', 'Recepção', 'Limpeza', 'Café e água', 'Insumos básicos'].map((item, i) => (
+                    <div key={i} className="flex items-center gap-3 py-1">
+                      <CheckCircle2 className="w-5 h-5 text-accent-600 flex-shrink-0" />
                       <span className="text-sm text-secondary-700">{item}</span>
                     </div>
                   ))}
@@ -134,7 +159,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
           </div>
 
           {/* Cards dos Consultórios com imagens clicáveis */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+          <div data-cards-section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16 scroll-mt-20">
             {rooms.map((room, index) => {
               const galleryData = roomsGalleryData[index];
               const imageUrl = room.slug === 'sala-a' ? '/images/sala-a/foto-4.jpeg' : 
@@ -287,10 +312,26 @@ export default function SalasPage({ rooms }: SalasPageProps) {
               href="/faq"
               className="inline-block text-accent-600 font-medium hover:text-accent-700 transition"
             >
-              Ver todas as dúvidas frequentes →
+              Ver perguntas frequentes →
             </Link>
           </section>
         </main>
+
+        {/* Botão CTA Flutuante - Mobile */}
+        <div className="fixed bottom-0 left-0 right-0 z-40 p-4 bg-white/95 backdrop-blur-sm border-t border-warm-200 md:hidden pb-safe">
+          <button
+            onClick={() => {
+              // Scroll para os cards de consultórios
+              const cardsSection = document.querySelector('[data-cards-section]');
+              if (cardsSection) {
+                cardsSection.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}
+            className="w-full bg-gradient-to-r from-accent-600 to-accent-700 text-white py-4 rounded-xl font-semibold text-lg hover:shadow-lg hover:shadow-accent-500/30 transition-all active:scale-[0.98]"
+          >
+            Ver preços e reservar
+          </button>
+        </div>
       </Layout>
 
       {/* Modal de Reserva */}
@@ -307,6 +348,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
         <RoomGalleryModal
           isOpen={!!galleryRoom}
           onClose={() => setGalleryRoom(null)}
+          onReservar={handleReservarFromGallery}
           room={galleryRoom}
         />
       )}

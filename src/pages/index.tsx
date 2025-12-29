@@ -7,8 +7,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import SEO from '@/components/SEO';
 import Layout from '@/components/Layout';
-import RoomGalleryModal from '@/components/RoomGalleryModal';
+import RoomDetailsModal from '@/components/RoomDetailsModal';
 import { PAGE_SEO, BUSINESS_INFO } from '@/constants/seo';
+import { PRICES_V3, formatPrice } from '@/constants/prices';
 import { 
   Sparkles, 
   Clock, 
@@ -28,34 +29,56 @@ import {
   MessageCircle,
 } from 'lucide-react';
 
-// Dados das salas para o modal
+// Helper para calcular menor preço por hora de uma sala
+function getLowestHourlyPrice(salaKey: 'SALA_A' | 'SALA_B' | 'SALA_C'): number {
+  const prices = PRICES_V3[salaKey].prices;
+  
+  // Calcular preço por hora de cada opção
+  const hourlyOptions = [
+    prices.HOURLY_RATE,                    // Hora avulsa
+    prices.PACKAGE_10H / 10,               // Pacote 10h
+    prices.PACKAGE_20H / 20,               // Pacote 20h
+    prices.PACKAGE_40H / 40,               // Pacote 40h
+  ];
+  
+  return Math.min(...hourlyOptions);
+}
+
+// Dados das salas para o modal (com preço calculado dinamicamente)
 const roomsData = [
   {
     name: 'Consultório 1 | Prime',
     slug: 'sala-a',
     description: 'Espaço premium',
     features: ['Espaço premium', 'Consultório amplo', 'Maca com circulação livre (360º)', 'Ar-condicionado', 'Lavatório', 'Armário', 'Iluminação'],
-    price: 'R$ 59,99',
+    price: formatPrice(getLowestHourlyPrice('SALA_A')),
   },
   {
     name: 'Consultório 2 | Executive',
     slug: 'sala-b',
     description: 'Consultório amplo',
     features: ['Consultório amplo', 'Maca com circulação livre (360º)', 'Ar-condicionado', 'Lavatório', 'Armário', 'Iluminação'],
-    price: 'R$ 49,99',
+    price: formatPrice(getLowestHourlyPrice('SALA_B')),
   },
   {
     name: 'Consultório 3 | Essential',
     slug: 'sala-c',
     description: 'Consultório acolhedor',
     features: ['Consultório acolhedor', 'Espaço intimista', 'Poltronas', 'Ar-condicionado', 'Lavatório', 'Iluminação'],
-    price: 'R$ 39,99',
+    price: formatPrice(getLowestHourlyPrice('SALA_C')),
   },
 ];
 
 export default function Home() {
   const [selectedRoom, setSelectedRoom] = useState<typeof roomsData[0] | null>(null);
   const whatsappLink = `https://wa.me/${BUSINESS_INFO.whatsapp}`;
+
+  // Preços calculados dinamicamente (menor preço por hora de cada sala)
+  const lowestPrices = {
+    salaA: formatPrice(getLowestHourlyPrice('SALA_A')),
+    salaB: formatPrice(getLowestHourlyPrice('SALA_B')),
+    salaC: formatPrice(getLowestHourlyPrice('SALA_C')),
+  };
 
   return (
     <>
@@ -345,7 +368,7 @@ export default function Home() {
                   <div className="border-t border-warm-200 pt-4">
                     <div className="text-secondary-500 text-sm">A partir de</div>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-2xl sm:text-3xl font-bold text-accent-600">R$ 59,99</span>
+                      <span className="text-2xl sm:text-3xl font-bold text-accent-600">{lowestPrices.salaA}</span>
                       <span className="text-secondary-500">/hora</span>
                     </div>
                   </div>
@@ -388,7 +411,7 @@ export default function Home() {
                   <div className="border-t border-warm-200 pt-4">
                     <div className="text-secondary-500 text-sm">A partir de</div>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-2xl sm:text-3xl font-bold text-accent-600">R$ 49,99</span>
+                      <span className="text-2xl sm:text-3xl font-bold text-accent-600">{lowestPrices.salaB}</span>
                       <span className="text-secondary-500">/hora</span>
                     </div>
                   </div>
@@ -428,7 +451,7 @@ export default function Home() {
                   <div className="border-t border-warm-200 pt-4">
                     <div className="text-secondary-500 text-sm">A partir de</div>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-2xl sm:text-3xl font-bold text-accent-600">R$ 39,99</span>
+                      <span className="text-2xl sm:text-3xl font-bold text-accent-600">{lowestPrices.salaC}</span>
                       <span className="text-secondary-500">/hora</span>
                     </div>
                   </div>
@@ -633,9 +656,9 @@ export default function Home() {
         </section>
       </Layout>
 
-      {/* Modal de Galeria */}
+      {/* Modal de Detalhes do Consultório */}
       {selectedRoom && (
-        <RoomGalleryModal
+        <RoomDetailsModal
           isOpen={!!selectedRoom}
           onClose={() => setSelectedRoom(null)}
           room={selectedRoom}

@@ -42,7 +42,7 @@ export default function FAQ() {
   const faqs = [
     {
       question: 'Tem fidelidade ou contrato longo?',
-      answer: 'Não. Você pode usar o espaço quando precisar, sem compromisso de continuidade. Não exigimos tempo mínimo de permanência nem cobramos multa se você parar de usar. Funciona de forma simples: você reserva, usa e paga pelo que usou.'
+      answer: 'Não. Você pode usar o espaço quando precisar, sem compromisso de continuidade. Não exigimos tempo mínimo de permanência nem cobramos multa se você parar de usar.'
     },
     {
       question: 'Preciso assinar algum contrato?',
@@ -50,11 +50,11 @@ export default function FAQ() {
     },
     {
       question: 'Posso remarcar ou cancelar uma reserva?',
-      answer: 'Sim. Caso realize o cancelamento ou remarcação com 48h de antecedência, você poderá reutilizar o crédito para marcar um novo horário, sem qualquer ônus.'
+      answer: 'Sim. Você pode cancelar a reserva com 48h de antecedência e poderá reutilizar o crédito para marcar um novo horário dentro de 30 dias, sem qualquer ônus.'
     },
     {
       question: 'O que está incluso no valor?',
-      answer: 'Tudo o que você precisa para atender: consultório profissional, ar-condicionado, recepção, ambiente limpo, internet de alta velocidade, café e água. Não há taxas extras ou custos escondidos.'
+      answer: 'Tudo o que você precisa para atender: consultório profissional, insumos básicos (álcool 70%, sabonete líquido, papel toalha, lençol descartável), balança, ar-condicionado, recepção, ambiente limpo, internet de alta velocidade, impressora wi-fi disponível na recepção, café e água.'
     },
     {
       question: 'Posso atender aos sábados?',
@@ -62,7 +62,7 @@ export default function FAQ() {
     },
     {
       question: 'Preciso levar alguma coisa?',
-      answer: 'Apenas o que for específico para o seu atendimento. Os insumos básicos para atendimento, além do seu conforto e dos seus pacientes, estarão sempre disponíveis.'
+      answer: 'Apenas o que for específico para o seu atendimento, como seu notebook e instrumentos próprios da sua profissão (estetoscópio, esfigmomanômetro, equipamentos de proteção individual, etc.). Os insumos básicos para atendimento (álcool 70%, sabonete líquido, papel toalha, lençol descartável), além do seu conforto e dos seus pacientes, estarão sempre disponíveis.'
     },
     {
       question: 'Qual a diferença entre os consultórios?',
@@ -101,11 +101,8 @@ export default function FAQ() {
         <section className="bg-warm-100 py-16">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h1 className="text-4xl md:text-5xl font-bold text-primary-900 mb-4">
-              Perguntas frequentes
+              Perguntas Frequentes
             </h1>
-            <p className="text-xl text-secondary-600 max-w-2xl mx-auto">
-              Respostas diretas para as dúvidas mais comuns sobre o Espaço Arthemi.
-            </p>
           </div>
         </section>
 

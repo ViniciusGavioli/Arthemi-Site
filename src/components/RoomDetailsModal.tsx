@@ -252,26 +252,33 @@ export default function RoomDetailsModal({ isOpen, onClose, room }: RoomDetailsM
             </div>
           </div>
 
-          {/* Sticky Footer with Price & CTA */}
+          {/* Sticky Footer with Price & CTAs */}
           <div className="border-t border-warm-200 bg-warm-50 p-4">
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-col gap-3">
               {/* Price */}
-              <div>
-                <div className="text-xs text-secondary-500">A partir de</div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-accent-600">{room.price}</span>
-                  <span className="text-sm text-secondary-500">/hora</span>
-                </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-xs text-secondary-500">A partir de</span>
+                <span className="text-xl font-bold text-accent-600">{room.price}</span>
+                <span className="text-sm text-secondary-500">/hora</span>
               </div>
               
-              {/* CTA Button */}
-              <Link
-                href="/salas"
-                onClick={onClose}
-                className="bg-gradient-to-r from-accent-600 to-accent-700 text-white text-center py-3 px-5 rounded-xl font-semibold hover:shadow-lg transition-all active:scale-[0.98]"
-              >
-                Ver preços e reservar
-              </Link>
+              {/* CTA Buttons */}
+              <div className="flex gap-3">
+                <Link
+                  href={`/salas#${room.slug}`}
+                  onClick={onClose}
+                  className="flex-1 border-2 border-accent-600 text-accent-600 text-center py-3 px-4 rounded-xl font-semibold hover:bg-accent-50 transition-all active:scale-[0.98]"
+                >
+                  Ver pacotes de horas
+                </Link>
+                <Link
+                  href={`/booking/${room.slug}?product=avulso`}
+                  onClick={onClose}
+                  className="flex-1 bg-gradient-to-r from-accent-600 to-accent-700 text-white text-center py-3 px-4 rounded-xl font-semibold hover:shadow-lg transition-all active:scale-[0.98]"
+                >
+                  Reservar agora
+                </Link>
+              </div>
             </div>
           </div>
         </div>

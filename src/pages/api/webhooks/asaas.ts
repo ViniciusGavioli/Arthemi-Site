@@ -3,21 +3,17 @@
 // ===========================================================
 // Recebe notificações de pagamento do Asaas
 // Idempotência garantida por banco de dados (WebhookEvent)
+// ETAPA 3: Pagamento confirmado = estado financeiro correto
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
-import { sendBookingConfirmationEmail } from '@/lib/email';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { 
   AsaasWebhookPayload, 
   validateWebhookToken, 
   isPaymentConfirmed,
   realToCents,
 } from '@/lib/asaas';
-import { createMagicLink } from '@/lib/magic-link';
-import { getUserCreditsSummary } from '@/lib/business-rules';
 import { sendBookingConfirmationNotification } from '@/lib/booking-notifications';
 
 
@@ -145,6 +141,16 @@ export default async function handler(
     if (!isPaymentConfirmed(event)) {
       console.log(`ℹ️ [Asaas Webhook] Evento ignorado: ${event}`);
       
+      // Marcar evento como processado mesmo sendo ignorado
+      await withTimeout(
+        prisma.webhookEvent.update({
+          where: { eventId },
+          data: { status: 'PROCESSED' },
+        }),
+        5000,
+        'atualização de status de webhook event'
+      );
+      
       return res.status(200).json({ received: true, event });
     }
 
@@ -154,7 +160,7 @@ export default async function handler(
       return res.status(400).json({ error: 'Sem referência de reserva' });
     }
 
-    // 6. Buscar e atualizar booking
+    // 6. Buscar booking para determinar tipo de processamento
     const booking = await withTimeout(
       prisma.booking.findUnique({
         where: { id: bookingId },
@@ -173,13 +179,138 @@ export default async function handler(
       return res.status(404).json({ error: 'Reserva não encontrada' });
     }
 
-    // Verificar se já foi confirmado (idempotência extra)
-    if (booking.status === 'CONFIRMED') {
-      console.log(`⏭️ [Asaas Webhook] Booking já confirmado: ${bookingId}`);
+    // ================================================================
+    // PROTEÇÕES CONTRA ESTADOS INVÁLIDOS
+    // ================================================================
+    
+    // Proteção 1: Booking já CONFIRMED - não processar novamente
+    if (booking.status === 'CONFIRMED' && booking.financialStatus === 'PAID') {
+      console.log(`⏭️ [Asaas Webhook] Booking já confirmado e pago: ${bookingId}`);
+      await withTimeout(
+        prisma.webhookEvent.update({
+          where: { eventId },
+          data: { status: 'PROCESSED' },
+        }),
+        5000,
+        'atualização de status webhook - já confirmado'
+      );
       return res.status(200).json({ received: true, alreadyConfirmed: true });
     }
 
-    // 7. Confirmar reserva
+    // Proteção 2: Booking COURTESY - pagamento não pode alterar cortesia
+    if (booking.financialStatus === 'COURTESY') {
+      console.warn(`⚠️ [Asaas Webhook] Tentativa de pagamento em reserva COURTESY: ${bookingId}`);
+      await withTimeout(
+        prisma.webhookEvent.update({
+          where: { eventId },
+          data: { status: 'PROCESSED' },
+        }),
+        5000,
+        'atualização de status webhook - courtesy bloqueado'
+      );
+      return res.status(200).json({ received: true, blocked: true, reason: 'COURTESY_BOOKING' });
+    }
+
+    // ================================================================
+    // CASO 1: PACOTE DE HORAS - Criar crédito, NÃO alterar booking
+    // ================================================================
+    if (booking.product && isPackageProduct(booking.product.type)) {
+      const hoursIncluded = booking.product.hoursIncluded || getPackageHours(booking.product.type);
+      const creditAmount = hoursIncluded * (booking.room?.hourlyRate || booking.product.price / hoursIncluded);
+      
+      // Calcular expiração (90 dias padrão para pacotes)
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + (booking.product.validityDays || 90));
+      
+      // Criar crédito
+      const credit = await withTimeout(
+        prisma.credit.create({
+          data: {
+            userId: booking.userId,
+            roomId: booking.roomId,
+            amount: creditAmount,
+            remainingAmount: creditAmount,
+            type: 'MANUAL', // Crédito gerado por compra de pacote
+            status: 'CONFIRMED',
+            referenceMonth: new Date().getMonth() + 1,
+            referenceYear: new Date().getFullYear(),
+            expiresAt,
+          },
+        }),
+        5000,
+        'criação de crédito'
+      );
+      
+      console.log(`💳 [Asaas Webhook] Crédito criado: ${creditAmount} centavos para user ${booking.userId}`);
+      
+      // Atualizar Payment table se existir
+      try {
+        await withTimeout(
+          prisma.payment.updateMany({
+            where: { 
+              OR: [
+                { externalId: payment.id },
+                { bookingId: bookingId },
+              ]
+            },
+            data: {
+              status: 'APPROVED',
+              paidAt: new Date(),
+            },
+          }),
+          5000,
+          'atualização de payment - pacote'
+        );
+      } catch (paymentError) {
+        console.warn('⚠️ [Asaas Webhook] Erro ao atualizar Payment (pacote):', paymentError);
+      }
+      
+      // Log de auditoria para crédito
+      await withTimeout(
+        logAudit({
+          action: 'CREDIT_CREATED',
+          source: 'SYSTEM',
+          targetType: 'Credit',
+          targetId: credit.id,
+          metadata: {
+            amount: creditAmount,
+            hoursIncluded,
+            productId: booking.product.id,
+            productType: booking.product.type,
+            userId: booking.userId,
+            roomId: booking.roomId,
+            paymentId: sanitizeString(payment.id),
+            eventId: sanitizeString(eventId),
+            expiresAt: expiresAt.toISOString(),
+          },
+        }),
+        3000,
+        'log de auditoria de crédito'
+      );
+
+      // Marcar webhook como processado
+      await withTimeout(
+        prisma.webhookEvent.update({
+          where: { eventId },
+          data: { status: 'PROCESSED' },
+        }),
+        5000,
+        'atualização de status de webhook event'
+      );
+
+      return res.status(200).json({ 
+        received: true,
+        type: 'PACKAGE',
+        creditId: credit.id,
+        creditAmount,
+      });
+    }
+
+    // ================================================================
+    // CASO 2: HORA AVULSA - Atualizar booking com estados corretos
+    // ================================================================
+    
+    // Atualizar booking com todos os campos necessários
     await withTimeout(
       prisma.booking.update({
         where: { id: bookingId },
@@ -187,16 +318,19 @@ export default async function handler(
           status: 'CONFIRMED',
           paymentStatus: 'APPROVED',
           paymentId: sanitizeString(payment.id),
-          amountPaid: realToCents(payment.value), // Converter reais para centavos
+          amountPaid: realToCents(payment.value),
+          // Campos ETAPA 1: Estado financeiro correto
+          financialStatus: 'PAID',
+          origin: 'COMMERCIAL',
         },
       }),
       5000,
       'atualização de booking'
     );
 
-    console.log(`✅ [Asaas Webhook] Reserva confirmada: ${bookingId}`);
+    console.log(`✅ [Asaas Webhook] Reserva confirmada: ${bookingId} (financialStatus=PAID, origin=COMMERCIAL)`);
 
-    // 7.1. Atualizar Payment table se existir
+    // Atualizar Payment table se existir
     try {
       await withTimeout(
         prisma.payment.updateMany({
@@ -218,62 +352,7 @@ export default async function handler(
       console.warn('⚠️ [Asaas Webhook] Erro ao atualizar Payment:', paymentError);
     }
 
-    // 7.2. Criar Credit se for pacote de horas
-    let creditCreated = false;
-    if (booking.product && isPackageProduct(booking.product.type)) {
-      try {
-        const hoursIncluded = booking.product.hoursIncluded || getPackageHours(booking.product.type);
-        const creditAmount = hoursIncluded * (booking.room?.hourlyRate || booking.product.price / hoursIncluded);
-        
-        // Calcular expiração (90 dias padrão para pacotes)
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + (booking.product.validityDays || 90));
-        
-        await withTimeout(
-          prisma.credit.create({
-            data: {
-              userId: booking.userId,
-              roomId: booking.roomId,
-              amount: creditAmount,
-              remainingAmount: creditAmount,
-              type: 'MANUAL', // Crédito gerado por compra de pacote
-              status: 'CONFIRMED',
-              referenceMonth: new Date().getMonth() + 1,
-              referenceYear: new Date().getFullYear(),
-              expiresAt,
-            },
-          }),
-          5000,
-          'criação de crédito'
-        );
-        
-        creditCreated = true;
-        console.log(`💳 [Asaas Webhook] Crédito criado: ${creditAmount} centavos para user ${booking.userId}`);
-        
-        // Log de auditoria para crédito
-        await withTimeout(
-          logAudit({
-            action: 'CREDIT_CREATED',
-            source: 'SYSTEM',
-            targetType: 'Credit',
-            targetId: booking.userId,
-            metadata: {
-              amount: creditAmount,
-              productId: booking.product.id,
-              productType: booking.product.type,
-              bookingId,
-              paymentId: sanitizeString(payment.id),
-            },
-          }),
-          3000,
-          'log de auditoria de crédito'
-        );
-      } catch (creditError) {
-        console.error('❌ [Asaas Webhook] Erro ao criar crédito:', creditError);
-      }
-    }
-
-    // 8. Log de auditoria
+    // Log de auditoria - PAYMENT_RECEIVED
     await withTimeout(
       logAudit({
         action: 'PAYMENT_RECEIVED',
@@ -288,15 +367,16 @@ export default async function handler(
           event: sanitizeString(event),
           origin: 'webhook',
           eventId: sanitizeString(eventId),
+          financialStatus: 'PAID',
+          bookingOrigin: 'COMMERCIAL',
         },
       }),
       3000,
       'log de auditoria de pagamento'
     );
 
-    // 9. Enviar email de confirmação de forma assíncrona (não bloquear webhook)
+    // Enviar email de confirmação de forma assíncrona (não bloquear webhook)
     try {
-      // Enviar em background sem esperar
       sendBookingConfirmationNotification(bookingId)
         .then(success => {
           if (success) {
@@ -313,7 +393,7 @@ export default async function handler(
       console.error('⚠️ [Asaas Webhook] Erro ao agendar envio de email:', emailError);
     }
 
-    // 11. Atualizar WebhookEvent como processado com sucesso
+    // Marcar WebhookEvent como processado com sucesso
     await withTimeout(
       prisma.webhookEvent.update({
         where: { eventId },
@@ -323,11 +403,13 @@ export default async function handler(
       'atualização de status de webhook event'
     );
 
-    // 12. Responder sucesso
+    // Responder sucesso
     return res.status(200).json({ 
       received: true,
+      type: 'HOURLY',
       bookingId,
       status: 'CONFIRMED',
+      financialStatus: 'PAID',
     });
 
   } catch (error) {

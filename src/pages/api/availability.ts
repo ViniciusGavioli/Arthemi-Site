@@ -107,8 +107,10 @@ export default async function handler(
     // Horário de funcionamento: 8h às 20h (último horário disponível: 19h)
     const BUSINESS_START = 8;
     const BUSINESS_END = 20;
+    const MIN_ADVANCE_MINUTES = 30; // Mínimo de 30 minutos de antecedência para reservar
     
     const slots: Slot[] = [];
+    const now = new Date();
 
     for (let hour = BUSINESS_START; hour < BUSINESS_END; hour++) {
       const slotStart = new Date(dateObj);
@@ -117,9 +119,9 @@ export default async function handler(
       const slotEnd = new Date(dateObj);
       slotEnd.setHours(hour + 1, 0, 0, 0);
 
-      // Verifica se este horário já passou (para o dia atual)
-      const now = new Date();
-      const isPast = slotStart < now;
+      // Verifica se este horário já passou OU está dentro do prazo mínimo de 30 minutos
+      const minutesUntilSlot = (slotStart.getTime() - now.getTime()) / (1000 * 60);
+      const isTooSoon = minutesUntilSlot < MIN_ADVANCE_MINUTES;
 
       // Verifica se há conflito com alguma reserva
       const hasConflict = bookings.some((booking) => {
@@ -131,7 +133,7 @@ export default async function handler(
 
       slots.push({
         hour,
-        available: !hasConflict && !isPast,
+        available: !hasConflict && !isTooSoon,
       });
     }
 

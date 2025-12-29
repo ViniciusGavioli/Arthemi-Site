@@ -193,6 +193,16 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
   // Opções de horário (8h às 19h)
   const hourOptions = Array.from({ length: 12 }, (_, i) => i + 8);
 
+  // E1: Ajustar duração automaticamente se horário selecionado não permitir a duração atual
+  useEffect(() => {
+    if (formData.startHour && formData.productType === 'hourly') {
+      const maxDuration = 20 - formData.startHour;
+      if (formData.duration > maxDuration) {
+        setFormData(prev => ({ ...prev, duration: Math.max(1, maxDuration) }));
+      }
+    }
+  }, [formData.startHour]);
+
   // Produtos filtrados para esta sala (excluindo hora avulsa que é calculado automaticamente)
   const filteredProducts = products.filter((p) => 
     ['PACKAGE_10H', 'PACKAGE_20H', 'PACKAGE_40H', 'SHIFT_FIXED', 'DAY_PASS', 'SATURDAY_5H'].includes(p.type)
@@ -203,9 +213,9 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     e.preventDefault();
     setError('');
 
-    // Validações básicas
-    if (!formData.userName || !formData.userPhone || !formData.date) {
-      setError('Por favor, preencha todos os campos obrigatórios.');
+    // Validações comuns (nome, telefone, termos)
+    if (!formData.userName || !formData.userPhone) {
+      setError('Por favor, preencha nome e telefone.');
       return;
     }
 
@@ -223,23 +233,80 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
       return;
     }
 
+    // Validar CPF antes de enviar
+    if (!isValidCpf(formData.userCpf)) {
+      setCpfError('CPF inválido (11 dígitos)');
+      setError('CPF inválido.');
+      return;
+    }
+    setCpfError(null);
+
+    // E5: Validação defensiva por tipo
+    if (formData.productType === 'hourly') {
+      // Hora avulsa PRECISA de data e horário
+      if (!formData.date) {
+        setError('Por favor, selecione uma data.');
+        return;
+      }
+      if (!formData.startHour) {
+        setError('Por favor, selecione um horário.');
+        return;
+      }
+      // E1: Validar que horário não ultrapassa fechamento (20h)
+      if (formData.startHour + formData.duration > 20) {
+        setError(`A reserva ultrapassa o horário de fechamento (20h). Duração máxima disponível: ${20 - formData.startHour}h.`);
+        return;
+      }
+    } else {
+      // Pacote PRECISA de productId selecionado
+      if (!formData.productId) {
+        setError('Por favor, selecione um pacote.');
+        return;
+      }
+    }
+
     setSubmitting(true);
 
     // Rastrear tentativa de reserva
     analytics.bookingSubmitted(room.name, getTotalPrice());
 
     try {
-      // Montar data/hora de início e fim
-      const startAt = setMinutes(setHours(formData.date, formData.startHour), 0);
-      const endAt = addHours(startAt, formData.duration);
+      // Se é PACOTE → usa endpoint de crédito (sem criar booking)
+      if (formData.productType === 'package') {
+        const response = await fetch('/api/credits/purchase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userName: formData.userName,
+            userPhone: formData.userPhone,
+            userEmail: formData.userEmail || undefined,
+            userCpf: formData.userCpf.replace(/\D/g, ''),
+            roomId: room.id,
+            productId: formData.productId,
+            couponCode: formData.couponCode || undefined,
+          }),
+        });
 
-      // Validar CPF antes de enviar
-      if (!isValidCpf(formData.userCpf)) {
-        setCpfError('CPF inválido (11 dígitos)');
-        setSubmitting(false);
-        return;
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Erro ao processar compra de créditos');
+        }
+
+        // Redirecionar para pagamento
+        if (data.paymentUrl) {
+          localStorage.setItem('lastCreditId', data.creditId);
+          localStorage.setItem('lastPaymentUrl', data.paymentUrl);
+          window.location.href = `/booking/pending?credit=${data.creditId}&type=credit`;
+          return;
+        } else {
+          throw new Error('Erro ao gerar pagamento. Tente novamente.');
+        }
       }
-      setCpfError(null);
+
+      // HORA AVULSA → fluxo normal de reserva
+      const startAt = setMinutes(setHours(formData.date!, formData.startHour), 0);
+      const endAt = addHours(startAt, formData.duration);
 
       const response = await fetch('/api/bookings', {
         method: 'POST',
@@ -450,166 +517,201 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
             )}
           </div>
 
-          {/* Data */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Data *
+          {/* Tipo de Reserva - PRIMEIRO para clareza */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              O que você deseja?
             </label>
-            <DatePicker
-              selected={formData.date}
-              onChange={(date) => setFormData({ ...formData, date })}
-              locale="pt-BR"
-              dateFormat="dd/MM/yyyy"
-              placeholderText="Selecione a data"
-              disabled={submitting}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                submitting
-                  ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
-                  : 'border-gray-300'
-              }`}
-              minDate={new Date()}
-              filterDate={(date) => date.getDay() !== 0} // Bloqueia domingos
-            />
-          </div>
-
-          {/* Horário - Grid Visual de Disponibilidade */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Horário * {loadingAvailability && (
-                <span className="inline-block w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin ml-2" />
-              )}
-            </label>
-            
-            {!formData.date ? (
-              <p className="text-sm text-gray-500 italic">Selecione uma data para ver os horários disponíveis</p>
-            ) : (
-              <>
-                {/* Grid de Horários */}
-                <div className="grid grid-cols-4 gap-2 mb-2">
-                  {hourOptions.map((hour) => {
-                    const slot = availabilitySlots.find(s => s.hour === hour);
-                    const isAvailable = slot?.available ?? true;
-                    const isSelected = formData.startHour === hour;
-                    
-                    return (
-                      <button
-                        key={hour}
-                        type="button"
-                        disabled={!isAvailable || submitting || loadingAvailability}
-                        onClick={() => setFormData({ ...formData, startHour: hour })}
-                        className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                          isSelected
-                            ? 'bg-primary-600 text-white ring-2 ring-primary-600 ring-offset-2'
-                            : isAvailable
-                              ? 'bg-white border border-gray-300 text-gray-700 hover:border-primary-400 hover:bg-primary-50'
-                              : 'bg-gray-100 text-gray-400 cursor-not-allowed line-through'
-                        } ${submitting || loadingAvailability ? 'cursor-not-allowed opacity-50' : ''}`}
-                      >
-                        {String(hour).padStart(2, '0')}:00
-                      </button>
-                    );
-                  })}
-                </div>
-                
-                {/* Legenda */}
-                <div className="flex items-center gap-4 text-xs text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 rounded bg-white border border-gray-300"></div>
-                    <span>Disponível</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 rounded bg-gray-100"></div>
-                    <span>Ocupado</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 rounded bg-primary-600"></div>
-                    <span>Selecionado</span>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Duração */}
-          <div>
-            <label htmlFor="duration" className="block text-sm font-medium text-gray-700 mb-1">
-              Duração
-            </label>
-            <select
-              id="duration"
-              aria-label="Duração da reserva"
-              value={formData.duration}
-              onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })}
-              disabled={submitting || formData.productType === 'package'}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                submitting || formData.productType === 'package'
-                  ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
-                  : 'border-gray-300'
-              }`}
-            >
-              {[1, 2, 3, 4].map((hours) => (
-                <option key={hours} value={hours}>
-                  {hours} hora{hours > 1 ? 's' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Tipo de Reserva */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tipo de Reserva
-            </label>
-            <div className="flex gap-4">
-              <label className={`flex items-center ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                <input
-                  type="radio"
-                  checked={formData.productType === 'hourly'}
-                  onChange={() => setFormData({ ...formData, productType: 'hourly', productId: '' })}
-                  disabled={submitting}
-                  className="mr-2"
-                />
-                <span className="text-sm">Hora Avulsa</span>
-              </label>
-              <label className={`flex items-center ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                <input
-                  type="radio"
-                  checked={formData.productType === 'package'}
-                  onChange={() => setFormData({ ...formData, productType: 'package' })}
-                  disabled={submitting}
-                  className="mr-2"
-                />
-                <span className="text-sm">Pacote</span>
-              </label>
-            </div>
-          </div>
-
-          {/* Seletor de Pacote */}
-          {formData.productType === 'package' && (
-            <div>
-              <label htmlFor="package-select" className="block text-sm font-medium text-gray-700 mb-1">
-                Selecionar Pacote
-              </label>
-              <select
-                id="package-select"
-                aria-label="Selecionar pacote"
-                value={formData.productId}
-                onChange={(e) => setFormData({ ...formData, productId: e.target.value })}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, productType: 'hourly', productId: '' })}
                 disabled={submitting}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                  submitting
-                    ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
-                    : 'border-gray-300'
-                }`}
+                className={`p-4 rounded-lg border-2 transition-all text-left ${
+                  formData.productType === 'hourly'
+                    ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-500 ring-offset-2'
+                    : 'border-gray-200 hover:border-gray-300 bg-white'
+                } ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <option value="">Selecione...</option>
-                {filteredProducts.filter(p => p.type !== 'HOURLY_RATE').map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.name} - {formatCurrency(product.price)}
-                  </option>
-                ))}
-              </select>
+                <div className="text-lg font-semibold text-gray-900">🗓️ Agendar horário</div>
+                <div className="text-sm text-gray-500 mt-1">Escolha data e hora agora</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, productType: 'package' })}
+                disabled={submitting}
+                className={`p-4 rounded-lg border-2 transition-all text-left ${
+                  formData.productType === 'package'
+                    ? 'border-accent-500 bg-accent-50 ring-2 ring-accent-500 ring-offset-2'
+                    : 'border-gray-200 hover:border-gray-300 bg-white'
+                } ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <div className="text-lg font-semibold text-gray-900">💰 Comprar créditos</div>
+                <div className="text-sm text-gray-500 mt-1">Agende depois, na sua conta</div>
+              </button>
             </div>
+          </div>
+
+          {/* PACOTE: Seletor + Aviso (SEM calendário) */}
+          {formData.productType === 'package' && (
+            <>
+              <div>
+                <label htmlFor="package-select-top" className="block text-sm font-medium text-gray-700 mb-1">
+                  Selecionar Pacote
+                </label>
+                <select
+                  id="package-select-top"
+                  aria-label="Selecionar pacote"
+                  value={formData.productId}
+                  onChange={(e) => setFormData({ ...formData, productId: e.target.value })}
+                  disabled={submitting}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
+                    submitting
+                      ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                      : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Selecione...</option>
+                  {filteredProducts.filter(p => p.type !== 'HOURLY_RATE').map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name} - {formatCurrency(product.price)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Aviso claro sobre créditos */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <div className="text-2xl">💳</div>
+                  <div>
+                    <h4 className="font-semibold text-blue-900">Você está comprando créditos</h4>
+                    <p className="text-sm text-blue-700 mt-1">
+                      O agendamento será feito depois, na sua área do cliente. 
+                      Seus créditos ficam disponíveis imediatamente após o pagamento.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* HORA AVULSA: Data + Horário + Duração */}
+          {formData.productType === 'hourly' && (
+            <>
+              {/* Data */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Data *
+                </label>
+                <DatePicker
+                  selected={formData.date}
+                  onChange={(date) => setFormData({ ...formData, date })}
+                  locale="pt-BR"
+                  dateFormat="dd/MM/yyyy"
+                  placeholderText="Selecione a data"
+                  disabled={submitting}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
+                    submitting
+                      ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                      : 'border-gray-300'
+                  }`}
+                  minDate={new Date()}
+                  filterDate={(date) => date.getDay() !== 0} // Bloqueia domingos
+                />
+              </div>
+
+              {/* Horário - Grid Visual de Disponibilidade */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Horário * {loadingAvailability && (
+                    <span className="inline-block w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin ml-2" />
+                  )}
+                </label>
+                
+                {!formData.date ? (
+                  <p className="text-sm text-gray-500 italic">Selecione uma data para ver os horários disponíveis</p>
+                ) : (
+                  <>
+                    {/* Grid de Horários */}
+                    <div className="grid grid-cols-4 gap-2 mb-2">
+                      {hourOptions.map((hour) => {
+                        const slot = availabilitySlots.find(s => s.hour === hour);
+                        const isAvailable = slot?.available ?? true;
+                        const isSelected = formData.startHour === hour;
+                        
+                        return (
+                          <button
+                            key={hour}
+                            type="button"
+                            disabled={!isAvailable || submitting || loadingAvailability}
+                            onClick={() => setFormData({ ...formData, startHour: hour })}
+                            className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                              isSelected
+                                ? 'bg-primary-600 text-white ring-2 ring-primary-600 ring-offset-2'
+                                : isAvailable
+                                  ? 'bg-white border border-gray-300 text-gray-700 hover:border-primary-400 hover:bg-primary-50'
+                                  : 'bg-gray-100 text-gray-400 cursor-not-allowed line-through'
+                            } ${submitting || loadingAvailability ? 'cursor-not-allowed opacity-50' : ''}`}
+                          >
+                            {String(hour).padStart(2, '0')}:00
+                          </button>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Legenda */}
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 rounded bg-white border border-gray-300"></div>
+                        <span>Disponível</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 rounded bg-gray-100"></div>
+                        <span>Ocupado</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 rounded bg-primary-600"></div>
+                        <span>Selecionado</span>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Duração */}
+              <div>
+                <label htmlFor="duration" className="block text-sm font-medium text-gray-700 mb-1">
+                  Duração
+                </label>
+                <select
+                  id="duration"
+                  aria-label="Duração da reserva"
+                  value={formData.duration}
+                  onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })}
+                  disabled={submitting}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
+                    submitting
+                      ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                      : 'border-gray-300'
+                  }`}
+                >
+                  {/* E1: Só mostra durações válidas (que não ultrapassam 20h) */}
+                  {[1, 2, 3, 4]
+                    .filter((hours) => formData.startHour + hours <= 20)
+                    .map((hours) => (
+                      <option key={hours} value={hours}>
+                        {hours} hora{hours > 1 ? 's' : ''}
+                      </option>
+                    ))}
+                </select>
+                {formData.startHour && formData.startHour >= 17 && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    ⚠️ Horário próximo ao fechamento. Duração máxima: {20 - formData.startHour}h
+                  </p>
+                )}
+              </div>
+            </>
           )}
 
           {/* Cupom de Desconto */}

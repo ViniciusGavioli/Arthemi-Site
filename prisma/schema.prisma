@@ -72,6 +72,10 @@ model Booking {
   creditsUsed     Int            @default(0)  // Valor em centavos consumido de créditos
   creditIds       String[]       // IDs dos créditos consumidos
   isManual        Boolean        @default(false) // Reserva criada manualmente pelo admin
+  // Campos para controle financeiro
+  origin          BookingOrigin  @default(COMMERCIAL) // Origem: comercial ou cortesia
+  financialStatus FinancialStatus @default(PENDING_PAYMENT) // Status financeiro
+  courtesyReason  String?        // Motivo da cortesia (obrigatório se origin = ADMIN_COURTESY)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   product         Product?       @relation(fields: [productId], references: [id])
@@ -308,6 +312,7 @@ enum CreditStatus {
   CONFIRMED
   USED
   EXPIRED
+  REFUNDED
 }
 
 enum ShiftType {
@@ -340,19 +345,38 @@ enum AuditAction {
   BOOKING_CANCELLED
   BOOKING_EXPIRED
   BOOKING_MANUAL_CREATED
+  BOOKING_COURTESY_CREATED
+  BOOKING_CANCELLED_AUTO
   PAYMENT_RECEIVED
   PAYMENT_FAILED
+  PAYMENT_BACKFILL
   CREDIT_CREATED
   CREDIT_USED
   CREDIT_EXPIRED
+  CREDIT_REFUNDED
   ADMIN_LOGIN
   ADMIN_LOGOUT
   ADMIN_BOOKING_VIEW
   ADMIN_BOOKING_UPDATE
+  ADMIN_BACKFILL_EXECUTED
+  ALERT_PAYMENT_NOT_CONFIRMED
   USER_LOGIN
   USER_LOGOUT
   USER_MAGIC_LINK_REQUESTED
   USER_MAGIC_LINK_RATE_LIMITED
+}
+
+// Origem da reserva: comercial ou cortesia
+enum BookingOrigin {
+  COMMERCIAL
+  ADMIN_COURTESY
+}
+
+// Status financeiro da reserva
+enum FinancialStatus {
+  PENDING_PAYMENT
+  PAID
+  COURTESY
 }
 
 enum AuditSource {

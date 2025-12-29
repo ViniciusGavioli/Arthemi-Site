@@ -229,7 +229,21 @@ export default async function handler(
         }
       }
 
+      // 6.2 Validar prazo mínimo para reservas que precisam de pagamento
+      // Reservas com pagamento pendente precisam ter início > 30 minutos
+      if (amountToPay > 0) {
+        const now = new Date();
+        const minutesUntilStart = (startAt.getTime() - now.getTime()) / (1000 * 60);
+        
+        if (minutesUntilStart < 30) {
+          throw new Error('TEMPO_INSUFICIENTE');
+        }
+      }
+
       // 7. Criar booking
+      // Determinar financialStatus baseado no pagamento/créditos
+      const financialStatus = amountToPay <= 0 ? 'PAID' : 'PENDING_PAYMENT';
+      
       const booking = await tx.booking.create({
         data: {
           userId: user.id,
@@ -243,6 +257,8 @@ export default async function handler(
           notes: data.notes || null,
           creditsUsed,
           creditIds,
+          origin: 'COMMERCIAL',
+          financialStatus,
         },
       });
 
@@ -338,6 +354,13 @@ export default async function handler(
       return res.status(409).json({
         success: false,
         error: 'Horário não disponível. Já existe uma reserva neste período.',
+      });
+    }
+
+    if (error instanceof Error && error.message === 'TEMPO_INSUFICIENTE') {
+      return res.status(400).json({
+        success: false,
+        error: 'Reservas sem crédito precisam ser feitas com pelo menos 30 minutos de antecedência.',
       });
     }
 

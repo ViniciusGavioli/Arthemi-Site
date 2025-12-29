@@ -108,7 +108,7 @@ export default async function handler(
     const availableCredits = await getCreditBalanceForRoom(userId, roomId, start);
     
     if (availableCredits < totalAmount) {
-      return res.status(400).json({
+      return res.status(402).json({
         success: false,
         error: `Saldo insuficiente. Disponível: R$ ${(availableCredits / 100).toFixed(2)}, Necessário: R$ ${(totalAmount / 100).toFixed(2)}`,
       });
@@ -145,7 +145,7 @@ export default async function handler(
         start
       );
 
-      // Cria reserva
+      // Cria reserva com financialStatus = PAID
       const booking = await tx.booking.create({
         data: {
           roomId,
@@ -158,6 +158,8 @@ export default async function handler(
           creditsUsed: totalConsumed,
           creditIds,
           amountPaid: 0, // Não houve pagamento em dinheiro
+          origin: 'COMMERCIAL',
+          financialStatus: 'PAID', // Pago via crédito
         },
       });
 

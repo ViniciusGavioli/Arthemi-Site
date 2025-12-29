@@ -7,7 +7,11 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { isAvailable } from '@/lib/availability';
 import { logAdminAction } from '@/lib/audit';
-import { SHIFT_HOURS } from '@/lib/business-rules';
+import { 
+  SHIFT_HOURS,
+  getCreditBalanceForRoom,
+  consumeCreditsForBooking,
+} from '@/lib/business-rules';
 
 const createManualBookingSchema = z.object({
   userId: z.string().optional(),
@@ -22,6 +26,9 @@ const createManualBookingSchema = z.object({
   endHour: z.number().min(0).max(23).optional(), // Para HOURLY
   amount: z.number().min(0).default(0), // Valor cobrado (pode ser 0 para cortesia)
   notes: z.string().optional(),
+  // Novos campos obrigatórios para controle financeiro
+  origin: z.enum(['COMMERCIAL', 'ADMIN_COURTESY']),
+  courtesyReason: z.string().optional(),
 });
 
 interface ApiResponse {
@@ -103,6 +110,14 @@ export default async function handler(
       });
     }
 
+    // VALIDAÇÃO: Cortesia exige motivo
+    if (data.origin === 'ADMIN_COURTESY' && !data.courtesyReason?.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Motivo da cortesia é obrigatório para reservas de cortesia.',
+      });
+    }
+
     // Calcular horários baseado no tipo
     let startTime: Date;
     let endTime: Date;
@@ -147,27 +162,72 @@ export default async function handler(
       });
     }
 
-    // Criar booking manual (já confirmado)
+    // Calcular valor da reserva baseado no tipo
+    const hours = Math.ceil((endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60));
+    const calculatedAmount = data.amount > 0 ? data.amount : (room.hourlyRate * hours);
+
+    // VALIDAÇÃO E CRIAÇÃO baseado na origem
+    let creditsUsed = 0;
+    let creditIds: string[] = [];
+    let financialStatus: 'PENDING_PAYMENT' | 'PAID' | 'COURTESY';
+    let auditAction: 'BOOKING_MANUAL_CREATED' | 'BOOKING_COURTESY_CREATED';
+
+    if (data.origin === 'ADMIN_COURTESY') {
+      // CORTESIA: Não debita crédito, não exige pagamento
+      financialStatus = 'COURTESY';
+      auditAction = 'BOOKING_COURTESY_CREATED';
+    } else {
+      // COMMERCIAL: Exige crédito suficiente OU marca como PENDING_PAYMENT
+      const availableCredits = await getCreditBalanceForRoom(user.id, data.roomId, startTime);
+
+      if (availableCredits >= calculatedAmount) {
+        // Tem crédito: debitar imediatamente
+        const consumeResult = await consumeCreditsForBooking(
+          user.id,
+          data.roomId,
+          calculatedAmount,
+          startTime
+        );
+        creditsUsed = consumeResult.totalConsumed;
+        creditIds = consumeResult.creditIds;
+        financialStatus = 'PAID';
+      } else if (availableCredits > 0) {
+        // Crédito parcial não permitido para admin
+        return res.status(402).json({
+          success: false,
+          error: `Crédito insuficiente. Disponível: R$ ${(availableCredits / 100).toFixed(2)}, Necessário: R$ ${(calculatedAmount / 100).toFixed(2)}. Use cortesia ou adicione créditos.`,
+        });
+      } else {
+        // Sem crédito: marcar como PENDING_PAYMENT (precisa pagar)
+        financialStatus = 'PENDING_PAYMENT';
+      }
+      auditAction = 'BOOKING_MANUAL_CREATED';
+    }
+
+    // Criar booking manual
     const booking = await prisma.booking.create({
       data: {
         userId: user.id,
         roomId: data.roomId,
         startTime,
         endTime,
-        status: 'CONFIRMED',
-        paymentStatus: data.amount > 0 ? 'PENDING' : 'APPROVED',
-        amountPaid: data.amount,
+        status: financialStatus === 'PENDING_PAYMENT' ? 'PENDING' : 'CONFIRMED',
+        paymentStatus: financialStatus === 'PAID' ? 'APPROVED' : 'PENDING',
+        amountPaid: creditsUsed,
         bookingType: data.bookingType === 'DAY_PASS' ? 'HOURLY' : data.bookingType,
         isManual: true,
         notes: data.notes || `Reserva manual - ${data.bookingType}`,
-        creditsUsed: 0,
-        creditIds: [],
+        creditsUsed,
+        creditIds,
+        origin: data.origin,
+        financialStatus,
+        courtesyReason: data.origin === 'ADMIN_COURTESY' ? data.courtesyReason : null,
       },
     });
 
     // Log de auditoria
     await logAdminAction(
-      'BOOKING_MANUAL_CREATED',
+      auditAction,
       'Booking',
       booking.id,
       {
@@ -176,10 +236,29 @@ export default async function handler(
         bookingType: data.bookingType,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
-        amount: data.amount,
+        amount: calculatedAmount,
+        origin: data.origin,
+        financialStatus,
+        creditsUsed,
+        courtesyReason: data.courtesyReason || null,
       },
       req
     );
+
+    // Log adicional se consumiu créditos
+    if (creditsUsed > 0) {
+      await logAdminAction(
+        'CREDIT_USED' as any, // Type cast necessário
+        'Booking',
+        booking.id,
+        {
+          amount: creditsUsed,
+          creditIds,
+          userId: user.id,
+        },
+        req
+      );
+    }
 
     return res.status(201).json({
       success: true,

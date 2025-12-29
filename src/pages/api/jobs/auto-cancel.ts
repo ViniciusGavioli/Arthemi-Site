@@ -81,7 +81,15 @@ export default async function handler(
           lte: thresholdTime,
         },
       },
-      include: {
+      select: {
+        id: true,
+        startTime: true,
+        endTime: true,
+        userId: true,
+        roomId: true,
+        status: true,
+        financialStatus: true,
+        notes: true,
         user: { select: { id: true, name: true, phone: true } },
         room: { select: { id: true, name: true } },
       },

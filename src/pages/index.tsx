@@ -143,7 +143,7 @@ export default function Home() {
                   href="/salas"
                   className="group bg-gradient-to-r from-accent-600 to-accent-700 text-white px-8 py-4 min-h-[52px] rounded-full font-bold text-lg hover:shadow-2xl hover:shadow-accent-500/30 transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] flex items-center justify-center gap-2"
                 >
-                  Ver consultórios e preços
+                  Ver consultórios e investimento
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <Link
@@ -528,7 +528,7 @@ export default function Home() {
               href="/salas"
               className="inline-flex items-center gap-2 bg-gradient-to-r from-accent-500 to-accent-600 text-white px-10 py-5 rounded-full font-bold text-xl hover:shadow-2xl hover:shadow-accent-500/30 transition-all duration-300 hover:-translate-y-1"
             >
-              Ver consultórios e preços
+              Ver consultórios e investimento
               <ArrowRight className="w-6 h-6" />
             </Link>
           </div>

@@ -159,7 +159,7 @@ export default function FAQ() {
               href="/salas"
               className="inline-block bg-warm-100 text-accent-700 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-warm-200 transition"
             >
-              Ver consultórios e preços
+              Ver consultórios e investimento
             </Link>
           </div>
         </section>

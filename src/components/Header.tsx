@@ -18,7 +18,7 @@ interface NavLink {
 
 const navLinks: NavLink[] = [
   { href: '/como-funciona', label: 'Como funciona' },
-  { href: '/salas', label: 'Consultórios e preços' },
+  { href: '/salas', label: 'Consultórios e Investimento' },
   { href: '/faq', label: 'Perguntas Frequentes' },
 ];
 

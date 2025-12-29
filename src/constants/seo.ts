@@ -95,7 +95,7 @@ export const PAGE_SEO = {
     keywords: 'coworking saúde BH, sala atendimento Belo Horizonte, consultório compartilhado',
   },
   salas: {
-    title: 'Consultórios e Preços — Espaço Arthemi',
+    title: 'Consultórios e Investimento — Espaço Arthemi',
     description: 'Conheça nossos consultórios para atendimento. Preços a partir de R$ 39,99/hora. Tudo incluso: recepção, limpeza, internet, café. Sem taxas extras.',
     keywords: 'preço consultório atendimento, aluguel consultório hora, consultório psicólogo BH',
   },

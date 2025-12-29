@@ -308,19 +308,19 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                             <>
                               <div className="flex justify-between items-center bg-white rounded-lg px-4 py-3 border border-warm-200">
                                 <span className="text-secondary-600">Hora avulsa (sábado)</span>
-                                <span className="font-semibold text-accent-600">{formatCurrency(roomPrices.SATURDAY_HOUR)}</span>
+                                <span className="font-semibold text-accent-600">{formatPrice(roomPrices.SATURDAY_HOUR)}</span>
                               </div>
                               <div className="flex justify-between items-center bg-white rounded-lg px-4 py-3 border border-warm-200">
                                 <span className="text-secondary-600">Pacote 5h (sábado)</span>
-                                <span className="font-semibold text-accent-600">{formatCurrency(roomPrices.SATURDAY_5H)}</span>
+                                <span className="font-semibold text-accent-600">{formatPrice(roomPrices.SATURDAY_5H)}</span>
                               </div>
                               <div className="flex justify-between items-center bg-white rounded-lg px-4 py-3 border border-warm-200">
                                 <span className="text-secondary-600">Turno fixo semanal (16h/mês)</span>
-                                <span className="font-semibold text-accent-600">{formatCurrency(roomPrices.SHIFT_FIXED)}/mês</span>
+                                <span className="font-semibold text-accent-600">{formatPrice(roomPrices.SHIFT_FIXED)}/mês</span>
                               </div>
                               <div className="flex justify-between items-center bg-white rounded-lg px-4 py-3 border border-warm-200">
                                 <span className="text-secondary-600">Diária (8h seguidas)</span>
-                                <span className="font-semibold text-accent-600">{formatCurrency(roomPrices.DAY_PASS)}</span>
+                                <span className="font-semibold text-accent-600">{formatPrice(roomPrices.DAY_PASS)}</span>
                               </div>
                             </>
                           );

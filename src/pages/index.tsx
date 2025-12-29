@@ -8,6 +8,7 @@ import Image from 'next/image';
 import SEO from '@/components/SEO';
 import Layout from '@/components/Layout';
 import RoomDetailsModal from '@/components/RoomDetailsModal';
+import BookingModal from '@/components/BookingModal';
 import { PAGE_SEO, BUSINESS_INFO } from '@/constants/seo';
 import { PRICES_V3, formatPrice } from '@/constants/prices';
 import { 
@@ -69,8 +70,46 @@ const roomsData = [
   },
 ];
 
+// Dados estáticos das salas para o BookingModal (sem buscar do banco)
+const staticRoomsForBooking = [
+  {
+    id: 'sala-a-static',
+    name: 'Consultório 1 | Prime',
+    slug: 'sala-a',
+    description: 'Espaço premium',
+    imageUrl: '/images/sala-a/foto-4.jpeg',
+    capacity: 4,
+    amenities: ['Maca profissional', 'Ar-condicionado', 'Wi-Fi', 'Lavatório'],
+    hourlyRate: Math.round(PRICES_V3.SALA_A.prices.HOURLY_RATE * 100), // em centavos
+    products: [],
+  },
+  {
+    id: 'sala-b-static',
+    name: 'Consultório 2 | Executive',
+    slug: 'sala-b',
+    description: 'Consultório amplo',
+    imageUrl: '/images/sala-b/02-3.jpeg',
+    capacity: 3,
+    amenities: ['Maca profissional', 'Ar-condicionado', 'Wi-Fi', 'Lavatório'],
+    hourlyRate: Math.round(PRICES_V3.SALA_B.prices.HOURLY_RATE * 100), // em centavos
+    products: [],
+  },
+  {
+    id: 'sala-c-static',
+    name: 'Consultório 3 | Essential',
+    slug: 'sala-c',
+    description: 'Consultório acolhedor',
+    imageUrl: '/images/sala-c/03-1.jpeg',
+    capacity: 2,
+    amenities: ['Ar-condicionado', 'Wi-Fi', 'Poltronas'],
+    hourlyRate: Math.round(PRICES_V3.SALA_C.prices.HOURLY_RATE * 100), // em centavos
+    products: [],
+  },
+];
+
 export default function Home() {
   const [selectedRoom, setSelectedRoom] = useState<typeof roomsData[0] | null>(null);
+  const [bookingRoom, setBookingRoom] = useState<typeof staticRoomsForBooking[0] | null>(null);
   const whatsappLink = `https://wa.me/${BUSINESS_INFO.whatsapp}`;
 
   // Preços calculados dinamicamente (menor preço por hora de cada sala)
@@ -78,6 +117,16 @@ export default function Home() {
     salaA: formatPrice(getLowestHourlyPrice('SALA_A')),
     salaB: formatPrice(getLowestHourlyPrice('SALA_B')),
     salaC: formatPrice(getLowestHourlyPrice('SALA_C')),
+  };
+
+  // Handler para abrir o modal de reserva
+  const handleOpenBooking = () => {
+    if (selectedRoom) {
+      const roomIndex = roomsData.findIndex(r => r.slug === selectedRoom.slug);
+      if (roomIndex >= 0) {
+        setBookingRoom(staticRoomsForBooking[roomIndex]);
+      }
+    }
   };
 
   return (
@@ -661,7 +710,17 @@ export default function Home() {
         <RoomDetailsModal
           isOpen={!!selectedRoom}
           onClose={() => setSelectedRoom(null)}
+          onReservar={handleOpenBooking}
           room={selectedRoom}
+        />
+      )}
+
+      {/* Modal de Reserva */}
+      {bookingRoom && (
+        <BookingModal
+          room={bookingRoom}
+          products={[]}
+          onClose={() => setBookingRoom(null)}
         />
       )}
     </>

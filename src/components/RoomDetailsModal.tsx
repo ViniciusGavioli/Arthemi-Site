@@ -10,6 +10,7 @@ import { X, ChevronLeft, ChevronRight, Play, CheckCircle2 } from 'lucide-react';
 interface RoomDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onReservar?: () => void;
   room: {
     name: string;
     slug: string;
@@ -51,7 +52,7 @@ const roomImages: Record<string, { images: string[]; video?: string }> = {
   },
 };
 
-export default function RoomDetailsModal({ isOpen, onClose, room }: RoomDetailsModalProps) {
+export default function RoomDetailsModal({ isOpen, onClose, onReservar, room }: RoomDetailsModalProps) {
   // ESTADOS SEPARADOS - Obrigatório
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
@@ -271,13 +272,15 @@ export default function RoomDetailsModal({ isOpen, onClose, room }: RoomDetailsM
                 >
                   Ver pacotes de horas
                 </Link>
-                <Link
-                  href={`/booking/${room.slug}?product=avulso`}
-                  onClick={onClose}
+                <button
+                  onClick={() => {
+                    onClose();
+                    onReservar?.();
+                  }}
                   className="flex-1 bg-gradient-to-r from-accent-600 to-accent-700 text-white text-center py-3 px-4 rounded-xl font-semibold hover:shadow-lg transition-all active:scale-[0.98]"
                 >
                   Reservar agora
-                </Link>
+                </button>
               </div>
             </div>
           </div>

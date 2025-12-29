@@ -311,10 +311,6 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                                 <span className="font-semibold text-accent-600">{formatPrice(roomPrices.SATURDAY_HOUR)}</span>
                               </div>
                               <div className="flex justify-between items-center bg-white rounded-lg px-4 py-3 border border-warm-200">
-                                <span className="text-secondary-600">Sábado - Pacote 5h</span>
-                                <span className="font-semibold text-accent-600">{formatPrice(roomPrices.SATURDAY_5H)}</span>
-                              </div>
-                              <div className="flex justify-between items-center bg-white rounded-lg px-4 py-3 border border-warm-200">
                                 <span className="text-secondary-600">Sábado - Turno fixo (16h/mês)</span>
                                 <span className="font-semibold text-accent-600">{formatPrice(roomPrices.SATURDAY_SHIFT)}/mês</span>
                               </div>

@@ -104,9 +104,9 @@ export default async function handler(
       orderBy: { startTime: 'asc' },
     });
 
-    // Horário de funcionamento: 8h às 20h (último horário disponível: 19h)
+    // Horário de funcionamento: 8h às 18h (último horário disponível: 17h)
     const BUSINESS_START = 8;
-    const BUSINESS_END = 20;
+    const BUSINESS_END = 18;
     const MIN_ADVANCE_MINUTES = 30; // Mínimo de 30 minutos de antecedência para reservar
     
     const slots: Slot[] = [];

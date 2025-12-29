@@ -58,7 +58,7 @@ export default function FAQ() {
     },
     {
       question: 'Posso atender aos sábados?',
-      answer: 'Sim. O espaço funciona aos sábados em horário reduzido, de 8h às 12h. Você pode reservar o consultório por hora ou por turno, conforme sua preferência.'
+      answer: 'Sim. O espaço funciona aos sábados em horário reduzido, de 8h às 12h. Você pode reservar o consultório por hora avulsa ou contratar o pacote semanal fixo de sábados (16h/mês), conforme sua preferência.'
     },
     {
       question: 'Preciso levar alguma coisa?',

@@ -129,11 +129,11 @@ export default async function handler(
       endTime = new Date(bookingDate);
       endTime.setHours(shift.end, 0, 0, 0);
     } else if (data.bookingType === 'DAY_PASS') {
-      // Diária: 8h às 20h
+      // Diária: 8h às 18h
       startTime = new Date(bookingDate);
       startTime.setHours(8, 0, 0, 0);
       endTime = new Date(bookingDate);
-      endTime.setHours(20, 0, 0, 0);
+      endTime.setHours(18, 0, 0, 0);
     } else {
       // HOURLY
       if (!data.startHour || !data.endHour) {

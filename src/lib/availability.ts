@@ -126,9 +126,9 @@ export async function getAvailableSlots(roomId: string, date: Date) {
     orderBy: { startTime: 'asc' },
   });
 
-  // Horário de funcionamento: 8h às 20h
+  // Horário de funcionamento: 8h às 18h
   const BUSINESS_START = 8;
-  const BUSINESS_END = 20;
+  const BUSINESS_END = 18;
   
   const slots: { start: Date; end: Date; available: boolean }[] = [];
 

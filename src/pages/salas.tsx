@@ -243,13 +243,17 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                             // Valor base da hora avulsa (usar hourlyRate da sala)
                             const baseHourlyPrice = room.hourlyRate || 0;
                             
+                            // Pegar valores de sábado e turno fixo do PRICES_V3
+                            const roomKey = room.slug === 'sala-a' ? 'SALA_A' : room.slug === 'sala-b' ? 'SALA_B' : 'SALA_C';
+                            const roomPrices = PRICES_V3[roomKey].prices;
+                            
                             // Definir pacotes com preços calculados
                             // Regra: 10h = -7%, 20h = -13%, 40h = -18%
                             const packages = [
-                              { hours: 1, label: '1h', price: baseHourlyPrice, isHourly: true },
-                              { hours: 10, label: '10h', price: Math.round(baseHourlyPrice * 10 * 0.93), isHourly: false }, // -7%
-                              { hours: 20, label: '20h', price: Math.round(baseHourlyPrice * 20 * 0.87), isHourly: false }, // -13%
-                              { hours: 40, label: '40h', price: Math.round(baseHourlyPrice * 40 * 0.82), isHourly: false }, // -18%
+                              { hours: 1, label: '1h', price: baseHourlyPrice, isHourly: true, isSaturday: false },
+                              { hours: 10, label: '10h', price: Math.round(baseHourlyPrice * 10 * 0.93), isHourly: false, isSaturday: false }, // -7%
+                              { hours: 20, label: '20h', price: Math.round(baseHourlyPrice * 20 * 0.87), isHourly: false, isSaturday: false }, // -13%
+                              { hours: 40, label: '40h', price: Math.round(baseHourlyPrice * 40 * 0.82), isHourly: false, isSaturday: false }, // -18%
                             ];
 
                             return packages.map((pkg, idx) => {
@@ -291,6 +295,37 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                           })()}
                         </tbody>
                       </table>
+                    </div>
+                    
+                    {/* Tabela de Sábados e Turno Fixo */}
+                    <div className="border-t border-warm-200 bg-warm-50/50 p-4">
+                      <h4 className="text-sm font-semibold text-primary-800 mb-3">Sábados (8h às 12h) e Turno Fixo</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                        {(() => {
+                          const roomKey = room.slug === 'sala-a' ? 'SALA_A' : room.slug === 'sala-b' ? 'SALA_B' : 'SALA_C';
+                          const roomPrices = PRICES_V3[roomKey].prices;
+                          return (
+                            <>
+                              <div className="flex justify-between items-center bg-white rounded-lg px-4 py-3 border border-warm-200">
+                                <span className="text-secondary-600">Hora avulsa (sábado)</span>
+                                <span className="font-semibold text-accent-600">{formatCurrency(roomPrices.SATURDAY_HOUR)}</span>
+                              </div>
+                              <div className="flex justify-between items-center bg-white rounded-lg px-4 py-3 border border-warm-200">
+                                <span className="text-secondary-600">Pacote 5h (sábado)</span>
+                                <span className="font-semibold text-accent-600">{formatCurrency(roomPrices.SATURDAY_5H)}</span>
+                              </div>
+                              <div className="flex justify-between items-center bg-white rounded-lg px-4 py-3 border border-warm-200">
+                                <span className="text-secondary-600">Turno fixo semanal (16h/mês)</span>
+                                <span className="font-semibold text-accent-600">{formatCurrency(roomPrices.SHIFT_FIXED)}/mês</span>
+                              </div>
+                              <div className="flex justify-between items-center bg-white rounded-lg px-4 py-3 border border-warm-200">
+                                <span className="text-secondary-600">Diária (8h seguidas)</span>
+                                <span className="font-semibold text-accent-600">{formatCurrency(roomPrices.DAY_PASS)}</span>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
                     </div>
                   </div>
                 </div>

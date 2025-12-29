@@ -600,7 +600,7 @@ export default function Home() {
                     <div>
                       <p className="font-semibold text-primary-900">Horário</p>
                       <p className="text-secondary-600">
-                        Seg a Sex: 8h às 20h<br />
+                        Seg a Sex: 8h às 18h<br />
                         Sáb: 8h às 12h
                       </p>
                     </div>

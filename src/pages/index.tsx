@@ -242,7 +242,7 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
               {[
-                { number: '3', label: 'Salas disponíveis', icon: <Users className="w-6 h-6" /> },
+                { number: '3', label: 'Consultórios disponíveis', icon: <Users className="w-6 h-6" /> },
                 { number: '100%', label: 'Tudo incluso', icon: <CheckCircle2 className="w-6 h-6" /> },
                 { number: 'R$0', label: 'Taxa de adesão', icon: <Shield className="w-6 h-6" /> },
                 { number: '48h', label: 'Para cancelar', icon: <Clock className="w-6 h-6" /> },

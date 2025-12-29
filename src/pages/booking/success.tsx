@@ -29,7 +29,7 @@ export default function BookingSuccessPage() {
           if (data) {
             const bookingDetails = {
               id: data.id,
-              roomName: data.room?.name || 'Sala',
+              roomName: data.room?.name || 'Consultório',
               date: new Date(data.startTime).toLocaleDateString('pt-BR'),
               startTime: new Date(data.startTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
               endTime: new Date(data.endTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),

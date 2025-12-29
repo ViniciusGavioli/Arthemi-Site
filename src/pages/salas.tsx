@@ -1,5 +1,5 @@
 // ===========================================================
-// Página /salas - Lista de Salas com RoomCard
+// Página /salas - Lista de Consultórios com RoomCard
 // ===========================================================
 
 import { useState } from 'react';
@@ -17,7 +17,7 @@ import { formatCurrency } from '@/lib/utils';
 import { PRICES_V3, formatPrice } from '@/constants/prices';
 import { Lightbulb, CheckCircle2, Eye } from 'lucide-react';
 
-// Helper para calcular menor preço por hora de uma sala
+// Helper para calcular menor preço por hora de um consultório
 function getLowestHourlyPrice(salaKey: 'SALA_A' | 'SALA_B' | 'SALA_C'): number {
   const prices = PRICES_V3[salaKey].prices;
   

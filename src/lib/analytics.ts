@@ -50,8 +50,8 @@ function isPlausibleAvailable(): boolean {
  * Rastreia um evento customizado no Plausible
  * 
  * @example
- * trackEvent('booking_started', { room: 'Sala Premium' });
- * trackEvent('booking_completed', { room: 'Sala B', value: 55 });
+ * trackEvent('booking_started', { room: 'Consultório Premium' });
+ * trackEvent('booking_completed', { room: 'Consultório 2', value: 55 });
  */
 export function trackEvent(event: AnalyticsEvent, props?: EventProps): void {
   // Só executa no browser

@@ -18,7 +18,7 @@ test.describe('Salas Page', () => {
     });
     
     // Verifica se tem cards de sala (por conteúdo)
-    await expect(page.getByText('Sala A').first()).toBeVisible();
+    await expect(page.getByText('Consultório 1').first()).toBeVisible();
   });
 
   test('deve exibir informações das salas', async ({ page }) => {

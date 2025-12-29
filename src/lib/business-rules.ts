@@ -48,22 +48,22 @@ export const HOURLY_BOOKING_WINDOW_DAYS = 30;
 // ===========================================================
 
 /**
- * Verifica se um crédito pode ser usado em uma sala específica
- * Regra de hierarquia: Crédito de sala superior pode ser usado em salas inferiores
- * - Tier 1 (Sala A) → pode usar em A, B, C
- * - Tier 2 (Sala B) → pode usar em B, C
- * - Tier 3 (Sala C) → só pode usar em C
+ * Verifica se um crédito pode ser usado em um consultório específico
+ * Regra de hierarquia: Crédito de consultório superior pode ser usado em consultórios inferiores
+ * - Tier 1 (Consultório 1) → pode usar em 1, 2, 3
+ * - Tier 2 (Consultório 2) → pode usar em 2, 3
+ * - Tier 3 (Consultório 3) → só pode usar em 3
  * 
- * @param creditRoomTier Tier da sala do crédito (1, 2 ou 3). Se null, crédito é genérico
- * @param targetRoomTier Tier da sala alvo da reserva
+ * @param creditRoomTier Tier do consultório do crédito (1, 2 ou 3). Se null, crédito é genérico
+ * @param targetRoomTier Tier do consultório alvo da reserva
  * @returns true se o crédito pode ser usado
  */
 export function canUseCredit(creditRoomTier: number | null, targetRoomTier: number): boolean {
-  // Crédito genérico (sem sala específica) pode ser usado em qualquer sala
+  // Crédito genérico (sem consultório específico) pode ser usado em qualquer consultório
   if (creditRoomTier === null) {
     return true;
   }
-  // Crédito de sala superior (tier menor) pode ser usado em sala igual ou inferior (tier maior ou igual)
+  // Crédito de consultório superior (tier menor) pode ser usado em consultório igual ou inferior (tier maior ou igual)
   return creditRoomTier <= targetRoomTier;
 }
 
@@ -83,11 +83,11 @@ export function validateSaturdayCredit(credit: Credit, bookingDate: Date): boole
 }
 
 /**
- * Busca créditos disponíveis de um usuário para uma sala específica
- * Considera hierarquia: créditos de salas superiores também são retornados
+ * Busca créditos disponíveis de um usuário para um consultório específico
+ * Considera hierarquia: créditos de consultórios superiores também são retornados
  * 
  * @param userId ID do usuário
- * @param roomId ID da sala alvo
+ * @param roomId ID do consultório alvo
  * @param bookingDate Data da reserva (para validar créditos de sábado)
  * @returns Lista de créditos disponíveis ordenados por prioridade
  */
@@ -98,7 +98,7 @@ export async function getAvailableCreditsForRoom(
 ): Promise<(Credit & { room: Room | null })[]> {
   const now = new Date();
 
-  // Busca a sala alvo para obter o tier
+  // Busca o consultório alvo para obter o tier
   const targetRoom = await prisma.room.findUnique({
     where: { id: roomId },
   });
@@ -128,7 +128,7 @@ export async function getAvailableCreditsForRoom(
     ],
   });
 
-  // Filtra créditos que podem ser usados nesta sala (hierarquia + sábado)
+  // Filtra créditos que podem ser usados neste consultório (hierarquia + sábado)
   const validCredits = allCredits.filter((credit) => {
     // Verifica hierarquia
     const creditTier = credit.room?.tier ?? null;
@@ -144,9 +144,9 @@ export async function getAvailableCreditsForRoom(
     return true;
   });
 
-  // Ordena: créditos específicos da sala primeiro, depois genéricos
+  // Ordena: créditos específicos do consultório primeiro, depois genéricos
   return validCredits.sort((a, b) => {
-    // Créditos da mesma sala têm prioridade
+    // Créditos do mesmo consultório têm prioridade
     if (a.roomId === roomId && b.roomId !== roomId) return -1;
     if (b.roomId === roomId && a.roomId !== roomId) return 1;
     return 0;
@@ -154,7 +154,7 @@ export async function getAvailableCreditsForRoom(
 }
 
 /**
- * Calcula o saldo total de créditos disponíveis para uma sala
+ * Calcula o saldo total de créditos disponíveis para um consultório
  */
 export async function getCreditBalanceForRoom(
   userId: string,
@@ -170,7 +170,7 @@ export async function getCreditBalanceForRoom(
  * Retorna os IDs dos créditos consumidos e o valor total consumido
  * 
  * @param userId ID do usuário
- * @param roomId ID da sala
+ * @param roomId ID do consultório
  * @param amount Valor a consumir (em centavos)
  * @param bookingDate Data da reserva
  * @returns { creditIds, totalConsumed }
@@ -240,7 +240,7 @@ export async function convertCancellationToCredit(bookingId: string): Promise<Cr
   const now = new Date();
   const expiresAt = addMonths(now, CREDIT_VALIDITY_MONTHS);
 
-  // Cria crédito para a mesma sala da reserva
+  // Cria crédito para o mesmo consultório da reserva
   const credit = await prisma.credit.create({
     data: {
       userId: booking.userId,
@@ -295,7 +295,7 @@ export async function createManualCredit(params: {
 }
 
 /**
- * Busca saldo total de créditos do usuário por sala
+ * Busca saldo total de créditos do usuário por consultório
  */
 export async function getUserCreditsSummary(userId: string): Promise<{
   total: number;
@@ -366,7 +366,7 @@ export async function checkAvailability({
   endTime,
   excludeBookingId,
 }: AvailabilityCheck): Promise<{ available: boolean; conflictingBookings?: unknown[] }> {
-  // Busca todas as reservas ativas da sala
+  // Busca todas as reservas ativas do consultório
   const existingBookings = await prisma.booking.findMany({
     where: {
       roomId,

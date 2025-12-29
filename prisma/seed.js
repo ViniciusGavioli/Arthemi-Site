@@ -14,14 +14,14 @@ const prisma = new PrismaClient();
 // ============================================
 const PRICES_V3 = {
   SALA_A: {
-    name: 'Sala A',
+    name: 'Consultório 1',
     subtitle: 'Grande (com maca)',
-    description: 'Sala ampla com maca profissional, ideal para procedimentos e atendimentos que requerem mais espaço. Ambiente climatizado com decoração terapêutica.',
+    description: 'Consultório amplo com maca profissional, ideal para procedimentos e atendimentos que requerem mais espaço. Ambiente climatizado com decoração terapêutica.',
     slug: 'sala-a',
     imageUrl: '/images/sala-a.jpg',
     capacity: 4,
     size: 20,
-    tier: 1, // Sala premium (hierarquia: pode usar crédito em A, B ou C)
+    tier: 1, // Consultório premium (hierarquia: pode usar crédito em 1, 2 ou 3)
     amenities: ['Maca profissional', 'Ar-condicionado', 'Wi-Fi', 'Pia com água quente', 'Armário', 'Espelho'],
     prices: {
       HOURLY_RATE: 5999,      // R$ 59,99
@@ -35,14 +35,14 @@ const PRICES_V3 = {
     },
   },
   SALA_B: {
-    name: 'Sala B',
+    name: 'Consultório 2',
     subtitle: 'Média (com maca)',
-    description: 'Sala de tamanho médio com maca, perfeita para consultas e procedimentos padrão. Ambiente confortável e bem equipado.',
+    description: 'Consultório de tamanho médio com maca, perfeito para consultas e procedimentos padrão. Ambiente confortável e bem equipado.',
     slug: 'sala-b',
     imageUrl: '/images/sala-b.jpg',
     capacity: 3,
     size: 15,
-    tier: 2, // Sala intermediária (pode usar crédito em B ou C)
+    tier: 2, // Consultório intermediário (pode usar crédito em 2 ou 3)
     amenities: ['Maca profissional', 'Ar-condicionado', 'Wi-Fi', 'Pia', 'Armário'],
     prices: {
       HOURLY_RATE: 4999,      // R$ 49,99
@@ -56,14 +56,14 @@ const PRICES_V3 = {
     },
   },
   SALA_C: {
-    name: 'Sala C',
+    name: 'Consultório 3',
     subtitle: 'Pequena (sem maca)',
-    description: 'Sala compacta ideal para consultas, psicoterapia e atendimentos que não requerem maca. Ambiente acolhedor e silencioso.',
+    description: 'Consultório compacto ideal para consultas, psicoterapia e atendimentos que não requerem maca. Ambiente acolhedor e silencioso.',
     slug: 'sala-c',
     imageUrl: '/images/sala-c.jpg',
     capacity: 2,
     size: 10,
-    tier: 3, // Sala básica (só pode usar crédito em C)
+    tier: 3, // Consultório básico (só pode usar crédito em 3)
     amenities: ['Ar-condicionado', 'Wi-Fi', 'Mesa de atendimento', 'Cadeiras confortáveis', 'Armário'],
     prices: {
       HOURLY_RATE: 3999,      // R$ 39,99

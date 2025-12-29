@@ -29,20 +29,20 @@ async function testDatabase() {
   }
 
   // ============================================
-  // TESTE 2: Listar Salas
+  // TESTE 2: Listar Consultórios
   // ============================================
   try {
     const rooms = await prisma.room.findMany();
     if (rooms.length === 3) {
-      console.log('✅ TESTE 2: Listar salas (3 salas encontradas) - OK');
+      console.log('✅ TESTE 2: Listar consultórios (3 consultórios encontrados) - OK');
       rooms.forEach(r => console.log(`   → ${r.name}: R$ ${(r.hourlyRate / 100).toFixed(2)}/hora`));
       passed++;
     } else {
-      console.log(`❌ TESTE 2: Esperava 3 salas, encontrou ${rooms.length}`);
+      console.log(`❌ TESTE 2: Esperava 3 consultórios, encontrou ${rooms.length}`);
       failed++;
     }
   } catch (error) {
-    console.log('❌ TESTE 2: Listar salas - FALHOU');
+    console.log('❌ TESTE 2: Listar consultórios - FALHOU');
     console.log('   Erro:', error.message);
     failed++;
   }

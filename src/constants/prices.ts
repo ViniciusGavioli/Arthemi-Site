@@ -6,12 +6,12 @@
 
 export const PRICES_V3 = {
   // ============================================
-  // SALA A – GRANDE (com maca)
+  // CONSULTÓRIO 1 – GRANDE (com maca)
   // ============================================
   SALA_A: {
-    name: 'Sala A',
+    name: 'Consultório 1',
     subtitle: 'Grande (com maca)',
-    description: 'Sala ampla com maca profissional, ideal para procedimentos e atendimentos que requerem mais espaço.',
+    description: 'Consultório amplo com maca profissional, ideal para procedimentos e atendimentos que requerem mais espaço.',
     capacity: 4,
     size: 20, // m²
     amenities: ['Maca profissional', 'Ar-condicionado', 'Wi-Fi', 'Pia com água quente', 'Armário', 'Espelho'],
@@ -30,12 +30,12 @@ export const PRICES_V3 = {
   },
 
   // ============================================
-  // SALA B – MÉDIA (com maca)
+  // CONSULTÓRIO 2 – MÉDIA (com maca)
   // ============================================
   SALA_B: {
-    name: 'Sala B',
+    name: 'Consultório 2',
     subtitle: 'Média (com maca)',
-    description: 'Sala de tamanho médio com maca, perfeita para consultas e procedimentos padrão.',
+    description: 'Consultório de tamanho médio com maca, perfeito para consultas e procedimentos padrão.',
     capacity: 3,
     size: 15, // m²
     amenities: ['Maca profissional', 'Ar-condicionado', 'Wi-Fi', 'Pia', 'Armário'],
@@ -54,12 +54,12 @@ export const PRICES_V3 = {
   },
 
   // ============================================
-  // SALA C – PEQUENA (sem maca)
+  // CONSULTÓRIO 3 – PEQUENA (sem maca)
   // ============================================
   SALA_C: {
-    name: 'Sala C',
+    name: 'Consultório 3',
     subtitle: 'Pequena (sem maca)',
-    description: 'Sala compacta ideal para consultas, psicoterapia e atendimentos que não requerem maca.',
+    description: 'Consultório compacto ideal para consultas, psicoterapia e atendimentos que não requerem maca.',
     capacity: 2,
     size: 10, // m²
     amenities: ['Ar-condicionado', 'Wi-Fi', 'Mesa de atendimento', 'Cadeiras confortáveis', 'Armário'],
@@ -90,7 +90,7 @@ export function formatPrice(value: number): string {
   });
 }
 
-// Helper para obter preço de uma sala
+// Helper para obter preço de um consultório
 export function getRoomPrice(room: RoomKey, priceType: PriceType): number {
   return PRICES_V3[room].prices[priceType];
 }

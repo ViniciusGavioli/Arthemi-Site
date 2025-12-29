@@ -18,20 +18,32 @@ import {
 import { sendBookingConfirmationNotification } from '@/lib/booking-notifications';
 
 // Schema de validação com Zod
+// Suporta tanto o formato antigo (startAt/endAt) quanto o novo (slots[])
+const slotSchema = z.object({
+  startAt: z.string().datetime({ message: 'Data/hora de início inválida' }),
+  endAt: z.string().datetime({ message: 'Data/hora de término inválida' }),
+});
+
 const createBookingSchema = z.object({
   userName: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   userPhone: brazilianPhone,
   userEmail: z.string().email('Email inválido').optional(),
   userCpf: z.string().length(11, 'CPF deve ter 11 dígitos').regex(/^\d+$/, 'CPF deve conter apenas números'),
   productId: z.string().optional(),
-  roomId: z.string().min(1, 'Sala é obrigatória'),
-  startAt: z.string().datetime({ message: 'Data/hora de início inválida' }),
-  endAt: z.string().datetime({ message: 'Data/hora de término inválida' }),
+  roomId: z.string().min(1, 'Consultório é obrigatório'),
+  // Formato novo: array de slots (múltipla seleção de 1h cada)
+  slots: z.array(slotSchema).optional(),
+  // Formato antigo (retrocompatibilidade)
+  startAt: z.string().datetime({ message: 'Data/hora de início inválida' }).optional(),
+  endAt: z.string().datetime({ message: 'Data/hora de término inválida' }).optional(),
   payNow: z.boolean().default(false),
   useCredits: z.boolean().default(false),
   couponCode: z.string().optional(),
   notes: z.string().max(500, 'Observações devem ter no máximo 500 caracteres').optional(),
-});
+}).refine(
+  (data) => (data.slots && data.slots.length > 0) || (data.startAt && data.endAt),
+  { message: 'É necessário fornecer slots ou startAt/endAt' }
+);
 
 
 // Cupons válidos (hardcoded por simplicidade)
@@ -44,6 +56,7 @@ type CreateBookingInput = z.infer<typeof createBookingSchema>;
 interface ApiResponse {
   success: boolean;
   bookingId?: string;
+  bookingIds?: string[]; // Para múltiplas reservas
   paymentUrl?: string;
   creditsUsed?: number;
   amountToPay?: number;
@@ -78,6 +91,53 @@ export default async function handler(
     }
 
     const data: CreateBookingInput = validation.data;
+
+    // Normalizar slots (suporta formato novo e antigo)
+    let bookingSlots: { startAt: Date; endAt: Date }[];
+    if (data.slots && data.slots.length > 0) {
+      // Formato novo: múltiplos slots de 1h
+      bookingSlots = data.slots.map(slot => ({
+        startAt: new Date(slot.startAt),
+        endAt: new Date(slot.endAt),
+      }));
+    } else if (data.startAt && data.endAt) {
+      // Formato antigo: startAt/endAt únicos
+      bookingSlots = [{
+        startAt: new Date(data.startAt),
+        endAt: new Date(data.endAt),
+      }];
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: 'É necessário fornecer horários para a reserva',
+      });
+    }
+
+    // Validar todos os slots
+    for (const slot of bookingSlots) {
+      if (slot.endAt <= slot.startAt) {
+        return res.status(400).json({
+          success: false,
+          error: 'Horário de término deve ser após o início',
+        });
+      }
+      
+      // Validar limite de horário conforme dia da semana
+      // - Segunda a Sexta: até 18h
+      // - Sábado: até 12h
+      const isSaturday = slot.startAt.getDay() === 6;
+      const maxEndHour = isSaturday ? 12 : 18;
+      const endHour = slot.endAt.getHours();
+      
+      if (endHour > maxEndHour) {
+        return res.status(400).json({
+          success: false,
+          error: isSaturday 
+            ? 'Aos sábados o horário máximo de funcionamento é 12h' 
+            : 'Horário máximo de funcionamento é 18h',
+        });
+      }
+    }
 
     // RATE LIMITING - Por IP e por telefone
     const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || 
@@ -117,18 +177,12 @@ export default async function handler(
       });
     }
 
-    const startAt = new Date(data.startAt);
-    const endAt = new Date(data.endAt);
+    // Usar o primeiro slot para referência (data da reserva)
+    const firstSlot = bookingSlots[0];
+    const startAt = firstSlot.startAt;
+    const endAt = bookingSlots[bookingSlots.length - 1].endAt;
 
-    // 2. Validar que endAt > startAt
-    if (endAt <= startAt) {
-      return res.status(400).json({
-        success: false,
-        error: 'Horário de término deve ser após o início',
-      });
-    }
-
-    // 3. Verificar se sala existe
+    // 3. Verificar se consultório existe
     const room = await prisma.room.findUnique({
       where: { id: data.roomId },
     });
@@ -136,27 +190,37 @@ export default async function handler(
     if (!room || !room.isActive) {
       return res.status(404).json({
         success: false,
-        error: 'Sala não encontrada ou inativa',
+        error: 'Consultório não encontrado ou inativo',
       });
     }
 
+    // Buffer de limpeza entre reservas: 40 minutos
+    const CLEANING_BUFFER_MINUTES = 40;
+    const CLEANING_BUFFER_MS = CLEANING_BUFFER_MINUTES * 60 * 1000;
+
     // TRANSACTION ATÔMICA - Previne race condition
     const result = await prisma.$transaction(async (tx) => {
-      // 4. Verificar disponibilidade com lock (FOR UPDATE)
-      const conflictingBooking = await tx.booking.findFirst({
-        where: {
-          roomId: data.roomId,
-          status: { in: ['PENDING', 'CONFIRMED'] },
-          OR: [
-            { startTime: { lt: endAt, gte: startAt } },
-            { endTime: { gt: startAt, lte: endAt } },
-            { AND: [{ startTime: { lte: startAt } }, { endTime: { gte: endAt } }] },
-          ],
-        },
-      });
+      // 4. Verificar disponibilidade de TODOS os slots (com buffer de limpeza)
+      for (const slot of bookingSlots) {
+        // Expande o período de verificação para incluir o buffer de limpeza
+        const checkStart = new Date(slot.startAt.getTime() - CLEANING_BUFFER_MS);
+        const checkEnd = new Date(slot.endAt.getTime() + CLEANING_BUFFER_MS);
+        
+        const conflictingBooking = await tx.booking.findFirst({
+          where: {
+            roomId: data.roomId,
+            status: { in: ['PENDING', 'CONFIRMED'] },
+            // Verifica se há reserva que conflita considerando o buffer
+            AND: [
+              { startTime: { lt: checkEnd } },
+              { endTime: { gt: checkStart } },
+            ],
+          },
+        });
 
-      if (conflictingBooking) {
-        throw new Error('CONFLICT');
+        if (conflictingBooking) {
+          throw new Error('CONFLICT');
+        }
       }
 
       // 5. Buscar ou criar usuário
@@ -175,9 +239,9 @@ export default async function handler(
         });
       }
 
-      // 6. Calcular valor usando hourlyRate V3
-      const hours = Math.ceil((endAt.getTime() - startAt.getTime()) / (1000 * 60 * 60));
-      let amount = room.hourlyRate * hours;
+      // 6. Calcular valor total (1 hora por slot)
+      const totalHours = bookingSlots.length;
+      let amount = room.hourlyRate * totalHours;
 
       // Se tem productId, busca preço do produto
       if (data.productId) {
@@ -242,31 +306,57 @@ export default async function handler(
         }
       }
 
-      // 7. Criar booking
+      // 7. Criar booking(s) - uma reserva para cada slot
       // Determinar financialStatus baseado no pagamento/créditos
       const financialStatus = amountToPay <= 0 ? 'PAID' : 'PENDING_PAYMENT';
+      const bookingStatus = amountToPay > 0 ? 'PENDING' : 'CONFIRMED';
+      const paymentStatus = amountToPay > 0 ? 'PENDING' : 'APPROVED';
       
-      const booking = await tx.booking.create({
-        data: {
-          userId: user.id,
-          roomId: data.roomId,
-          startTime: startAt,
-          endTime: endAt,
-          status: amountToPay > 0 ? 'PENDING' : 'CONFIRMED',
-          paymentStatus: amountToPay > 0 ? 'PENDING' : 'APPROVED',
-          amountPaid: creditsUsed,
-          bookingType: 'HOURLY',
-          notes: data.notes || null,
-          creditsUsed,
-          creditIds,
-          origin: 'COMMERCIAL',
-          financialStatus,
-        },
-      });
+      // Divide o valor proporcionalmente entre as reservas (para auditoria)
+      const amountPerSlot = Math.floor(amount / bookingSlots.length);
+      const creditsPerSlot = Math.floor(creditsUsed / bookingSlots.length);
+      
+      const bookings = [];
+      for (let i = 0; i < bookingSlots.length; i++) {
+        const slot = bookingSlots[i];
+        const isFirst = i === 0;
+        
+        const booking = await tx.booking.create({
+          data: {
+            userId: user.id,
+            roomId: data.roomId,
+            startTime: slot.startAt,
+            endTime: slot.endAt,
+            status: bookingStatus,
+            paymentStatus,
+            amountPaid: isFirst ? creditsUsed : 0, // Créditos só na primeira
+            bookingType: 'HOURLY',
+            notes: isFirst ? data.notes || null : null, // Notas só na primeira
+            creditsUsed: isFirst ? creditsUsed : 0,
+            creditIds: isFirst ? creditIds : [],
+            origin: 'COMMERCIAL',
+            financialStatus,
+          },
+        });
+        bookings.push(booking);
+      }
+      
+      // Usa a primeira reserva como principal (para pagamento único)
+      const primaryBooking = bookings[0];
 
-      return { booking, user, amount, amountToPay, creditsUsed, hours };
+      return { 
+        booking: primaryBooking, 
+        bookings, 
+        user, 
+        amount, 
+        amountToPay, 
+        creditsUsed, 
+        hours: totalHours 
+      };
     });
 
+    const allBookingIds = result.bookings.map((b: { id: string }) => b.id);
+    
     await logUserAction(
       'BOOKING_CREATED',
       data.userEmail || data.userPhone,
@@ -275,12 +365,12 @@ export default async function handler(
       {
         roomId: data.roomId,
         roomName: room.name,
-        startAt: data.startAt,
-        endAt: data.endAt,
+        slots: bookingSlots.map(slot => ({ startAt: slot.startAt, endAt: slot.endAt })),
         amount: result.amount,
         amountToPay: result.amountToPay,
         creditsUsed: result.creditsUsed,
         hours: result.hours,
+        bookingIds: allBookingIds,
         // ❌ NÃO incluir dados sensíveis (CPF, telefone completo)
       },
       req
@@ -310,6 +400,7 @@ export default async function handler(
       return res.status(201).json({
         success: true,
         bookingId: result.booking.id,
+        bookingIds: allBookingIds,
         creditsUsed: result.creditsUsed,
         amountToPay: 0,
         emailSent,
@@ -351,8 +442,9 @@ export default async function handler(
       } catch (paymentError) {
         console.error('❌ Erro ao criar cobrança Asaas');
         
-        await prisma.booking.update({
-          where: { id: result.booking.id },
+        // Cancelar TODAS as reservas criadas
+        await prisma.booking.updateMany({
+          where: { id: { in: allBookingIds } },
           data: { status: 'CANCELLED' },
         });
         
@@ -366,6 +458,7 @@ export default async function handler(
     return res.status(201).json({
       success: true,
       bookingId: result.booking.id,
+      bookingIds: allBookingIds,
       paymentUrl,
       creditsUsed: result.creditsUsed,
       amountToPay: result.amountToPay,

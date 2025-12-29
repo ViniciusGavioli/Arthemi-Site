@@ -11,7 +11,7 @@ import { PRICES_V3 } from '@/constants/prices';
 export default function TermosPage() {
   const lastUpdate = '18 de dezembro de 2024';
   
-  // Usar preços da Sala B como referência
+  // Usar preços do Consultório 2 como referência
   const hourlyWeekday = PRICES_V3.SALA_B.prices.HOURLY_RATE;
   const hourlySaturday = PRICES_V3.SALA_B.prices.SATURDAY_HOUR;
   

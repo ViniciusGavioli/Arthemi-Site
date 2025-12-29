@@ -37,9 +37,9 @@ type CancelOption = 'none' | 'full' | 'partial';
 type ConfirmAction = 'reschedule' | 'change-room' | 'cancel-no-credit' | 'cancel-with-credit' | 'no-show' | 'retroactive' | null;
 
 const roomNames: Record<string, string> = {
-  'sala-a': 'Sala A',
-  'sala-b': 'Sala B',
-  'sala-c': 'Sala C',
+  'sala-a': 'Consultório 1',
+  'sala-b': 'Consultório 2',
+  'sala-c': 'Consultório 3',
 };
 
 export default function BookingDetailModal({ booking, onClose, onUpdate, showToast }: Props) {
@@ -520,13 +520,13 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
                   />
                 </div>
                 <Select
-                  label="Sala"
+                  label="Consultório"
                   value={editData.roomId}
                   onChange={(e) => setEditData(d => ({ ...d, roomId: e.target.value }))}
                   options={[
-                    { value: 'sala-a', label: 'Sala A' },
-                    { value: 'sala-b', label: 'Sala B' },
-                    { value: 'sala-c', label: 'Sala C' },
+                    { value: 'sala-a', label: 'Consultório 1' },
+                    { value: 'sala-b', label: 'Consultório 2' },
+                    { value: 'sala-c', label: 'Consultório 3' },
                   ]}
                   disabled={isCompleted}
                 />
@@ -544,7 +544,7 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
                     <ul className="text-blue-700 space-y-1">
                       {hasDateChange && <li>• Data: {formatDate(booking.startTime)} → {formatDate(editData.date)}</li>}
                       {hasTimeChange && <li>• Horário: {formatTime(booking.startTime)}-{formatTime(booking.endTime)} → {String(editData.startHour).padStart(2, '0')}:00-{String(editData.endHour).padStart(2, '0')}:00</li>}
-                      {hasRoomChange && <li>• Sala: {booking.room.name} → {roomNames[editData.roomId]}</li>}
+                      {hasRoomChange && <li>• Consultório: {booking.room.name} → {roomNames[editData.roomId]}</li>}
                     </ul>
                     {isRetroactive && (
                       <p className="mt-2 text-yellow-700 font-medium">⚠️ Esta é uma alteração retroativa (reserva no passado)</p>

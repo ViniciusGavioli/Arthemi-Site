@@ -21,11 +21,11 @@ import resourceTimeGridPlugin from '@fullcalendar/resource-timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import ptBrLocale from '@fullcalendar/core/locales/pt-br';
 
-// Resources (salas) para o calendário
+// Resources (consultórios) para o calendário
 const calendarResources = [
-  { id: 'sala-a', title: 'Sala A' },
-  { id: 'sala-b', title: 'Sala B' },
-  { id: 'sala-c', title: 'Sala C' },
+  { id: 'sala-a', title: 'Consultório 1' },
+  { id: 'sala-b', title: 'Consultório 2' },
+  { id: 'sala-c', title: 'Consultório 3' },
 ];
 
 // Tipos
@@ -45,9 +45,9 @@ interface Booking {
 
 // Cores
 const roomColorsCalendar: Record<string, string> = {
-  'Sala A': '#22c55e',
-  'Sala B': '#3b82f6',
-  'Sala C': '#f59e0b',
+  'Consultório 1': '#22c55e',
+  'Consultório 2': '#3b82f6',
+  'Consultório 3': '#f59e0b',
 };
 
 const statusColorsCalendar: Record<string, string> = {
@@ -128,11 +128,11 @@ export default function ReservasPage() {
     return true;
   });
 
-  // Mapear nome da sala para resourceId
+  // Mapear nome do consultório para resourceId
   const roomToResourceId: Record<string, string> = {
-    'Sala A': 'sala-a',
-    'Sala B': 'sala-b',
-    'Sala C': 'sala-c',
+    'Consultório 1': 'sala-a',
+    'Consultório 2': 'sala-b',
+    'Consultório 3': 'sala-c',
   };
 
   // Eventos do calendário com resourceId
@@ -262,14 +262,14 @@ export default function ReservasPage() {
           <div className="flex flex-wrap items-end gap-4">
             <div className="w-40">
               <Select
-                label="Sala"
+                label="Consultório"
                 value={filterRoom}
                 onChange={(e) => setFilterRoom(e.target.value)}
                 options={[
-                  { value: 'all', label: 'Todas' },
-                  { value: 'sala-a', label: 'Sala A' },
-                  { value: 'sala-b', label: 'Sala B' },
-                  { value: 'sala-c', label: 'Sala C' },
+                  { value: 'all', label: 'Todos' },
+                  { value: 'sala-a', label: 'Consultório 1' },
+                  { value: 'sala-b', label: 'Consultório 2' },
+                  { value: 'sala-c', label: 'Consultório 3' },
                 ]}
               />
             </div>
@@ -338,15 +338,15 @@ export default function ReservasPage() {
               <span className="text-gray-300">|</span>
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 rounded border-2 border-green-500"></div>
-                <span>Sala A</span>
+                <span>Consultório 1</span>
               </div>
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 rounded border-2 border-blue-500"></div>
-                <span>Sala B</span>
+                <span>Consultório 2</span>
               </div>
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 rounded border-2 border-amber-500"></div>
-                <span>Sala C</span>
+                <span>Consultório 3</span>
               </div>
             </div>
           </CardContent>

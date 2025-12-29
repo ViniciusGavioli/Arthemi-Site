@@ -20,7 +20,7 @@ interface RoomDetailsModalProps {
   };
 }
 
-// Fotos de cada sala
+// Fotos de cada consultório
 const roomImages: Record<string, { images: string[]; video?: string }> = {
   'sala-a': {
     images: [

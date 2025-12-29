@@ -419,15 +419,15 @@ export default function NovaReservaPage() {
               <h2 className="text-lg font-semibold text-gray-800 mb-4">📅 Detalhes da Reserva</h2>
 
               <div className="space-y-4">
-                {/* Sala */}
+                {/* Consultório */}
                 <Select
-                  label="Sala"
+                  label="Consultório"
                   value={formData.roomId}
                   onChange={(e) => setFormData(d => ({ ...d, roomId: e.target.value }))}
                   options={[
-                    { value: 'sala-a', label: 'Sala A (Premium)' },
-                    { value: 'sala-b', label: 'Sala B' },
-                    { value: 'sala-c', label: 'Sala C' },
+                    { value: 'sala-a', label: 'Consultório 1 (Premium)' },
+                    { value: 'sala-b', label: 'Consultório 2' },
+                    { value: 'sala-c', label: 'Consultório 3' },
                   ]}
                 />
 

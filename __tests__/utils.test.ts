@@ -45,7 +45,7 @@ describe('Utils', () => {
 
   describe('slugify', () => {
     it('deve converter texto para slug', () => {
-      expect(slugify('Sala A')).toBe('sala-a');
+      expect(slugify('Consultório 1')).toBe('consultorio-1');
       expect(slugify('Pacote 4 Horas')).toBe('pacote-4-horas');
       expect(slugify('Espaço Arthemi')).toBe('espaco-arthemi');
     });

@@ -97,10 +97,10 @@ export default async function handler(
 
     // Calcula duração e valor
     const hours = differenceInHours(end, start);
-    if (hours < 1 || hours > 8) {
+    if (hours !== 1) {
       return res.status(400).json({
         success: false,
-        error: 'Duração deve ser entre 1 e 8 horas',
+        error: 'Cada reserva deve ter exatamente 1 hora. Para múltiplas horas, crie reservas separadas.',
       });
     }
 
@@ -116,16 +116,21 @@ export default async function handler(
       });
     }
 
-    // Verifica conflito de horários
+    // Buffer de limpeza entre reservas: 40 minutos
+    const CLEANING_BUFFER_MINUTES = 40;
+    const CLEANING_BUFFER_MS = CLEANING_BUFFER_MINUTES * 60 * 1000;
+
+    // Verifica conflito de horários (com buffer de limpeza)
+    const checkStart = new Date(start.getTime() - CLEANING_BUFFER_MS);
+    const checkEnd = new Date(end.getTime() + CLEANING_BUFFER_MS);
+    
     const conflictingBooking = await prisma.booking.findFirst({
       where: {
         roomId,
         status: { in: ['PENDING', 'CONFIRMED'] },
-        OR: [
-          {
-            startTime: { lt: end },
-            endTime: { gt: start },
-          },
+        AND: [
+          { startTime: { lt: checkEnd } },
+          { endTime: { gt: checkStart } },
         ],
       },
     });
@@ -133,7 +138,7 @@ export default async function handler(
     if (conflictingBooking) {
       return res.status(409).json({
         success: false,
-        error: 'Horário não disponível. Conflito com outra reserva.',
+        error: 'Horário não disponível. É necessário um intervalo de 40 minutos entre reservas para limpeza.',
       });
     }
 

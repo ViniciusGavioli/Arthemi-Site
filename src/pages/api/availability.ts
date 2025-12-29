@@ -104,10 +104,14 @@ export default async function handler(
       orderBy: { startTime: 'asc' },
     });
 
-    // Horário de funcionamento: 8h às 18h (último horário disponível: 17h)
+    // Horário de funcionamento:
+    // - Segunda a Sexta: 8h às 18h
+    // - Sábado: 8h às 12h
     const BUSINESS_START = 8;
-    const BUSINESS_END = 18;
+    const isSaturday = dateObj.getDay() === 6;
+    const BUSINESS_END = isSaturday ? 12 : 18;
     const MIN_ADVANCE_MINUTES = 30; // Mínimo de 30 minutos de antecedência para reservar
+    const CLEANING_BUFFER_MINUTES = 40; // 40 minutos de intervalo para limpeza entre reservas
     
     const slots: Slot[] = [];
     const now = new Date();
@@ -123,12 +127,17 @@ export default async function handler(
       const minutesUntilSlot = (slotStart.getTime() - now.getTime()) / (1000 * 60);
       const isTooSoon = minutesUntilSlot < MIN_ADVANCE_MINUTES;
 
-      // Verifica se há conflito com alguma reserva
+      // Verifica se há conflito com alguma reserva (incluindo buffer de limpeza)
       const hasConflict = bookings.some((booking) => {
         const bookingStart = new Date(booking.startTime).getTime();
         const bookingEnd = new Date(booking.endTime).getTime();
-        // Conflito existe se há sobreposição
-        return slotStart.getTime() < bookingEnd && slotEnd.getTime() > bookingStart;
+        // Buffer de limpeza: adiciona 40 minutos após o fim da reserva
+        const bookingEndWithBuffer = bookingEnd + (CLEANING_BUFFER_MINUTES * 60 * 1000);
+        
+        // Conflito existe se:
+        // 1. O slot começa antes do fim da reserva + buffer E
+        // 2. O slot termina depois do início da reserva
+        return slotStart.getTime() < bookingEndWithBuffer && slotEnd.getTime() > bookingStart;
       });
 
       slots.push({

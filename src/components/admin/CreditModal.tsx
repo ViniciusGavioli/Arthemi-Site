@@ -154,12 +154,12 @@ export default function CreditModal({ userId, userName, onClose, onSuccess, show
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Sala:</span>
+            <span className="text-gray-600">Consultório:</span>
             <span className="font-medium text-gray-800">
-              {formData.roomId === '' && 'Qualquer sala'}
-              {formData.roomId === 'sala-a' && 'Sala A'}
-              {formData.roomId === 'sala-b' && 'Sala B'}
-              {formData.roomId === 'sala-c' && 'Sala C'}
+              {formData.roomId === '' && 'Qualquer consultório'}
+              {formData.roomId === 'sala-a' && 'Consultório 1'}
+              {formData.roomId === 'sala-b' && 'Consultório 2'}
+              {formData.roomId === 'sala-c' && 'Consultório 3'}
             </span>
           </div>
           <div className="flex justify-between">
@@ -224,20 +224,20 @@ export default function CreditModal({ userId, userName, onClose, onSuccess, show
           ]}
         />
 
-        {/* Sala */}
+        {/* Consultório */}
         <Select
-          label="Sala (restrição de uso)"
+          label="Consultório (restrição de uso)"
           value={formData.roomId}
           onChange={(e) => setFormData(d => ({ ...d, roomId: e.target.value }))}
           options={[
-            { value: '', label: 'Genérico (qualquer sala)' },
-            { value: 'sala-a', label: 'Sala A' },
-            { value: 'sala-b', label: 'Sala B' },
-            { value: 'sala-c', label: 'Sala C' },
+            { value: '', label: 'Genérico (qualquer consultório)' },
+            { value: 'sala-a', label: 'Consultório 1' },
+            { value: 'sala-b', label: 'Consultório 2' },
+            { value: 'sala-c', label: 'Consultório 3' },
           ]}
         />
         <p className="text-xs text-gray-500 -mt-2">
-          Se selecionar uma sala, o crédito só poderá ser usado nela.
+          Se selecionar um consultório, o crédito só poderá ser usado nele.
         </p>
 
         {/* Valor */}

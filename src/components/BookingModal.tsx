@@ -14,6 +14,16 @@ import { analytics } from '@/lib/analytics';
 // Registrar locale português
 registerLocale('pt-BR', ptBR);
 
+// Helper para mapear nome de sala para consultório
+const getRoomDisplayName = (roomName: string): string => {
+  const mapping: Record<string, string> = {
+    'Sala A': 'Consultório 01',
+    'Sala B': 'Consultório 02',
+    'Sala C': 'Consultório 03',
+  };
+  return mapping[roomName] || roomName;
+};
+
 // Interface para slots de disponibilidade
 interface AvailabilitySlot {
   hour: number;
@@ -308,7 +318,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Reservar {room.name}</h2>
+            <h2 className="text-xl font-bold text-gray-900">Reservar {getRoomDisplayName(room.name)}</h2>
             <p className="text-sm text-gray-500">Preencha os dados abaixo</p>
           </div>
           <button
@@ -653,8 +663,8 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
           {/* Resumo */}
           <div className="bg-gray-50 rounded-lg p-4">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-gray-600">Sala</span>
-              <span className="font-medium">{room.name}</span>
+              <span className="text-gray-600">Consultório</span>
+              <span className="font-medium">{getRoomDisplayName(room.name)}</span>
             </div>
             {formData.date && (
               <div className="flex justify-between items-center mb-2">

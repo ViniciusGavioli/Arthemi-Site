@@ -137,7 +137,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
             {rooms.map((room, index) => {
               const galleryData = roomsGalleryData[index];
-              const imageUrl = room.slug === 'sala-a' ? '/images/sala-a/foto-1.jpeg' : 
+              const imageUrl = room.slug === 'sala-a' ? '/images/sala-a/foto-4.jpeg' : 
                                room.slug === 'sala-b' ? '/images/sala-b/02-3.jpeg' : 
                                '/images/sala-c/03-1.jpeg';
               return (
@@ -194,10 +194,14 @@ export default function SalasPage({ rooms }: SalasPageProps) {
             </p>
             
             {rooms.map((room, roomIndex) => {
-              // Filtrar produtos (remover diária) e formatar nomes
+              // Filtrar produtos (remover diária e pacotes de 5h/sábado)
               const filteredProducts = room.products.filter(p => 
                 !p.name.toLowerCase().includes('diária') && 
-                !p.name.toLowerCase().includes('diaria')
+                !p.name.toLowerCase().includes('diaria') &&
+                !p.name.toLowerCase().includes('5h') &&
+                !p.name.toLowerCase().includes('sábado') &&
+                !p.name.toLowerCase().includes('sabado') &&
+                p.type !== 'SATURDAY_5H'
               );
 
               // Calcular desconto baseado no preço por hora vs hora avulsa
@@ -206,12 +210,12 @@ export default function SalasPage({ rooms }: SalasPageProps) {
 
               // Preços de sábado por consultório
               const saturdayPrices = {
-                'sala-a': { hourly: 69.99, shift: 239.99 },
-                'sala-b': { hourly: 59.99, shift: 199.99 },
-                'sala-c': { hourly: 49.99, shift: 159.99 },
+                'sala-a': { hourly: 69.99, shift: 959.99, shiftHours: 16 },
+                'sala-b': { hourly: 59.99, shift: 799.99, shiftHours: 16 },
+                'sala-c': { hourly: 49.99, shift: 629.99, shiftHours: 16 },
               };
 
-              const satPrice = saturdayPrices[room.slug as keyof typeof saturdayPrices] || { hourly: 0, shift: 0 };
+              const satPrice = saturdayPrices[room.slug as keyof typeof saturdayPrices] || { hourly: 0, shift: 0, shiftHours: 4 };
 
               return (
                 <div key={room.id} className="mb-10">
@@ -222,12 +226,13 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                   </h3>
                   <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-warm-200">
                     <div className="overflow-x-auto">
-                      <table className="w-full min-w-[500px]">
+                      <table className="w-full min-w-[600px]">
                         <thead className="bg-warm-100">
                           <tr>
-                            <th className="px-4 sm:px-6 py-4 text-left text-sm font-semibold text-primary-900">Produto</th>
+                            <th className="px-4 sm:px-6 py-4 text-center text-sm font-semibold text-primary-900">Hora avulsa</th>
                             <th className="px-4 sm:px-6 py-4 text-center text-sm font-semibold text-primary-900">Horas contratadas</th>
-                            <th className="px-4 sm:px-6 py-4 text-center text-sm font-semibold text-primary-900">Preço</th>
+                            <th className="px-4 sm:px-6 py-4 text-center text-sm font-semibold text-primary-900">Preço total</th>
+                            <th className="px-4 sm:px-6 py-4 text-center text-sm font-semibold text-primary-900">Preço por hora</th>
                             <th className="px-4 sm:px-6 py-4 text-center text-sm font-semibold text-primary-900">Desconto</th>
                           </tr>
                         </thead>
@@ -240,11 +245,14 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                               .replace('Turno fixo mensal', 'Turno fixo semanal')
                               .trim();
 
-                            // Calcular desconto
+                            // Calcular desconto e preço por hora
                             let discount = 0;
-                            if (product.hoursIncluded && product.hoursIncluded > 0 && baseHourlyPrice > 0) {
-                              const pricePerHour = product.price / product.hoursIncluded;
-                              discount = Math.round(((baseHourlyPrice - pricePerHour) / baseHourlyPrice) * 100);
+                            let pricePerHour = 0;
+                            if (product.hoursIncluded && product.hoursIncluded > 0) {
+                              pricePerHour = product.price / product.hoursIncluded;
+                              if (baseHourlyPrice > 0) {
+                                discount = Math.round(((baseHourlyPrice - pricePerHour) / baseHourlyPrice) * 100);
+                              }
                             }
 
                             // Determinar se é hora avulsa ou turno
@@ -253,17 +261,22 @@ export default function SalasPage({ rooms }: SalasPageProps) {
 
                             return (
                               <tr key={product.id} className={`hover:bg-warm-50 ${isShift ? 'bg-accent-50/30' : ''}`}>
-                                <td className="px-4 sm:px-6 py-4">
-                                  <span className={`font-medium ${isHourly ? 'text-primary-900' : 'text-primary-800'}`}>
-                                    {displayName}
+                                <td className="px-4 sm:px-6 py-4 text-center">
+                                  <span className="text-secondary-600">
+                                    {formatCurrency(baseHourlyPrice)}
                                   </span>
                                 </td>
                                 <td className="px-4 sm:px-6 py-4 text-center text-secondary-600">
-                                  {product.hoursIncluded ? `${product.hoursIncluded}h` : '-'}
+                                  {product.hoursIncluded ? `${product.hoursIncluded}h` : '1h'}
                                 </td>
                                 <td className="px-4 sm:px-6 py-4 text-center">
                                   <span className="font-semibold text-accent-600">
                                     {formatCurrency(product.price)}
+                                  </span>
+                                </td>
+                                <td className="px-4 sm:px-6 py-4 text-center">
+                                  <span className="font-medium text-primary-800">
+                                    {isHourly ? formatCurrency(product.price) : (pricePerHour > 0 ? formatCurrency(pricePerHour) : '-')}
                                   </span>
                                 </td>
                                 <td className="px-4 sm:px-6 py-4 text-center">
@@ -280,12 +293,17 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                           })}
                           {/* Linha: Sábado - Hora avulsa */}
                           <tr className="hover:bg-warm-50 border-t-2 border-accent-200">
-                            <td className="px-4 sm:px-6 py-4">
-                              <span className="font-medium text-primary-900">Sábado – Hora avulsa</span>
+                            <td className="px-4 sm:px-6 py-4 text-center">
+                              <span className="text-secondary-600">{formatCurrency(satPrice.hourly)}</span>
                             </td>
                             <td className="px-4 sm:px-6 py-4 text-center text-secondary-600">1h</td>
                             <td className="px-4 sm:px-6 py-4 text-center">
                               <span className="font-semibold text-accent-600">
+                                {formatCurrency(satPrice.hourly)}
+                              </span>
+                            </td>
+                            <td className="px-4 sm:px-6 py-4 text-center">
+                              <span className="font-medium text-primary-800">
                                 {formatCurrency(satPrice.hourly)}
                               </span>
                             </td>
@@ -295,18 +313,23 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                           </tr>
                           {/* Linha: Sábado - Turno fixo semanal */}
                           <tr className="hover:bg-warm-50 bg-accent-50/30">
-                            <td className="px-4 sm:px-6 py-4">
-                              <span className="font-medium text-primary-800">Sábado – Turno fixo semanal</span>
+                            <td className="px-4 sm:px-6 py-4 text-center">
+                              <span className="text-secondary-600">{formatCurrency(satPrice.hourly)}</span>
                             </td>
-                            <td className="px-4 sm:px-6 py-4 text-center text-secondary-600">4h</td>
+                            <td className="px-4 sm:px-6 py-4 text-center text-secondary-600">{satPrice.shiftHours}h</td>
                             <td className="px-4 sm:px-6 py-4 text-center">
                               <span className="font-semibold text-accent-600">
                                 {formatCurrency(satPrice.shift)}
                               </span>
                             </td>
                             <td className="px-4 sm:px-6 py-4 text-center">
+                              <span className="font-medium text-primary-800">
+                                {formatCurrency(satPrice.shift / satPrice.shiftHours)}
+                              </span>
+                            </td>
+                            <td className="px-4 sm:px-6 py-4 text-center">
                               <span className="inline-block bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold">
-                                -{Math.round(((satPrice.hourly - (satPrice.shift / 4)) / satPrice.hourly) * 100)}%
+                                -{Math.round(((satPrice.hourly - (satPrice.shift / satPrice.shiftHours)) / satPrice.hourly) * 100)}%
                               </span>
                             </td>
                           </tr>

@@ -15,6 +15,7 @@ import {
   getCreditBalanceForRoom,
   validateBookingWindow,
 } from '@/lib/business-rules';
+import { sendBookingConfirmationNotification } from '@/lib/booking-notifications';
 
 // Schema de validação com Zod
 const createBookingSchema = z.object({
@@ -46,6 +47,7 @@ interface ApiResponse {
   paymentUrl?: string;
   creditsUsed?: number;
   amountToPay?: number;
+  emailSent?: boolean;
   error?: string;
   details?: unknown;
 }
@@ -286,11 +288,31 @@ export default async function handler(
 
     // Se pagou 100% com créditos
     if (result.amountToPay <= 0) {
+      // Enviar email de confirmação para reserva paga com créditos
+      let emailSent = false;
+      try {
+        const emailSuccess = await sendBookingConfirmationNotification(result.booking.id);
+        if (emailSuccess) {
+          await prisma.booking.update({
+            where: { id: result.booking.id },
+            data: { emailSentAt: new Date() },
+          });
+          emailSent = true;
+          console.log(`📧 [BOOKING] Email de confirmação enviado para reserva com créditos ${result.booking.id}`);
+        } else {
+          console.warn(`⚠️ [BOOKING] Falha ao enviar email para reserva com créditos ${result.booking.id}`);
+        }
+      } catch (emailError) {
+        console.error('⚠️ [BOOKING] Erro no envio de email (créditos):', emailError);
+        // Não falha a requisição por erro de email
+      }
+
       return res.status(201).json({
         success: true,
         bookingId: result.booking.id,
         creditsUsed: result.creditsUsed,
         amountToPay: 0,
+        emailSent,
       });
     }
 

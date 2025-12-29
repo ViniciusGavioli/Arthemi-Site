@@ -6,6 +6,7 @@
 
 import { Resend } from 'resend';
 import { generateBookingWhatsAppLink, WHATSAPP_NUMBER } from './whatsapp';
+import { isContingencyActive } from './contingency';
 
 // ============================================================
 // CONFIGURAÇÃO
@@ -14,13 +15,19 @@ import { generateBookingWhatsAppLink, WHATSAPP_NUMBER } from './whatsapp';
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.EMAIL_FROM || 'Espaço Arthemi <noreply@arthemi.com.br>';
 const REPLY_TO = process.env.EMAIL_REPLY_TO || 'contato@arthemi.com.br';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 // Cliente Resend (lazy init)
 let resendClient: Resend | null = null;
 
 function getResendClient(): Resend | null {
   if (!RESEND_API_KEY) {
-    console.warn('⚠️ [EMAIL] RESEND_API_KEY não configurada - emails desabilitados');
+    // Em produção, API key ausente é erro crítico
+    if (IS_PRODUCTION) {
+      console.error('❌ [EMAIL] ERRO CRÍTICO: RESEND_API_KEY não configurada em PRODUÇÃO');
+      return null;
+    }
+    console.warn('⚠️ [EMAIL] RESEND_API_KEY não configurada - modo desenvolvimento');
     return null;
   }
   
@@ -182,9 +189,9 @@ function getConfirmationEmailHtml(data: BookingEmailData): string {
         </div>
         ${data.magicLinkToken ? `
         <div style="text-align: center; margin-top: 20px;">
-          <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://arthemi.com.br'}/api/auth/verify?token=${encodeURIComponent(data.magicLinkToken)}" 
+          <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://arthemi.com.br'}/api/auth/verify?token=${encodeURIComponent(data.magicLinkToken)}&redirect=/minha-conta" 
              style="display: inline-block; background: #15803d; color: #fff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
-            📅 Acessar Minha Conta
+            � Acessar minha conta e usar meus créditos
           </a>
         </div>
         ` : ''}
@@ -227,19 +234,39 @@ function getConfirmationEmailHtml(data: BookingEmailData): string {
 
 /**
  * Envia email de confirmação de reserva
+ * - Verifica flag DISABLE_EMAILS antes de enviar
+ * - Em produção, falha explicitamente se RESEND_API_KEY ausente
  */
 export async function sendBookingConfirmationEmail(
   data: BookingEmailData
 ): Promise<EmailResult> {
+  // 1. Verificar flag de contingência DISABLE_EMAILS
+  try {
+    const emailsDisabled = await isContingencyActive('DISABLE_EMAILS');
+    if (emailsDisabled) {
+      console.log('📧 [EMAIL] Email desativado por contingência (DISABLE_EMAILS=true)');
+      return { success: false, error: 'Emails desativados por contingência' };
+    }
+  } catch (contingencyError) {
+    console.warn('⚠️ [EMAIL] Erro ao verificar contingência, continuando envio:', contingencyError);
+  }
+
+  // 2. Verificar cliente Resend
   const client = getResendClient();
   
   if (!client) {
-    console.log('📧 [EMAIL] Simulando envio (Resend não configurado)');
-    console.log('📧 [EMAIL] Para:', data.userEmail);
-    console.log('📧 [EMAIL] Reserva:', data.bookingId);
-    return { success: true, messageId: 'mock-' + Date.now() };
+    // Em produção sem API key = falha explícita (não mock)
+    if (IS_PRODUCTION) {
+      console.error('❌ [EMAIL] FALHA: Impossível enviar email em PRODUÇÃO sem RESEND_API_KEY');
+      return { success: false, error: 'RESEND_API_KEY não configurada em produção' };
+    }
+    // Desenvolvimento = mock com log claro
+    console.log('📧 [EMAIL] MOCK (dev): Simulando envio para', data.userEmail);
+    console.log('📧 [EMAIL] MOCK (dev): Reserva:', data.bookingId);
+    return { success: true, messageId: 'mock-dev-' + Date.now() };
   }
 
+  // 3. Enviar email
   try {
     const { data: result, error } = await client.emails.send({
       from: FROM_EMAIL,
@@ -254,11 +281,11 @@ export async function sendBookingConfirmationEmail(
       return { success: false, error: error.message };
     }
 
-    console.log(`✅ [EMAIL] Enviado para ${data.userEmail} - ID: ${result?.id}`);
+    console.log(`✅ [EMAIL] Enviado com sucesso para ${data.userEmail} - ID: ${result?.id}`);
     return { success: true, messageId: result?.id };
     
   } catch (error) {
-    console.error('❌ [EMAIL] Exceção:', error);
+    console.error('❌ [EMAIL] Exceção ao enviar:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Erro desconhecido' 
@@ -285,10 +312,11 @@ export interface MagicLinkEmailData {
 
 /**
  * Gera URL do magic link
+ * Redireciona sempre para /minha-conta (área central do cliente)
  */
 function getMagicLinkUrl(token: string): string {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://arthemi.com.br';
-  return `${baseUrl}/api/auth/verify?token=${encodeURIComponent(token)}`;
+  return `${baseUrl}/api/auth/verify?token=${encodeURIComponent(token)}&redirect=/minha-conta`;
 }
 
 /**

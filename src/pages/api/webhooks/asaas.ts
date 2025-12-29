@@ -288,6 +288,57 @@ export default async function handler(
         'log de auditoria de crédito'
       );
 
+      // Atualizar booking para CONFIRMED (pacote pago)
+      const updatedPackageBooking = await withTimeout(
+        prisma.booking.update({
+          where: { id: bookingId },
+          data: {
+            status: 'CONFIRMED',
+            paymentStatus: 'APPROVED',
+            paymentId: sanitizeString(payment.id),
+            amountPaid: realToCents(payment.value),
+            financialStatus: 'PAID',
+            origin: 'COMMERCIAL',
+          },
+          select: {
+            id: true,
+            emailSentAt: true,
+          },
+        }),
+        5000,
+        'atualização de booking - pacote'
+      );
+
+      console.log(`✅ [Asaas Webhook] Pacote confirmado: ${bookingId} (financialStatus=PAID)`);
+
+      // Enviar email de confirmação para PACOTE
+      let emailSent = false;
+      if (!updatedPackageBooking.emailSentAt) {
+        try {
+          const emailSuccess = await withTimeout(
+            sendBookingConfirmationNotification(bookingId),
+            10000,
+            'envio de email de confirmação - pacote'
+          );
+          
+          if (emailSuccess) {
+            await prisma.booking.update({
+              where: { id: bookingId },
+              data: { emailSentAt: new Date() },
+            });
+            emailSent = true;
+            console.log(`📧 [Asaas Webhook] Email de confirmação enviado para pacote ${bookingId}`);
+          } else {
+            console.warn(`⚠️ [Asaas Webhook] Falha ao enviar email para pacote ${bookingId}`);
+          }
+        } catch (emailError) {
+          console.error('⚠️ [Asaas Webhook] Erro no envio de email (pacote):', emailError);
+        }
+      } else {
+        console.log(`⏭️ [Asaas Webhook] Email já enviado anteriormente para pacote ${bookingId}`);
+        emailSent = true;
+      }
+
       // Marcar webhook como processado
       await withTimeout(
         prisma.webhookEvent.update({
@@ -303,6 +354,7 @@ export default async function handler(
         type: 'PACKAGE',
         creditId: credit.id,
         creditAmount,
+        emailSent,
       });
     }
 
@@ -311,7 +363,7 @@ export default async function handler(
     // ================================================================
     
     // Atualizar booking com todos os campos necessários
-    await withTimeout(
+    const updatedBooking = await withTimeout(
       prisma.booking.update({
         where: { id: bookingId },
         data: {
@@ -322,6 +374,10 @@ export default async function handler(
           // Campos ETAPA 1: Estado financeiro correto
           financialStatus: 'PAID',
           origin: 'COMMERCIAL',
+        },
+        select: {
+          id: true,
+          emailSentAt: true,
         },
       }),
       5000,
@@ -375,22 +431,35 @@ export default async function handler(
       'log de auditoria de pagamento'
     );
 
-    // Enviar email de confirmação de forma assíncrona (não bloquear webhook)
-    try {
-      sendBookingConfirmationNotification(bookingId)
-        .then(success => {
-          if (success) {
-            console.log(`📧 [Asaas Webhook] Email de confirmação enviado em background para ${bookingId}`);
-          } else {
-            console.warn(`⚠️ [Asaas Webhook] Falha ao enviar email em background para ${bookingId}`);
-          }
-        })
-        .catch(error => {
-          console.error('⚠️ [Asaas Webhook] Erro no envio background de email:', error);
-        });
+    // Enviar email de confirmação (aguardar envio para garantir entrega)
+    // Verificar emailSentAt para evitar duplicidade
+    let emailSent = false;
+    if (!updatedBooking.emailSentAt) {
+      try {
+        const emailSuccess = await withTimeout(
+          sendBookingConfirmationNotification(bookingId),
+          10000,
+          'envio de email de confirmação'
+        );
         
-    } catch (emailError) {
-      console.error('⚠️ [Asaas Webhook] Erro ao agendar envio de email:', emailError);
+        if (emailSuccess) {
+          // Marcar email como enviado
+          await prisma.booking.update({
+            where: { id: bookingId },
+            data: { emailSentAt: new Date() },
+          });
+          emailSent = true;
+          console.log(`📧 [Asaas Webhook] Email de confirmação enviado para ${bookingId}`);
+        } else {
+          console.warn(`⚠️ [Asaas Webhook] Falha ao enviar email para ${bookingId}`);
+        }
+      } catch (emailError) {
+        console.error('⚠️ [Asaas Webhook] Erro no envio de email:', emailError);
+        // Não falha o webhook por erro de email
+      }
+    } else {
+      console.log(`⏭️ [Asaas Webhook] Email já enviado anteriormente para ${bookingId}`);
+      emailSent = true;
     }
 
     // Marcar WebhookEvent como processado com sucesso
@@ -410,6 +479,7 @@ export default async function handler(
       bookingId,
       status: 'CONFIRMED',
       financialStatus: 'PAID',
+      emailSent,
     });
 
   } catch (error) {

@@ -3,6 +3,9 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
+// Timeout máximo de polling: 5 minutos (300 segundos)
+const POLLING_TIMEOUT_MS = 5 * 60 * 1000;
+
 export default function BookingPendingPage() {
   const router = useRouter();
   const { booking: bookingFromQuery } = router.query;
@@ -10,6 +13,7 @@ export default function BookingPendingPage() {
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [paymentOpened, setPaymentOpened] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
     if (bookingFromQuery && typeof bookingFromQuery === 'string') {
@@ -32,6 +36,12 @@ export default function BookingPendingPage() {
   useEffect(() => {
     if (!bookingId) return;
 
+    // Timer de timeout máximo
+    const timeoutTimer = setTimeout(() => {
+      setTimedOut(true);
+      console.log('⏰ [PENDING] Timeout de polling atingido após 5 minutos');
+    }, POLLING_TIMEOUT_MS);
+
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/bookings/${bookingId}`);
@@ -40,7 +50,7 @@ export default function BookingPendingPage() {
           if (data.status === 'CONFIRMED') {
             localStorage.removeItem('lastBookingId');
             localStorage.removeItem('lastPaymentUrl');
-            router.push(`/booking/success?booking=${bookingId}`);
+            router.push('/minha-conta?confirmed=true');
           } else if (data.status === 'CANCELLED') {
             localStorage.removeItem('lastBookingId');
             localStorage.removeItem('lastPaymentUrl');
@@ -52,7 +62,10 @@ export default function BookingPendingPage() {
       }
     }, 5000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeoutTimer);
+    };
   }, [bookingId, router]);
 
   async function handleCheckStatus() {
@@ -65,7 +78,7 @@ export default function BookingPendingPage() {
         if (data.status === 'CONFIRMED') {
           localStorage.removeItem('lastBookingId');
           localStorage.removeItem('lastPaymentUrl');
-          router.push(`/booking/success?booking=${bookingId}`);
+          router.push('/minha-conta?confirmed=true');
         } else if (data.status === 'CANCELLED') {
           localStorage.removeItem('lastBookingId');
           localStorage.removeItem('lastPaymentUrl');
@@ -86,6 +99,70 @@ export default function BookingPendingPage() {
       window.open(paymentUrl, '_blank');
       setPaymentOpened(true);
     }
+  }
+
+  // UI de timeout - usuário esperou demais
+  if (timedOut) {
+    return (
+      <>
+        <Head>
+          <title>Verificação de Pagamento | Espaço Arthemi</title>
+        </Head>
+
+        <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
+          <div className="max-w-md w-full text-center">
+            <div className="mb-6">
+              <div className="w-24 h-24 mx-auto bg-blue-100 rounded-full flex items-center justify-center">
+                <svg
+                  className="w-12 h-12 text-blue-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <h1 className="text-2xl font-bold text-gray-800 mb-2">
+              Verificação demorou mais que o esperado
+            </h1>
+            <p className="text-gray-600 mb-6">
+              O pagamento pode já ter sido processado. Acesse sua conta para verificar o status da reserva e seus créditos.
+            </p>
+
+            <div className="space-y-3">
+              <Link
+                href="/minha-conta"
+                className="block w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-lg font-semibold transition-colors"
+              >
+                Acessar minha conta
+              </Link>
+              <button
+                onClick={() => setTimedOut(false)}
+                className="block w-full border border-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+              >
+                Continuar aguardando
+              </button>
+            </div>
+
+            <div className="mt-6 text-sm text-gray-500">
+              <p>
+                Problemas?{' '}
+                <a href="https://wa.me/5531984916090" className="text-primary hover:underline">
+                  Fale conosco no WhatsApp
+                </a>
+              </p>
+            </div>
+          </div>
+        </div>
+      </>
+    );
   }
 
   return (

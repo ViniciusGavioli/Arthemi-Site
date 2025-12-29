@@ -76,6 +76,8 @@ model Booking {
   origin          BookingOrigin  @default(COMMERCIAL) // Origem: comercial ou cortesia
   financialStatus FinancialStatus @default(PENDING_PAYMENT) // Status financeiro
   courtesyReason  String?        // Motivo da cortesia (obrigatório se origin = ADMIN_COURTESY)
+  // Campo para controle de envio de email
+  emailSentAt     DateTime?      // Data/hora do envio do email de confirmação (evita duplicidade)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   product         Product?       @relation(fields: [productId], references: [id])

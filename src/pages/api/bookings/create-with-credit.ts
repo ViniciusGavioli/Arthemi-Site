@@ -14,6 +14,7 @@ import {
 } from '@/lib/business-rules';
 import { logAudit } from '@/lib/audit';
 import { differenceInHours, isBefore, addHours } from 'date-fns';
+import { sendBookingConfirmationNotification } from '@/lib/booking-notifications';
 
 const USER_SESSION_COOKIE = 'user_session';
 
@@ -21,6 +22,7 @@ interface ApiResponse {
   success: boolean;
   bookingId?: string;
   creditsUsed?: number;
+  emailSent?: boolean;
   error?: string;
 }
 
@@ -196,10 +198,30 @@ export default async function handler(
       },
     });
 
+    // Enviar email de confirmação para reserva paga com créditos
+    let emailSent = false;
+    try {
+      const emailSuccess = await sendBookingConfirmationNotification(result.booking.id);
+      if (emailSuccess) {
+        await prisma.booking.update({
+          where: { id: result.booking.id },
+          data: { emailSentAt: new Date() },
+        });
+        emailSent = true;
+        console.log(`📧 [BOOKING] Email de confirmação enviado para reserva com créditos ${result.booking.id}`);
+      } else {
+        console.warn(`⚠️ [BOOKING] Falha ao enviar email para reserva com créditos ${result.booking.id}`);
+      }
+    } catch (emailError) {
+      console.error('⚠️ [BOOKING] Erro no envio de email (créditos):', emailError);
+      // Não falha a requisição por erro de email
+    }
+
     return res.status(201).json({
       success: true,
       bookingId: result.booking.id,
       creditsUsed: result.totalConsumed,
+      emailSent,
     });
 
   } catch (error) {

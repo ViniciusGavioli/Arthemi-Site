@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { logUserAction } from '@/lib/audit';
 import { MIN_CANCELLATION_HOURS } from '@/lib/business-rules';
-import { getPaymentByExternalReference, isPaymentStatusConfirmed } from '@/lib/asaas';
+import { getPaymentByExternalReference, isPaymentStatusConfirmed, realToCents } from '@/lib/asaas';
 import { sendBookingConfirmationNotification } from '@/lib/booking-notifications';
 
 /**
@@ -79,24 +79,45 @@ export default async function handler(
         const isConfirmed = isPaymentStatusConfirmed(payment.status);
         
         if (isConfirmed && booking.status !== 'CONFIRMED') {
-          // Atualizar status
-          await prisma.booking.update({
+          // Atualizar TODOS os estados financeiros (fallback do webhook)
+          const updatedBooking = await prisma.booking.update({
             where: { id: booking.id },
             data: { 
               status: 'CONFIRMED',
               paymentStatus: 'APPROVED',
+              paymentId: payment.id,
+              amountPaid: realToCents(payment.value),
+              financialStatus: 'PAID',
+              origin: 'COMMERCIAL',
+            },
+            select: {
+              id: true,
+              emailSentAt: true,
             },
           });
           
-          console.log(`✅ [BOOKING] Reserva ${booking.id} atualizada para CONFIRMED`);
+          console.log(`✅ [BOOKING] Reserva ${booking.id} atualizada para CONFIRMED (financialStatus=PAID, amountPaid=${realToCents(payment.value)})`);
           
-          // ENVIAR EMAIL DE CONFIRMAÇÃO
-          try {
-            await sendBookingConfirmationNotification(booking.id);
-            console.log(`📧 [BOOKING] Email de confirmação enviado para ${booking.id}`);
-          } catch (emailError) {
-            console.error('⚠️ [BOOKING] Erro ao enviar email:', emailError);
-            // Não falha a requisição por erro de email
+          // ENVIAR EMAIL DE CONFIRMAÇÃO - Verificar emailSentAt para evitar duplicidade
+          if (!updatedBooking.emailSentAt) {
+            try {
+              const emailSuccess = await sendBookingConfirmationNotification(booking.id);
+              if (emailSuccess) {
+                // Marcar email como enviado
+                await prisma.booking.update({
+                  where: { id: booking.id },
+                  data: { emailSentAt: new Date() },
+                });
+                console.log(`📧 [BOOKING] Email de confirmação enviado para ${booking.id}`);
+              } else {
+                console.warn(`⚠️ [BOOKING] Falha ao enviar email para ${booking.id}`);
+              }
+            } catch (emailError) {
+              console.error('⚠️ [BOOKING] Erro ao enviar email:', emailError);
+              // Não falha a requisição por erro de email
+            }
+          } else {
+            console.log(`⏭️ [BOOKING] Email já enviado anteriormente para ${booking.id}`);
           }
           
         } else if (!isConfirmed && booking.status !== 'PENDING') {

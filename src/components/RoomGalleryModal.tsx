@@ -23,19 +23,17 @@ interface RoomGalleryModalProps {
 const roomImages: Record<string, { images: string[]; video?: string }> = {
   'sala-a': {
     images: [
-      '/images/sala-a/foto-1.jpeg',
-      '/images/sala-a/foto-2.jpeg',
-      '/images/sala-a/foto-3.jpeg',
       '/images/sala-a/foto-4.jpeg',
-      '/images/sala-a/foto-5.jpeg',
-      '/images/sala-a/foto-6.jpeg',
       '/images/sala-a/foto-7.jpeg',
+      '/images/sala-a/foto-6.jpeg',
+      '/images/sala-a/foto-2.jpeg',
+      '/images/sala-a/foto-5.jpeg',
     ],
     video: '/images/sala-a/video.mp4',
   },
   'sala-b': {
     images: [
-      '/images/sala-b/02-3.jpeg',
+      '/images/sala-b/02-1.jpeg',
       '/images/sala-b/02-3.jpeg',
       '/images/sala-b/02-4.jpeg',
       '/images/sala-b/02-5.jpeg',
@@ -260,7 +258,7 @@ export default function RoomGalleryModal({ isOpen, onClose, room }: RoomGalleryM
                 href="/salas"
                 className="flex-1 w-full sm:w-auto bg-gradient-to-r from-accent-600 to-accent-700 text-white text-center py-4 px-8 rounded-xl font-semibold text-lg hover:shadow-lg hover:shadow-accent-500/30 transition-all active:scale-[0.98] flex items-center justify-center"
               >
-                Ver preços e reservar
+                Reservar
               </Link>
             </div>
           </div>

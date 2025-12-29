@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Espaço Arthemi — Documentação do Sistema</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base: #0b0d10;
+      --bg-surface: #12151a;
+      --bg-card: #181c24;
+      --bg-elevated: #1e232d;
+      --bg-hover: #252b38;
+      --border: rgba(255, 255, 255, 0.06);
+      --border-light: rgba(255, 255, 255, 0.1);
+      --border-accent: rgba(59, 130, 246, 0.4);
+      --blue-500: #3b82f6;
+      --blue-400: #60a5fa;
+      --green-500: #22c55e;
+      --green-dim: rgba(34, 197, 94, 0.12);
+      --yellow-500: #eab308;
+      --yellow-dim: rgba(234, 179, 8, 0.12);
+      --red-500: #ef4444;
+      --red-dim: rgba(239, 68, 68, 0.12);
+      --purple-500: #a855f7;
+      --purple-dim: rgba(168, 85, 247, 0.12);
+      --cyan-500: #06b6d4;
+      --cyan-dim: rgba(6, 182, 212, 0.12);
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --text-dim: #475569;
+      --radius: 8px;
+      --radius-lg: 12px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-base);
+      color: var(--text-secondary);
+      line-height: 1.7;
+      font-size: 15px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    code {
+      background: var(--bg-elevated);
+      padding: 0.15em 0.5em;
+      border-radius: 4px;
+      font-size: 0.85em;
+      color: var(--blue-400);
+      font-family: 'SF Mono', Monaco, Consolas, monospace;
+    }
+
+    a { color: var(--blue-400); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .header {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 4rem 2rem;
+      text-align: center;
+    }
+
+    .header-badge {
+      display: inline-block;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-light);
+      padding: 0.4rem 1rem;
+      border-radius: 50px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 0.75rem;
+      letter-spacing: -0.03em;
+    }
+
+    .header p {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .nav {
+      background: rgba(11, 13, 16, 0.95);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-content {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      gap: 0.25rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .nav-link {
+      color: var(--text-muted);
+      padding: 0.5rem 0.9rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+
+    .nav-link:hover {
+      background: var(--bg-card);
+      color: var(--text-primary);
+      text-decoration: none;
+    }
+
+    .main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 3rem 2rem 5rem;
+    }
+
+    .principle-box {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.02) 100%);
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      margin-bottom: 4rem;
+      text-align: center;
+    }
+
+    .principle-box h2 {
+      color: var(--blue-400);
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      margin-bottom: 1rem;
+    }
+
+    .principle-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .principle-item {
+      color: var(--text-primary);
+      font-size: 1rem;
+      font-weight: 500;
+    }
+
+    .principle-item::before {
+      content: '◆';
+      color: var(--blue-500);
+      margin-right: 0.75rem;
+      font-size: 0.6em;
+    }
+
+    .section {
+      margin-bottom: 4rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-number {
+      background: var(--blue-500);
+      color: var(--bg-base);
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .section-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .section-content {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+
+    .section-content p { margin-bottom: 1rem; }
+
+    .section-content h3 {
+      color: var(--text-primary);
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin: 1.75rem 0 0.75rem;
+    }
+
+    .section-content h3:first-child { margin-top: 0; }
+
+    .section-content ul {
+      margin-left: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .section-content li { margin-bottom: 0.4rem; }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      margin: 1.5rem 0;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      transition: border-color 0.2s;
+    }
+
+    .card:hover { border-color: var(--border-light); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .card-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .card-icon.blue { background: rgba(59, 130, 246, 0.15); }
+    .card-icon.green { background: var(--green-dim); }
+    .card-icon.yellow { background: var(--yellow-dim); }
+    .card-icon.red { background: var(--red-dim); }
+    .card-icon.purple { background: var(--purple-dim); }
+    .card-icon.cyan { background: var(--cyan-dim); }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .card-content {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .card-content ul {
+      margin-left: 1.25rem;
+      margin-top: 0.5rem;
+    }
+
+    .card-content li { margin-bottom: 0.3rem; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.7rem;
+      border-radius: 50px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .badge.pending { background: var(--yellow-dim); color: var(--yellow-500); }
+    .badge.confirmed { background: var(--green-dim); color: var(--green-500); }
+    .badge.cancelled { background: var(--red-dim); color: var(--red-500); }
+    .badge.paid { background: var(--green-dim); color: var(--green-500); }
+    .badge.courtesy { background: var(--purple-dim); color: var(--purple-500); }
+    .badge.blue { background: rgba(59, 130, 246, 0.15); color: var(--blue-400); }
+
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      padding: 1.25rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin: 1.25rem 0;
+    }
+
+    .flow-step {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .flow-arrow {
+      color: var(--text-dim);
+      font-size: 1rem;
+    }
+
+    .info-box {
+      padding: 1rem 1.25rem;
+      border-radius: var(--radius);
+      margin: 1.25rem 0;
+      display: flex;
+      gap: 0.75rem;
+      border: 1px solid;
+    }
+
+    .info-box.info { background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.2); }
+    .info-box.success { background: var(--green-dim); border-color: rgba(34, 197, 94, 0.2); }
+    .info-box.warning { background: var(--yellow-dim); border-color: rgba(234, 179, 8, 0.2); }
+    .info-box.danger { background: var(--red-dim); border-color: rgba(239, 68, 68, 0.2); }
+
+    .info-box-icon {
+      font-size: 1rem;
+      flex-shrink: 0;
+      line-height: 1.7;
+    }
+
+    .info-box-content { font-size: 0.9rem; }
+
+    .info-box-content strong {
+      display: block;
+      margin-bottom: 0.25rem;
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+      margin: 1.5rem 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    .table th, .table td {
+      padding: 0.9rem 1.25rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .table th {
+      background: var(--bg-surface);
+      font-weight: 600;
+      color: var(--text-primary);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .table tr:last-child td { border-bottom: none; }
+    .table tbody tr:hover td { background: var(--bg-card); }
+
+    .comparison {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.25rem;
+      margin: 1.5rem 0;
+    }
+
+    .comparison-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+    }
+
+    .comparison-item.highlight {
+      border-color: var(--border-accent);
+      background: linear-gradient(180deg, rgba(59, 130, 246, 0.05) 0%, var(--bg-card) 100%);
+    }
+
+    .comparison-header {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .comparison-content { font-size: 0.9rem; }
+    .comparison-content ul { margin-left: 1.25rem; }
+    .comparison-content li { margin-bottom: 0.4rem; }
+
+    .authority-box {
+      background: var(--bg-card);
+      border: 1px solid var(--red-dim);
+      border-left: 4px solid var(--red-500);
+      border-radius: var(--radius);
+      padding: 1.5rem 1.75rem;
+      margin: 1.5rem 0;
+    }
+
+    .authority-box h3 {
+      color: var(--text-primary);
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .authority-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .authority-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      font-size: 0.9rem;
+    }
+
+    .authority-item .icon {
+      color: var(--red-500);
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .footer {
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      text-align: center;
+      padding: 2.5rem 2rem;
+    }
+
+    .footer p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .footer p:first-child {
+      color: var(--text-secondary);
+      margin-bottom: 0.25rem;
+    }
+
+    @media (max-width: 768px) {
+      .header { padding: 3rem 1.5rem; }
+      .header h1 { font-size: 1.75rem; }
+      .nav { padding: 0.5rem 1rem; }
+      .nav-link { padding: 0.4rem 0.6rem; font-size: 0.7rem; }
+      .main { padding: 2rem 1.25rem 4rem; }
+      .section-title { font-size: 1.15rem; }
+      .cards-grid, .comparison { grid-template-columns: 1fr; }
+      .principle-box { padding: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-badge">Documentação Técnica</div>
+    <h1>Espaço Arthemi</h1>
+    <p>Guia de funcionamento do sistema de agendamento, pagamentos e controle financeiro</p>
+  </header>
+
+  <nav class="nav">
+    <div class="nav-content">
+      <a href="#why" class="nav-link">Por que existe</a>
+      <a href="#booking-lifecycle" class="nav-link">Ciclo de vida</a>
+      <a href="#financial-states" class="nav-link">Pagamento</a>
+      <a href="#credit-lifecycle" class="nav-link">Créditos</a>
+      <a href="#cancellations" class="nav-link">Cancelamentos</a>
+      <a href="#auto-cancel" class="nav-link">Auto-cancel</a>
+      <a href="#admin-exceptions" class="nav-link">Cortesias</a>
+      <a href="#audit-guarantees" class="nav-link">Dashboard</a>
+      <a href="#system-rules" class="nav-link">Regras</a>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <div class="principle-box">
+      <h2>Princípio Central do Sistema</h2>
+      <div class="principle-list">
+        <div class="principle-item">Nenhuma reserva existe sem lastro financeiro claro</div>
+        <div class="principle-item">Nenhum crédito existe sem origem rastreável</div>
+        <div class="principle-item">Nenhuma exceção acontece sem registro explícito</div>
+        <div class="principle-item">O sistema valida — pessoas não decidem estados financeiros</div>
+      </div>
+    </div>
+
+    <!-- SEÇÃO 1 -->
+    <section id="why" class="section">
+      <div class="section-header">
+        <div class="section-number">1</div>
+        <h2 class="section-title">Por que este sistema existe</h2>
+      </div>
+      <div class="section-content">
+        <p>Sistemas de agendamento tradicionais apresentam falhas estruturais que geram prejuízos operacionais e financeiros recorrentes. Este sistema foi construído para eliminar esses problemas na raiz.</p>
+        
+        <h3>Problemas comuns em outros sistemas</h3>
+        <div class="cards-grid">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon red">⚠</div>
+              <div class="card-title">Reservas sem pagamento</div>
+            </div>
+            <div class="card-content">
+              Agenda bloqueada por reservas que nunca são pagas. Horários perdidos. Receita comprometida.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon yellow">⚠</div>
+              <div class="card-title">Créditos confusos</div>
+            </div>
+            <div class="card-content">
+              Saldos anotados manualmente, sem rastreio de origem ou consumo. Disputas frequentes com clientes.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon purple">⚠</div>
+              <div class="card-title">Dependência de memória humana</div>
+            </div>
+            <div class="card-content">
+              Decisões financeiras baseadas em interpretação. Erros de comunicação geram inconsistências.
+            </div>
+          </div>
+        </div>
+
+        <h3>O que este sistema elimina</h3>
+        <ul>
+          <li>Estados financeiros ambíguos ou interpretáveis</li>
+          <li>Reservas que bloqueiam agenda sem garantia de pagamento</li>
+          <li>Créditos criados ou consumidos sem registro automático</li>
+          <li>Exceções administrativas sem rastreabilidade</li>
+        </ul>
+
+        <div class="info-box info">
+          <div class="info-box-icon">💡</div>
+          <div class="info-box-content">
+            <strong>Estado financeiro inequívoco</strong>
+            Toda reserva possui um estado financeiro definido pelo sistema — não por interpretação humana. Esse estado determina se a reserva é válida, se pode ser confirmada e como será tratada em cancelamentos.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEÇÃO 2 -->
+    <section id="booking-lifecycle" class="section">
+      <div class="section-header">
+        <div class="section-number">2</div>
+        <h2 class="section-title">Ciclo de vida de uma reserva</h2>
+      </div>
+      <div class="section-content">
+        
+        <h3>Tipos de reserva por origem</h3>
+        <div class="cards-grid">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon blue">💳</div>
+              <div class="card-title">COMMERCIAL (Hora Avulsa)</div>
+            </div>
+            <div class="card-content">
+              Cliente reserva e paga via PIX. A confirmação depende do pagamento ser processado pelo gateway Asaas.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon green">🎫</div>
+              <div class="card-title">COMMERCIAL (Com Crédito)</div>
+            </div>
+            <div class="card-content">
+              Cliente usa saldo de horas pré-pago. A reserva é confirmada imediatamente, pois o crédito já tem lastro financeiro.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon purple">🎁</div>
+              <div class="card-title">ADMIN_COURTESY</div>
+            </div>
+            <div class="card-content">
+              Criada pelo administrador com motivo explícito obrigatório. Não entra em faturamento. Sempre rastreável.
+            </div>
+          </div>
+        </div>
+
+        <h3>Estados operacionais (BookingStatus)</h3>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>Significado</th>
+                <th>Quando ocorre</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="badge pending">PENDING</span></td>
+                <td>Aguardando ação</td>
+                <td>Reserva criada, aguardando pagamento PIX</td>
+              </tr>
+              <tr>
+                <td><span class="badge confirmed">CONFIRMED</span></td>
+                <td>Confirmada</td>
+                <td>Pagamento aprovado pelo webhook OU crédito consumido</td>
+              </tr>
+              <tr>
+                <td><span class="badge cancelled">CANCELLED</span></td>
+                <td>Cancelada</td>
+                <td>Por usuário, admin ou auto-cancelamento do sistema</td>
+              </tr>
+              <tr>
+                <td><span class="badge blue">COMPLETED</span></td>
+                <td>Concluída</td>
+                <td>Após o horário de término da reserva</td>
+              </tr>
+              <tr>
+                <td><span class="badge cancelled">NO_SHOW</span></td>
+                <td>Não compareceu</td>
+                <td>Cliente não apareceu (marcação manual admin)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Estados financeiros (FinancialStatus)</h3>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Financial Status</th>
+                <th>Significado</th>
+                <th>Origem</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="badge pending">PENDING_PAYMENT</span></td>
+                <td>Aguardando pagamento</td>
+                <td>Reserva criada, PIX gerado, aguardando confirmação via webhook</td>
+              </tr>
+              <tr>
+                <td><span class="badge paid">PAID</span></td>
+                <td>Pagamento confirmado</td>
+                <td>Webhook do Asaas confirmou pagamento OU 100% pago com créditos</td>
+              </tr>
+              <tr>
+                <td><span class="badge courtesy">COURTESY</span></td>
+                <td>Cortesia administrativa</td>
+                <td>Criada por admin com origin = ADMIN_COURTESY</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="flow">
+          <div class="flow-step">Reserva criada</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">PENDING + PENDING_PAYMENT</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">Webhook confirma</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">CONFIRMED + PAID</div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SEÇÃO 3 -->
+    <section id="financial-states" class="section">
+      <div class="section-header">
+        <div class="section-number">3</div>
+        <h2 class="section-title">Pagamento e conversão</h2>
+      </div>
+      <div class="section-content">
+        <p>O comportamento do sistema após um pagamento depende do tipo de produto adquirido. Esta distinção é fundamental para entender como reservas e créditos funcionam.</p>
+
+        <div class="comparison">
+          <div class="comparison-item">
+            <div class="comparison-header">💳 Hora Avulsa</div>
+            <div class="comparison-content">
+              <p><strong>Pagamento confirma reserva diretamente</strong></p>
+              <ul>
+                <li>Cliente cria reserva para horário específico</li>
+                <li>Sistema gera cobrança PIX no Asaas</li>
+                <li>Reserva fica como <code>PENDING_PAYMENT</code></li>
+                <li>Webhook <code>PAYMENT_RECEIVED</code> → atualiza para <code>PAID</code> + <code>CONFIRMED</code></li>
+                <li>Campo <code>amountPaid</code> registra valor em centavos</li>
+              </ul>
+              <div class="info-box success">
+                <div class="info-box-icon">✓</div>
+                <div class="info-box-content">
+                  Reserva existe aguardando pagamento. Ao pagar, é confirmada automaticamente.
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="comparison-item highlight">
+            <div class="comparison-header">📦 Pacote de Horas (10h/20h/40h)</div>
+            <div class="comparison-content">
+              <p><strong>Pagamento gera crédito, não confirma reserva</strong></p>
+              <ul>
+                <li>Cliente compra pacote (ex: 10 horas)</li>
+                <li>Pagamento confirmado via webhook</li>
+                <li>Sistema <strong>NÃO</strong> altera booking</li>
+                <li>Sistema <strong>CRIA</strong> crédito com status <code>CONFIRMED</code></li>
+                <li>Validade padrão: 90 dias</li>
+                <li>Crédito vinculado à sala do pacote (hierarquia tier)</li>
+              </ul>
+              <div class="info-box warning">
+                <div class="info-box-icon">⚠</div>
+                <div class="info-box-content">
+                  Pacote não reserva horário. Apenas adiciona saldo ao banco de horas.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h3>Por que essa separação existe</h3>
+        <p>Misturar pagamento com reserva em pacotes gera problemas:</p>
+        <ul>
+          <li>Cliente paga pacote → sistema tenta reservar automaticamente → conflito de horário → dinheiro parado sem uso</li>
+          <li>Não há como saber qual horário reservar se o cliente comprou um pacote genérico</li>
+          <li>Crédito separado dá flexibilidade: o cliente decide quando e como usar</li>
+        </ul>
+
+        <div class="info-box info">
+          <div class="info-box-icon">🔒</div>
+          <div class="info-box-content">
+            <strong>Proteção contra duplicidade</strong>
+            O sistema implementa idempotência via tabela <code>WebhookEvent</code>. Cada <code>eventId</code> do Asaas é registrado antes do processamento. Se o mesmo evento chegar duas vezes, é ignorado.
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SEÇÃO 4 -->
+    <section id="credit-lifecycle" class="section">
+      <div class="section-header">
+        <div class="section-number">4</div>
+        <h2 class="section-title">Banco de horas (créditos)</h2>
+      </div>
+      <div class="section-content">
+        <p>O banco de horas é um sistema de saldo pré-pago que permite ao cliente reservar horários sem precisar pagar a cada uso. Funciona como créditos adquiridos antecipadamente.</p>
+
+        <h3>O que é um crédito</h3>
+        <ul>
+          <li>Saldo de horas pré-pago, armazenado na conta do cliente</li>
+          <li>Campos: <code>amount</code> (total) e <code>remainingAmount</code> (disponível)</li>
+          <li>Pode ser consumido parcialmente ou totalmente</li>
+          <li>Pode ter validade definida (campo <code>expiresAt</code>)</li>
+          <li>Pode ser vinculado a uma sala específica (hierarquia tier)</li>
+        </ul>
+
+        <h3>Tipos de crédito (CreditType)</h3>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Tipo</th>
+                <th>Descrição</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>SUBLET</code></td>
+                <td>Crédito por sublocação (50% do valor)</td>
+              </tr>
+              <tr>
+                <td><code>PROMO</code></td>
+                <td>Crédito promocional</td>
+              </tr>
+              <tr>
+                <td><code>CANCELLATION</code></td>
+                <td>Gerado por cancelamento com ≥48h de antecedência</td>
+              </tr>
+              <tr>
+                <td><code>SATURDAY</code></td>
+                <td>Crédito específico para uso aos sábados</td>
+              </tr>
+              <tr>
+                <td><code>MANUAL</code></td>
+                <td>Criado manualmente pelo admin ou via pacote</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Como um crédito nasce</h3>
+        <div class="info-box info">
+          <div class="info-box-icon">💡</div>
+          <div class="info-box-content">
+            <strong>Origem única: pagamento confirmado ou ação registrada</strong>
+            Créditos são criados quando: (1) webhook confirma pagamento de pacote, (2) cancelamento com ≥48h, (3) admin cria manualmente com registro em log.
+          </div>
+        </div>
+
+        <div class="flow">
+          <div class="flow-step">Compra de pacote</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">Pagamento via Asaas</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">Webhook confirma</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">Crédito CONFIRMED</div>
+        </div>
+
+        <h3>Como um crédito é consumido</h3>
+        <ul>
+          <li>Cliente seleciona "usar créditos" ao reservar</li>
+          <li>Sistema verifica saldo disponível (<code>remainingAmount > 0</code>)</li>
+          <li>Ordena créditos por expiração (primeiro os que vencem antes)</li>
+          <li>Prioriza créditos da mesma sala (hierarquia tier)</li>
+          <li>Se suficiente: reserva é criada como <code>CONFIRMED</code> + <code>PAID</code></li>
+          <li>Débito imediato do <code>remainingAmount</code></li>
+        </ul>
+
+        <div class="info-box success">
+          <div class="info-box-icon">✓</div>
+          <div class="info-box-content">
+            <strong>Reserva com crédito nunca fica pendente</strong>
+            Como o crédito já tem lastro financeiro, a reserva é confirmada no ato. Não há estado "aguardando pagamento" para reservas com crédito.
+          </div>
+        </div>
+
+        <h3>Estados do crédito (CreditStatus)</h3>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>Significado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="badge confirmed">CONFIRMED</span></td>
+                <td>Saldo disponível para uso</td>
+              </tr>
+              <tr>
+                <td><span class="badge pending">PENDING</span></td>
+                <td>Aguardando confirmação (raramente usado)</td>
+              </tr>
+              <tr>
+                <td><span class="badge blue">USED</span></td>
+                <td>Saldo totalmente consumido (<code>remainingAmount = 0</code>)</td>
+              </tr>
+              <tr>
+                <td><span class="badge cancelled">REFUNDED</span></td>
+                <td>Crédito reembolsado</td>
+              </tr>
+              <tr>
+                <td><span class="badge cancelled">EXPIRED</span></td>
+                <td>Crédito expirado por tempo</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Hierarquia de salas (Tier)</h3>
+        <div class="info-box warning">
+          <div class="info-box-icon">📌</div>
+          <div class="info-box-content">
+            <strong>Crédito respeita hierarquia de sala</strong>
+            <ul>
+              <li>Tier 1 (Sala A - Premium) → pode usar em A, B ou C</li>
+              <li>Tier 2 (Sala B) → pode usar em B ou C</li>
+              <li>Tier 3 (Sala C) → só pode usar em C</li>
+              <li>Tier null (genérico) → pode usar em qualquer sala</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="info-box info">
+          <div class="info-box-icon">📅</div>
+          <div class="info-box-content">
+            <strong>Janela de reserva</strong>
+            Créditos de pacotes/horas avulsas só podem ser usados para reservas até 30 dias no futuro. Turnos fixos não têm essa limitação.
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SEÇÃO 5 -->
+    <section id="cancellations" class="section">
+      <div class="section-header">
+        <div class="section-number">5</div>
+        <h2 class="section-title">Cancelamentos e edições</h2>
+      </div>
+      <div class="section-content">
+        <p>As regras de cancelamento e edição são definidas pelo sistema com base no tempo restante até o início da reserva. A constante <code>MIN_CANCELLATION_HOURS = 48</code> define o limite.</p>
+
+        <h3>Regras de cancelamento</h3>
+        <div class="comparison">
+          <div class="comparison-item highlight">
+            <div class="comparison-header">✅ ≥ 48 horas antes</div>
+            <div class="comparison-content">
+              <p><strong>Devolução total como crédito</strong></p>
+              <ul>
+                <li>Valor = <code>amountPaid + creditsUsed</code></li>
+                <li>Novo crédito tipo <code>CANCELLATION</code></li>
+                <li>Validade: 6 meses (<code>CREDIT_VALIDITY_MONTHS</code>)</li>
+                <li>Vinculado à mesma sala da reserva</li>
+                <li>Cliente pode usar em nova reserva</li>
+              </ul>
+            </div>
+          </div>
+          <div class="comparison-item">
+            <div class="comparison-header">❌ &lt; 48 horas antes</div>
+            <div class="comparison-content">
+              <p><strong>Sem devolução</strong></p>
+              <ul>
+                <li>Reserva é cancelada normalmente</li>
+                <li>Nenhum crédito é gerado</li>
+                <li>Valor é perdido</li>
+                <li>Erro retornado: <code>TOO_LATE</code></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-box info">
+          <div class="info-box-icon">🎁</div>
+          <div class="info-box-content">
+            <strong>Cortesia</strong>
+            Cancelamento de cortesia não tem impacto financeiro. Pode ser cancelada a qualquer momento sem restrições.
+          </div>
+        </div>
+
+        <h3>Regras de edição</h3>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Alteração</th>
+                <th>Comportamento</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Aumentar tempo</strong></td>
+                <td>Sistema debita crédito adicional do saldo. Se não houver saldo, edição é bloqueada.</td>
+              </tr>
+              <tr>
+                <td><strong>Reduzir tempo</strong></td>
+                <td>Sistema devolve crédito proporcional ao banco de horas.</td>
+              </tr>
+              <tr>
+                <td><strong>Mudar horário</strong></td>
+                <td>Permitido se novo horário estiver disponível. Antecedência mínima: 24h (<code>MIN_RESCHEDULE_HOURS</code>).</td>
+              </tr>
+              <tr>
+                <td><strong>Editar cortesia</strong></td>
+                <td>Livre. Sem impacto financeiro.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Erros de validação</h3>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Situação</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>TOO_LATE</code></td>
+                <td>Cancelamento com menos de 48h de antecedência</td>
+              </tr>
+              <tr>
+                <td><code>ALREADY_STARTED</code></td>
+                <td>Tentativa de cancelar reserva já iniciada</td>
+              </tr>
+              <tr>
+                <td><code>ALREADY_CANCELLED</code></td>
+                <td>Reserva já estava cancelada</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SEÇÃO 6 -->
+    <section id="auto-cancel" class="section">
+      <div class="section-header">
+        <div class="section-number">6</div>
+        <h2 class="section-title">Auto-cancelamento</h2>
+      </div>
+      <div class="section-content">
+        <p>Reservas sem pagamento confirmado não podem bloquear a agenda indefinidamente. O sistema possui um mecanismo automático de proteção via cron job.</p>
+
+        <h3>Como funciona</h3>
+        <div class="cards-grid">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon cyan">⏰</div>
+              <div class="card-title">Execução periódica</div>
+            </div>
+            <div class="card-content">
+              Endpoint <code>POST /api/jobs/auto-cancel</code> executado via Vercel Cron a cada <strong>5 minutos</strong>.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon yellow">📋</div>
+              <div class="card-title">Critério de seleção</div>
+            </div>
+            <div class="card-content">
+              Reservas com:
+              <ul>
+                <li><code>financialStatus = PENDING_PAYMENT</code></li>
+                <li><code>status = PENDING</code></li>
+                <li><code>startTime ≤ now + 30min</code></li>
+              </ul>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon green">✓</div>
+              <div class="card-title">Registro completo</div>
+            </div>
+            <div class="card-content">
+              Ação <code>BOOKING_CANCELLED_AUTO</code> registrada no audit log com data, hora, motivo e dados da reserva.
+            </div>
+          </div>
+        </div>
+
+        <div class="flow">
+          <div class="flow-step">Reserva PENDING</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">30 min antes do início</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">Cron identifica</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">status = CANCELLED</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">Horário liberado</div>
+        </div>
+
+        <h3>O que o auto-cancelamento protege</h3>
+        <ul>
+          <li><strong>Agenda:</strong> Horários não ficam bloqueados por reservas abandonadas</li>
+          <li><strong>Receita:</strong> Horários liberados podem ser reservados por outros clientes</li>
+          <li><strong>Operação:</strong> Não requer intervenção manual para limpar reservas não pagas</li>
+        </ul>
+
+        <div class="info-box warning">
+          <div class="info-box-icon">⚠</div>
+          <div class="info-box-content">
+            <strong>Importante</strong>
+            Reservas com <code>financialStatus = PAID</code> ou <code>COURTESY</code> nunca são auto-canceladas. Apenas reservas que nunca tiveram pagamento confirmado.
+          </div>
+        </div>
+
+        <div class="info-box info">
+          <div class="info-box-icon">🔒</div>
+          <div class="info-box-content">
+            <strong>Segurança</strong>
+            O endpoint é protegido por <code>CRON_SECRET</code> via header <code>Authorization: Bearer</code>. Chamadas sem token válido retornam 401.
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SEÇÃO 7 -->
+    <section id="admin-exceptions" class="section">
+      <div class="section-header">
+        <div class="section-number">7</div>
+        <h2 class="section-title">Cortesias administrativas</h2>
+      </div>
+      <div class="section-content">
+        <p>Cortesias são reservas criadas pelo administrador sem cobrança. Existem para casos excepcionais e são tratadas de forma diferenciada pelo sistema.</p>
+
+        <h3>Características obrigatórias</h3>
+        <div class="cards-grid">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon purple">🎁</div>
+              <div class="card-title">Sempre marcada</div>
+            </div>
+            <div class="card-content">
+              <code>origin = ADMIN_COURTESY</code><br>
+              <code>financialStatus = COURTESY</code><br>
+              Nunca pode ser confundida com reserva comercial.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon blue">📝</div>
+              <div class="card-title">Sempre com motivo</div>
+            </div>
+            <div class="card-content">
+              Campo <code>courtesyReason</code> é obrigatório. API retorna erro se vazio. O administrador deve justificar.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon green">📊</div>
+              <div class="card-title">Separada em relatórios</div>
+            </div>
+            <div class="card-content">
+              Dashboard exibe cortesias em seção própria. Podem ser filtradas via <code>origin</code>. Nunca misturada com faturamento.
+            </div>
+          </div>
+        </div>
+
+        <h3>O que cortesia não faz</h3>
+        <ul>
+          <li>Não entra em cálculo de receita faturada (<code>amountPaid = 0</code>)</li>
+          <li>Não gera crédito</li>
+          <li>Não afeta banco de horas</li>
+          <li>Não segue regras de cancelamento com devolução</li>
+          <li>Não passa pelo gateway de pagamento</li>
+        </ul>
+
+        <div class="authority-box">
+          <h3>🔒 Regra absoluta</h3>
+          <div class="authority-list">
+            <div class="authority-item">
+              <span class="icon">◆</span>
+              <span>Não existe reserva administrativa sem classificação financeira explícita.</span>
+            </div>
+            <div class="authority-item">
+              <span class="icon">◆</span>
+              <span>Toda cortesia tem <code>origin = ADMIN_COURTESY</code> e <code>financialStatus = COURTESY</code>.</span>
+            </div>
+            <div class="authority-item">
+              <span class="icon">◆</span>
+              <span>Tentativa de criar cortesia sem motivo retorna: <code>"Motivo da cortesia é obrigatório"</code>.</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SEÇÃO 8 -->
+    <section id="audit-guarantees" class="section">
+      <div class="section-header">
+        <div class="section-number">8</div>
+        <h2 class="section-title">Dashboard e transparência</h2>
+      </div>
+      <div class="section-content">
+        <p>O dashboard financeiro reflete estados validados pelo sistema. Não há cálculos interpretáveis — apenas a realidade do banco de dados.</p>
+
+        <h3>O que entra em faturamento</h3>
+        <ul>
+          <li>Reservas com <code>status = CONFIRMED</code></li>
+          <li>E <code>paymentStatus = APPROVED</code> OU <code>isManual = true</code></li>
+          <li>Soma do campo <code>amountPaid</code> em centavos</li>
+          <li>Créditos consumidos são contabilizados pelo valor original da compra</li>
+        </ul>
+
+        <h3>O que nunca entra em faturamento</h3>
+        <ul>
+          <li>Cortesias (<code>financialStatus = COURTESY</code>) — <code>amountPaid = 0</code></li>
+          <li>Reservas pendentes (<code>PENDING_PAYMENT</code>)</li>
+          <li>Reservas canceladas</li>
+        </ul>
+
+        <div class="info-box success">
+          <div class="info-box-icon">✓</div>
+          <div class="info-box-content">
+            <strong>Por que os números são confiáveis</strong>
+            O dashboard não calcula regras. Ele apenas exibe estados que já foram validados pelo sistema no momento da transação. O financialStatus define tudo — não há margem para interpretação.
+          </div>
+        </div>
+
+        <h3>Métricas calculadas</h3>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Métrica</th>
+                <th>Cálculo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Receita Faturada</strong></td>
+                <td>Soma de <code>amountPaid</code> de reservas CONFIRMED + (APPROVED ou isManual)</td>
+              </tr>
+              <tr>
+                <td><strong>Receita Prevista</strong></td>
+                <td>Reservas CONFIRMED com payment PENDING</td>
+              </tr>
+              <tr>
+                <td><strong>Receita Pendente</strong></td>
+                <td>Reservas com status PENDING</td>
+              </tr>
+              <tr>
+                <td><strong>Ticket Médio</strong></td>
+                <td>Receita Faturada ÷ Total de reservas confirmadas</td>
+              </tr>
+              <tr>
+                <td><strong>Cortesias</strong></td>
+                <td>Filtro por <code>origin = ADMIN_COURTESY</code> — seção separada</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Log de auditoria</h3>
+        <p>Toda ação relevante é registrada com:</p>
+        <ul>
+          <li><code>action</code>: tipo da ação (BOOKING_CREATED, BOOKING_CANCELLED, CREDIT_CREATED, etc.)</li>
+          <li><code>source</code>: origem (USER, ADMIN, SYSTEM)</li>
+          <li><code>targetType</code> e <code>targetId</code>: entidade afetada</li>
+          <li><code>metadata</code>: dados completos em JSON</li>
+          <li><code>createdAt</code>: timestamp preciso</li>
+        </ul>
+
+      </div>
+    </section>
+
+    <!-- SEÇÃO 9 -->
+    <section id="system-rules" class="section">
+      <div class="section-header">
+        <div class="section-number">9</div>
+        <h2 class="section-title">O sistema não permite</h2>
+      </div>
+      <div class="section-content">
+        <p>Esta seção lista comportamentos que são estruturalmente impossíveis no sistema. Não são restrições configuráveis — são garantias de design implementadas no código.</p>
+
+        <div class="authority-box">
+          <h3>🚫 Impossibilidades estruturais</h3>
+          <div class="authority-list">
+            <div class="authority-item">
+              <span class="icon">❌</span>
+              <span>Reserva confirmada sem pagamento ou crédito (webhook obrigatório ou débito automático)</span>
+            </div>
+            <div class="authority-item">
+              <span class="icon">❌</span>
+              <span>Crédito criado sem origem financeira rastreável (sempre vinculado a pagamento ou ação admin logada)</span>
+            </div>
+            <div class="authority-item">
+              <span class="icon">❌</span>
+              <span>Cortesia sem motivo registrado (validação obrigatória no endpoint)</span>
+            </div>
+            <div class="authority-item">
+              <span class="icon">❌</span>
+              <span>Pagamento processado duas vezes (idempotência via tabela WebhookEvent)</span>
+            </div>
+            <div class="authority-item">
+              <span class="icon">❌</span>
+              <span>Estados financeiros ambíguos (enum FinancialStatus com valores fixos)</span>
+            </div>
+            <div class="authority-item">
+              <span class="icon">❌</span>
+              <span>Ajustes manuais de saldo sem registro em log de auditoria</span>
+            </div>
+            <div class="authority-item">
+              <span class="icon">❌</span>
+              <span>Reserva pendente bloqueando agenda após 30 min do início (auto-cancel cron)</span>
+            </div>
+            <div class="authority-item">
+              <span class="icon">❌</span>
+              <span>Consumo de crédito sem débito automático de remainingAmount</span>
+            </div>
+            <div class="authority-item">
+              <span class="icon">❌</span>
+              <span>Reserva com horário conflitante (transaction + busca por overlap)</span>
+            </div>
+            <div class="authority-item">
+              <span class="icon">❌</span>
+              <span>Reserva sem buffer de 30 minutos entre sessões (BUFFER_MINUTES = 30)</span>
+            </div>
+            <div class="authority-item">
+              <span class="icon">❌</span>
+              <span>Pagamento iniciado a menos de 30 min do início da reserva</span>
+            </div>
+            <div class="authority-item">
+              <span class="icon">❌</span>
+              <span>CPF ou telefone inválido (validação com algoritmo oficial)</span>
+            </div>
+          </div>
+        </div>
+
+        <h3>Rate limiting</h3>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Recurso</th>
+                <th>Limite</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Criar reserva (por IP)</td>
+                <td>20 tentativas por hora</td>
+              </tr>
+              <tr>
+                <td>Criar reserva (por telefone)</td>
+                <td>5 reservas por hora</td>
+              </tr>
+              <tr>
+                <td>Créditos sublocação</td>
+                <td>1 por mês (MAX_CREDITS_PER_MONTH)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="info-box info">
+          <div class="info-box-icon">🔒</div>
+          <div class="info-box-content">
+            <strong>Garantia de integridade</strong>
+            Essas regras são aplicadas no nível de código e banco de dados. Não dependem de configuração ou boa-fé do operador. O sistema valida — pessoas não decidem estados financeiros.
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <p>Espaço Arthemi — Sistema de Agendamento</p>
+    <p>Documentação gerada em Dezembro de 2025</p>
+  </footer>
+
+</body>
+</html>

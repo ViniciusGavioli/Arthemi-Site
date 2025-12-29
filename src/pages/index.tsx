@@ -173,7 +173,7 @@ export default function Home() {
                 { number: '3', label: 'Salas disponíveis', icon: <Users className="w-6 h-6" /> },
                 { number: '100%', label: 'Tudo incluso', icon: <CheckCircle2 className="w-6 h-6" /> },
                 { number: 'R$0', label: 'Taxa de adesão', icon: <Shield className="w-6 h-6" /> },
-                { number: '24h', label: 'Para remarcar', icon: <Clock className="w-6 h-6" /> },
+                { number: '48h', label: 'Para cancelar', icon: <Clock className="w-6 h-6" /> },
               ].map((stat, i) => (
                 <div key={i} className="text-center group">
                   <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-warm-200 to-warm-100 rounded-2xl mb-4 text-primary-700 group-hover:scale-110 transition-transform">
@@ -319,7 +319,7 @@ export default function Home() {
               >
                 <div className="relative w-full h-48 sm:h-56">
                   <Image 
-                    src="/images/sala-a/foto-1.jpeg" 
+                    src="/images/sala-a/foto-4.jpeg" 
                     alt="Consultório 1 | Prime"
                     fill
                     className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
@@ -465,10 +465,10 @@ export default function Home() {
             
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {[
-                '/images/sala-a/foto-1.jpeg',
-                '/images/sala-a/foto-2.jpeg',
-                '/images/sala-a/foto-3.jpeg',
                 '/images/sala-a/foto-4.jpeg',
+                '/images/sala-a/foto-7.jpeg',
+                '/images/sala-a/foto-6.jpeg',
+                '/images/sala-a/foto-2.jpeg',
                 '/images/sala-c/03-1.jpeg',
                 '/images/sala-c/03-2.jpeg',
                 '/images/espaco/Recepcao.jpeg',

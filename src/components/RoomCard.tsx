@@ -62,7 +62,7 @@ const getDescription = (slug: string): string => {
 // Imagem principal de cada sala
 const getRoomImage = (slug: string): string => {
   switch (slug) {
-    case 'sala-a': return '/images/sala-a/foto-1.jpeg';
+    case 'sala-a': return '/images/sala-a/foto-4.jpeg';
     case 'sala-b': return '/images/sala-b/02-3.jpeg';
     case 'sala-c': return '/images/sala-c/03-1.jpeg';
     default: return '/images/hero/banner.jpeg';

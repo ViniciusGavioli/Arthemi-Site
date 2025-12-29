@@ -193,30 +193,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
               Compare as opções e escolha a que melhor se encaixa na sua rotina de atendimentos.
             </p>
             
-            {rooms.map((room, roomIndex) => {
-              // Filtrar produtos (remover diária e pacotes de 5h/sábado)
-              const filteredProducts = room.products.filter(p => 
-                !p.name.toLowerCase().includes('diária') && 
-                !p.name.toLowerCase().includes('diaria') &&
-                !p.name.toLowerCase().includes('5h') &&
-                !p.name.toLowerCase().includes('sábado') &&
-                !p.name.toLowerCase().includes('sabado') &&
-                p.type !== 'SATURDAY_5H'
-              );
-
-              // Calcular desconto baseado no preço por hora vs hora avulsa
-              const hourlyProduct = filteredProducts.find(p => p.type === 'HOURLY_RATE');
-              const baseHourlyPrice = hourlyProduct?.price || room.hourlyRate || 0;
-
-              // Preços de sábado por consultório
-              const saturdayPrices = {
-                'sala-a': { hourly: 69.99, shift: 959.99, shiftHours: 16 },
-                'sala-b': { hourly: 59.99, shift: 799.99, shiftHours: 16 },
-                'sala-c': { hourly: 49.99, shift: 629.99, shiftHours: 16 },
-              };
-
-              const satPrice = saturdayPrices[room.slug as keyof typeof saturdayPrices] || { hourly: 0, shift: 0, shiftHours: 4 };
-
+            {rooms.map((room) => {
               return (
                 <div key={room.id} className="mb-10">
                   <h3 className="text-xl font-semibold text-primary-800 mb-4">
@@ -237,102 +214,56 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-warm-100">
-                          {filteredProducts.map((product) => {
-                            // Formatar nome do produto
-                            let displayName = product.name
-                              .replace(` - ${room.name}`, '')
-                              .replace('(16h)', '')
-                              .replace('Turno fixo mensal', 'Turno fixo semanal')
-                              .trim();
+                          {(() => {
+                            // Valor base da hora avulsa (usar hourlyRate da sala)
+                            const baseHourlyPrice = room.hourlyRate || 0;
+                            
+                            // Definir pacotes com preços calculados
+                            // Regra: 10h = -7%, 20h = -13%, 40h = -18%
+                            const packages = [
+                              { hours: 1, label: '1h', price: baseHourlyPrice, isHourly: true },
+                              { hours: 10, label: '10h', price: Math.round(baseHourlyPrice * 10 * 0.93), isHourly: false }, // -7%
+                              { hours: 20, label: '20h', price: Math.round(baseHourlyPrice * 20 * 0.87), isHourly: false }, // -13%
+                              { hours: 40, label: '40h', price: Math.round(baseHourlyPrice * 40 * 0.82), isHourly: false }, // -18%
+                            ];
 
-                            // Calcular desconto e preço por hora
-                            let discount = 0;
-                            let pricePerHour = 0;
-                            if (product.hoursIncluded && product.hoursIncluded > 0) {
-                              pricePerHour = product.price / product.hoursIncluded;
-                              if (baseHourlyPrice > 0) {
-                                discount = Math.round(((baseHourlyPrice - pricePerHour) / baseHourlyPrice) * 100);
-                              }
-                            }
-
-                            // Determinar se é hora avulsa ou turno
-                            const isHourly = product.type === 'HOURLY_RATE';
-                            const isShift = displayName.toLowerCase().includes('turno');
-
-                            return (
-                              <tr key={product.id} className={`hover:bg-warm-50 ${isShift ? 'bg-accent-50/30' : ''}`}>
-                                <td className="px-4 sm:px-6 py-4 text-center">
-                                  <span className="text-secondary-600">
-                                    {formatCurrency(baseHourlyPrice)}
-                                  </span>
-                                </td>
-                                <td className="px-4 sm:px-6 py-4 text-center text-secondary-600">
-                                  {product.hoursIncluded ? `${product.hoursIncluded}h` : '1h'}
-                                </td>
-                                <td className="px-4 sm:px-6 py-4 text-center">
-                                  <span className="font-semibold text-accent-600">
-                                    {formatCurrency(product.price)}
-                                  </span>
-                                </td>
-                                <td className="px-4 sm:px-6 py-4 text-center">
-                                  <span className="font-medium text-primary-800">
-                                    {isHourly ? formatCurrency(product.price) : (pricePerHour > 0 ? formatCurrency(pricePerHour) : '-')}
-                                  </span>
-                                </td>
-                                <td className="px-4 sm:px-6 py-4 text-center">
-                                  {discount > 0 ? (
-                                    <span className="inline-block bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold">
-                                      -{discount}%
+                            return packages.map((pkg, idx) => {
+                              const pricePerHour = pkg.price / pkg.hours;
+                              const discount = pkg.isHourly ? 0 : Math.round(((baseHourlyPrice - pricePerHour) / baseHourlyPrice) * 100);
+                              
+                              return (
+                                <tr key={idx} className={`hover:bg-warm-50 ${!pkg.isHourly ? 'bg-accent-50/30' : ''}`}>
+                                  <td className="px-4 sm:px-6 py-4 text-center">
+                                    <span className="text-secondary-600">
+                                      {formatCurrency(baseHourlyPrice)}
                                     </span>
-                                  ) : (
-                                    <span className="text-secondary-400">-</span>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                          {/* Linha: Sábado - Hora avulsa */}
-                          <tr className="hover:bg-warm-50 border-t-2 border-accent-200">
-                            <td className="px-4 sm:px-6 py-4 text-center">
-                              <span className="text-secondary-600">{formatCurrency(satPrice.hourly)}</span>
-                            </td>
-                            <td className="px-4 sm:px-6 py-4 text-center text-secondary-600">1h</td>
-                            <td className="px-4 sm:px-6 py-4 text-center">
-                              <span className="font-semibold text-accent-600">
-                                {formatCurrency(satPrice.hourly)}
-                              </span>
-                            </td>
-                            <td className="px-4 sm:px-6 py-4 text-center">
-                              <span className="font-medium text-primary-800">
-                                {formatCurrency(satPrice.hourly)}
-                              </span>
-                            </td>
-                            <td className="px-4 sm:px-6 py-4 text-center">
-                              <span className="text-secondary-400">-</span>
-                            </td>
-                          </tr>
-                          {/* Linha: Sábado - Turno fixo semanal */}
-                          <tr className="hover:bg-warm-50 bg-accent-50/30">
-                            <td className="px-4 sm:px-6 py-4 text-center">
-                              <span className="text-secondary-600">{formatCurrency(satPrice.hourly)}</span>
-                            </td>
-                            <td className="px-4 sm:px-6 py-4 text-center text-secondary-600">{satPrice.shiftHours}h</td>
-                            <td className="px-4 sm:px-6 py-4 text-center">
-                              <span className="font-semibold text-accent-600">
-                                {formatCurrency(satPrice.shift)}
-                              </span>
-                            </td>
-                            <td className="px-4 sm:px-6 py-4 text-center">
-                              <span className="font-medium text-primary-800">
-                                {formatCurrency(satPrice.shift / satPrice.shiftHours)}
-                              </span>
-                            </td>
-                            <td className="px-4 sm:px-6 py-4 text-center">
-                              <span className="inline-block bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold">
-                                -{Math.round(((satPrice.hourly - (satPrice.shift / satPrice.shiftHours)) / satPrice.hourly) * 100)}%
-                              </span>
-                            </td>
-                          </tr>
+                                  </td>
+                                  <td className="px-4 sm:px-6 py-4 text-center text-secondary-600 font-medium">
+                                    {pkg.label}
+                                  </td>
+                                  <td className="px-4 sm:px-6 py-4 text-center">
+                                    <span className="font-semibold text-accent-600">
+                                      {formatCurrency(pkg.price)}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 sm:px-6 py-4 text-center">
+                                    <span className="font-medium text-primary-800">
+                                      {formatCurrency(pricePerHour)}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 sm:px-6 py-4 text-center">
+                                    {discount > 0 ? (
+                                      <span className="inline-block bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold">
+                                        -{discount}%
+                                      </span>
+                                    ) : (
+                                      <span className="text-secondary-400">—</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            });
+                          })()}
                         </tbody>
                       </table>
                     </div>

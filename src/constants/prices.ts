@@ -25,6 +25,7 @@ export const PRICES_V3 = {
       DAY_PASS: 369.99,       // Diária (8h seguidas)
       SATURDAY_HOUR: 64.99,
       SATURDAY_5H: 299.95,
+      SATURDAY_SHIFT: 959.99, // Turno fixo sábado (16h/mês)
     },
   },
 
@@ -48,6 +49,7 @@ export const PRICES_V3 = {
       DAY_PASS: 299.99,       // Diária (8h seguidas)
       SATURDAY_HOUR: 53.99,
       SATURDAY_5H: 249.95,
+      SATURDAY_SHIFT: 799.99, // Turno fixo sábado (16h/mês)
     },
   },
 
@@ -71,6 +73,7 @@ export const PRICES_V3 = {
       DAY_PASS: 229.99,       // Diária (8h seguidas)
       SATURDAY_HOUR: 42.99,
       SATURDAY_5H: 199.95,
+      SATURDAY_SHIFT: 629.99, // Turno fixo sábado (16h/mês)
     },
   },
 } as const;

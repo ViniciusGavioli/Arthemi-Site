@@ -88,14 +88,14 @@ async function testDatabase() {
       include: { products: true }
     });
     if (salaA && salaA.products.length > 0) {
-      console.log(`✅ TESTE 5: Buscar Sala A com produtos (${salaA.products.length} produtos) - OK`);
+      console.log(`✅ TESTE 5: Buscar Consultório 1 com produtos (${salaA.products.length} produtos) - OK`);
       passed++;
     } else {
-      console.log('❌ TESTE 5: Sala A não encontrada ou sem produtos');
+      console.log('❌ TESTE 5: Consultório 1 não encontrado ou sem produtos');
       failed++;
     }
   } catch (error) {
-    console.log('❌ TESTE 5: Buscar sala por slug - FALHOU');
+    console.log('❌ TESTE 5: Buscar consultório por slug - FALHOU');
     console.log('   Erro:', error.message);
     failed++;
   }
@@ -204,15 +204,15 @@ async function testDatabase() {
     
     if (salaA.hourlyRate === expectedA && salaB.hourlyRate === expectedB && salaC.hourlyRate === expectedC) {
       console.log('✅ TESTE 10: Verificar preços V3 - OK');
-      console.log(`   → Sala A: R$ ${(salaA.hourlyRate/100).toFixed(2)} ✓`);
-      console.log(`   → Sala B: R$ ${(salaB.hourlyRate/100).toFixed(2)} ✓`);
-      console.log(`   → Sala C: R$ ${(salaC.hourlyRate/100).toFixed(2)} ✓`);
+      console.log(`   → Consultório 1: R$ ${(salaA.hourlyRate/100).toFixed(2)} ✓`);
+      console.log(`   → Consultório 2: R$ ${(salaB.hourlyRate/100).toFixed(2)} ✓`);
+      console.log(`   → Consultório 3: R$ ${(salaC.hourlyRate/100).toFixed(2)} ✓`);
       passed++;
     } else {
       console.log('❌ TESTE 10: Preços V3 não conferem');
-      console.log(`   → Sala A: R$ ${(salaA.hourlyRate/100).toFixed(2)} (esperado: R$ 59.99)`);
-      console.log(`   → Sala B: R$ ${(salaB.hourlyRate/100).toFixed(2)} (esperado: R$ 49.99)`);
-      console.log(`   → Sala C: R$ ${(salaC.hourlyRate/100).toFixed(2)} (esperado: R$ 39.99)`);
+      console.log(`   → Consultório 1: R$ ${(salaA.hourlyRate/100).toFixed(2)} (esperado: R$ 59.99)`);
+      console.log(`   → Consultório 2: R$ ${(salaB.hourlyRate/100).toFixed(2)} (esperado: R$ 49.99)`);
+      console.log(`   → Consultório 3: R$ ${(salaC.hourlyRate/100).toFixed(2)} (esperado: R$ 39.99)`);
       failed++;
     }
   } catch (error) {

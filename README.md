@@ -21,7 +21,7 @@ MVP funcional para o site do Espaço Arthemi, um coworking especializado em prof
 
 ### MVP Implementado
 
-- ✅ **Listagem pública de 3 salas** (Sala A/B/C) com fotos e preços V3
+- ✅ **Listagem pública de 3 consultórios** (Consultório 1/2/3) com fotos e preços V3
 - ✅ **Sistema de reservas** com validação de disponibilidade server-side
 - ✅ **Frontend de reserva** com seletor de data/hora
 - ✅ **Integração Asaas** (PIX nativo com modo mock para desenvolvimento)
@@ -299,7 +299,7 @@ npm run test:e2e:ui
 
 ### Tabela de Preços V3 (Oficial)
 
-#### Sala A - Grande (com maca)
+#### Consultório 1 - Grande (com maca)
 | Produto | Preço | Horas |
 |---------|-------|-------|
 | Hora Avulsa | R$ 59,99 | 1h |
@@ -311,7 +311,7 @@ npm run test:e2e:ui
 | Sábado Hora | R$ 64,99 | 1h |
 | Sábado 5h | R$ 299,95 | 5h |
 
-#### Sala B - Média (com maca)
+#### Consultório 2 - Médio (com maca)
 | Produto | Preço | Horas |
 |---------|-------|-------|
 | Hora Avulsa | R$ 49,99 | 1h |
@@ -323,7 +323,7 @@ npm run test:e2e:ui
 | Sábado Hora | R$ 53,99 | 1h |
 | Sábado 5h | R$ 249,95 | 5h |
 
-#### Sala C - Pequena (sem maca)
+#### Consultório 3 - Pequeno (sem maca)
 | Produto | Preço | Horas |
 |---------|-------|-------|
 | Hora Avulsa | R$ 39,99 | 1h |

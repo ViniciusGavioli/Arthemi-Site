@@ -59,7 +59,8 @@ interface BookingFormData {
   userEmail: string;
   userCpf: string;
   date: Date | null;
-  selectedHours: number[]; // Array de horários selecionados (múltipla seleção)
+  startHour: number;
+  duration: number;
   productType: 'hourly' | 'package';
   productId: string;
   couponCode: string;
@@ -88,7 +89,8 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     userEmail: '',
     userCpf: '',
     date: null,
-    selectedHours: [], // Array vazio - múltipla seleção
+    startHour: 9,
+    duration: 1,
     productType: 'hourly',
     productId: '',
     couponCode: '',
@@ -116,15 +118,22 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
       
       if (data.success && data.slots) {
         setAvailabilitySlots(data.slots);
-        // Limpa seleção ao mudar de data
-        setFormData(prev => ({ ...prev, selectedHours: [] }));
+        
+        // Se o horário atual não está disponível, selecionar o primeiro disponível
+        const currentHourSlot = data.slots.find((s: AvailabilitySlot) => s.hour === formData.startHour);
+        if (!currentHourSlot?.available) {
+          const firstAvailable = data.slots.find((s: AvailabilitySlot) => s.available);
+          if (firstAvailable) {
+            setFormData(prev => ({ ...prev, startHour: firstAvailable.hour }));
+          }
+        }
       }
     } catch (err) {
       console.error('Erro ao buscar disponibilidade:', err);
     } finally {
       setLoadingAvailability(false);
     }
-  }, [room.id]);
+  }, [room.id, formData.startHour]);
 
   // Effect para buscar disponibilidade quando data mudar
   useEffect(() => {
@@ -156,8 +165,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
       const product = products.find((p) => p.id === formData.productId);
       basePrice = product?.price || 0;
     } else {
-      // Hora avulsa: preço por hora × quantidade de slots selecionados
-      basePrice = hourlyPrice * formData.selectedHours.length;
+      basePrice = hourlyPrice * formData.duration;
     }
 
     // Aplicar cupom se válido
@@ -182,22 +190,18 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     return couponKey && VALID_COUPONS[couponKey];
   };
 
-  // Opções de horário (8h às 18h - último horário disponível)
-  const hourOptions = Array.from({ length: 11 }, (_, i) => i + 8); // 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18
+  // Opções de horário (8h às 19h)
+  const hourOptions = Array.from({ length: 12 }, (_, i) => i + 8);
 
-  // Toggle de seleção de horário (múltipla seleção)
-  const toggleHourSelection = (hour: number) => {
-    setFormData(prev => {
-      const isSelected = prev.selectedHours.includes(hour);
-      if (isSelected) {
-        // Remove o horário
-        return { ...prev, selectedHours: prev.selectedHours.filter(h => h !== hour) };
-      } else {
-        // Adiciona o horário (ordenado)
-        return { ...prev, selectedHours: [...prev.selectedHours, hour].sort((a, b) => a - b) };
+  // E1: Ajustar duração automaticamente se horário selecionado não permitir a duração atual
+  useEffect(() => {
+    if (formData.startHour && formData.productType === 'hourly') {
+      const maxDuration = 20 - formData.startHour;
+      if (formData.duration > maxDuration) {
+        setFormData(prev => ({ ...prev, duration: Math.max(1, maxDuration) }));
       }
-    });
-  };
+    }
+  }, [formData.startHour]);
 
   // Produtos filtrados para esta sala (excluindo hora avulsa que é calculado automaticamente)
   const filteredProducts = products.filter((p) => 
@@ -239,13 +243,18 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
 
     // E5: Validação defensiva por tipo
     if (formData.productType === 'hourly') {
-      // Hora avulsa PRECISA de data e pelo menos 1 horário selecionado
+      // Hora avulsa PRECISA de data e horário
       if (!formData.date) {
         setError('Por favor, selecione uma data.');
         return;
       }
-      if (formData.selectedHours.length === 0) {
-        setError('Por favor, selecione pelo menos um horário.');
+      if (!formData.startHour) {
+        setError('Por favor, selecione um horário.');
+        return;
+      }
+      // E1: Validar que horário não ultrapassa fechamento (20h)
+      if (formData.startHour + formData.duration > 20) {
+        setError(`A reserva ultrapassa o horário de fechamento (20h). Duração máxima disponível: ${20 - formData.startHour}h.`);
         return;
       }
     } else {
@@ -300,19 +309,9 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
         }
       }
 
-      // HORA AVULSA → fluxo de reserva com múltiplos slots
-      // Ordena horários e cria reservas
-      const sortedHours = [...formData.selectedHours].sort((a, b) => a - b);
-      
-      // Envia todos os slots para criar reservas
-      const bookings = sortedHours.map(hour => {
-        const startAt = setMinutes(setHours(formData.date!, hour), 0);
-        const endAt = addHours(startAt, 1); // Sempre 1 hora por slot
-        return {
-          startAt: startAt.toISOString(),
-          endAt: endAt.toISOString(),
-        };
-      });
+      // HORA AVULSA → fluxo normal de reserva
+      const startAt = setMinutes(setHours(formData.date!, formData.startHour), 0);
+      const endAt = addHours(startAt, formData.duration);
 
       const response = await fetch('/api/bookings', {
         method: 'POST',
@@ -324,8 +323,8 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
           userCpf: formData.userCpf.replace(/\D/g, ''),
           roomId: room.id,
           productId: formData.productId || undefined,
-          // Envia array de slots para múltiplas reservas
-          slots: bookings,
+          startAt: startAt.toISOString(),
+          endAt: endAt.toISOString(),
           payNow: true,
           couponCode: formData.couponCode || undefined,
           notes: formData.notes || undefined,
@@ -691,11 +690,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                 />
               </div>
 
-              {/* Horário - Grid Visual de Disponibilidade (Múltipla Seleção) */}
+              {/* Horário - Grid Visual de Disponibilidade */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Horários * <span className="font-normal text-gray-500">(selecione um ou mais)</span>
-                  {loadingAvailability && (
+                  Horário * {loadingAvailability && (
                     <span className="inline-block w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin ml-2" />
                   )}
                 </label>
@@ -704,19 +702,19 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                   <p className="text-sm text-gray-500 italic">Selecione uma data para ver os horários disponíveis</p>
                 ) : (
                   <>
-                    {/* Grid de Horários - Múltipla Seleção */}
+                    {/* Grid de Horários */}
                     <div className="grid grid-cols-4 gap-2 mb-2">
                       {hourOptions.map((hour) => {
                         const slot = availabilitySlots.find(s => s.hour === hour);
                         const isAvailable = slot?.available ?? true;
-                        const isSelected = formData.selectedHours.includes(hour);
+                        const isSelected = formData.startHour === hour;
                         
                         return (
                           <button
                             key={hour}
                             type="button"
                             disabled={!isAvailable || submitting || loadingAvailability}
-                            onClick={() => toggleHourSelection(hour)}
+                            onClick={() => setFormData({ ...formData, startHour: hour })}
                             className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                               isSelected
                                 ? 'bg-primary-600 text-white ring-2 ring-primary-600 ring-offset-2'
@@ -730,29 +728,6 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                         );
                       })}
                     </div>
-                    
-                    {/* Contador de horários selecionados */}
-                    {formData.selectedHours.length > 0 && (
-                      <div className="bg-primary-50 border border-primary-200 rounded-lg p-3 mb-2">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="font-medium text-primary-900">
-                              {formData.selectedHours.length} horário{formData.selectedHours.length > 1 ? 's' : ''} selecionado{formData.selectedHours.length > 1 ? 's' : ''}
-                            </span>
-                            <div className="text-sm text-primary-700">
-                              {formData.selectedHours.map(h => `${String(h).padStart(2, '0')}:00`).join(', ')}
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setFormData(prev => ({ ...prev, selectedHours: [] }))}
-                            className="text-sm text-primary-600 hover:text-primary-800 underline"
-                          >
-                            Limpar
-                          </button>
-                        </div>
-                      </div>
-                    )}
                     
                     {/* Legenda */}
                     <div className="flex items-center gap-4 text-xs text-gray-500">
@@ -769,12 +744,40 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                         <span>Selecionado</span>
                       </div>
                     </div>
-                    
-                    {/* Aviso de horário limite */}
-                    <p className="text-xs text-gray-500 mt-2">
-                      ⏰ Funcionamento: 8h às 18h (segunda a sexta) | 8h às 12h (sábado)
-                    </p>
                   </>
+                )}
+              </div>
+
+              {/* Duração */}
+              <div>
+                <label htmlFor="duration" className="block text-sm font-medium text-gray-700 mb-1">
+                  Duração
+                </label>
+                <select
+                  id="duration"
+                  aria-label="Duração da reserva"
+                  value={formData.duration}
+                  onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })}
+                  disabled={submitting}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
+                    submitting
+                      ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                      : 'border-gray-300'
+                  }`}
+                >
+                  {/* E1: Só mostra durações válidas (que não ultrapassam 20h) */}
+                  {[1, 2, 3, 4]
+                    .filter((hours) => formData.startHour + hours <= 20)
+                    .map((hours) => (
+                      <option key={hours} value={hours}>
+                        {hours} hora{hours > 1 ? 's' : ''}
+                      </option>
+                    ))}
+                </select>
+                {formData.startHour && formData.startHour >= 17 && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    ⚠️ Horário próximo ao fechamento. Duração máxima: {20 - formData.startHour}h
+                  </p>
                 )}
               </div>
             </>
@@ -834,24 +837,13 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
               <span className="text-gray-600">Consultório</span>
               <span className="font-medium">{getRoomDisplayName(room.name)}</span>
             </div>
-            {formData.date && formData.selectedHours.length > 0 && (
-              <>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-600">Data</span>
-                  <span className="font-medium">
-                    {format(formData.date, 'dd/MM/yyyy')}
-                  </span>
-                </div>
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-gray-600">Horários</span>
-                  <span className="font-medium text-right">
-                    {formData.selectedHours.map(h => `${String(h).padStart(2, '0')}:00`).join(', ')}
-                    <span className="text-sm text-gray-500 block">
-                      ({formData.selectedHours.length} hora{formData.selectedHours.length > 1 ? 's' : ''})
-                    </span>
-                  </span>
-                </div>
-              </>
+            {formData.date && (
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-gray-600">Data/Hora</span>
+                <span className="font-medium">
+                  {format(formData.date, 'dd/MM/yyyy')} às {String(formData.startHour).padStart(2, '0')}:00
+                </span>
+              </div>
             )}
             <div className="flex justify-between items-center pt-2 border-t">
               <span className="font-semibold">Total</span>

@@ -1,5 +1,5 @@
 // ===========================================================
-// Componente RoomCard - Card de sala com botão reservar
+// Componente RoomCard - Card de consultório com botão reservar
 // ===========================================================
 
 import Image from 'next/image';

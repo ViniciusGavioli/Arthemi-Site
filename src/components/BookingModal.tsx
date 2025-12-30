@@ -182,8 +182,8 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     return couponKey && VALID_COUPONS[couponKey];
   };
 
-  // Opções de horário (8h às 17h - cada slot = 1h, último termina às 18h)
-  const hourOptions = Array.from({ length: 10 }, (_, i) => i + 8); // 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
+  // Opções de horário (8h às 18h - último horário disponível)
+  const hourOptions = Array.from({ length: 11 }, (_, i) => i + 8); // 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18
 
   // Toggle de seleção de horário (múltipla seleção)
   const toggleHourSelection = (hour: number) => {
@@ -264,6 +264,9 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     try {
       // Se é PACOTE/CRÉDITO → usa endpoint de crédito (sem criar booking)
       if (formData.productType === 'package') {
+        // Determinar se é horas avulsas ou pacote
+        const isHourlyCredit = formData.productId === 'hourly_credit';
+        
         const response = await fetch('/api/credits/purchase', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -273,7 +276,9 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
             userEmail: formData.userEmail || undefined,
             userCpf: formData.userCpf.replace(/\D/g, ''),
             roomId: room.id,
-            productId: formData.productId,
+            // Se é hora avulsa, envia hours; se é pacote, envia productId
+            productId: isHourlyCredit ? undefined : formData.productId,
+            hours: isHourlyCredit ? formData.duration : undefined,
             couponCode: formData.couponCode || undefined,
           }),
         });
@@ -558,11 +563,62 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
             <>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Escolha seu pacote de créditos
+                  O que você quer comprar?
                 </label>
                 
+                {/* Opção: Horas Avulsas */}
                 <div className="space-y-3">
-                  {/* Pacotes disponíveis */}
+                  <div 
+                    className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                      formData.productId === 'hourly_credit' 
+                        ? 'border-accent-500 bg-accent-50' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => setFormData({ ...formData, productId: 'hourly_credit' })}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold text-gray-900">⏱️ Horas Avulsas</div>
+                        <div className="text-sm text-gray-500">Compre horas para usar quando quiser</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-accent-600">{formatCurrency(hourlyPrice)}/hora</div>
+                      </div>
+                    </div>
+                    
+                    {formData.productId === 'hourly_credit' && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <label htmlFor="hours-credit-select" className="block text-sm font-medium text-gray-700 mb-1">
+                          Quantas horas?
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <select
+                            id="hours-credit-select"
+                            aria-label="Quantidade de horas"
+                            value={formData.duration}
+                            onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })}
+                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent-500"
+                          >
+                            {[1, 2, 3, 4, 5, 6, 8, 10].map((h) => (
+                              <option key={h} value={h}>{h} hora{h > 1 ? 's' : ''}</option>
+                            ))}
+                          </select>
+                          <div className="text-lg font-bold text-gray-900">
+                            = {formatCurrency(hourlyPrice * formData.duration)}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Divisor */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 border-t border-gray-200"></div>
+                    <span className="text-sm text-gray-400">ou escolha um pacote</span>
+                    <div className="flex-1 border-t border-gray-200"></div>
+                  </div>
+
+                  {/* Pacotes */}
                   {filteredProducts.filter(p => p.type !== 'HOURLY_RATE').map((product) => (
                     <div 
                       key={product.id}
@@ -610,7 +666,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
             </>
           )}
 
-          {/* HORA AVULSA: Data + Horários (múltipla seleção) */}
+          {/* HORA AVULSA: Data + Horário + Duração */}
           {formData.productType === 'hourly' && (
             <>
               {/* Data */}

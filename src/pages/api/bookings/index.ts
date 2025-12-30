@@ -56,7 +56,6 @@ type CreateBookingInput = z.infer<typeof createBookingSchema>;
 interface ApiResponse {
   success: boolean;
   bookingId?: string;
-  bookingIds?: string[]; // Para múltiplas reservas
   paymentUrl?: string;
   creditsUsed?: number;
   amountToPay?: number;
@@ -122,19 +121,12 @@ export default async function handler(
         });
       }
       
-      // Validar limite de horário conforme dia da semana
-      // - Segunda a Sexta: até 18h
-      // - Sábado: até 12h
-      const isSaturday = slot.startAt.getDay() === 6;
-      const maxEndHour = isSaturday ? 12 : 18;
+      // Validar limite de horário (18h)
       const endHour = slot.endAt.getHours();
-      
-      if (endHour > maxEndHour) {
+      if (endHour > 19) { // 19:00 = fim do slot das 18:00
         return res.status(400).json({
           success: false,
-          error: isSaturday 
-            ? 'Aos sábados o horário máximo de funcionamento é 12h' 
-            : 'Horário máximo de funcionamento é 18h',
+          error: 'Horário máximo de funcionamento é 18h',
         });
       }
     }
@@ -194,26 +186,18 @@ export default async function handler(
       });
     }
 
-    // Buffer de limpeza entre reservas: 40 minutos
-    const CLEANING_BUFFER_MINUTES = 40;
-    const CLEANING_BUFFER_MS = CLEANING_BUFFER_MINUTES * 60 * 1000;
-
     // TRANSACTION ATÔMICA - Previne race condition
     const result = await prisma.$transaction(async (tx) => {
-      // 4. Verificar disponibilidade de TODOS os slots (com buffer de limpeza)
+      // 4. Verificar disponibilidade de TODOS os slots
       for (const slot of bookingSlots) {
-        // Expande o período de verificação para incluir o buffer de limpeza
-        const checkStart = new Date(slot.startAt.getTime() - CLEANING_BUFFER_MS);
-        const checkEnd = new Date(slot.endAt.getTime() + CLEANING_BUFFER_MS);
-        
         const conflictingBooking = await tx.booking.findFirst({
           where: {
             roomId: data.roomId,
             status: { in: ['PENDING', 'CONFIRMED'] },
-            // Verifica se há reserva que conflita considerando o buffer
-            AND: [
-              { startTime: { lt: checkEnd } },
-              { endTime: { gt: checkStart } },
+            OR: [
+              { startTime: { lt: slot.endAt, gte: slot.startAt } },
+              { endTime: { gt: slot.startAt, lte: slot.endAt } },
+              { AND: [{ startTime: { lte: slot.startAt } }, { endTime: { gte: slot.endAt } }] },
             ],
           },
         });

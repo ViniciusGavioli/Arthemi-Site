@@ -227,26 +227,70 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel }: CreditBooki
     );
   }
 
-  // Sem créditos
+  // Sem créditos - mostra opções dentro do modal
   if (totalCredits === 0) {
     return (
-      <div className="text-center py-12 px-4">
-        <span className="text-6xl mb-6 block">💰</span>
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Você não tem créditos</h2>
-        <p className="text-gray-600 mb-8">Compre um pacote de horas para fazer reservas.</p>
-        <div className="flex gap-3 justify-center">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="text-center pb-4 border-b border-gray-200">
+          <span className="text-5xl mb-4 block">💳</span>
+          <h2 className="text-xl font-bold text-gray-900">Nova Reserva</h2>
+          <p className="text-gray-500 mt-1">Você ainda não tem créditos</p>
+        </div>
+
+        {/* Opções */}
+        <div className="space-y-4">
+          <p className="text-center text-gray-600">
+            Escolha como deseja agendar:
+          </p>
+
+          {/* Opção 1: Comprar pacote */}
+          <Link
+            href="/salas?tab=packages"
+            className="flex items-center gap-4 p-5 rounded-xl border-2 border-primary-200 bg-primary-50 hover:border-primary-400 transition-all group"
+          >
+            <div className="flex-shrink-0 w-12 h-12 bg-primary-500 rounded-xl flex items-center justify-center">
+              <span className="text-2xl">📦</span>
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-gray-900 group-hover:text-primary-700">
+                Comprar pacote de horas
+              </p>
+              <p className="text-sm text-gray-600">
+                Economize até 25% com pacotes. Ideal para uso recorrente.
+              </p>
+            </div>
+            <span className="text-primary-500 font-medium">→</span>
+          </Link>
+
+          {/* Opção 2: Reserva avulsa */}
+          <Link
+            href="/salas"
+            className="flex items-center gap-4 p-5 rounded-xl border-2 border-gray-200 bg-white hover:border-gray-300 transition-all group"
+          >
+            <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
+              <span className="text-2xl">⚡</span>
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-gray-900 group-hover:text-gray-700">
+                Reserva avulsa (PIX)
+              </p>
+              <p className="text-sm text-gray-600">
+                Pague por hora. Sem compromisso, ideal para uso pontual.
+              </p>
+            </div>
+            <span className="text-gray-400 font-medium">→</span>
+          </Link>
+        </div>
+
+        {/* Botão fechar */}
+        <div className="pt-4 border-t border-gray-200">
           <button
             onClick={onCancel}
-            className="px-6 py-3 text-gray-600 hover:text-gray-800 font-medium"
+            className="w-full px-6 py-3 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl font-medium transition-colors"
           >
             Fechar
           </button>
-          <Link
-            href="/salas"
-            className="inline-block bg-primary-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-primary-700 transition-colors"
-          >
-            Ver pacotes
-          </Link>
         </div>
       </div>
     );

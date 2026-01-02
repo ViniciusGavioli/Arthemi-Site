@@ -88,6 +88,47 @@ export default function MinhaContaPage() {
   const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Detecta ?afterPurchase=1 para abrir wizard automaticamente
+  useEffect(() => {
+    if (router.isReady && router.query.afterPurchase === '1') {
+      // Remove o parâmetro da URL sem reload
+      const { afterPurchase, ...rest } = router.query;
+      router.replace({ pathname: router.pathname, query: rest }, undefined, { shallow: true });
+      
+      // Mostra toast de sucesso
+      setSuccessMessage('Créditos liberados! Agora agende seu horário.');
+      
+      // Abre modal de reserva após pequeno delay
+      setTimeout(() => {
+        setBookingModalOpen(true);
+      }, 500);
+      
+      // Limpa mensagem após 5s
+      setTimeout(() => setSuccessMessage(''), 5000);
+    }
+  }, [router.isReady, router.query]);
+
+  // Detecta retorno de pagamento via sessionStorage
+  useEffect(() => {
+    const purchasePending = sessionStorage.getItem('purchasePending');
+    if (purchasePending) {
+      // Limpa a flag
+      sessionStorage.removeItem('purchasePending');
+      sessionStorage.removeItem('purchaseReturnUrl');
+      
+      // Mostra toast informativo
+      setSuccessMessage('Pagamento processado! Seus créditos estarão disponíveis em instantes.');
+      
+      // Refetch para ver se os créditos já foram liberados
+      setTimeout(() => {
+        refetchData();
+      }, 2000);
+      
+      // Limpa mensagem após 5s
+      setTimeout(() => setSuccessMessage(''), 5000);
+    }
+  }, []);
+
   useEffect(() => {
     let mounted = true;
 

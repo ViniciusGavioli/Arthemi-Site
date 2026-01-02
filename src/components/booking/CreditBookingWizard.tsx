@@ -227,45 +227,30 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCre
     );
   }
 
-  // Sem créditos - mostra opção de compra dentro do modal
+  // Sem créditos - mostra EmptyState simples
   if (totalCredits === 0) {
     return (
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="text-center pb-4 border-b border-gray-200">
-          <span className="text-5xl mb-4 block">💳</span>
-          <h2 className="text-xl font-bold text-gray-900">Nova Reserva</h2>
-          <p className="text-gray-500 mt-1">Você ainda não tem créditos</p>
+      <div className="flex flex-col items-center justify-center py-12 px-4">
+        <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mb-4">
+          <span className="text-3xl">💳</span>
         </div>
-
-        {/* Mensagem */}
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <p className="text-amber-800 text-sm">
-            Para agendar horários, você precisa ter créditos disponíveis. 
-            Adquira um pacote de horas e economize!
-          </p>
-        </div>
-
-        {/* CTA principal */}
-        <button
-          onClick={() => {
-            onCancel(); // Fecha este modal
-            if (onPurchaseCredits) onPurchaseCredits(); // Abre modal de compra
-          }}
-          className="w-full flex items-center justify-center gap-3 p-5 rounded-xl border-2 border-primary-500 bg-primary-600 hover:bg-primary-700 transition-all text-white"
-        >
-          <span className="text-2xl">📦</span>
-          <div className="text-left">
-            <p className="font-semibold">Comprar pacote de horas</p>
-            <p className="text-sm text-primary-100">Economize até 20% com pacotes</p>
-          </div>
-        </button>
-
-        {/* Botão fechar */}
-        <div className="pt-4 border-t border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Sem créditos disponíveis</h3>
+        <p className="text-gray-500 text-center mb-6 max-w-xs">
+          Para agendar um horário, você precisa comprar créditos primeiro.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={() => {
+              onCancel(); // Fecha este modal
+              if (onPurchaseCredits) onPurchaseCredits(); // Abre modal de compra
+            }}
+            className="px-6 py-3 bg-primary-600 text-white rounded-xl font-semibold hover:bg-primary-700 transition-colors"
+          >
+            Comprar horas
+          </button>
           <button
             onClick={onCancel}
-            className="w-full px-6 py-3 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl font-medium transition-colors"
+            className="px-6 py-3 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl font-medium transition-colors"
           >
             Fechar
           </button>

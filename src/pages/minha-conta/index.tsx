@@ -29,6 +29,8 @@ import {
   QuickActionCard,
 } from '@/components/dashboard';
 
+import { BookingWizardModal } from '@/components/booking';
+
 // ===========================================================
 // TIPOS
 // ===========================================================
@@ -79,6 +81,7 @@ export default function MinhaContaPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -365,7 +368,7 @@ export default function MinhaContaPage() {
                     icon={<Plus className="w-5 h-5 text-white" />}
                     title="Nova Reserva"
                     description="Agendar usando créditos"
-                    href="/minha-conta/nova-reserva"
+                    onClick={() => setBookingModalOpen(true)}
                     variant="primary"
                   />
                   <QuickActionCard
@@ -435,6 +438,17 @@ export default function MinhaContaPage() {
           </div>
         </main>
       </div>
+
+      {/* Modal de Nova Reserva */}
+      <BookingWizardModal
+        isOpen={bookingModalOpen}
+        onClose={() => setBookingModalOpen(false)}
+        onSuccess={() => {
+          // Recarrega dados após reserva bem-sucedida
+          setBookingModalOpen(false);
+          refetchData();
+        }}
+      />
     </>
   );
 }

@@ -214,11 +214,9 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
 
       // Sucesso - redireciona para pagamento com param para retorno
       if (data.paymentUrl) {
-        // Salva referência para retorno
-        sessionStorage.setItem('purchasePending', data.creditId);
-        // Adiciona afterPurchase para callback no retorno
-        const returnUrl = `${window.location.origin}/minha-conta?afterPurchase=1`;
-        sessionStorage.setItem('purchaseReturnUrl', returnUrl);
+        // Salva flags para detecção na volta
+        sessionStorage.setItem('purchasePending', '1');
+        sessionStorage.setItem('purchaseRoomId', selectedRoom.id);
         window.location.href = data.paymentUrl;
       } else {
         setError('URL de pagamento não disponível');

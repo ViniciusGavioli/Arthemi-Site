@@ -88,46 +88,39 @@ export default function MinhaContaPage() {
   const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Detecta ?afterPurchase=1 para abrir wizard automaticamente
+  // Detecta retorno de compra via ?afterPurchase=1 OU sessionStorage
   useEffect(() => {
-    if (router.isReady && router.query.afterPurchase === '1') {
-      // Remove o parâmetro da URL sem reload
-      const { afterPurchase, ...rest } = router.query;
-      router.replace({ pathname: router.pathname, query: rest }, undefined, { shallow: true });
-      
+    if (!router.isReady) return;
+
+    const fromQuery = router.query.afterPurchase === '1';
+    const fromStorage = sessionStorage.getItem('purchasePending') === '1';
+
+    if (fromQuery || fromStorage) {
+      // Limpa flags
+      if (fromQuery) {
+        const { afterPurchase, ...rest } = router.query;
+        router.replace({ pathname: router.pathname, query: rest }, undefined, { shallow: true });
+      }
+      if (fromStorage) {
+        sessionStorage.removeItem('purchasePending');
+        sessionStorage.removeItem('purchaseRoomId');
+      }
+
       // Mostra toast de sucesso
       setSuccessMessage('Créditos liberados! Agora agende seu horário.');
-      
+
+      // Refetch para atualizar créditos
+      refetchData();
+
       // Abre modal de reserva após pequeno delay
       setTimeout(() => {
         setBookingModalOpen(true);
       }, 500);
-      
+
       // Limpa mensagem após 5s
       setTimeout(() => setSuccessMessage(''), 5000);
     }
   }, [router.isReady, router.query]);
-
-  // Detecta retorno de pagamento via sessionStorage
-  useEffect(() => {
-    const purchasePending = sessionStorage.getItem('purchasePending');
-    if (purchasePending) {
-      // Limpa a flag
-      sessionStorage.removeItem('purchasePending');
-      sessionStorage.removeItem('purchaseReturnUrl');
-      
-      // Mostra toast informativo
-      setSuccessMessage('Pagamento processado! Seus créditos estarão disponíveis em instantes.');
-      
-      // Refetch para ver se os créditos já foram liberados
-      setTimeout(() => {
-        refetchData();
-      }, 2000);
-      
-      // Limpa mensagem após 5s
-      setTimeout(() => setSuccessMessage(''), 5000);
-    }
-  }, []);
 
   useEffect(() => {
     let mounted = true;

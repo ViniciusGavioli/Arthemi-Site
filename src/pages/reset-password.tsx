@@ -23,7 +23,7 @@ export const getServerSideProps: GetServerSideProps<ResetPasswordPageProps> = as
   if (auth) {
     return {
       redirect: {
-        destination: '/account',
+        destination: '/minha-conta',
         permanent: false,
       },
     };

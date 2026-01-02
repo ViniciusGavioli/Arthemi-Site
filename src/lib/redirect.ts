@@ -14,7 +14,7 @@
  * @param fallback - URL padrão se next for inválido
  * @returns URL segura para redirecionamento
  */
-export function safeNext(next: unknown, fallback = '/account'): string {
+export function safeNext(next: unknown, fallback = '/minha-conta'): string {
   // Deve ser string
   if (typeof next !== 'string') {
     return fallback;

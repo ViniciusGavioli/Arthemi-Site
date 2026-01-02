@@ -20,7 +20,7 @@ export const getServerSideProps: GetServerSideProps<LoginPageProps> = async (ctx
   const auth = getAuthFromSSR(ctx);
   
   if (auth) {
-    const next = safeNext(ctx.query.next, '/account');
+    const next = safeNext(ctx.query.next, '/minha-conta');
     return {
       redirect: {
         destination: next,
@@ -70,7 +70,7 @@ export default function LoginPage({ successMessage }: LoginPageProps) {
       }
 
       // Login OK - redirecionar
-      const destination = safeNext(next, '/account');
+      const destination = safeNext(next, '/minha-conta');
       router.push(destination);
 
     } catch {

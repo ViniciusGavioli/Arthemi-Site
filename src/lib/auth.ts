@@ -548,7 +548,7 @@ export function requireAdminSSR(
   if (result.auth.role !== 'ADMIN') {
     return {
       redirect: {
-        destination: '/account?error=unauthorized',
+        destination: '/minha-conta?error=unauthorized',
         permanent: false,
       },
     };

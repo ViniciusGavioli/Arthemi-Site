@@ -16,7 +16,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
   if (auth) {
     return {
       redirect: {
-        destination: '/account',
+        destination: '/minha-conta',
         permanent: false,
       },
     };

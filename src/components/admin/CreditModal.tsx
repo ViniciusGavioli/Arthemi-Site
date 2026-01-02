@@ -157,9 +157,9 @@ export default function CreditModal({ userId, userName, onClose, onSuccess, show
             <span className="text-gray-600">Consultório:</span>
             <span className="font-medium text-gray-800">
               {formData.roomId === '' && 'Qualquer consultório'}
-              {formData.roomId === 'sala-a' && 'Consultório 1'}
-              {formData.roomId === 'sala-b' && 'Consultório 2'}
-              {formData.roomId === 'sala-c' && 'Consultório 3'}
+              {formData.roomId === 'sala-a' && 'Consultório 1 | Prime'}
+              {formData.roomId === 'sala-b' && 'Consultório 2 | Executive'}
+              {formData.roomId === 'sala-c' && 'Consultório 3 | Essential'}
             </span>
           </div>
           <div className="flex justify-between">
@@ -231,9 +231,9 @@ export default function CreditModal({ userId, userName, onClose, onSuccess, show
           onChange={(e) => setFormData(d => ({ ...d, roomId: e.target.value }))}
           options={[
             { value: '', label: 'Genérico (qualquer consultório)' },
-            { value: 'sala-a', label: 'Consultório 1' },
-            { value: 'sala-b', label: 'Consultório 2' },
-            { value: 'sala-c', label: 'Consultório 3' },
+            { value: 'sala-a', label: 'Consultório 1 | Prime' },
+            { value: 'sala-b', label: 'Consultório 2 | Executive' },
+            { value: 'sala-c', label: 'Consultório 3 | Essential' },
           ]}
         />
         <p className="text-xs text-gray-500 -mt-2">

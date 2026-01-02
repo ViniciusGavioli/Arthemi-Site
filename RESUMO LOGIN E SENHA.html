@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plano de Implementação — Login + Área do Cliente | Arthemi</title>
+    <style>
+        :root {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-card: #222222;
+            --bg-hover: #2a2a2a;
+            --accent: #8b5cf6;
+            --accent-light: #a78bfa;
+            --accent-dark: #7c3aed;
+            --text-primary: #f5f5f5;
+            --text-secondary: #a3a3a3;
+            --text-muted: #737373;
+            --border: #333333;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            font-size: 16px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            padding: 3rem 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 2rem;
+        }
+
+        .logo {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .version-badge {
+            display: inline-block;
+            background: var(--bg-card);
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.875rem;
+            color: var(--accent-light);
+            margin-top: 1rem;
+            border: 1px solid var(--border);
+        }
+
+        /* Print Button */
+        .print-btn {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+            z-index: 100;
+        }
+
+        .print-btn:hover {
+            background: var(--accent-dark);
+            transform: translateY(-2px);
+        }
+
+        /* Sumário */
+        .summary {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 3rem;
+            border: 1px solid var(--border);
+        }
+
+        .summary h2 {
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .summary a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 0.5rem 0;
+            transition: color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .summary a:hover {
+            color: var(--accent-light);
+        }
+
+        .summary a::before {
+            content: "→";
+            color: var(--accent);
+            font-size: 0.875rem;
+        }
+
+        /* Sections */
+        section {
+            margin-bottom: 3rem;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .section-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .section-icon svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin: 1.5rem 0 1rem;
+            color: var(--text-primary);
+        }
+
+        p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            transition: all 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card p {
+            font-size: 0.9rem;
+            margin-bottom: 0;
+        }
+
+        /* Lists */
+        ul, ol {
+            padding-left: 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        li strong {
+            color: var(--text-primary);
+        }
+
+        /* Tables */
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+
+        td {
+            color: var(--text-secondary);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: var(--bg-hover);
+        }
+
+        /* Code */
+        code {
+            background: var(--bg-secondary);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 0.875rem;
+            color: var(--accent-light);
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-success { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+        .badge-warning { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+        .badge-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+        .badge-info { background: rgba(59, 130, 246, 0.15); color: var(--info); }
+        .badge-purple { background: rgba(139, 92, 246, 0.15); color: var(--accent-light); }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 7px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--border);
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-bottom: 1.5rem;
+        }
+
+        .timeline-item:last-child {
+            padding-bottom: 0;
+        }
+
+        .timeline-dot {
+            position: absolute;
+            left: -2rem;
+            top: 0.25rem;
+            width: 16px;
+            height: 16px;
+            background: var(--accent);
+            border-radius: 50%;
+            border: 3px solid var(--bg-primary);
+        }
+
+        .timeline-item.completed .timeline-dot {
+            background: var(--success);
+        }
+
+        .timeline-item.marketing .timeline-dot {
+            background: var(--warning);
+        }
+
+        .timeline-date {
+            font-weight: 600;
+            color: var(--accent-light);
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .timeline-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .timeline-desc {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Checklist */
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+
+        .checklist li {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: var(--bg-card);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            border: 1px solid var(--border);
+        }
+
+        .checklist-box {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border);
+            border-radius: 4px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 2rem;
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+        }
+
+        footer p {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+                color: #1a1a1a;
+            }
+
+            .print-btn {
+                display: none;
+            }
+
+            .card, .summary, .table-wrapper {
+                border: 1px solid #e5e5e5;
+                background: #fafafa;
+            }
+
+            th {
+                background: #f5f5f5;
+            }
+
+            code {
+                background: #f5f5f5;
+                color: #7c3aed;
+            }
+
+            a {
+                color: #7c3aed;
+            }
+
+            .section-icon {
+                background: #7c3aed;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .logo {
+                font-size: 2rem;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .print-btn {
+                position: static;
+                margin: 1rem auto;
+            }
+
+            header {
+                padding: 2rem 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="print-btn" onclick="window.print()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 6 2 18 2 18 9"></polyline>
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+            <rect x="6" y="14" width="12" height="8"></rect>
+        </svg>
+        Imprimir / PDF
+    </button>
+
+    <div class="container">
+        <header>
+            <div class="logo">ARTHEMI</div>
+            <p class="subtitle">Plano de Implementação — Login + Área do Cliente</p>
+            <span class="version-badge">v1.0 — 30 de Dezembro de 2025</span>
+        </header>
+
+        <!-- Sumário -->
+        <nav class="summary">
+            <h2>📑 Sumário</h2>
+            <div class="summary-grid">
+                <a href="#visao-geral">Visão Geral</a>
+                <a href="#decisao">Por que esta Solução</a>
+                <a href="#area-cliente">Área do Cliente</a>
+                <a href="#area-admin">Área Administrativa</a>
+                <a href="#seguranca">Segurança</a>
+                <a href="#banco-dados">Banco de Dados</a>
+                <a href="#apis">APIs / Endpoints</a>
+                <a href="#regras-negocio">Regras de Negócio</a>
+                <a href="#checklist">Checklist</a>
+                <a href="#cronograma">Cronograma</a>
+                <a href="#marketing">Plano de Marketing</a>
+            </div>
+        </nav>
+
+        <!-- Visão Geral -->
+        <section id="visao-geral">
+            <div class="section-header">
+                <div class="section-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                </div>
+                <h2>Visão Geral</h2>
+            </div>
+            <p>Implementação de sistema de autenticação tradicional (email + senha) para o Espaço Arthemi, substituindo o modelo de magic link. O projeto inclui área do cliente para gestão de agendamentos e créditos, além de melhorias na área administrativa.</p>
+            
+            <div class="card-grid">
+                <div class="card">
+                    <h4>🔐 Autenticação</h4>
+                    <p>Login com email (Gmail/Hotmail/etc) e senha, cadastro, recuperação de senha com token por email.</p>
+                </div>
+                <div class="card">
+                    <h4>👤 Área do Cliente</h4>
+                    <p>Visualização de créditos por consultório, histórico de agendamentos, agendar/cancelar/remarcar.</p>
+                </div>
+                <div class="card">
+                    <h4>⚙️ Admin Aprimorado</h4>
+                    <p>Gestão de usuários: listar, bloquear/desbloquear, forçar reset de senha, alterar roles.</p>
+                </div>
+                <div class="card">
+                    <h4>🛡️ Segurança Total</h4>
+                    <p>JWT em cookie HttpOnly, bcrypt, rate limit, auditoria de ações sensíveis.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Por que esta Solução -->
+        <section id="decisao">
+            <div class="section-header">
+                <div class="section-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <h2>Por que esta Implementação</h2>
+            </div>
+            <p>A decisão pelo login tradicional foi baseada na experiência do usuário e requisitos do cliente:</p>
+            <ul>
+                <li><strong>Familiaridade:</strong> Usuários estão acostumados com email + senha</li>
+                <li><strong>Autonomia:</strong> Cliente não depende de receber email a cada login</li>
+                <li><strong>Controle:</strong> Possibilidade de bloquear usuários, forçar reset, gerenciar acessos</li>
+                <li><strong>Escalabilidade:</strong> Base sólida para futuras funcionalidades (permissões granulares, etc)</li>
+                <li><strong>Segurança:</strong> bcrypt + JWT HttpOnly é padrão da indústria, amplamente testado</li>
+            </ul>
+        </section>
+
+        <!-- Área do Cliente -->
+        <section id="area-cliente">
+            <div class="section-header">
+                <div class="section-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                </div>
+                <h2>Funcionalidades — Área do Cliente</h2>
+            </div>
+            <div class="card-grid">
+                <div class="card">
+                    <h4>💰 Créditos por Consultório</h4>
+                    <p>Visualizar saldo em R$ separado por consultório (Prime, Executive, Essential), com histórico de uso.</p>
+                </div>
+                <div class="card">
+                    <h4>📅 Meus Agendamentos</h4>
+                    <p>Lista de reservas passadas e futuras, status (confirmado, cancelado, pendente).</p>
+                </div>
+                <div class="card">
+                    <h4>➕ Novo Agendamento</h4>
+                    <p>Agendar horário disponível, respeitando regras de negócio do Arthemi.</p>
+                </div>
+                <div class="card">
+                    <h4>🔄 Cancelar / Remarcar</h4>
+                    <p>Cancelar ou alterar data/hora de agendamentos futuros (com regras de prazo).</p>
+                </div>
+                <div class="card">
+                    <h4>👤 Meu Perfil</h4>
+                    <p>Editar nome, telefone, trocar senha.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Área Admin -->
+        <section id="area-admin">
+            <div class="section-header">
+                <div class="section-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                </div>
+                <h2>Funcionalidades — Área Administrativa</h2>
+            </div>
+            <div class="card-grid">
+                <div class="card">
+                    <h4>👥 Listar Usuários</h4>
+                    <p>Tabela com todos os usuários: nome, email, role, status, último login.</p>
+                </div>
+                <div class="card">
+                    <h4>🚫 Bloquear / Desbloquear</h4>
+                    <p>Impedir acesso de usuário problemático, com motivo registrado.</p>
+                </div>
+                <div class="card">
+                    <h4>🔑 Forçar Reset de Senha</h4>
+                    <p>Enviar email de reset para usuário, invalidando senha atual.</p>
+                </div>
+                <div class="card">
+                    <h4>🏷️ Alterar Role</h4>
+                    <p>Promover usuário para admin ou rebaixar para cliente.</p>
+                </div>
+                <div class="card">
+                    <h4>📋 Auditoria</h4>
+                    <p>Log de ações sensíveis: quem fez, quando, o quê.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Segurança -->
+        <section id="seguranca">
+            <div class="section-header">
+                <div class="section-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <h2>Segurança</h2>
+            </div>
+            
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Aspecto</th>
+                            <th>Implementação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Hash de Senha</strong></td>
+                            <td><code>bcrypt</code> com salt rounds = 12</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Sessão</strong></td>
+                            <td>JWT assinado com <code>HS256</code>, armazenado em cookie <code>HttpOnly</code>, <code>Secure</code>, <code>SameSite=Strict</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Expiração JWT</strong></td>
+                            <td>7 dias (renovável a cada requisição autenticada)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Rate Limit Login</strong></td>
+                            <td>5 tentativas/hora por IP e por email. Bloqueio progressivo.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Campos de Bloqueio</strong></td>
+                            <td><code>failedAttempts</code> + <code>lockedUntil</code> na tabela User</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Reset de Senha</strong></td>
+                            <td>Token único com expiração de 1 hora, uso único</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Auditoria</strong></td>
+                            <td>Log de: login, logout, reset, bloqueio, alteração de role</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Vazamento de Dados</strong></td>
+                            <td>Mensagens genéricas em login/reset ("Email ou senha incorretos")</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Banco de Dados -->
+        <section id="banco-dados">
+            <div class="section-header">
+                <div class="section-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
+                </div>
+                <h2>Banco de Dados — Schema</h2>
+            </div>
+            
+            <h3>Tabela User (atualizada)</h3>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Campo</th>
+                            <th>Tipo</th>
+                            <th>Descrição</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>id</code></td><td>String (UUID)</td><td>Identificador único</td></tr>
+                        <tr><td><code>email</code></td><td>String (unique)</td><td>Email do usuário</td></tr>
+                        <tr><td><code>passwordHash</code></td><td>String</td><td>Senha hasheada com bcrypt</td></tr>
+                        <tr><td><code>name</code></td><td>String</td><td>Nome completo</td></tr>
+                        <tr><td><code>phone</code></td><td>String?</td><td>Telefone (opcional)</td></tr>
+                        <tr><td><code>cpf</code></td><td>String?</td><td>CPF (opcional)</td></tr>
+                        <tr><td><code>role</code></td><td>Enum</td><td>ADMIN | CLIENT</td></tr>
+                        <tr><td><code>isActive</code></td><td>Boolean</td><td>Conta ativa ou bloqueada</td></tr>
+                        <tr><td><code>failedAttempts</code></td><td>Int</td><td>Tentativas falhas consecutivas</td></tr>
+                        <tr><td><code>lockedUntil</code></td><td>DateTime?</td><td>Bloqueado até (rate limit)</td></tr>
+                        <tr><td><code>lastLoginAt</code></td><td>DateTime?</td><td>Último login bem-sucedido</td></tr>
+                        <tr><td><code>createdAt</code></td><td>DateTime</td><td>Data de criação</td></tr>
+                        <tr><td><code>updatedAt</code></td><td>DateTime</td><td>Última atualização</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Tabela PasswordResetToken</h3>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Campo</th>
+                            <th>Tipo</th>
+                            <th>Descrição</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>id</code></td><td>String (UUID)</td><td>Identificador único</td></tr>
+                        <tr><td><code>token</code></td><td>String (unique)</td><td>Token seguro de reset</td></tr>
+                        <tr><td><code>userId</code></td><td>String</td><td>FK para User</td></tr>
+                        <tr><td><code>expiresAt</code></td><td>DateTime</td><td>Expiração (1 hora)</td></tr>
+                        <tr><td><code>usedAt</code></td><td>DateTime?</td><td>Quando foi usado</td></tr>
+                        <tr><td><code>createdAt</code></td><td>DateTime</td><td>Data de criação</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Enum Role</h3>
+            <p><code>ADMIN</code> — Acesso total ao sistema<br>
+            <code>CLIENT</code> — Acesso à área do cliente</p>
+        </section>
+
+        <!-- APIs -->
+        <section id="apis">
+            <div class="section-header">
+                <div class="section-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </div>
+                <h2>APIs / Endpoints</h2>
+            </div>
+            
+            <h3>Autenticação</h3>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Método</th>
+                            <th>Endpoint</th>
+                            <th>Descrição</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><span class="badge badge-success">POST</span></td><td><code>/api/auth/register</code></td><td>Cadastro de novo usuário</td></tr>
+                        <tr><td><span class="badge badge-success">POST</span></td><td><code>/api/auth/login</code></td><td>Login (retorna cookie JWT)</td></tr>
+                        <tr><td><span class="badge badge-success">POST</span></td><td><code>/api/auth/logout</code></td><td>Logout (limpa cookie)</td></tr>
+                        <tr><td><span class="badge badge-info">GET</span></td><td><code>/api/auth/me</code></td><td>Retorna usuário logado</td></tr>
+                        <tr><td><span class="badge badge-success">POST</span></td><td><code>/api/auth/forgot-password</code></td><td>Solicita reset de senha</td></tr>
+                        <tr><td><span class="badge badge-success">POST</span></td><td><code>/api/auth/reset-password</code></td><td>Redefine senha com token</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Área do Cliente</h3>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Método</th>
+                            <th>Endpoint</th>
+                            <th>Descrição</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><span class="badge badge-info">GET</span></td><td><code>/api/client/credits</code></td><td>Créditos do usuário por sala</td></tr>
+                        <tr><td><span class="badge badge-info">GET</span></td><td><code>/api/client/bookings</code></td><td>Agendamentos do usuário</td></tr>
+                        <tr><td><span class="badge badge-warning">PATCH</span></td><td><code>/api/client/profile</code></td><td>Atualizar perfil</td></tr>
+                        <tr><td><span class="badge badge-warning">PATCH</span></td><td><code>/api/client/change-password</code></td><td>Trocar senha</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Admin — Gestão de Usuários</h3>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Método</th>
+                            <th>Endpoint</th>
+                            <th>Descrição</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><span class="badge badge-info">GET</span></td><td><code>/api/admin/users</code></td><td>Listar todos os usuários</td></tr>
+                        <tr><td><span class="badge badge-info">GET</span></td><td><code>/api/admin/users/[id]</code></td><td>Detalhes de um usuário</td></tr>
+                        <tr><td><span class="badge badge-warning">PATCH</span></td><td><code>/api/admin/users/[id]/block</code></td><td>Bloquear usuário</td></tr>
+                        <tr><td><span class="badge badge-warning">PATCH</span></td><td><code>/api/admin/users/[id]/unblock</code></td><td>Desbloquear usuário</td></tr>
+                        <tr><td><span class="badge badge-success">POST</span></td><td><code>/api/admin/users/[id]/force-reset</code></td><td>Forçar reset de senha</td></tr>
+                        <tr><td><span class="badge badge-warning">PATCH</span></td><td><code>/api/admin/users/[id]/role</code></td><td>Alterar role do usuário</td></tr>
+                        <tr><td><span class="badge badge-info">GET</span></td><td><code>/api/admin/audit</code></td><td>Log de auditoria</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Regras de Negócio -->
+        <section id="regras-negocio">
+            <div class="section-header">
+                <div class="section-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                </div>
+                <h2>Regras de Negócio Críticas</h2>
+            </div>
+            
+            <div class="card-grid">
+                <div class="card">
+                    <h4>🕐 Horário de Funcionamento</h4>
+                    <p><strong>Seg–Sex:</strong> 08:00 às 20:00<br><strong>Sábado:</strong> 08:00 às 12:00<br><strong>Domingo:</strong> Fechado</p>
+                </div>
+                <div class="card">
+                    <h4>🔒 Lock contra Double Booking</h4>
+                    <p>Uso de transaction lock no banco para evitar que dois usuários agendem o mesmo horário simultaneamente.</p>
+                </div>
+                <div class="card">
+                    <h4>🕐 Horários Válidos</h4>
+                    <p>Apenas horários dentro do funcionamento do espaço. Bloquear tentativas de horários impossíveis.</p>
+                </div>
+                <div class="card">
+                    <h4>📅 Agendamentos Consecutivos</h4>
+                    <p>Usuário pode agendar horários colados (ex: 10:00–11:00 e 11:00–12:00). Sem intervalo obrigatório.</p>
+                </div>
+                <div class="card">
+                    <h4>💳 Créditos por Consultório</h4>
+                    <p>Créditos são específicos por consultório (Consultório 1 | Prime, Consultório 2 | Executive, Consultório 3 | Essential). Não são intercambiáveis.</p>
+                </div>
+                <div class="card">
+                    <h4>🚫 Cancelamento (48h)</h4>
+                    <p>Cancelamento permitido somente com antecedência mínima de <strong>48 horas</strong>.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Checklist -->
+        <section id="checklist">
+            <div class="section-header">
+                <div class="section-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <h2>Checklist de Implementação</h2>
+            </div>
+            
+            <ul class="checklist">
+                <li><div class="checklist-box"></div><span>Schema Prisma atualizado com User, PasswordResetToken, Role</span></li>
+                <li><div class="checklist-box"></div><span>Migration executada em dev e produção</span></li>
+                <li><div class="checklist-box"></div><span>Seed com usuário admin padrão</span></li>
+                <li><div class="checklist-box"></div><span>Endpoint POST /api/auth/register funcionando</span></li>
+                <li><div class="checklist-box"></div><span>Endpoint POST /api/auth/login com JWT em cookie HttpOnly</span></li>
+                <li><div class="checklist-box"></div><span>Endpoint POST /api/auth/logout limpando cookie</span></li>
+                <li><div class="checklist-box"></div><span>Middleware de proteção de rotas autenticadas</span></li>
+                <li><div class="checklist-box"></div><span>Tela de Login funcional e responsiva</span></li>
+                <li><div class="checklist-box"></div><span>Tela de Cadastro funcional e responsiva</span></li>
+                <li><div class="checklist-box"></div><span>Endpoint POST /api/auth/forgot-password</span></li>
+                <li><div class="checklist-box"></div><span>Email de reset sendo enviado corretamente</span></li>
+                <li><div class="checklist-box"></div><span>Tela de Reset de Senha funcional</span></li>
+                <li><div class="checklist-box"></div><span>Rate limit implementado (5 tentativas/hora)</span></li>
+                <li><div class="checklist-box"></div><span>Campos failedAttempts e lockedUntil funcionando</span></li>
+                <li><div class="checklist-box"></div><span>Área do Cliente: dashboard com créditos</span></li>
+                <li><div class="checklist-box"></div><span>Área do Cliente: lista de agendamentos</span></li>
+                <li><div class="checklist-box"></div><span>Admin: listagem de usuários</span></li>
+                <li><div class="checklist-box"></div><span>Admin: bloquear/desbloquear usuário</span></li>
+                <li><div class="checklist-box"></div><span>Admin: forçar reset de senha</span></li>
+                <li><div class="checklist-box"></div><span>Admin: alterar role</span></li>
+                <li><div class="checklist-box"></div><span>Auditoria: log de ações sensíveis</span></li>
+                <li><div class="checklist-box"></div><span>Testes unitários das funções de auth</span></li>
+                <li><div class="checklist-box"></div><span>Testes E2E do fluxo de login/cadastro</span></li>
+                <li><div class="checklist-box"></div><span>Revisão de segurança (sem vazamentos, mensagens genéricas)</span></li>
+                <li><div class="checklist-box"></div><span>Deploy em produção validado</span></li>
+            </ul>
+        </section>
+
+        <!-- Cronograma -->
+        <section id="cronograma">
+            <div class="section-header">
+                <div class="section-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </div>
+                <h2>Cronograma — Até 05/01</h2>
+            </div>
+            
+            <div class="timeline">
+                <div class="timeline-item completed">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">30/12 (Hoje)</div>
+                    <div class="timeline-title">Organização e Documento</div>
+                    <div class="timeline-desc">Levantamento de requisitos, definição do plano, criação deste documento.</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">31/12</div>
+                    <div class="timeline-title">Schema + Migrations + Seed</div>
+                    <div class="timeline-desc">Atualizar schema Prisma, criar migrations, seed com admin.</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">01/01</div>
+                    <div class="timeline-title">Endpoints de Auth</div>
+                    <div class="timeline-desc">Register, login, logout. JWT em cookie HttpOnly. Testes.</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">02/01</div>
+                    <div class="timeline-title">Telas + Proteção de Rotas</div>
+                    <div class="timeline-desc">Telas de login/cadastro. Middleware de autenticação. Redirect.</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">03/01</div>
+                    <div class="timeline-title">Forgot/Reset + Email</div>
+                    <div class="timeline-desc">Endpoints de forgot/reset. Integração com serviço de email. Tela de reset.</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">04/01</div>
+                    <div class="timeline-title">Admin: Gestão de Usuários</div>
+                    <div class="timeline-desc">Listar, bloquear, desbloquear, forçar reset, alterar role. Auditoria.</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">05/01</div>
+                    <div class="timeline-title">Testes + Revisão + Deploy</div>
+                    <div class="timeline-desc">Testes finais, revisão de segurança, checklist 100%, deploy produção.</div>
+                </div>
+                <div class="timeline-item marketing">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">06/01</div>
+                    <div class="timeline-title">🚀 INÍCIO DO MARKETING</div>
+                    <div class="timeline-desc">Sistema pronto. Início das ações de divulgação.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Plano de Marketing -->
+        <section id="marketing">
+            <div class="section-header">
+                <div class="section-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
+                </div>
+                <h2>Plano de Marketing — A partir de 06/01</h2>
+            </div>
+            
+            <div class="card-grid">
+                <div class="card">
+                    <h4>📅 06/01 — Lançamento</h4>
+                    <ul style="font-size: 0.9rem;">
+                        <li>Post no Instagram: "Novo sistema online!"</li>
+                        <li>Stories mostrando a área do cliente</li>
+                        <li>Email para base atual anunciando novidade</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>📅 07/01 — Engajamento</h4>
+                    <ul style="font-size: 0.9rem;">
+                        <li>Tutorial em vídeo: como agendar pelo site</li>
+                        <li>Responder dúvidas nos comentários</li>
+                        <li>Repost de clientes usando o sistema</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>📅 08-09/01 — Benefícios</h4>
+                    <ul style="font-size: 0.9rem;">
+                        <li>Destacar benefícios: créditos, histórico, praticidade</li>
+                        <li>Depoimentos de clientes satisfeitos</li>
+                        <li>Post sobre segurança e privacidade</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>📅 10-12/01 — Promoção</h4>
+                    <ul style="font-size: 0.9rem;">
+                        <li>Promoção de boas-vindas para novos cadastros</li>
+                        <li>Parceria com profissionais para divulgação</li>
+                        <li>Análise de métricas e ajustes</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <p><strong>Plano de Implementação — Login + Área do Cliente</strong></p>
+            <p>Espaço Arthemi • Versão 1.0 • 30 de Dezembro de 2025</p>
+            <p style="margin-top: 1rem; font-size: 0.75rem; color: var(--text-muted);">
+                Documento gerado para alinhamento interno. Sujeito a ajustes conforme andamento do projeto.
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

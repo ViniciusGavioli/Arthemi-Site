@@ -48,7 +48,7 @@ export default function MinhaContaPage() {
       const authData = await authRes.json();
 
       if (!authData.authenticated) {
-        router.push('/auth/entrar');
+        router.push('/login');
         return;
       }
 

@@ -5,13 +5,14 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Nome do cookie de sessão do cliente
-const USER_SESSION_COOKIE = 'user_session';
+// Cookies de sessão
+const USER_SESSION_COOKIE = 'user_session'; // Legado (magic-link)
+const AUTH_COOKIE_NAME = 'arthemi_session'; // Novo (JWT)
 
 // Rotas admin que NÃO precisam de autenticação
 const publicAdminRoutes = ['/admin/login'];
 
-// Rotas de cliente que NÃO precisam de autenticação
+// Rotas de cliente que NÃO precisam de autenticação (legado - mantido por compatibilidade)
 const publicClientRoutes = ['/auth/entrar', '/auth/verificar'];
 
 export function middleware(request: NextRequest) {
@@ -57,35 +58,57 @@ function handleAdminRoutes(request: NextRequest, pathname: string): NextResponse
 // HANDLER CLIENTE
 // ============================================================
 function handleClientRoutes(request: NextRequest, pathname: string): NextResponse {
-  // Verifica cookie de sessão do cliente
+  // Verifica cookie JWT (novo sistema - prioridade)
+  const jwtToken = request.cookies.get(AUTH_COOKIE_NAME)?.value;
+  
+  // Fallback: cookie legado (magic-link)
   const sessionToken = request.cookies.get(USER_SESSION_COOKIE)?.value;
 
-  if (!sessionToken) {
-    // Redireciona para login com destino salvo
-    const loginUrl = new URL('/auth/entrar', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
+  // Se não tem nenhum cookie, redireciona para /login
+  if (!jwtToken && !sessionToken) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Valida formato básico do token (não consulta banco no middleware)
-  // A validação completa é feita na API /api/auth/me
-  if (!isValidSessionTokenFormat(sessionToken)) {
-    const response = NextResponse.redirect(new URL('/auth/entrar', request.url));
-    response.cookies.delete(USER_SESSION_COOKIE);
+  // Se tem JWT, valida formato básico
+  if (jwtToken) {
+    // JWT tem 3 partes separadas por ponto
+    const parts = jwtToken.split('.');
+    if (parts.length !== 3) {
+      // Token inválido, limpa e redireciona
+      const response = NextResponse.redirect(new URL('/login', request.url));
+      response.cookies.delete(AUTH_COOKIE_NAME);
+      return response;
+    }
+    // JWT válido - continua
+    return NextResponse.next();
+  }
+
+  // Se só tem cookie legado, valida formato e redireciona para /login
+  // (magic-link desativado - usuário precisa fazer login com senha)
+  if (sessionToken) {
+    if (!isValidSessionTokenFormat(sessionToken)) {
+      const response = NextResponse.redirect(new URL('/login', request.url));
+      response.cookies.delete(USER_SESSION_COOKIE);
+      return response;
+    }
+    
+    // Cookie legado válido mas magic-link desativado
+    // Usuário ainda tem sessão válida por compatibilidade
+    // Renova cookie e permite acesso
+    const response = NextResponse.next();
+    response.cookies.set(USER_SESSION_COOKIE, sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60,
+    });
     return response;
   }
 
-  // Sessão válida - RENOVA COOKIE (7 dias a partir de agora)
-  const response = NextResponse.next();
-  response.cookies.set(USER_SESSION_COOKIE, sessionToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 7 * 24 * 60 * 60, // 7 dias em segundos
-  });
-
-  return response;
+  return NextResponse.next();
 }
 
 // ============================================================

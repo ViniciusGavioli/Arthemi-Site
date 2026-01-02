@@ -1,89 +1,31 @@
 // ===========================================================
 // API: GET /api/auth/verify?token=xxx
 // ===========================================================
-// Valida magic link token e cria sessão do cliente
-// Redireciona para /minha-conta após sucesso
+// DESATIVADO: Magic link substituido por login email+senha
+// Codigo legado removido - consultar git history para rollback
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { validateMagicLink, generateSessionToken, SESSION_DURATION_DAYS } from '@/lib/magic-link';
-import { logAudit } from '@/lib/audit';
-import { serialize } from 'cookie';
 
-// Nome do cookie de sessão do cliente
+// Nome do cookie de sessao do cliente (exportado para compatibilidade com logout)
 export const USER_SESSION_COOKIE = 'user_session';
 
+// ============================================================
+// ENDPOINT DESATIVADO - Redireciona para /login
+// ============================================================
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  if (req.method !== 'GET') {
-    res.setHeader('Allow', ['GET']);
-    return res.status(405).json({ error: 'Método não permitido' });
-  }
-
-  const { token, redirect } = req.query;
-
-  // Token obrigatório
-  if (!token || typeof token !== 'string') {
-    return res.redirect('/auth/entrar?error=invalid');
-  }
-
-  try {
-    // Valida o magic link
-    const result = await validateMagicLink(token);
-
-    if (!result.valid || !result.userId) {
-      // Token inválido ou expirado
-      return res.redirect('/auth/entrar?error=expired');
-    }
-
-    // Gera token de sessão
-    const sessionToken = generateSessionToken(result.userId);
-
-    // Configura cookie
-    const cookie = serialize(USER_SESSION_COOKIE, sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: SESSION_DURATION_DAYS * 24 * 60 * 60, // 7 dias em segundos
+  // Se for request JSON (API), retorna 410 Gone
+  const acceptHeader = req.headers.accept || '';
+  if (acceptHeader.includes('application/json')) {
+    return res.status(410).json({
+      ok: false,
+      error: 'Magic link desativado. Use login com email e senha.',
+      redirect: '/login',
     });
-
-    res.setHeader('Set-Cookie', cookie);
-
-    // Log de login
-    await logAudit({
-      action: 'USER_LOGIN',
-      source: 'USER',
-      actorId: result.userId,
-      actorIp: getClientIp(req),
-      userAgent: req.headers['user-agent'],
-      metadata: { method: 'magic_link' },
-    });
-
-    // Redireciona para destino ou minha-conta
-    const destination = typeof redirect === 'string' && redirect.startsWith('/minha-conta')
-      ? redirect
-      : '/minha-conta';
-
-    return res.redirect(destination);
-
-  } catch (error) {
-    console.error('[AUTH] Erro ao validar magic link:', error);
-    return res.redirect('/auth/entrar?error=server');
   }
-}
 
-/**
- * Extrai IP do cliente considerando proxies
- */
-function getClientIp(req: NextApiRequest): string {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string') {
-    return forwarded.split(',')[0].trim();
-  }
-  if (Array.isArray(forwarded)) {
-    return forwarded[0];
-  }
-  return req.socket?.remoteAddress || 'unknown';
+  // Se for navegador, redireciona para /login com mensagem
+  return res.redirect('/login?error=magic_link_disabled');
 }

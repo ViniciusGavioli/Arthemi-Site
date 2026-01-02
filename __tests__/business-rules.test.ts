@@ -6,6 +6,7 @@ import {
   applyValidity,
   calculatePackageExpiry, 
   isWithinBusinessHours,
+  isBookingWithinBusinessHours,
   generateTimeSlots,
   canReschedule,
   canCancelWithRefund,
@@ -210,6 +211,54 @@ describe('Business Rules', () => {
     it('BUSINESS_HOURS deve ter horários corretos', () => {
       expect(BUSINESS_HOURS.start).toBe(8);
       expect(BUSINESS_HOURS.end).toBe(20);
+    });
+  });
+
+  describe('isBookingWithinBusinessHours', () => {
+    // 17/12/2025 é quarta-feira
+    it('deve permitir reserva válida em dia útil (10h-12h)', () => {
+      const start = new Date('2025-12-17T10:00:00');
+      const end = new Date('2025-12-17T12:00:00');
+      expect(isBookingWithinBusinessHours(start, end)).toBe(true);
+    });
+
+    it('deve bloquear reserva que ultrapassa o expediente em dia útil (19h-21h)', () => {
+      const start = new Date('2025-12-17T19:00:00');
+      const end = new Date('2025-12-17T21:00:00');
+      expect(isBookingWithinBusinessHours(start, end)).toBe(false);
+    });
+
+    it('deve bloquear reserva que ultrapassa o expediente no sábado (11h-13h)', () => {
+      // 20/12/2025 é sábado
+      const start = new Date('2025-12-20T11:00:00');
+      const end = new Date('2025-12-20T13:00:00');
+      expect(isBookingWithinBusinessHours(start, end)).toBe(false);
+    });
+
+    it('deve bloquear qualquer reserva no domingo', () => {
+      // 21/12/2025 é domingo
+      const start = new Date('2025-12-21T10:00:00');
+      const end = new Date('2025-12-21T11:00:00');
+      expect(isBookingWithinBusinessHours(start, end)).toBe(false);
+    });
+
+    it('deve permitir reserva válida no sábado (08h-12h)', () => {
+      // 20/12/2025 é sábado
+      const start = new Date('2025-12-20T08:00:00');
+      const end = new Date('2025-12-20T12:00:00');
+      expect(isBookingWithinBusinessHours(start, end)).toBe(true);
+    });
+
+    it('deve bloquear reserva antes da abertura (07h-09h)', () => {
+      const start = new Date('2025-12-17T07:00:00');
+      const end = new Date('2025-12-17T09:00:00');
+      expect(isBookingWithinBusinessHours(start, end)).toBe(false);
+    });
+
+    it('deve permitir reserva até exatamente o horário de fechamento (18h-20h)', () => {
+      const start = new Date('2025-12-17T18:00:00');
+      const end = new Date('2025-12-17T20:00:00');
+      expect(isBookingWithinBusinessHours(start, end)).toBe(true);
     });
   });
 });

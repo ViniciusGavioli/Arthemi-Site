@@ -37,9 +37,9 @@ type CancelOption = 'none' | 'full' | 'partial';
 type ConfirmAction = 'reschedule' | 'change-room' | 'cancel-no-credit' | 'cancel-with-credit' | 'no-show' | 'retroactive' | null;
 
 const roomNames: Record<string, string> = {
-  'sala-a': 'Consultório 1',
-  'sala-b': 'Consultório 2',
-  'sala-c': 'Consultório 3',
+  'sala-a': 'Consultório 1 | Prime',
+  'sala-b': 'Consultório 2 | Executive',
+  'sala-c': 'Consultório 3 | Essential',
 };
 
 export default function BookingDetailModal({ booking, onClose, onUpdate, showToast }: Props) {
@@ -524,9 +524,9 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
                   value={editData.roomId}
                   onChange={(e) => setEditData(d => ({ ...d, roomId: e.target.value }))}
                   options={[
-                    { value: 'sala-a', label: 'Consultório 1' },
-                    { value: 'sala-b', label: 'Consultório 2' },
-                    { value: 'sala-c', label: 'Consultório 3' },
+                    { value: 'sala-a', label: 'Consultório 1 | Prime' },
+                    { value: 'sala-b', label: 'Consultório 2 | Executive' },
+                    { value: 'sala-c', label: 'Consultório 3 | Essential' },
                   ]}
                   disabled={isCompleted}
                 />
@@ -590,7 +590,7 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
                   <p className="font-medium">{formatTime(booking.startTime)} - {formatTime(booking.endTime)}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Sala</p>
+                  <p className="text-sm text-gray-500">Consultório</p>
                   <p className="font-medium">{booking.room.name}</p>
                 </div>
                 <div>
@@ -716,14 +716,14 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
         }
       />
 
-      {/* Confirmação: Trocar Sala */}
+      {/* Confirmação: Trocar Consultório */}
       <ConfirmationModal
         open={confirmAction === 'change-room'}
         onClose={() => setConfirmAction(null)}
         onConfirm={handleSaveEdit}
         loading={saving}
-        title="Confirmar Troca de Sala"
-        description="Você está alterando a sala desta reserva."
+        title="Confirmar Troca de Consultório"
+        description="Você está alterando o consultório desta reserva."
         booking={getEditedBookingInfo()}
         variant="warning"
         confirmText="Confirmar Troca"

@@ -75,7 +75,7 @@ export default function NovaReservaPage() {
       const authRes = await fetch('/api/auth/me');
       const authData = await authRes.json();
       if (!authData.authenticated) {
-        router.push('/auth/entrar');
+        router.push('/login');
         return;
       }
       setUser(authData.user);
@@ -163,7 +163,7 @@ export default function NovaReservaPage() {
 
   async function handleSubmit() {
     if (!selectedRoom || !selectedDate || selectedHours.length === 0) {
-      setError('Selecione sala, data e horários');
+      setError('Selecione consultório, data e horários');
       return;
     }
 
@@ -297,9 +297,9 @@ export default function NovaReservaPage() {
             </div>
           )}
 
-          {/* Step 1: Sala */}
+          {/* Step 1: Consultório */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">1. Escolha a sala</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">1. Escolha o consultório</h2>
             <div className="grid gap-3">
               {rooms.map((room) => {
                 const availableCredit = getAvailableCreditsForRoom(room);
@@ -403,7 +403,7 @@ export default function NovaReservaPage() {
               
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Sala</span>
+                  <span className="text-gray-600">Consultório</span>
                   <span className="font-medium">{selectedRoom.name}</span>
                 </div>
                 <div className="flex justify-between">
@@ -431,7 +431,7 @@ export default function NovaReservaPage() {
               {total > availableForSelected ? (
                 <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
                   <p className="text-red-700 text-sm">
-                    Saldo insuficiente. Você tem {formatCurrency(availableForSelected)} disponível para esta sala.
+                    Saldo insuficiente. Você tem {formatCurrency(availableForSelected)} disponível para este consultório.
                   </p>
                 </div>
               ) : (

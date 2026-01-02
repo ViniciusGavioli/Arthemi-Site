@@ -36,7 +36,7 @@ export default function ReservasPage() {
       const authRes = await fetch('/api/auth/me');
       const authData = await authRes.json();
       if (!authData.authenticated) {
-        router.push('/auth/entrar');
+        router.push('/login');
         return;
       }
 

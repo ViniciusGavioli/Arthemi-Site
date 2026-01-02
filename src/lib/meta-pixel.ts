@@ -111,7 +111,7 @@ export function trackViewContent(params: {
     window.fbq!('track', 'ViewContent', {
       content_ids: [params.contentId],
       content_name: params.contentName,
-      content_category: params.contentCategory || 'Sala',
+      content_category: params.contentCategory || 'Consultório',
       content_type: 'product',
       value: params.value ? params.value / 100 : undefined,
       currency: 'BRL',

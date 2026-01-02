@@ -207,7 +207,7 @@ export default function RoomGalleryModal({ isOpen, onClose, onReservar, room }: 
               {video && (
                 <button
                   onClick={() => setShowVideo(true)}
-                  aria-label="Ver vídeo da sala"
+                  aria-label="Ver vídeo do consultório"
                   className={`relative flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border-2 transition-all bg-primary-800 flex items-center justify-center ${
                     showVideo
                       ? 'border-accent-500 ring-2 ring-accent-500/50'

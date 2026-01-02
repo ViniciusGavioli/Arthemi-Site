@@ -32,8 +32,8 @@ export const MIN_CANCELLATION_HOURS = 48;
 export const MIN_RESCHEDULE_HOURS = 24;
 
 // Buffer de limpeza entre reservas (minutos)
-// Este tempo é bloqueado automaticamente após cada reserva para limpeza/organização
-export const BUFFER_MINUTES = 30;
+// DECISÃO DE PRODUTO: Sem intervalo entre reservas - slots colados permitidos
+export const BUFFER_MINUTES = 0;
 
 // Validade padrão de créditos em meses
 export const CREDIT_VALIDITY_MONTHS = 6;
@@ -704,11 +704,20 @@ export function isBookingInPast(bookingStartTime: Date): boolean {
 
 // ---- Horários de Funcionamento ----
 
+// ===========================================================
+// HORÁRIOS DE FUNCIONAMENTO (FONTE ÚNICA)
+// ===========================================================
+// Seg–Sex: 08:00–20:00
+// Sáb: 08:00–12:00
+// Dom: fechado
+
 export const BUSINESS_HOURS = {
-  start: 8,  // 8:00
-  end: 20,   // 20:00
-  lunchStart: 12,
-  lunchEnd: 14,
+  weekday: { start: 8, end: 20 },   // Seg-Sex: 08:00-20:00
+  saturday: { start: 8, end: 12 },  // Sáb: 08:00-12:00
+  sunday: null,                      // Dom: fechado
+  // Legado (compatibilidade com testes existentes)
+  start: 8,
+  end: 20,
 } as const;
 
 export const SHIFT_HOURS = {
@@ -717,23 +726,102 @@ export const SHIFT_HOURS = {
 } as const;
 
 /**
+ * Retorna o dia da semana (0=Dom, 1=Seg, ..., 6=Sáb)
+ */
+export function getDayOfWeek(date: Date): number {
+  return date.getDay();
+}
+
+/**
+ * Verifica se é domingo
+ */
+export function isSunday(date: Date): boolean {
+  return getDayOfWeek(date) === 0;
+}
+
+/**
+ * Verifica se é sábado
+ */
+export function isSaturdayDay(date: Date): boolean {
+  return getDayOfWeek(date) === 6;
+}
+
+/**
+ * Retorna o horário de funcionamento para uma data específica
+ * @returns { start, end } ou null se fechado
+ */
+export function getBusinessHoursForDate(date: Date): { start: number; end: number } | null {
+  const day = getDayOfWeek(date);
+  
+  if (day === 0) {
+    // Domingo: fechado
+    return null;
+  }
+  
+  if (day === 6) {
+    // Sábado: 08:00-12:00
+    return BUSINESS_HOURS.saturday;
+  }
+  
+  // Seg-Sex: 08:00-20:00
+  return BUSINESS_HOURS.weekday;
+}
+
+/**
  * Verifica se horário está dentro do expediente
  */
 export function isWithinBusinessHours(date: Date): boolean {
+  const hours = getBusinessHoursForDate(date);
+  
+  if (!hours) {
+    return false; // Domingo = fechado
+  }
+  
   const hour = date.getHours();
-  return hour >= BUSINESS_HOURS.start && hour < BUSINESS_HOURS.end;
+  return hour >= hours.start && hour < hours.end;
+}
+
+/**
+ * Verifica se um período (start-end) está completamente dentro do expediente
+ */
+export function isBookingWithinBusinessHours(startTime: Date, endTime: Date): boolean {
+  const hours = getBusinessHoursForDate(startTime);
+  
+  if (!hours) {
+    return false; // Domingo = fechado
+  }
+  
+  const startHour = startTime.getHours();
+  const endHour = endTime.getHours();
+  const endMinutes = endTime.getMinutes();
+  
+  // Início deve ser >= abertura
+  if (startHour < hours.start) {
+    return false;
+  }
+  
+  // Fim deve ser <= fechamento (permite exatamente no horário de fechamento)
+  if (endHour > hours.end || (endHour === hours.end && endMinutes > 0)) {
+    return false;
+  }
+  
+  return true;
 }
 
 /**
  * Gera slots de horário disponíveis para um dia
+ * Respeita horários diferentes para sáb e retorna vazio para domingo
  */
 export function generateTimeSlots(date: Date): { start: Date; end: Date }[] {
+  const hours = getBusinessHoursForDate(date);
+  
+  if (!hours) {
+    return []; // Domingo = sem slots
+  }
+  
   const slots: { start: Date; end: Date }[] = [];
   
-  for (let hour = BUSINESS_HOURS.start; hour < BUSINESS_HOURS.end; hour++) {
-    // Pula horário de almoço se desejar
-    // if (hour >= BUSINESS_HOURS.lunchStart && hour < BUSINESS_HOURS.lunchEnd) continue;
-    
+  for (let hour = hours.start; hour < hours.end; hour++) {
     const start = new Date(date);
     start.setHours(hour, 0, 0, 0);
     

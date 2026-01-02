@@ -189,7 +189,7 @@ export default function ReservasPage() {
     },
     {
       key: 'room',
-      header: 'Sala',
+      header: 'Consultório',
       render: (b: Booking) => <span>{b.room.name}</span>,
     },
     {
@@ -267,9 +267,9 @@ export default function ReservasPage() {
                 onChange={(e) => setFilterRoom(e.target.value)}
                 options={[
                   { value: 'all', label: 'Todos' },
-                  { value: 'sala-a', label: 'Consultório 1' },
-                  { value: 'sala-b', label: 'Consultório 2' },
-                  { value: 'sala-c', label: 'Consultório 3' },
+                  { value: 'sala-a', label: 'Consultório 1 | Prime' },
+                  { value: 'sala-b', label: 'Consultório 2 | Executive' },
+                  { value: 'sala-c', label: 'Consultório 3 | Essential' },
                 ]}
               />
             </div>

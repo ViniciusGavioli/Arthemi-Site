@@ -1,15 +1,12 @@
 // ===========================================================
 // API: GET /api/user/credits - Créditos do usuário
 // ===========================================================
-// Suporta autenticação via cookie (sessão) OU via phone (legacy)
+// Autenticação via JWT (cookie arthemi_session)
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getAvailableCreditsForRoom, getUserCreditsSummary } from '@/lib/business-rules';
-import { decodeSessionToken } from '@/lib/magic-link';
-
-// Nome do cookie de sessão
-const USER_SESSION_COOKIE = 'user_session';
+import { getAuthFromRequest } from '@/lib/auth';
 
 // Tipos temporários para novos campos (até TS atualizar cache do Prisma)
 interface ExtendedCredit {
@@ -64,31 +61,18 @@ export default async function handler(
   }
 
   try {
-    const { phone, roomId, date } = req.query;
+    const { roomId, date } = req.query;
 
-    let userId: string | null = null;
-
-    // Primeiro tenta autenticação via cookie (nova forma)
-    const sessionToken = req.cookies[USER_SESSION_COOKIE];
-    if (sessionToken) {
-      userId = decodeSessionToken(sessionToken);
-    }
-
-    // Fallback para phone (forma antiga, para compatibilidade)
-    if (!userId && phone && typeof phone === 'string') {
-      const user = await prisma.user.findUnique({
-        where: { phone },
-        select: { id: true },
-      });
-      userId = user?.id ?? null;
-    }
-
-    if (!userId) {
+    // Autenticação JWT obrigatória
+    const auth = getAuthFromRequest(req);
+    if (!auth) {
       return res.status(401).json({
         success: false,
         error: 'Não autenticado',
       });
     }
+
+    const userId = auth.userId;
 
     // Se passou roomId, busca créditos disponíveis para aquela sala
     if (roomId && typeof roomId === 'string') {

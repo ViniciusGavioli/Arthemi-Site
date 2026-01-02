@@ -128,7 +128,7 @@ export default function ClienteDetailPage() {
     },
     {
       key: 'room',
-      header: 'Sala',
+      header: 'Consultório',
       render: (b: Booking) => <span>{b.room.name}</span>,
     },
     {
@@ -158,7 +158,7 @@ export default function ClienteDetailPage() {
     },
     {
       key: 'room',
-      header: 'Sala',
+      header: 'Consultório',
       render: (c: Credit) => <span>{c.room?.name || 'Genérico'}</span>,
     },
     {
@@ -202,7 +202,7 @@ export default function ClienteDetailPage() {
     },
     {
       key: 'room',
-      header: 'Sala',
+      header: 'Consultório',
       render: (p: Package) => <span>{p.room?.name || 'Qualquer'}</span>,
     },
     {

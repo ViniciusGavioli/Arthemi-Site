@@ -425,9 +425,9 @@ export default function NovaReservaPage() {
                   value={formData.roomId}
                   onChange={(e) => setFormData(d => ({ ...d, roomId: e.target.value }))}
                   options={[
-                    { value: 'sala-a', label: 'Consultório 1 (Premium)' },
-                    { value: 'sala-b', label: 'Consultório 2' },
-                    { value: 'sala-c', label: 'Consultório 3' },
+                    { value: 'sala-a', label: 'Consultório 1 | Prime' },
+                    { value: 'sala-b', label: 'Consultório 2 | Executive' },
+                    { value: 'sala-c', label: 'Consultório 3 | Essential' },
                   ]}
                 />
 
@@ -533,7 +533,7 @@ export default function NovaReservaPage() {
                     <div>
                       <p className="font-medium">Usar créditos do cliente</p>
                       <p className="text-sm text-gray-500">
-                        {formatCurrency(totalAvailableCredits)} disponíveis para esta sala
+                        {formatCurrency(totalAvailableCredits)} disponíveis para este consultório
                       </p>
                     </div>
                   </label>

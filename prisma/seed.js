@@ -6,8 +6,18 @@
 // Execute: npm run seed
 
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcrypt');
 
 const prisma = new PrismaClient();
+
+// ============================================
+// CONFIGURAÇÃO DO ADMIN
+// ============================================
+// Defina as credenciais via variáveis de ambiente ou use os padrões (apenas desenvolvimento)
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@arthemi.com.br';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Arthemi@2025!'; // ALTERAR EM PRODUÇÃO!
+const ADMIN_NAME = process.env.ADMIN_NAME || 'Administrador';
+const ADMIN_PHONE = process.env.ADMIN_PHONE || '11999990000';
 
 // ============================================
 // VALORES OFICIAIS V3 - NÃO ALTERAR
@@ -90,18 +100,29 @@ async function main() {
   await prisma.userPackage.deleteMany();
   await prisma.product.deleteMany();
   await prisma.room.deleteMany();
+  await prisma.magicLinkToken.deleteMany();
   await prisma.user.deleteMany();
 
-  // ---- Criar Usuário Admin ----
+  // ---- Criar Usuário Admin com Senha ----
   console.log('👤 Criando usuários...');
+  
+  // Hash da senha do admin (bcrypt com salt rounds = 12)
+  const SALT_ROUNDS = 12;
+  const adminPasswordHash = await bcrypt.hash(ADMIN_PASSWORD, SALT_ROUNDS);
+  
   const admin = await prisma.user.create({
     data: {
-      email: 'admin@arthemi.com.br',
-      name: 'Administrador',
-      phone: '11999990000',
+      email: ADMIN_EMAIL,
+      name: ADMIN_NAME,
+      phone: ADMIN_PHONE,
       role: 'ADMIN',
+      passwordHash: adminPasswordHash,
+      isActive: true,
+      failedAttempts: 0,
     },
   });
+  
+  console.log(`  🔐 Admin criado com senha hashada (bcrypt, ${SALT_ROUNDS} rounds)`);
 
   const testUser = await prisma.user.create({
     data: {
@@ -109,6 +130,9 @@ async function main() {
       name: 'Usuário Teste',
       phone: '11988888888',
       role: 'CUSTOMER',
+      // Usuário de teste sem senha (precisará criar via fluxo normal)
+      isActive: true,
+      failedAttempts: 0,
     },
   });
 
@@ -211,6 +235,14 @@ async function main() {
 
   console.log('\n═'.repeat(60));
   console.log('✅ Seed V3 concluído com sucesso!');
+  
+  // Aviso de segurança para produção
+  if (!process.env.ADMIN_PASSWORD) {
+    console.log('\n⚠️  AVISO DE SEGURANÇA:');
+    console.log('   A senha padrão do admin foi usada!');
+    console.log('   Em PRODUÇÃO, defina a variável ADMIN_PASSWORD');
+    console.log('   Exemplo: ADMIN_PASSWORD="SuaSenhaForte123!" npm run seed');
+  }
 }
 
 main()

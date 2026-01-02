@@ -55,6 +55,7 @@ export interface BookingEmailData {
   paymentMethod?: string;
   magicLinkToken?: string; // Token para acesso direto à conta
   creditBalance?: number;  // Saldo de créditos após a compra (em centavos)
+  pixPaymentUrl?: string;  // URL do pagamento PIX (para email pendente)
 }
 
 export interface EmailResult {
@@ -64,7 +65,7 @@ export interface EmailResult {
 }
 
 // ============================================================
-// TEMPLATE HTML - EMAIL DE CONFIRMAÇÃO
+// TEMPLATE HTML - EMAIL DE CONFIRMAÇÃO DE RESERVA
 // ============================================================
 
 function getConfirmationEmailHtml(data: BookingEmailData): string {
@@ -73,18 +74,9 @@ function getConfirmationEmailHtml(data: BookingEmailData): string {
     currency: 'BRL',
   }).format(data.amountPaid / 100);
 
-  // Gera link de confirmação via WhatsApp
-  const whatsappData = {
-    bookingId: data.bookingId,
-    userName: data.userName,
-    roomName: data.roomName,
-    date: data.date,
-    startTime: data.startTime,
-    endTime: data.endTime,
-    amountPaid: data.amountPaid,
-  };
-  const whatsappLink = generateBookingWhatsAppLink(whatsappData).fullLink;
   const whatsappNumber = WHATSAPP_NUMBER;
+  const whatsappLink = `https://wa.me/${whatsappNumber}`;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://arthemi.com.br';
 
   return `
 <!DOCTYPE html>
@@ -92,18 +84,18 @@ function getConfirmationEmailHtml(data: BookingEmailData): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Confirmação de Reserva</title>
+  <title>Reserva Confirmada</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; background-color: #f5f5f0; color: #333;">
   <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
     
     <!-- Header -->
-    <div style="background: linear-gradient(135deg, #8B7355 0%, #A08060 100%); border-radius: 16px 16px 0 0; padding: 32px; text-align: center;">
+    <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); border-radius: 16px 16px 0 0; padding: 32px; text-align: center;">
       <h1 style="color: #fff; margin: 0; font-size: 28px; font-weight: 600;">
-        ✅ Reserva Confirmada!
+        ✅ Reserva Confirmada
       </h1>
       <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 16px;">
-        Espaço Arthemi - Coworking de Saúde
+        Espaço Arthemi
       </p>
     </div>
     
@@ -111,114 +103,81 @@ function getConfirmationEmailHtml(data: BookingEmailData): string {
     <div style="background: #fff; padding: 32px; border-radius: 0 0 16px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
       
       <!-- Saudação -->
-      <p style="font-size: 18px; margin: 0 0 24px 0; color: #333;">
-        Olá, <strong>${data.userName}</strong>! 👋
+      <p style="font-size: 18px; margin: 0 0 20px 0; color: #333;">
+        Olá, <strong>${data.userName}</strong>!
       </p>
       
       <p style="font-size: 16px; margin: 0 0 24px 0; color: #555; line-height: 1.6;">
-        Sua reserva foi confirmada com sucesso. Confira os detalhes abaixo:
+        Sua reserva foi confirmada com sucesso.<br>
+        Confira os detalhes abaixo:
       </p>
       
       <!-- Card de Detalhes -->
-      <div style="background: #f9f7f4; border-radius: 12px; padding: 24px; margin: 0 0 24px 0; border-left: 4px solid #8B7355;">
+      <div style="background: #f9f7f4; border-radius: 12px; padding: 24px; margin: 0 0 24px 0; border-left: 4px solid #22c55e;">
         
         <div style="margin-bottom: 16px;">
-          <span style="color: #888; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Sala</span>
+          <span style="color: #888; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">📍 Sala</span>
           <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: #333;">${data.roomName}</p>
         </div>
         
         <div style="margin-bottom: 16px;">
-          <span style="color: #888; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Data</span>
-          <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: #333;">📅 ${data.date}</p>
+          <span style="color: #888; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">📅 Data</span>
+          <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: #333;">${data.date}</p>
         </div>
         
         <div style="margin-bottom: 16px;">
-          <span style="color: #888; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Horário</span>
-          <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: #333;">🕐 ${data.startTime} às ${data.endTime} (${data.duration})</p>
+          <span style="color: #888; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">⏰ Horário</span>
+          <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: #333;">${data.startTime} às ${data.endTime}</p>
         </div>
         
         <div style="padding-top: 16px; border-top: 1px dashed #ddd;">
-          <span style="color: #888; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Valor Pago</span>
-          <p style="margin: 4px 0 0 0; font-size: 22px; font-weight: 700; color: #22c55e;">${formattedAmount}</p>
+          <span style="color: #888; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">💳 Forma de pagamento</span>
+          <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: #333;">${data.paymentMethod || 'PIX'}</p>
         </div>
         
       </div>
       
-      <!-- Código da Reserva -->
-      <div style="background: #f0f0f0; border-radius: 8px; padding: 16px; text-align: center; margin: 0 0 24px 0;">
-        <span style="color: #888; font-size: 12px; text-transform: uppercase;">Código da Reserva</span>
-        <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 600; font-family: 'Courier New', monospace; color: #333;">
-          ${data.bookingId.toUpperCase()}
+      <!-- Aviso de chegada -->
+      <p style="font-size: 15px; margin: 0 0 16px 0; color: #555;">
+        Pedimos, por gentileza, que chegue com alguns minutos de antecedência.
+      </p>
+      
+      <!-- Importante -->
+      <div style="background: #fef3c7; border-radius: 8px; padding: 16px; margin: 0 0 24px 0; border: 1px solid #f59e0b;">
+        <p style="margin: 0; font-size: 14px; color: #92400e; line-height: 1.5;">
+          <strong>📌 Importante:</strong><br>
+          • Cancelamentos são permitidos apenas com no mínimo 48h de antecedência.<br>
+          • Após esse prazo, a reserva não poderá ser cancelada ou reembolsada.
         </p>
       </div>
       
-      <!-- Informações Importantes -->
-      <div style="background: #fff8e6; border-radius: 8px; padding: 16px; margin: 0 0 24px 0; border: 1px solid #f5d67a;">
-        <p style="margin: 0; font-size: 14px; color: #856404;">
-          <strong>📍 Endereço:</strong> Rua Exemplo, 123 - Belo Horizonte/MG<br>
-          <strong>⏰ Chegada:</strong> Recomendamos chegar 10 minutos antes
-        </p>
-      </div>
+      <p style="font-size: 15px; margin: 0 0 24px 0; color: #555;">
+        Você pode acompanhar ou gerenciar sua reserva acessando sua conta:
+      </p>
       
       <!-- CTA -->
-      <div style="text-align: center; margin: 32px 0;">
-        <a href="${whatsappLink}" 
-           style="display: inline-block; background: #25D366; color: #fff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; margin-bottom: 12px;">
-          ✅ Confirmar via WhatsApp
-        </a>
-        <br>
-        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://arthemi.com.br'}/booking/${data.bookingId}" 
-           style="display: inline-block; background: #8B7355; color: #fff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; margin-top: 12px;">
-          Ver Minha Reserva
+      <div style="text-align: center; margin: 24px 0;">
+        <a href="${appUrl}/minha-conta/reservas" 
+           style="display: inline-block; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: #fff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
+          👉 Ver Minhas Reservas
         </a>
       </div>
       
-      ${data.creditBalance && data.creditBalance > 0 ? `
-      <!-- Saldo de Créditos -->
-      <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 12px; padding: 24px; margin: 0 0 24px 0; border: 2px solid #22c55e;">
-        <div style="text-align: center;">
-          <p style="margin: 0 0 8px 0; font-size: 14px; color: #166534; text-transform: uppercase; letter-spacing: 0.5px;">
-            💰 Seu Saldo Disponível
-          </p>
-          <p style="margin: 0; font-size: 32px; font-weight: 700; color: #15803d;">
-            ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.creditBalance / 100)}
-          </p>
-          <p style="margin: 12px 0 0 0; font-size: 14px; color: #166534;">
-            Use seu saldo para agendar novas sessões quando quiser!
-          </p>
-        </div>
-        ${data.magicLinkToken ? `
-        <div style="text-align: center; margin-top: 20px;">
-          <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://arthemi.com.br'}/api/auth/verify?token=${encodeURIComponent(data.magicLinkToken)}&redirect=/minha-conta" 
-             style="display: inline-block; background: #15803d; color: #fff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
-            � Acessar minha conta e usar meus créditos
-          </a>
-        </div>
-        ` : ''}
-      </div>
-      ` : ''}
-      
-      <!-- Footer -->
-      <div style="border-top: 1px solid #eee; padding-top: 24px; text-align: center;">
-        <p style="margin: 0 0 8px 0; font-size: 14px; color: #888;">
-          Dúvidas? Entre em contato:
-        </p>
-        <p style="margin: 0; font-size: 14px;">
-          📱 <a href="https://wa.me/${whatsappNumber}" style="color: #8B7355; text-decoration: none;">WhatsApp</a>
-          &nbsp;•&nbsp;
-          📧 <a href="mailto:contato@arthemi.com.br" style="color: #8B7355; text-decoration: none;">contato@arthemi.com.br</a>
-        </p>
-      </div>
+      <p style="font-size: 15px; margin: 24px 0 0 0; color: #555;">
+        Qualquer dúvida, estamos à disposição.
+      </p>
       
     </div>
     
-    <!-- Rodapé -->
-    <div style="text-align: center; padding: 24px; color: #999; font-size: 12px;">
-      <p style="margin: 0;">
-        © ${new Date().getFullYear()} Espaço Arthemi. Todos os direitos reservados.
+    <!-- Footer / Assinatura -->
+    <div style="text-align: center; padding: 24px; color: #666; font-size: 13px; border-top: 1px solid #eee; margin-top: 20px;">
+      <p style="margin: 0; font-weight: 600; color: #333;">Espaço Arthemi</p>
+      <p style="margin: 4px 0 0;">Atendimento & Administração</p>
+      <p style="margin: 8px 0 0;">
+        🌐 <a href="${appUrl}" style="color: #8B7355; text-decoration: none;">${appUrl.replace('https://', '')}</a>
       </p>
-      <p style="margin: 8px 0 0 0;">
-        Você recebeu este email porque fez uma reserva em nosso espaço.
+      <p style="margin: 4px 0 0;">
+        📲 <a href="${whatsappLink}" style="color: #8B7355; text-decoration: none;">WhatsApp</a>
       </p>
     </div>
     
@@ -272,7 +231,7 @@ export async function sendBookingConfirmationEmail(
       from: FROM_EMAIL,
       to: data.userEmail,
       replyTo: REPLY_TO,
-      subject: `✅ Reserva Confirmada - ${data.roomName} em ${data.date}`,
+      subject: 'Reserva confirmada no Espaço Arthemi ✅',
       html: getConfirmationEmailHtml(data),
     });
 
@@ -432,6 +391,850 @@ export async function sendMagicLinkEmail(
     
   } catch (error) {
     console.error('❌ [EMAIL] Exceção ao enviar magic link:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erro desconhecido' 
+    };
+  }
+}
+
+// ============================================================
+// REFUND NOTIFICATION EMAILS
+// ============================================================
+
+export interface RefundEmailData {
+  refundId: string;
+  bookingId: string;
+  userName: string;
+  userEmail: string;
+  roomName: string;
+  bookingDate: string;
+  bookingTime: string;
+  amount: number; // centavos
+  pixKeyType: string;
+  pixKey: string;
+  status: string;
+  reason?: string;
+  rejectionReason?: string;
+  proofUrl?: string;
+}
+
+// Email para o admin sobre o refund
+const REFUND_ADMIN_EMAIL = process.env.REFUND_ADMIN_EMAIL || process.env.ADMIN_EMAIL || 'diretoria@arthemi.com.br';
+
+/**
+ * Template HTML para notificação de novo pedido de estorno (para admin)
+ */
+function getRefundRequestedAdminEmailHtml(data: RefundEmailData): string {
+  const formattedAmount = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(data.amount / 100);
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://arthemi.com.br';
+
+  return `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Novo Pedido de Estorno</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; background-color: #f5f5f0; color: #333;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+    
+    <div style="background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); border-radius: 16px 16px 0 0; padding: 32px; text-align: center;">
+      <h1 style="color: #fff; margin: 0; font-size: 24px; font-weight: 600;">
+        🔔 Novo pedido de estorno recebido
+      </h1>
+    </div>
+    
+    <div style="background: #fff; padding: 32px; border-radius: 0 0 16px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+      
+      <p style="font-size: 16px; margin: 0 0 24px 0; color: #555;">
+        Olá,<br><br>
+        Um novo pedido de estorno foi registrado no sistema.
+      </p>
+      
+      <p style="font-size: 14px; margin: 0 0 16px 0; color: #333; font-weight: 600;">
+        📋 Detalhes:
+      </p>
+      
+      <div style="background: #f9f7f4; border-radius: 12px; padding: 24px; margin: 0 0 24px 0; border-left: 4px solid #dc2626;">
+        
+        <div style="margin-bottom: 12px;">
+          <span style="color: #888; font-size: 13px;">CLIENTE</span>
+          <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 600;">${data.userName}</p>
+        </div>
+        
+        <div style="margin-bottom: 12px;">
+          <span style="color: #888; font-size: 13px;">EMAIL</span>
+          <p style="margin: 4px 0 0 0; font-size: 16px;">${data.userEmail}</p>
+        </div>
+        
+        <div style="margin-bottom: 12px;">
+          <span style="color: #888; font-size: 13px;">SALA</span>
+          <p style="margin: 4px 0 0 0; font-size: 16px;">${data.roomName}</p>
+        </div>
+        
+        <div style="margin-bottom: 12px;">
+          <span style="color: #888; font-size: 13px;">DATA DA RESERVA</span>
+          <p style="margin: 4px 0 0 0; font-size: 16px;">${data.bookingDate}</p>
+        </div>
+        
+        <div style="margin-bottom: 12px; padding-top: 12px; border-top: 1px dashed #ddd;">
+          <span style="color: #888; font-size: 13px;">VALOR SOLICITADO</span>
+          <p style="margin: 4px 0 0 0; font-size: 20px; font-weight: 700; color: #dc2626;">${formattedAmount}</p>
+        </div>
+        
+      </div>
+      
+      <p style="font-size: 14px; margin: 0 0 16px 0; color: #333; font-weight: 600;">
+        💳 Dados PIX informados:
+      </p>
+      
+      <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin: 0 0 24px 0;">
+        <p style="margin: 0; font-size: 14px; color: #333;">
+          <strong>Tipo:</strong> ${data.pixKeyType}<br>
+          <strong>Chave:</strong> ${data.pixKey}
+        </p>
+      </div>
+      
+      <p style="font-size: 14px; margin: 0 0 8px 0; color: #333; font-weight: 600;">
+        Motivo informado:
+      </p>
+      <p style="font-size: 14px; margin: 0 0 24px 0; color: #555; font-style: italic;">
+        "${data.reason || 'Não informado'}"
+      </p>
+      
+      <div style="text-align: center;">
+        <a href="${appUrl}/admin/estornos" 
+           style="display: inline-block; background: #dc2626; color: #fff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+          👉 Acessar painel administrativo
+        </a>
+      </div>
+      
+    </div>
+    
+    <!-- Footer -->
+    <div style="text-align: center; padding: 24px; color: #999; font-size: 12px;">
+      <p style="margin: 0;">Sistema Espaço Arthemi</p>
+    </div>
+    
+  </div>
+</body>
+</html>
+  `.trim();
+}
+
+/**
+ * Template HTML para notificação de status do estorno (para cliente)
+ */
+function getRefundStatusEmailHtml(data: RefundEmailData): string {
+  const formattedAmount = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(data.amount / 100);
+
+  const whatsappNumber = WHATSAPP_NUMBER;
+  const whatsappLink = `https://wa.me/${whatsappNumber}`;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://arthemi.com.br';
+
+  // Configuração de cada status
+  const statusConfig: Record<string, { 
+    color: string; 
+    icon: string; 
+    title: string; 
+    subject: string;
+    message: string; 
+    showProof?: boolean;
+    showReason?: boolean;
+  }> = {
+    REVIEWING: {
+      color: '#3b82f6',
+      icon: '🔍',
+      title: 'Seu pedido de estorno está em análise',
+      subject: 'Seu pedido de estorno está em análise',
+      message: 'Seu pedido de estorno está em análise pela nossa equipe.',
+    },
+    APPROVED: {
+      color: '#22c55e',
+      icon: '✅',
+      title: 'Estorno aprovado',
+      subject: 'Estorno aprovado ✅',
+      message: 'Seu pedido de estorno foi aprovado.',
+    },
+    REJECTED: {
+      color: '#dc2626',
+      icon: '❌',
+      title: 'Sobre sua solicitação de estorno',
+      subject: 'Sobre sua solicitação de estorno',
+      message: 'Após análise, infelizmente não foi possível aprovar sua solicitação de estorno referente à reserva:',
+      showReason: true,
+    },
+    PAID: {
+      color: '#16a34a',
+      icon: '💰',
+      title: 'PIX enviado — Estorno concluído',
+      subject: 'PIX enviado — Estorno concluído 💰',
+      message: 'Seu estorno foi realizado com sucesso.',
+      showProof: true,
+    },
+  };
+
+  const config = statusConfig[data.status] || statusConfig.APPROVED;
+
+  // Conteúdo específico por status
+  let specificContent = '';
+  
+  if (data.status === 'REVIEWING') {
+    specificContent = `
+      <p style="font-size: 16px; margin: 24px 0 0 0; color: #555; line-height: 1.6;">
+        Assim que a análise for concluída, você receberá um novo e-mail com a decisão.
+      </p>
+    `;
+  } else if (data.status === 'APPROVED') {
+    specificContent = `
+      <div style="margin-bottom: 16px;">
+        <span style="color: #888; font-size: 13px; text-transform: uppercase;">💳 Pagamento</span>
+        <p style="margin: 4px 0 0 0; font-size: 16px; color: #333;">O pagamento será realizado via PIX para a chave informada.</p>
+      </div>
+      
+      <div style="background: #f0fdf4; border-radius: 8px; padding: 16px; margin: 24px 0 0 0; border: 1px solid #22c55e;">
+        <p style="margin: 0; font-size: 14px; color: #166534; line-height: 1.5;">
+          <strong>📌 Prazo estimado:</strong><br>
+          Até alguns dias úteis, conforme processamento administrativo.
+        </p>
+      </div>
+      
+      <p style="font-size: 15px; margin: 16px 0 0 0; color: #555;">
+        Você será avisado(a) assim que o pagamento for realizado.
+      </p>
+    `;
+  } else if (data.status === 'PAID') {
+    specificContent = `
+      <div style="margin-bottom: 16px;">
+        <span style="color: #888; font-size: 13px; text-transform: uppercase;">📅 Data do pagamento</span>
+        <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 600; color: #333;">${new Date().toLocaleDateString('pt-BR')}</p>
+      </div>
+      
+      ${data.proofUrl ? `
+      <p style="font-size: 15px; margin: 16px 0 0 0; color: #555;">
+        O comprovante do PIX pode ser acessado pelo link abaixo:
+      </p>
+      <div style="text-align: center; margin: 16px 0;">
+        <a href="${data.proofUrl}" 
+           style="display: inline-block; background: #16a34a; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+          👉 Ver Comprovante
+        </a>
+      </div>
+      ` : ''}
+      
+      <p style="font-size: 14px; margin: 16px 0 0 0; color: #555;">
+        Caso não identifique o valor em sua conta, entre em contato conosco pelo WhatsApp.
+      </p>
+    `;
+  } else if (data.status === 'REJECTED') {
+    specificContent = `
+      <div style="margin-top: 24px;">
+        <p style="font-size: 14px; margin: 0 0 8px 0; color: #333; font-weight: 600;">Motivo:</p>
+        <p style="font-size: 14px; margin: 0; color: #555; font-style: italic; background: #fef2f2; padding: 12px; border-radius: 8px;">
+          "${data.rejectionReason || 'Não informado'}"
+        </p>
+      </div>
+      
+      <p style="font-size: 15px; margin: 24px 0 0 0; color: #555;">
+        Se desejar mais esclarecimentos, nossa equipe está à disposição.
+      </p>
+    `;
+  }
+
+  return `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${config.title}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; background-color: #f5f5f0; color: #333;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+    
+    <div style="background: linear-gradient(135deg, ${config.color} 0%, ${config.color}dd 100%); border-radius: 16px 16px 0 0; padding: 32px; text-align: center;">
+      <h1 style="color: #fff; margin: 0; font-size: 24px; font-weight: 600;">
+        ${config.title}
+      </h1>
+      <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 16px;">
+        Espaço Arthemi
+      </p>
+    </div>
+    
+    <div style="background: #fff; padding: 32px; border-radius: 0 0 16px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+      
+      <p style="font-size: 18px; margin: 0 0 20px 0; color: #333;">
+        Olá, <strong>${data.userName}</strong>!
+      </p>
+      
+      <p style="font-size: 16px; margin: 0 0 24px 0; color: #555; line-height: 1.6;">
+        ${config.message}
+      </p>
+      
+      <!-- Card de Detalhes -->
+      <div style="background: #f9f7f4; border-radius: 12px; padding: 24px; margin: 0 0 24px 0; border-left: 4px solid ${config.color};">
+        
+        <div style="margin-bottom: 16px;">
+          <span style="color: #888; font-size: 13px; text-transform: uppercase;">📍 Reserva</span>
+          <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 600; color: #333;">${data.roomName} — ${data.bookingDate}</p>
+        </div>
+        
+        <div style="padding-top: 16px; border-top: 1px dashed #ddd;">
+          <span style="color: #888; font-size: 13px; text-transform: uppercase;">💰 Valor</span>
+          <p style="margin: 4px 0 0 0; font-size: 22px; font-weight: 700; color: ${config.color};">${formattedAmount}</p>
+        </div>
+        
+      </div>
+      
+      ${specificContent}
+      
+    </div>
+    
+    <!-- Footer / Assinatura -->
+    <div style="text-align: center; padding: 24px; color: #666; font-size: 13px; border-top: 1px solid #eee; margin-top: 20px;">
+      <p style="margin: 0; font-weight: 600; color: #333;">Espaço Arthemi</p>
+      <p style="margin: 4px 0 0;">Atendimento & Administração</p>
+      <p style="margin: 8px 0 0;">
+        🌐 <a href="${appUrl}" style="color: #8B7355; text-decoration: none;">${appUrl.replace('https://', '')}</a>
+      </p>
+      <p style="margin: 4px 0 0;">
+        📲 <a href="${whatsappLink}" style="color: #8B7355; text-decoration: none;">WhatsApp</a>
+      </p>
+    </div>
+    
+  </div>
+</body>
+</html>
+  `.trim();
+}
+
+/**
+ * Envia email para admin sobre novo pedido de estorno
+ */
+export async function sendRefundRequestedEmailToAdmin(
+  data: RefundEmailData
+): Promise<EmailResult> {
+  const client = getResendClient();
+  
+  if (!client) {
+    console.log('📧 [EMAIL] MOCK: Notificação de estorno para admin');
+    console.log('📧 [EMAIL] MOCK: RefundId:', data.refundId, 'Amount:', data.amount);
+    return { success: true, messageId: 'mock-refund-admin-' + Date.now() };
+  }
+
+  try {
+    const { data: result, error } = await client.emails.send({
+      from: FROM_EMAIL,
+      to: REFUND_ADMIN_EMAIL,
+      replyTo: data.userEmail,
+      subject: '🔔 Novo pedido de estorno recebido',
+      html: getRefundRequestedAdminEmailHtml(data),
+    });
+
+    if (error) {
+      console.error('❌ [EMAIL] Erro ao enviar notificação de estorno:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log(`✅ [EMAIL] Notificação de estorno enviada para admin - ID: ${result?.id}`);
+    return { success: true, messageId: result?.id };
+    
+  } catch (error) {
+    console.error('❌ [EMAIL] Exceção ao enviar notificação de estorno:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erro desconhecido' 
+    };
+  }
+}
+
+/**
+ * Envia email para cliente sobre atualização do status do estorno
+ */
+export async function sendRefundStatusEmailToUser(
+  data: RefundEmailData
+): Promise<EmailResult> {
+  // Envia para status que requerem notificação
+  if (!['REVIEWING', 'APPROVED', 'REJECTED', 'PAID'].includes(data.status)) {
+    return { success: false, error: 'Status não requer notificação' };
+  }
+
+  const client = getResendClient();
+  
+  if (!client) {
+    console.log('📧 [EMAIL] MOCK: Notificação de status de estorno para cliente');
+    console.log('📧 [EMAIL] MOCK: Status:', data.status, 'User:', data.userEmail);
+    return { success: true, messageId: 'mock-refund-user-' + Date.now() };
+  }
+
+  // Assuntos conforme especificação
+  const subjectByStatus: Record<string, string> = {
+    REVIEWING: 'Seu pedido de estorno está em análise',
+    APPROVED: 'Estorno aprovado ✅',
+    REJECTED: 'Sobre sua solicitação de estorno',
+    PAID: 'PIX enviado — Estorno concluído 💰',
+  };
+
+  try {
+    const { data: result, error } = await client.emails.send({
+      from: FROM_EMAIL,
+      to: data.userEmail,
+      replyTo: REPLY_TO,
+      subject: subjectByStatus[data.status] || 'Atualização do seu pedido de estorno',
+      html: getRefundStatusEmailHtml(data),
+    });
+
+    if (error) {
+      console.error('❌ [EMAIL] Erro ao enviar status de estorno:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log(`✅ [EMAIL] Status de estorno enviado para ${data.userEmail} - ID: ${result?.id}`);
+    return { success: true, messageId: result?.id };
+    
+  } catch (error) {
+    console.error('❌ [EMAIL] Exceção ao enviar status de estorno:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erro desconhecido' 
+    };
+  }
+}
+
+// ============================================================
+// EMAIL PIX PENDENTE
+// ============================================================
+
+function getPixPendingEmailHtml(data: BookingEmailData): string {
+  const formattedAmount = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(data.amountPaid / 100);
+
+  const whatsappNumber = WHATSAPP_NUMBER;
+  const whatsappLink = `https://wa.me/${whatsappNumber}`;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://arthemi.com.br';
+
+  return `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finalize sua reserva</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; background-color: #f5f5f0; color: #333;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+    
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 16px 16px 0 0; padding: 32px; text-align: center;">
+      <h1 style="color: #fff; margin: 0; font-size: 24px; font-weight: 600;">
+        Finalize sua reserva — Pagamento pendente via PIX
+      </h1>
+      <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 16px;">
+        Espaço Arthemi
+      </p>
+    </div>
+    
+    <!-- Conteúdo Principal -->
+    <div style="background: #fff; padding: 32px; border-radius: 0 0 16px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+      
+      <p style="font-size: 18px; margin: 0 0 20px 0; color: #333;">
+        Olá, <strong>${data.userName}</strong>!
+      </p>
+      
+      <p style="font-size: 16px; margin: 0 0 24px 0; color: #555; line-height: 1.6;">
+        Sua reserva foi iniciada, mas o pagamento ainda está pendente.
+      </p>
+      
+      <!-- Card de Detalhes -->
+      <div style="background: #f9f7f4; border-radius: 12px; padding: 24px; margin: 0 0 24px 0; border-left: 4px solid #f59e0b;">
+        
+        <div style="margin-bottom: 16px;">
+          <span style="color: #888; font-size: 13px; text-transform: uppercase;">📍 Sala</span>
+          <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: #333;">${data.roomName}</p>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+          <span style="color: #888; font-size: 13px; text-transform: uppercase;">📅 Data</span>
+          <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: #333;">${data.date}</p>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+          <span style="color: #888; font-size: 13px; text-transform: uppercase;">⏰ Horário</span>
+          <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: #333;">${data.startTime} às ${data.endTime}</p>
+        </div>
+        
+        <div style="padding-top: 16px; border-top: 1px dashed #ddd;">
+          <span style="color: #888; font-size: 13px; text-transform: uppercase;">💰 Valor</span>
+          <p style="margin: 4px 0 0 0; font-size: 22px; font-weight: 700; color: #f59e0b;">${formattedAmount}</p>
+        </div>
+        
+      </div>
+      
+      <p style="font-size: 16px; margin: 0 0 24px 0; color: #555;">
+        Para confirmar sua reserva, finalize o pagamento via PIX utilizando o link abaixo:
+      </p>
+      
+      <!-- CTA -->
+      <div style="text-align: center; margin: 24px 0;">
+        <a href="${data.pixPaymentUrl || `${appUrl}/minha-conta/reservas`}" 
+           style="display: inline-block; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #fff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
+          👉 Pagar via PIX
+        </a>
+      </div>
+      
+      <!-- Aviso -->
+      <div style="background: #fef3c7; border-radius: 8px; padding: 16px; margin: 0 0 24px 0; border: 1px solid #f59e0b;">
+        <p style="margin: 0; font-size: 14px; color: #92400e; line-height: 1.5;">
+          <strong>⚠️ Atenção:</strong><br>
+          A reserva só será confirmada após a compensação do pagamento.<br>
+          Caso o pagamento não seja realizado, o horário poderá ser liberado automaticamente.
+        </p>
+      </div>
+      
+      <p style="font-size: 15px; margin: 0; color: #555;">
+        Qualquer dúvida, fale com a gente.
+      </p>
+      
+    </div>
+    
+    <!-- Footer / Assinatura -->
+    <div style="text-align: center; padding: 24px; color: #666; font-size: 13px; border-top: 1px solid #eee; margin-top: 20px;">
+      <p style="margin: 0; font-weight: 600; color: #333;">Espaço Arthemi</p>
+      <p style="margin: 4px 0 0;">Atendimento & Administração</p>
+      <p style="margin: 8px 0 0;">
+        🌐 <a href="${appUrl}" style="color: #8B7355; text-decoration: none;">${appUrl.replace('https://', '')}</a>
+      </p>
+      <p style="margin: 4px 0 0;">
+        📲 <a href="${whatsappLink}" style="color: #8B7355; text-decoration: none;">WhatsApp</a>
+      </p>
+    </div>
+    
+  </div>
+</body>
+</html>
+  `.trim();
+}
+
+/**
+ * Envia email de pagamento PIX pendente
+ */
+export async function sendPixPendingEmail(
+  data: BookingEmailData
+): Promise<EmailResult> {
+  const client = getResendClient();
+  
+  if (!client) {
+    console.log('📧 [EMAIL] MOCK: Email PIX pendente para', data.userEmail);
+    return { success: true, messageId: 'mock-pix-pending-' + Date.now() };
+  }
+
+  try {
+    const { data: result, error } = await client.emails.send({
+      from: FROM_EMAIL,
+      to: data.userEmail,
+      replyTo: REPLY_TO,
+      subject: 'Finalize sua reserva — Pagamento pendente via PIX',
+      html: getPixPendingEmailHtml(data),
+    });
+
+    if (error) {
+      console.error('❌ [EMAIL] Erro ao enviar email PIX pendente:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log(`✅ [EMAIL] Email PIX pendente enviado para ${data.userEmail} - ID: ${result?.id}`);
+    return { success: true, messageId: result?.id };
+    
+  } catch (error) {
+    console.error('❌ [EMAIL] Exceção ao enviar email PIX pendente:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erro desconhecido' 
+    };
+  }
+}
+
+// ============================================================
+// EMAIL CANCELAMENTO SEM ESTORNO
+// ============================================================
+
+export interface CancellationEmailData {
+  userName: string;
+  userEmail: string;
+  roomName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+}
+
+function getCancellationEmailHtml(data: CancellationEmailData): string {
+  const whatsappNumber = WHATSAPP_NUMBER;
+  const whatsappLink = `https://wa.me/${whatsappNumber}`;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://arthemi.com.br';
+
+  return `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reserva cancelada</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; background-color: #f5f5f0; color: #333;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+    
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); border-radius: 16px 16px 0 0; padding: 32px; text-align: center;">
+      <h1 style="color: #fff; margin: 0; font-size: 24px; font-weight: 600;">
+        Reserva cancelada — Espaço Arthemi
+      </h1>
+    </div>
+    
+    <!-- Conteúdo Principal -->
+    <div style="background: #fff; padding: 32px; border-radius: 0 0 16px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+      
+      <p style="font-size: 18px; margin: 0 0 20px 0; color: #333;">
+        Olá, <strong>${data.userName}</strong>!
+      </p>
+      
+      <p style="font-size: 16px; margin: 0 0 24px 0; color: #555; line-height: 1.6;">
+        Confirmamos o cancelamento da sua reserva conforme solicitado.
+      </p>
+      
+      <!-- Card de Detalhes -->
+      <div style="background: #f9f7f4; border-radius: 12px; padding: 24px; margin: 0 0 24px 0; border-left: 4px solid #6b7280;">
+        
+        <div style="margin-bottom: 16px;">
+          <span style="color: #888; font-size: 13px; text-transform: uppercase;">📍 Sala</span>
+          <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: #333;">${data.roomName}</p>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+          <span style="color: #888; font-size: 13px; text-transform: uppercase;">📅 Data</span>
+          <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: #333;">${data.date}</p>
+        </div>
+        
+        <div>
+          <span style="color: #888; font-size: 13px; text-transform: uppercase;">⏰ Horário</span>
+          <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: #333;">${data.startTime} às ${data.endTime}</p>
+        </div>
+        
+      </div>
+      
+      <p style="font-size: 15px; margin: 0 0 16px 0; color: #555;">
+        Nenhum estorno foi solicitado para esta reserva.
+      </p>
+      
+      <p style="font-size: 15px; margin: 0; color: #555;">
+        Se precisar reagendar ou tiver qualquer dúvida, estamos à disposição.
+      </p>
+      
+    </div>
+    
+    <!-- Footer / Assinatura -->
+    <div style="text-align: center; padding: 24px; color: #666; font-size: 13px; border-top: 1px solid #eee; margin-top: 20px;">
+      <p style="margin: 0; font-weight: 600; color: #333;">Espaço Arthemi</p>
+      <p style="margin: 4px 0 0;">Atendimento & Administração</p>
+      <p style="margin: 8px 0 0;">
+        🌐 <a href="${appUrl}" style="color: #8B7355; text-decoration: none;">${appUrl.replace('https://', '')}</a>
+      </p>
+      <p style="margin: 4px 0 0;">
+        📲 <a href="${whatsappLink}" style="color: #8B7355; text-decoration: none;">WhatsApp</a>
+      </p>
+    </div>
+    
+  </div>
+</body>
+</html>
+  `.trim();
+}
+
+/**
+ * Envia email de cancelamento sem estorno
+ */
+export async function sendCancellationEmail(
+  data: CancellationEmailData
+): Promise<EmailResult> {
+  const client = getResendClient();
+  
+  if (!client) {
+    console.log('📧 [EMAIL] MOCK: Email cancelamento para', data.userEmail);
+    return { success: true, messageId: 'mock-cancel-' + Date.now() };
+  }
+
+  try {
+    const { data: result, error } = await client.emails.send({
+      from: FROM_EMAIL,
+      to: data.userEmail,
+      replyTo: REPLY_TO,
+      subject: 'Reserva cancelada — Espaço Arthemi',
+      html: getCancellationEmailHtml(data),
+    });
+
+    if (error) {
+      console.error('❌ [EMAIL] Erro ao enviar email cancelamento:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log(`✅ [EMAIL] Email cancelamento enviado para ${data.userEmail} - ID: ${result?.id}`);
+    return { success: true, messageId: result?.id };
+    
+  } catch (error) {
+    console.error('❌ [EMAIL] Exceção ao enviar email cancelamento:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erro desconhecido' 
+    };
+  }
+}
+
+// ============================================================
+// EMAIL ESTORNO SOLICITADO (PARA CLIENTE)
+// ============================================================
+
+function getRefundRequestedUserEmailHtml(data: RefundEmailData): string {
+  const formattedAmount = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(data.amount / 100);
+
+  const whatsappNumber = WHATSAPP_NUMBER;
+  const whatsappLink = `https://wa.me/${whatsappNumber}`;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://arthemi.com.br';
+
+  return `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solicitação de estorno recebida</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; background-color: #f5f5f0; color: #333;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+    
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 16px 16px 0 0; padding: 32px; text-align: center;">
+      <h1 style="color: #fff; margin: 0; font-size: 24px; font-weight: 600;">
+        Recebemos sua solicitação de estorno
+      </h1>
+      <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 16px;">
+        Espaço Arthemi
+      </p>
+    </div>
+    
+    <!-- Conteúdo Principal -->
+    <div style="background: #fff; padding: 32px; border-radius: 0 0 16px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+      
+      <p style="font-size: 18px; margin: 0 0 20px 0; color: #333;">
+        Olá, <strong>${data.userName}</strong>!
+      </p>
+      
+      <p style="font-size: 16px; margin: 0 0 24px 0; color: #555; line-height: 1.6;">
+        Recebemos sua solicitação de estorno referente à reserva abaixo:
+      </p>
+      
+      <!-- Card de Detalhes -->
+      <div style="background: #f9f7f4; border-radius: 12px; padding: 24px; margin: 0 0 24px 0; border-left: 4px solid #3b82f6;">
+        
+        <div style="margin-bottom: 16px;">
+          <span style="color: #888; font-size: 13px; text-transform: uppercase;">📍 Sala</span>
+          <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: #333;">${data.roomName}</p>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+          <span style="color: #888; font-size: 13px; text-transform: uppercase;">📅 Data</span>
+          <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: #333;">${data.bookingDate}</p>
+        </div>
+        
+        <div style="padding-top: 16px; border-top: 1px dashed #ddd;">
+          <span style="color: #888; font-size: 13px; text-transform: uppercase;">💰 Valor</span>
+          <p style="margin: 4px 0 0 0; font-size: 22px; font-weight: 700; color: #3b82f6;">${formattedAmount}</p>
+        </div>
+        
+      </div>
+      
+      <p style="font-size: 16px; margin: 0 0 24px 0; color: #555; line-height: 1.6;">
+        Sua solicitação foi registrada e será analisada pela nossa equipe administrativa.
+      </p>
+      
+      <!-- Importante -->
+      <div style="background: #eff6ff; border-radius: 8px; padding: 16px; margin: 0 0 24px 0; border: 1px solid #3b82f6;">
+        <p style="margin: 0; font-size: 14px; color: #1e40af; line-height: 1.5;">
+          <strong>📌 Importante:</strong><br>
+          • O estorno é realizado via PIX<br>
+          • O prazo de análise pode levar até alguns dias úteis<br>
+          • Você receberá atualizações por e-mail
+        </p>
+      </div>
+      
+      <p style="font-size: 15px; margin: 0; color: #555;">
+        Assim que houver qualquer movimentação, entraremos em contato.
+      </p>
+      
+    </div>
+    
+    <!-- Footer / Assinatura -->
+    <div style="text-align: center; padding: 24px; color: #666; font-size: 13px; border-top: 1px solid #eee; margin-top: 20px;">
+      <p style="margin: 0; font-weight: 600; color: #333;">Espaço Arthemi</p>
+      <p style="margin: 4px 0 0;">Atendimento & Administração</p>
+      <p style="margin: 8px 0 0;">
+        🌐 <a href="${appUrl}" style="color: #8B7355; text-decoration: none;">${appUrl.replace('https://', '')}</a>
+      </p>
+      <p style="margin: 4px 0 0;">
+        📲 <a href="${whatsappLink}" style="color: #8B7355; text-decoration: none;">WhatsApp</a>
+      </p>
+    </div>
+    
+  </div>
+</body>
+</html>
+  `.trim();
+}
+
+/**
+ * Envia email de confirmação de pedido de estorno para o cliente
+ */
+export async function sendRefundRequestedEmailToUser(
+  data: RefundEmailData
+): Promise<EmailResult> {
+  const client = getResendClient();
+  
+  if (!client) {
+    console.log('📧 [EMAIL] MOCK: Confirmação de pedido de estorno para', data.userEmail);
+    return { success: true, messageId: 'mock-refund-requested-user-' + Date.now() };
+  }
+
+  try {
+    const { data: result, error } = await client.emails.send({
+      from: FROM_EMAIL,
+      to: data.userEmail,
+      replyTo: REPLY_TO,
+      subject: 'Recebemos sua solicitação de estorno',
+      html: getRefundRequestedUserEmailHtml(data),
+    });
+
+    if (error) {
+      console.error('❌ [EMAIL] Erro ao enviar confirmação de estorno:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log(`✅ [EMAIL] Confirmação de estorno enviada para ${data.userEmail} - ID: ${result?.id}`);
+    return { success: true, messageId: result?.id };
+    
+  } catch (error) {
+    console.error('❌ [EMAIL] Exceção ao enviar confirmação de estorno:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Erro desconhecido' 

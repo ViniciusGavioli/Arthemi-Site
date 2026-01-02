@@ -147,7 +147,7 @@ export default function FAQ() {
         <section className="py-16 bg-accent-700">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-3xl font-bold text-white mb-4">
-              Pronto para reservar sua sala?
+              Pronto para reservar seu consultório?
             </h2>
             <p className="text-xl text-accent-100 mb-8">
               Veja os preços e escolha o melhor horário para você.

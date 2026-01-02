@@ -1,23 +1,28 @@
 // ===========================================================
-// Redirect to new Admin Dashboard
+// Redirect to Admin Dashboard (with SSR protection)
 // ===========================================================
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/router';
+import { GetServerSideProps } from 'next';
+import { requireAdminSSR } from '@/lib/auth';
+
+// Proteção SSR: Exige role ADMIN
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const result = requireAdminSSR(ctx);
+  
+  if ('redirect' in result) {
+    return result;
+  }
+
+  // Se autenticado como admin, redireciona para dashboard
+  return {
+    redirect: {
+      destination: '/admin/dashboard',
+      permanent: false,
+    },
+  };
+};
 
 export default function AdminRedirect() {
-  const router = useRouter();
-  
-  useEffect(() => {
-    router.replace('/admin/dashboard');
-  }, [router]);
-  
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
-        <p className="text-gray-500">Redirecionando...</p>
-      </div>
-    </div>
-  );
+  // Esta página nunca será renderizada (sempre redireciona via SSR)
+  return null;
 }

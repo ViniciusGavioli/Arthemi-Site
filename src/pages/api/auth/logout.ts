@@ -1,12 +1,18 @@
 // ===========================================================
 // API: POST /api/auth/logout
 // ===========================================================
-// Encerra sessão do cliente (limpa cookie)
+// Encerra sessão do cliente (limpa cookies de sessão)
+// Suporta tanto o magic-link (legado) quanto o JWT (novo)
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { serialize } from 'cookie';
 import { USER_SESSION_COOKIE } from './verify';
 import { decodeSessionToken } from '@/lib/magic-link';
+import { 
+  AUTH_COOKIE_NAME, 
+  getAuthFromRequest, 
+  clearAuthCookie 
+} from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 
 export default async function handler(
@@ -19,33 +25,57 @@ export default async function handler(
   }
 
   try {
-    // Tenta extrair userId para log
-    const sessionToken = req.cookies[USER_SESSION_COOKIE];
-    if (sessionToken) {
-      const userId = decodeSessionToken(sessionToken);
-      if (userId) {
-        await logAudit({
-          action: 'USER_LOGOUT',
-          source: 'USER',
-          actorId: userId,
-          actorIp: getClientIp(req),
-          userAgent: req.headers['user-agent'],
-        });
+    let loggedUserId: string | null = null;
+
+    // Tenta extrair userId do novo sistema JWT
+    const jwtAuth = getAuthFromRequest(req);
+    if (jwtAuth) {
+      loggedUserId = jwtAuth.userId;
+    }
+
+    // Fallback: tenta extrair do magic-link (legado)
+    if (!loggedUserId) {
+      const sessionToken = req.cookies[USER_SESSION_COOKIE];
+      if (sessionToken) {
+        loggedUserId = decodeSessionToken(sessionToken);
       }
     }
 
-    // Limpa cookie
-    const cookie = serialize(USER_SESSION_COOKIE, '', {
+    // Log de auditoria
+    if (loggedUserId) {
+      await logAudit({
+        action: 'USER_LOGOUT',
+        source: 'USER',
+        actorId: loggedUserId,
+        actorIp: getClientIp(req),
+        userAgent: req.headers['user-agent'],
+      });
+    }
+
+    // Limpa AMBOS os cookies (legado + novo)
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    // Cookie legado (magic-link)
+    const legacyCookie = serialize(USER_SESSION_COOKIE, '', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProduction,
       sameSite: 'lax',
       path: '/',
-      maxAge: 0, // Expira imediatamente
+      maxAge: 0,
     });
 
-    res.setHeader('Set-Cookie', cookie);
+    // Cookie novo (JWT)
+    const jwtCookie = serialize(AUTH_COOKIE_NAME, '', {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 0,
+    });
 
-    return res.status(200).json({ success: true });
+    res.setHeader('Set-Cookie', [legacyCookie, jwtCookie]);
+
+    return res.status(200).json({ ok: true, success: true });
 
   } catch (error) {
     console.error('[AUTH] Erro ao fazer logout:', error);

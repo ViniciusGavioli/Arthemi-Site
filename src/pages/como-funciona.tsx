@@ -31,7 +31,7 @@ export default function ComoFunciona() {
     {
       number: '04',
       title: 'Chegue e atenda',
-      description: 'No dia e horário reservados, é só chegar. A sala estará limpa e pronta para seu uso. A recepção recebe seu paciente e avisa quando ele chegar. Você só precisa focar no seu atendimento.',
+      description: 'No dia e horário reservados, é só chegar. O consultório estará limpo e pronto para seu uso. A recepção recebe seu paciente e avisa quando ele chegar. Você só precisa focar no seu atendimento.',
       icon: CheckCircle,
     },
   ];

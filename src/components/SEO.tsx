@@ -126,14 +126,14 @@ export function LocalBusinessSchema() {
     },
     hasOfferCatalog: {
       '@type': 'OfferCatalog',
-      name: 'Salas para Atendimento',
+      name: 'Consultórios para Atendimento',
       itemListElement: [
         {
           '@type': 'Offer',
           itemOffered: {
             '@type': 'Service',
-            name: 'Sala para Atendimento por Hora',
-            description: 'Aluguel de sala equipada para profissionais de saúde',
+            name: 'Consultório para Atendimento por Hora',
+            description: 'Aluguel de consultório equipado para profissionais de saúde',
           },
         },
       ],

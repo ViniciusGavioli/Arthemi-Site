@@ -102,7 +102,7 @@ export default function ConfirmationModal({
             <p className="font-semibold text-gray-800">{booking.client}</p>
           </div>
           <div>
-            <span className="text-gray-500">Sala:</span>
+            <span className="text-gray-500">Consultório:</span>
             <p className="font-semibold text-gray-800">{booking.room}</p>
           </div>
           <div>

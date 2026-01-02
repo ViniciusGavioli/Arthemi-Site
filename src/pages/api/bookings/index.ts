@@ -14,8 +14,10 @@ import {
   consumeCreditsForBooking,
   getCreditBalanceForRoom,
   validateBookingWindow,
+  isBookingWithinBusinessHours,
 } from '@/lib/business-rules';
 import { sendBookingConfirmationNotification } from '@/lib/booking-notifications';
+import { sendPixPendingEmail, BookingEmailData } from '@/lib/email';
 
 // Schema de validação com Zod
 const createBookingSchema = z.object({
@@ -125,6 +127,14 @@ export default async function handler(
       return res.status(400).json({
         success: false,
         error: 'Horário de término deve ser após o início',
+      });
+    }
+
+    // 2.1 Validar horário de funcionamento (Seg-Sex 08-20, Sáb 08-12, Dom fechado)
+    if (!isBookingWithinBusinessHours(startAt, endAt)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Horário fora do expediente. Seg-Sex: 08h-20h, Sáb: 08h-12h, Dom: fechado.',
       });
     }
 
@@ -348,6 +358,29 @@ export default async function handler(
             externalUrl: paymentResult.invoiceUrl,
           },
         });
+
+        // Enviar email de PIX pendente
+        if (data.userEmail) {
+          const startDate = new Date(data.startAt);
+          const endDate = new Date(data.endAt);
+          const pixEmailData: BookingEmailData = {
+            userName: data.userName,
+            userEmail: data.userEmail,
+            roomName: room.name,
+            date: startDate.toLocaleDateString('pt-BR'),
+            startTime: startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+            endTime: endDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+            duration: `${result.hours}h`,
+            amountPaid: result.amountToPay,
+            bookingId: result.booking.id,
+            paymentMethod: 'PIX',
+            pixPaymentUrl: paymentUrl,
+          };
+
+          sendPixPendingEmail(pixEmailData).catch((err) => {
+            console.error('⚠️ [BOOKING] Erro ao enviar email PIX pendente:', err);
+          });
+        }
       } catch (paymentError) {
         console.error('❌ Erro ao criar cobrança Asaas');
         

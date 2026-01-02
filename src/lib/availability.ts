@@ -1,18 +1,11 @@
 // ===========================================================
 // lib/availability.ts - Verificação de disponibilidade
 // ===========================================================
+// DECISÃO DE PRODUTO: Sem buffer entre reservas - slots colados permitidos
 
 import prisma from './prisma';
 import type { Booking } from '@prisma/client';
-import { BUFFER_MINUTES } from './business-rules';
-
-/**
- * Adiciona o buffer de limpeza ao horário de término
- * O buffer é aplicado APÓS a reserva existente, bloqueando o horário para limpeza
- */
-function addBuffer(date: Date): Date {
-  return new Date(date.getTime() + BUFFER_MINUTES * 60 * 1000);
-}
+import { getBusinessHoursForDate } from './business-rules';
 
 interface AvailabilityParams {
   roomId: string;
@@ -44,20 +37,16 @@ export async function isAvailable({
     },
   });
 
-  // Verifica conflitos considerando o buffer de limpeza após cada reserva existente
-  // O buffer de 30 minutos é adicionado ao endTime de cada reserva existente
-  // Isso garante tempo para limpeza/organização entre atendimentos
+  // Verifica conflitos simples (sem buffer - slots colados permitidos)
   const hasConflict = existingBookings.some((booking) => {
     const bookingStart = new Date(booking.startTime).getTime();
-    // endTime + BUFFER_MINUTES = tempo total bloqueado pela reserva
-    const bookingEndWithBuffer = addBuffer(new Date(booking.endTime)).getTime();
+    const bookingEnd = new Date(booking.endTime).getTime();
     
     const newStart = startAt.getTime();
     const newEnd = endAt.getTime();
 
-    // Verifica sobreposição:
-    // A nova reserva conflita se começar antes do fim+buffer E terminar depois do início
-    return newStart < bookingEndWithBuffer && newEnd > bookingStart;
+    // Verifica sobreposição (reserva termina no mesmo momento que outra começa = OK)
+    return newStart < bookingEnd && newEnd > bookingStart;
   });
 
   return !hasConflict;
@@ -85,15 +74,15 @@ export async function getConflicts(params: AvailabilityParams) {
     },
   });
 
-  // Filtra reservas que conflitam considerando o buffer de limpeza
+  // Filtra reservas que conflitam (sem buffer)
   const conflicts = allBookings.filter((booking) => {
     const bookingStart = new Date(booking.startTime).getTime();
-    const bookingEndWithBuffer = addBuffer(new Date(booking.endTime)).getTime();
+    const bookingEnd = new Date(booking.endTime).getTime();
     
     const newStart = startAt.getTime();
     const newEnd = endAt.getTime();
 
-    return newStart < bookingEndWithBuffer && newEnd > bookingStart;
+    return newStart < bookingEnd && newEnd > bookingStart;
   });
 
   return conflicts.map((b: Booking & { user: { name: string } }) => ({
@@ -107,8 +96,17 @@ export async function getConflicts(params: AvailabilityParams) {
 
 /**
  * Busca horários disponíveis para uma data específica
+ * Respeita horários de funcionamento (Seg-Sex 8-20, Sáb 8-12, Dom fechado)
  */
 export async function getAvailableSlots(roomId: string, date: Date) {
+  // Verifica horário de funcionamento para a data
+  const hours = getBusinessHoursForDate(date);
+  
+  if (!hours) {
+    // Domingo = fechado
+    return [];
+  }
+  
   const startOfDay = new Date(date);
   startOfDay.setHours(0, 0, 0, 0);
   
@@ -125,26 +123,21 @@ export async function getAvailableSlots(roomId: string, date: Date) {
     },
     orderBy: { startTime: 'asc' },
   });
-
-  // Horário de funcionamento: 8h às 18h
-  const BUSINESS_START = 8;
-  const BUSINESS_END = 18;
   
   const slots: { start: Date; end: Date; available: boolean }[] = [];
 
-  for (let hour = BUSINESS_START; hour < BUSINESS_END; hour++) {
+  for (let hour = hours.start; hour < hours.end; hour++) {
     const slotStart = new Date(date);
     slotStart.setHours(hour, 0, 0, 0);
     
     const slotEnd = new Date(date);
     slotEnd.setHours(hour + 1, 0, 0, 0);
 
-    // Verifica se há conflito com alguma reserva (considerando buffer de limpeza)
+    // Verifica se há conflito com alguma reserva (sem buffer)
     const hasConflict = bookings.some((booking: Booking) => {
       const bookingStart = new Date(booking.startTime).getTime();
-      // Adiciona buffer de limpeza ao fim da reserva
-      const bookingEndWithBuffer = addBuffer(new Date(booking.endTime)).getTime();
-      return slotStart.getTime() < bookingEndWithBuffer && slotEnd.getTime() > bookingStart;
+      const bookingEnd = new Date(booking.endTime).getTime();
+      return slotStart.getTime() < bookingEnd && slotEnd.getTime() > bookingStart;
     });
 
     slots.push({

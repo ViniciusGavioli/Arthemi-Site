@@ -139,14 +139,14 @@ export const analytics = {
     trackEvent('booking_cancelled', { room: roomName });
   },
   
-  // Quando usuário visualiza detalhes de uma sala
+  // Quando usuário visualiza detalhes de um consultório
   roomViewed: (roomName: string, value?: number) => {
     trackEvent('room_viewed', { room: roomName });
     // Meta Pixel: ViewContent
     trackViewContent({
       contentId: roomName,
       contentName: roomName,
-      contentCategory: 'Sala',
+      contentCategory: 'Consultório',
       value: value,
     });
   },

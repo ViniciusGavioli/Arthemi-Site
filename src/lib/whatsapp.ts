@@ -97,7 +97,7 @@ Acabei de fazer uma reserva no Espaço Arthemi.
 
 📋 *Detalhes da Reserva:*
 • Código: ${data.bookingId.slice(0, 8).toUpperCase()}
-• Sala: ${data.roomName}
+• Consultório: ${data.roomName}
 • Data: ${data.date}
 • Horário: ${data.startTime} às ${data.endTime}${amountText}
 

@@ -93,7 +93,7 @@ export default function BookingSuccessPage() {
               
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Sala</span>
+                  <span className="text-gray-500">Consultório</span>
                   <span className="font-medium text-gray-800">{details.roomName}</span>
                 </div>
                 <div className="flex justify-between">

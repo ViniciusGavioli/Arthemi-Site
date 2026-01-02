@@ -284,13 +284,13 @@ export default function BookingDetailsPage() {
             {/* Conteúdo */}
             <div className="p-6 space-y-6">
               
-              {/* Sala */}
+              {/* Consultório */}
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center flex-shrink-0">
                   <span className="text-2xl">🏥</span>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Sala</p>
+                  <p className="text-sm text-gray-500">Consultório</p>
                   <p className="text-lg font-semibold text-gray-800">{booking.room.name}</p>
                 </div>
               </div>

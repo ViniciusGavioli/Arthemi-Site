@@ -19,7 +19,7 @@ export default function TermosPage() {
     <Layout>
       <Head>
         <title>Termos de Uso — Espaço Arthemi</title>
-        <meta name="description" content="Termos de Uso do Espaço Arthemi. Regras para reserva e uso das salas do coworking de saúde." />
+        <meta name="description" content="Termos de Uso do Espaço Arthemi. Regras para reserva e uso dos consultórios do coworking de saúde." />
         <meta name="robots" content="noindex" />
       </Head>
 
@@ -51,7 +51,7 @@ export default function TermosPage() {
               </p>
               <p>
                 Estes termos constituem um acordo legal entre você e o Espaço Arthemi para a 
-                locação de salas por hora.
+                locação de consultórios por hora.
               </p>
             </section>
 
@@ -59,11 +59,11 @@ export default function TermosPage() {
             <section className="mb-10">
               <h2 className="text-2xl font-semibold mb-4">2. Descrição do serviço</h2>
               <p>
-                O Espaço Arthemi oferece locação de salas para profissionais de saúde 
+                O Espaço Arthemi oferece locação de consultórios para profissionais de saúde 
                 realizarem atendimentos. O serviço inclui:
               </p>
               <ul className="list-disc pl-6 space-y-2">
-                <li>Uso da sala pelo período reservado</li>
+                <li>Uso do consultório pelo período reservado</li>
                 <li>Mobiliário básico (mesa, cadeiras, maca quando aplicável)</li>
                 <li>Ar condicionado</li>
                 <li>Wi-Fi</li>
@@ -81,7 +81,7 @@ export default function TermosPage() {
               
               <h3 className="text-xl font-medium mt-6 mb-3">3.1 Como reservar</h3>
               <p>
-                As reservas são feitas pelo site, selecionando a sala, data e horário desejados. 
+                As reservas são feitas pelo site, selecionando o consultório, data e horário desejados. 
                 A reserva só é confirmada após a confirmação do pagamento.
               </p>
 
@@ -90,7 +90,7 @@ export default function TermosPage() {
               <ul className="list-disc pl-6 space-y-2">
                 <li>Hora avulsa (segunda a sexta): a partir de R$ {hourlyWeekday.toFixed(2)}</li>
                 <li>Hora avulsa (sábado): a partir de R$ {hourlySaturday.toFixed(2)}</li>
-                <li>Pacotes com desconto disponíveis (consulte a página de salas)</li>
+                <li>Pacotes com desconto disponíveis (consulte a página de consultórios)</li>
               </ul>
               <p className="mt-4">
                 Os valores podem ser alterados a qualquer momento, mas reservas já confirmadas 
@@ -137,20 +137,20 @@ export default function TermosPage() {
               </p>
             </section>
 
-            {/* 5. Uso das salas */}
+            {/* 5. Uso dos consultórios */}
             <section className="mb-10">
-              <h2 className="text-2xl font-semibold mb-4">5. Regras de uso das salas</h2>
+              <h2 className="text-2xl font-semibold mb-4">5. Regras de uso dos consultórios</h2>
               
               <h3 className="text-xl font-medium mt-6 mb-3">5.1 Horário</h3>
               <ul className="list-disc pl-6 space-y-2">
                 <li>Chegue com alguns minutos de antecedência para se acomodar</li>
-                <li>Libere a sala pontualmente ao fim do período reservado</li>
+                <li>Libere o consultório pontualmente ao fim do período reservado</li>
                 <li>Atrasos podem comprometer a próxima reserva</li>
               </ul>
 
               <h3 className="text-xl font-medium mt-6 mb-3">5.2 Conservação</h3>
               <ul className="list-disc pl-6 space-y-2">
-                <li>Mantenha a sala limpa e organizada</li>
+                <li>Mantenha o consultório limpo e organizado</li>
                 <li>Não fume nas dependências</li>
                 <li>Comunique imediatamente qualquer dano ou problema</li>
                 <li>Não remova ou altere a disposição do mobiliário sem autorização</li>
@@ -165,7 +165,7 @@ export default function TermosPage() {
 
               <h3 className="text-xl font-medium mt-6 mb-3">5.4 Danos</h3>
               <p>
-                O usuário é responsável por danos causados à sala ou equipamentos durante o 
+                O usuário é responsável por danos causados ao consultório ou equipamentos durante o 
                 período de sua reserva, devendo arcar com os custos de reparo ou reposição.
               </p>
             </section>
@@ -176,7 +176,7 @@ export default function TermosPage() {
               
               <h3 className="text-xl font-medium mt-6 mb-3">6.1 Responsabilidade do Espaço Arthemi</h3>
               <ul className="list-disc pl-6 space-y-2">
-                <li>Fornecer a sala reservada em condições adequadas de uso</li>
+                <li>Fornecer o consultório reservado em condições adequadas de uso</li>
                 <li>Manter as instalações limpas e funcionais</li>
                 <li>Garantir acesso durante o horário reservado</li>
               </ul>

@@ -14,6 +14,18 @@ model User {
   phone           String           @unique
   cpf             String?          // CPF para Asaas
   role            UserRole         @default(CUSTOMER)
+  
+  // ========== Campos de Autenticação (Login Email+Senha) ==========
+  passwordHash    String?          // Hash bcrypt da senha (nullable para migração de usuários antigos)
+  isActive        Boolean          @default(true)  // false = conta bloqueada
+  failedAttempts  Int              @default(0)     // Tentativas de login falhas consecutivas
+  lockedUntil     DateTime?        // Bloqueio temporário por rate limit
+  lastLoginAt     DateTime?        // Último login bem-sucedido
+  
+  // ========== Reset de Senha ==========
+  resetToken       String?         // Token único para reset (hash SHA-256)
+  resetTokenExpiry DateTime?       // Expiração do token (1 hora)
+  
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   bookings        Booking[]
@@ -21,6 +33,8 @@ model User {
   subletRequests  SubletRequest[]
   packages        UserPackage[]
   magicLinkTokens MagicLinkToken[]
+  refundRequests  RefundRequest[]  @relation("UserRefundRequests")
+  reviewedRefunds RefundRequest[]  @relation("AdminReviewedRefunds")
 
   @@map("users")
 }
@@ -84,6 +98,7 @@ model Booking {
   room            Room           @relation(fields: [roomId], references: [id])
   subletRequest   SubletRequest? @relation(fields: [subletRequestId], references: [id])
   user            User           @relation(fields: [userId], references: [id])
+  refundRequest   RefundRequest?
 
   @@index([roomId, startTime, endTime])
   @@index([userId])
@@ -366,6 +381,12 @@ enum AuditAction {
   USER_LOGOUT
   USER_MAGIC_LINK_REQUESTED
   USER_MAGIC_LINK_RATE_LIMITED
+  // Refund workflow
+  REFUND_REQUESTED
+  REFUND_REVIEWING
+  REFUND_APPROVED
+  REFUND_REJECTED
+  REFUND_PAID
 }
 
 // Origem da reserva: comercial ou cortesia
@@ -387,6 +408,55 @@ enum AuditSource {
   SYSTEM
 }
 
+// ===========================================================
+// RefundRequest - Pedido de Estorno Manual
+// ===========================================================
+// Ticket para processamento manual de estornos
+// Não automatiza PIX - apenas registra e controla workflow
+
+model RefundRequest {
+  id              String       @id @default(cuid())
+  bookingId       String       @unique
+  userId          String
+  amount          Int          // Valor em centavos a devolver
+  pixKeyType      PixKeyType
+  pixKey          String       // Chave PIX do cliente
+  status          RefundStatus @default(REQUESTED)
+  reason          String?      // Motivo do pedido (opcional)
+  reviewedBy      String?      // userId do admin que revisou
+  reviewedAt      DateTime?    // Data da revisão
+  reviewNotes     String?      // Notas internas do admin
+  rejectionReason String?      // Motivo da rejeição (obrigatório se REJECTED)
+  proofUrl        String?      // Link do comprovante de pagamento
+  paidAt          DateTime?    // Data do pagamento efetivo
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  booking         Booking      @relation(fields: [bookingId], references: [id])
+  user            User         @relation("UserRefundRequests", fields: [userId], references: [id])
+  reviewer        User?        @relation("AdminReviewedRefunds", fields: [reviewedBy], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("refund_requests")
+}
+
+enum RefundStatus {
+  REQUESTED   // Pedido feito pelo cliente
+  REVIEWING   // Admin em análise
+  APPROVED    // Aprovado, aguardando pagamento
+  PAID        // Pago (estorno concluído)
+  REJECTED    // Rejeitado pelo admin
+}
+
+enum PixKeyType {
+  CPF
+  CNPJ
+  EMAIL
+  PHONE
+  RANDOM
+}
 
 model RateLimit {
   id          String   @id @default(cuid())

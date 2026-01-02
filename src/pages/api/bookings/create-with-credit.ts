@@ -2,21 +2,19 @@
 // API: POST /api/bookings/create-with-credit
 // ===========================================================
 // Cria reserva consumindo créditos do usuário
-// Requer autenticação via cookie de sessão
+// Requer autenticação via JWT (cookie arthemi_session)
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
-import { decodeSessionToken } from '@/lib/magic-link';
+import { getAuthFromRequest } from '@/lib/auth';
 import { 
   consumeCreditsForBooking, 
   getCreditBalanceForRoom,
-  canUseCredit,
+  isBookingWithinBusinessHours,
 } from '@/lib/business-rules';
 import { logAudit } from '@/lib/audit';
-import { differenceInHours, isBefore, addHours } from 'date-fns';
+import { differenceInHours, isBefore } from 'date-fns';
 import { sendBookingConfirmationNotification } from '@/lib/booking-notifications';
-
-const USER_SESSION_COOKIE = 'user_session';
 
 interface ApiResponse {
   success: boolean;
@@ -36,16 +34,13 @@ export default async function handler(
   }
 
   try {
-    // Verifica autenticação
-    const sessionToken = req.cookies[USER_SESSION_COOKIE];
-    if (!sessionToken) {
+    // Verifica autenticação JWT
+    const auth = getAuthFromRequest(req);
+    if (!auth) {
       return res.status(401).json({ success: false, error: 'Não autenticado' });
     }
 
-    const userId = decodeSessionToken(sessionToken);
-    if (!userId) {
-      return res.status(401).json({ success: false, error: 'Sessão inválida' });
-    }
+    const userId = auth.userId;
 
     // Busca usuário
     const user = await prisma.user.findUnique({
@@ -83,6 +78,14 @@ export default async function handler(
       return res.status(400).json({
         success: false,
         error: 'Horário de fim deve ser após o início',
+      });
+    }
+
+    // Validar horário de funcionamento
+    if (!isBookingWithinBusinessHours(start, end)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Horário fora do expediente. Seg-Sex: 08h-20h, Sáb: 08h-12h, Dom: fechado.',
       });
     }
 

@@ -39,8 +39,8 @@ test.describe('Admin Page', () => {
   test('deve exibir filtros', async ({ page }) => {
     await page.waitForTimeout(1000);
     
-    // Filtro de sala
-    await expect(page.getByText('Sala')).toBeVisible();
+    // Filtro de consultório
+    await expect(page.getByText('Consultório')).toBeVisible();
     
     // Filtro de status
     await expect(page.getByText('Status')).toBeVisible();

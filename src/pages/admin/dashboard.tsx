@@ -3,11 +3,13 @@
 // ===========================================================
 
 import { useState, useEffect } from 'react';
+import { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, StatCard, Button, Badge, Spinner } from '@/components/admin/ui';
 import { formatDate, formatTime, formatCurrency, getWhatsAppLink, statusLabels, statusColors } from '@/components/admin/helpers';
+import { requireAdminSSR, AuthUser } from '@/lib/auth';
 
 interface Booking {
   id: string;
@@ -34,7 +36,26 @@ interface DashboardStats {
   };
 }
 
-export default function DashboardPage() {
+interface DashboardPageProps {
+  user: AuthUser;
+}
+
+// Proteção SSR: Exige role ADMIN
+export const getServerSideProps: GetServerSideProps<DashboardPageProps> = async (ctx) => {
+  const result = requireAdminSSR(ctx);
+  
+  if ('redirect' in result) {
+    return result;
+  }
+
+  return {
+    props: {
+      user: result.auth,
+    },
+  };
+};
+
+export default function DashboardPage({ user }: DashboardPageProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({ reservasHoje: 0, reservasPendentes: 0, confirmadas: 0, receita: 0 });
@@ -186,7 +207,7 @@ export default function DashboardPage() {
                     <span className="font-medium">{nextBooking.user.name}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Sala</span>
+                    <span className="text-gray-500">Consultório</span>
                     <span className="font-medium">{nextBooking.room.name}</span>
                   </div>
                   <div className="flex justify-between">

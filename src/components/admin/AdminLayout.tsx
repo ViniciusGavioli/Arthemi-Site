@@ -29,8 +29,12 @@ export default function AdminLayout({ children, title = 'Admin' }: AdminLayoutPr
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/admin/auth/logout');
-      router.push('/admin/login');
+      // Chama ambos endpoints de logout para compatibilidade
+      await Promise.all([
+        fetch('/api/auth/logout', { method: 'POST' }),
+        fetch('/api/admin/auth/logout', { method: 'POST' }),
+      ]);
+      router.push('/login');
     } catch (error) {
       console.error('Erro ao sair:', error);
     }

@@ -13,9 +13,26 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import type { GetServerSidePropsContext } from 'next';
 import { serialize, parse } from 'cookie';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcrypt';
-import { createHash, randomBytes } from 'crypto';
+import { scrypt, randomBytes, timingSafeEqual, createHash, ScryptOptions } from 'crypto';
 import { prisma } from './prisma';
+
+/**
+ * Wrapper async/await para scrypt com opções
+ * Node.js scrypt callback: scrypt(password, salt, keylen, options, callback)
+ */
+function scryptAsync(
+  password: string | Buffer,
+  salt: Buffer,
+  keylen: number,
+  options: ScryptOptions
+): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    scrypt(password, salt, keylen, options, (err, derivedKey) => {
+      if (err) reject(err);
+      else resolve(derivedKey);
+    });
+  });
+}
 
 // ============================================================
 // CONSTANTES
@@ -27,8 +44,19 @@ export const AUTH_COOKIE_NAME = 'arthemi_session';
 /** Duração da sessão em segundos (7 dias) */
 export const SESSION_DURATION_SECONDS = 7 * 24 * 60 * 60;
 
-/** Custo do bcrypt (12 rounds) */
-export const BCRYPT_ROUNDS = 12;
+/**
+ * Parâmetros do scrypt (OWASP recomendados)
+ * - SALT_LENGTH: 32 bytes (256 bits) de entropia
+ * - KEY_LENGTH: 64 bytes (512 bits) de output
+ * - SCRYPT_N: 2^14 = 16384 (custo CPU/memória)
+ * - SCRYPT_R: 8 (block size)
+ * - SCRYPT_P: 1 (paralelismo)
+ */
+const SALT_LENGTH = 32;
+const KEY_LENGTH = 64;
+const SCRYPT_N = 16384;
+const SCRYPT_R = 8;
+const SCRYPT_P = 1;
 
 /** Máximo de tentativas de login antes do bloqueio */
 export const MAX_LOGIN_ATTEMPTS = 5;
@@ -223,21 +251,71 @@ export function requireRole(
 }
 
 // ============================================================
-// PASSWORD FUNCTIONS
+// PASSWORD FUNCTIONS (crypto.scrypt - Node.js built-in)
 // ============================================================
+// Solução future-proof:
+// - Zero dependências nativas externas
+// - Compatível com Vercel Edge/Serverless
+// - Funciona em qualquer versão do Node.js
+// - OWASP recomendado para password hashing
+//
+// Formato do hash: $scrypt$N$r$p$salt$derivedKey
+// Exemplo: $scrypt$16384$8$1$base64salt$base64key
 
 /**
- * Gera hash bcrypt de uma senha
+ * Gera hash scrypt de uma senha
+ * @param password - Senha em texto plano
+ * @returns Hash no formato: $scrypt$N$r$p$salt$derivedKey
  */
 export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, BCRYPT_ROUNDS);
+  // Gerar salt aleatório criptograficamente seguro
+  const salt = randomBytes(SALT_LENGTH);
+  
+  // Derivar chave usando scrypt
+  const derivedKey = await scryptAsync(password, salt, KEY_LENGTH, {
+    N: SCRYPT_N,
+    r: SCRYPT_R,
+    p: SCRYPT_P,
+  });
+  
+  // Formato: $scrypt$N$r$p$salt$key (base64 para salt e key)
+  return `$scrypt$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${salt.toString('base64')}$${derivedKey.toString('base64')}`;
 }
 
 /**
- * Compara senha com hash bcrypt
+ * Compara senha com hash scrypt usando timing-safe comparison
+ * @param password - Senha em texto plano
+ * @param storedHash - Hash armazenado no formato $scrypt$...
+ * @returns true se a senha corresponde ao hash
  */
-export async function comparePassword(password: string, hash: string): Promise<boolean> {
-  return bcrypt.compare(password, hash);
+export async function comparePassword(password: string, storedHash: string): Promise<boolean> {
+  try {
+    // Parse do hash armazenado
+    const parts = storedHash.split('$');
+    
+    // Formato: ['', 'scrypt', 'N', 'r', 'p', 'salt', 'key']
+    if (parts.length !== 7 || parts[1] !== 'scrypt') {
+      console.error('[AUTH] Formato de hash inválido');
+      return false;
+    }
+    
+    const N = parseInt(parts[2], 10);
+    const r = parseInt(parts[3], 10);
+    const p = parseInt(parts[4], 10);
+    const salt = Buffer.from(parts[5], 'base64');
+    const storedKey = Buffer.from(parts[6], 'base64');
+    
+    // Derivar chave da senha fornecida com os mesmos parâmetros
+    const derivedKey = await scryptAsync(password, salt, storedKey.length, {
+      N, r, p,
+    });
+    
+    // Comparação timing-safe (previne timing attacks)
+    return timingSafeEqual(derivedKey, storedKey);
+  } catch (error) {
+    console.error('[AUTH] Erro ao comparar senha:', error);
+    return false;
+  }
 }
 
 // ============================================================

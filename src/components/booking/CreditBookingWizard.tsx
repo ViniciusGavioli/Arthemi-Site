@@ -4,7 +4,6 @@
 // ===========================================================
 
 import { useEffect, useState, useCallback } from 'react';
-import Link from 'next/link';
 import { format, addDays, startOfDay, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -36,13 +35,14 @@ interface CreditBookingWizardProps {
   userId: string;
   onSuccess: (bookingId: string) => void;
   onCancel: () => void;
+  onPurchaseCredits?: () => void;
 }
 
 // ===========================================================
 // COMPONENTE
 // ===========================================================
 
-export function CreditBookingWizard({ userId, onSuccess, onCancel }: CreditBookingWizardProps) {
+export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCredits }: CreditBookingWizardProps) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [creditsByRoom, setCreditsByRoom] = useState<CreditBalance[]>([]);
   const [totalCredits, setTotalCredits] = useState(0);
@@ -227,7 +227,7 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel }: CreditBooki
     );
   }
 
-  // Sem créditos - mostra opções dentro do modal
+  // Sem créditos - mostra opção de compra dentro do modal
   if (totalCredits === 0) {
     return (
       <div className="space-y-6">
@@ -238,50 +238,28 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel }: CreditBooki
           <p className="text-gray-500 mt-1">Você ainda não tem créditos</p>
         </div>
 
-        {/* Opções */}
-        <div className="space-y-4">
-          <p className="text-center text-gray-600">
-            Escolha como deseja agendar:
+        {/* Mensagem */}
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <p className="text-amber-800 text-sm">
+            Para agendar horários, você precisa ter créditos disponíveis. 
+            Adquira um pacote de horas e economize!
           </p>
-
-          {/* Opção 1: Comprar pacote */}
-          <Link
-            href="/salas?tab=packages"
-            className="flex items-center gap-4 p-5 rounded-xl border-2 border-primary-200 bg-primary-50 hover:border-primary-400 transition-all group"
-          >
-            <div className="flex-shrink-0 w-12 h-12 bg-primary-500 rounded-xl flex items-center justify-center">
-              <span className="text-2xl">📦</span>
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold text-gray-900 group-hover:text-primary-700">
-                Comprar pacote de horas
-              </p>
-              <p className="text-sm text-gray-600">
-                Economize até 25% com pacotes. Ideal para uso recorrente.
-              </p>
-            </div>
-            <span className="text-primary-500 font-medium">→</span>
-          </Link>
-
-          {/* Opção 2: Reserva avulsa */}
-          <Link
-            href="/salas"
-            className="flex items-center gap-4 p-5 rounded-xl border-2 border-gray-200 bg-white hover:border-gray-300 transition-all group"
-          >
-            <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
-              <span className="text-2xl">⚡</span>
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold text-gray-900 group-hover:text-gray-700">
-                Reserva avulsa (PIX)
-              </p>
-              <p className="text-sm text-gray-600">
-                Pague por hora. Sem compromisso, ideal para uso pontual.
-              </p>
-            </div>
-            <span className="text-gray-400 font-medium">→</span>
-          </Link>
         </div>
+
+        {/* CTA principal */}
+        <button
+          onClick={() => {
+            onCancel(); // Fecha este modal
+            if (onPurchaseCredits) onPurchaseCredits(); // Abre modal de compra
+          }}
+          className="w-full flex items-center justify-center gap-3 p-5 rounded-xl border-2 border-primary-500 bg-primary-600 hover:bg-primary-700 transition-all text-white"
+        >
+          <span className="text-2xl">📦</span>
+          <div className="text-left">
+            <p className="font-semibold">Comprar pacote de horas</p>
+            <p className="text-sm text-primary-100">Economize até 20% com pacotes</p>
+          </div>
+        </button>
 
         {/* Botão fechar */}
         <div className="pt-4 border-t border-gray-200">

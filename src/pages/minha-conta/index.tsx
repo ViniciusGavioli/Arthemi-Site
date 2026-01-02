@@ -30,6 +30,7 @@ import {
   QuickActionCard,
 } from '@/components/dashboard';
 import { BookingWizardModal } from '@/components/booking';
+import { PurchaseCreditsModal } from '@/components/credits';
 
 // ===========================================================
 // TIPOS
@@ -84,6 +85,7 @@ export default function MinhaContaPage() {
 
   // Modal de reserva
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
@@ -385,8 +387,8 @@ export default function MinhaContaPage() {
                   <QuickActionCard
                     icon={<ShoppingBag className="w-5 h-5 text-gray-600" />}
                     title="Comprar Horas"
-                    description="Ver pacotes disponíveis"
-                    href="/salas"
+                    description="Adquirir pacote de créditos"
+                    onClick={() => setPurchaseModalOpen(true)}
                   />
                   <QuickActionCard
                     icon={<Calendar className="w-5 h-5 text-gray-600" />}
@@ -407,12 +409,12 @@ export default function MinhaContaPage() {
                       <p className="text-sm text-amber-700 mt-1">
                         Seu saldo está abaixo de 2 horas. Considere adquirir um novo pacote.
                       </p>
-                      <Link
-                        href="/salas"
+                      <button
+                        onClick={() => setPurchaseModalOpen(true)}
                         className="inline-block mt-3 text-sm font-medium text-amber-700 hover:text-amber-800"
                       >
-                        Ver pacotes →
-                      </Link>
+                        Comprar pacote →
+                      </button>
                     </div>
                   </div>
                 </section>
@@ -456,6 +458,16 @@ export default function MinhaContaPage() {
             onClose={() => setBookingModalOpen(false)}
             userId={user.id}
             onSuccess={handleBookingSuccess}
+            onPurchaseCredits={() => setPurchaseModalOpen(true)}
+          />
+        )}
+
+        {/* Modal de Compra de Créditos */}
+        {user && (
+          <PurchaseCreditsModal
+            isOpen={purchaseModalOpen}
+            onClose={() => setPurchaseModalOpen(false)}
+            user={user}
           />
         )}
 

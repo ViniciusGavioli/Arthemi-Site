@@ -36,8 +36,8 @@ const variantConfig: Record<EmptyStateVariant, {
     icon: <CreditCard className="w-8 h-8" />,
     title: 'Sem créditos disponíveis',
     description: 'Adquira um pacote de horas e aproveite condições especiais.',
-    actionLabel: 'Ver pacotes',
-    actionHref: '/salas',
+    actionLabel: 'Comprar pacote',
+    actionHref: '#',
     iconBg: 'bg-emerald-100 text-emerald-600',
   },
   history: {
@@ -74,18 +74,24 @@ export function EmptyState({
   const finalActionHref = actionHref || config.actionHref;
 
   const ActionButton = () => {
-    if (variant === 'error' && onAction) {
+    // Se tem onAction, usa button
+    if (onAction) {
       return (
         <button
           onClick={onAction}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 transition-colors"
+          className={`inline-flex items-center gap-2 px-5 py-2.5 text-white rounded-xl font-medium transition-colors ${
+            variant === 'error' 
+              ? 'bg-gray-900 hover:bg-gray-800' 
+              : 'bg-primary-600 hover:bg-primary-700'
+          }`}
         >
-          <RefreshCw className="w-4 h-4" />
+          {variant === 'error' && <RefreshCw className="w-4 h-4" />}
           {finalActionLabel}
         </button>
       );
     }
 
+    // Senão, usa Link
     return (
       <Link
         href={finalActionHref}

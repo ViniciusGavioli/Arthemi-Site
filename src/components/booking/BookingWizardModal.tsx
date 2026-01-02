@@ -13,9 +13,10 @@ interface BookingWizardModalProps {
   onClose: () => void;
   userId: string;
   onSuccess?: (bookingId: string) => void;
+  onPurchaseCredits?: () => void;
 }
 
-export function BookingWizardModal({ isOpen, onClose, userId, onSuccess }: BookingWizardModalProps) {
+export function BookingWizardModal({ isOpen, onClose, userId, onSuccess, onPurchaseCredits }: BookingWizardModalProps) {
   // Fecha com ESC
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -73,6 +74,7 @@ export function BookingWizardModal({ isOpen, onClose, userId, onSuccess }: Booki
             userId={userId}
             onSuccess={handleSuccess}
             onCancel={onClose}
+            onPurchaseCredits={onPurchaseCredits}
           />
         </div>
       </div>

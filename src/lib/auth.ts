@@ -259,15 +259,28 @@ export function requireRole(
 // - Funciona em qualquer versão do Node.js
 // - OWASP recomendado para password hashing
 //
-// Formato do hash: $scrypt$N$r$p$salt$derivedKey
-// Exemplo: $scrypt$16384$8$1$base64salt$base64key
+// Formato do hash (versionado para futuras migrações):
+// v1$scrypt$N$r$p$salt$derivedKey
+// Exemplo: v1$scrypt$16384$8$1$base64salt$base64key
+//
+// v1 = scrypt com parâmetros atuais
+// v2 = reservado para upgrade futuro (ex: Argon2 quando tiver suporte nativo)
+
+/** Versão atual do algoritmo de hash */
+const HASH_VERSION = 'v1';
 
 /**
  * Gera hash scrypt de uma senha
- * @param password - Senha em texto plano
- * @returns Hash no formato: $scrypt$N$r$p$salt$derivedKey
+ * @param password - Senha em texto plano (mínimo 8 caracteres)
+ * @returns Hash no formato: v1$scrypt$N$r$p$salt$derivedKey
+ * @throws Error se senha < 8 caracteres
  */
 export async function hashPassword(password: string): Promise<string> {
+  // Blindagem: garantir mínimo de 8 caracteres no backend
+  if (!password || password.length < 8) {
+    throw new Error('Senha deve ter pelo menos 8 caracteres');
+  }
+  
   // Gerar salt aleatório criptograficamente seguro
   const salt = randomBytes(SALT_LENGTH);
   
@@ -278,14 +291,14 @@ export async function hashPassword(password: string): Promise<string> {
     p: SCRYPT_P,
   });
   
-  // Formato: $scrypt$N$r$p$salt$key (base64 para salt e key)
-  return `$scrypt$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${salt.toString('base64')}$${derivedKey.toString('base64')}`;
+  // Formato versionado: v1$scrypt$N$r$p$salt$key
+  return `${HASH_VERSION}$scrypt$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${salt.toString('base64')}$${derivedKey.toString('base64')}`;
 }
 
 /**
  * Compara senha com hash scrypt usando timing-safe comparison
  * @param password - Senha em texto plano
- * @param storedHash - Hash armazenado no formato $scrypt$...
+ * @param storedHash - Hash armazenado no formato v1$scrypt$...
  * @returns true se a senha corresponde ao hash
  */
 export async function comparePassword(password: string, storedHash: string): Promise<boolean> {
@@ -293,9 +306,9 @@ export async function comparePassword(password: string, storedHash: string): Pro
     // Parse do hash armazenado
     const parts = storedHash.split('$');
     
-    // Formato: ['', 'scrypt', 'N', 'r', 'p', 'salt', 'key']
-    if (parts.length !== 7 || parts[1] !== 'scrypt') {
-      console.error('[AUTH] Formato de hash inválido');
+    // Formato versionado: ['v1', 'scrypt', 'N', 'r', 'p', 'salt', 'key']
+    if (parts.length !== 7 || parts[0] !== 'v1' || parts[1] !== 'scrypt') {
+      console.error('[AUTH] Formato de hash inválido ou versão não suportada');
       return false;
     }
     

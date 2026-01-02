@@ -4,6 +4,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import prisma from '@/lib/prisma';
+import { getBusinessHoursForDate, MIN_ADVANCE_MINUTES } from '@/lib/business-hours';
 
 interface Slot {
   hour: number;
@@ -104,22 +105,30 @@ export default async function handler(
       orderBy: { startTime: 'asc' },
     });
 
-    // Horário de funcionamento: 8h às 18h (último horário disponível: 17h)
-    const BUSINESS_START = 8;
-    const BUSINESS_END = 18;
-    const MIN_ADVANCE_MINUTES = 30; // Mínimo de 30 minutos de antecedência para reservar
+    // Buscar horários de funcionamento para esta data (fonte única)
+    const businessHours = getBusinessHoursForDate(dateObj);
+    
+    // Se fechado (domingo), retorna sem slots
+    if (!businessHours) {
+      return res.status(200).json({
+        success: true,
+        date,
+        roomId,
+        slots: [],
+      });
+    }
     
     const slots: Slot[] = [];
     const now = new Date();
 
-    for (let hour = BUSINESS_START; hour < BUSINESS_END; hour++) {
+    for (let hour = businessHours.start; hour < businessHours.end; hour++) {
       const slotStart = new Date(dateObj);
       slotStart.setHours(hour, 0, 0, 0);
       
       const slotEnd = new Date(dateObj);
       slotEnd.setHours(hour + 1, 0, 0, 0);
 
-      // Verifica se este horário já passou OU está dentro do prazo mínimo de 30 minutos
+      // Verifica se este horário já passou OU está dentro do prazo mínimo
       const minutesUntilSlot = (slotStart.getTime() - now.getTime()) / (1000 * 60);
       const isTooSoon = minutesUntilSlot < MIN_ADVANCE_MINUTES;
 

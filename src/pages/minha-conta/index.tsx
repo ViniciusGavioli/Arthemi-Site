@@ -113,7 +113,7 @@ export default function MinhaContaPage() {
           <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
             <Link href="/">
               <Image
-                src="/images/Logo/logo-horizontal.png"
+                src="/images/Logo/logo.png"
                 alt="Espaço Arthemi"
                 width={140}
                 height={45}

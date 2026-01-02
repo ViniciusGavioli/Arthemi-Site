@@ -1,15 +1,37 @@
 // ===========================================================
-// Página: /minha-conta - Dashboard do Cliente
+// Página: /minha-conta - Dashboard do Cliente (Redesign Premium)
 // ===========================================================
-// Mostra saldo de créditos, reservas e opções
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import {
+  Calendar,
+  CreditCard,
+  Clock,
+  Plus,
+  ShoppingBag,
+  MessageCircle,
+  AlertTriangle,
+  ChevronRight,
+} from 'lucide-react';
+
+import {
+  DashboardHeader,
+  KpiCard,
+  KpiCardSkeleton,
+  BookingListItem,
+  BookingListItemSkeleton,
+  EmptyState,
+  QuickActionCard,
+} from '@/components/dashboard';
+
+// ===========================================================
+// TIPOS
+// ===========================================================
 
 interface User {
   id: string;
@@ -30,18 +52,22 @@ interface Booking {
   status: string;
 }
 
+// ===========================================================
+// COMPONENTE PRINCIPAL
+// ===========================================================
+
 export default function MinhaContaPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [credits, setCredits] = useState<CreditSummary | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(false);
 
-  async function fetchData() {
     try {
       // Busca dados do usuário
       const authRes = await fetch('/api/auth/me');
@@ -54,8 +80,12 @@ export default function MinhaContaPage() {
 
       setUser(authData.user);
 
-      // Busca créditos (via cookie - não precisa passar phone)
-      const creditsRes = await fetch('/api/user/credits');
+      // Busca créditos e reservas em paralelo
+      const [creditsRes, bookingsRes] = await Promise.all([
+        fetch('/api/user/credits'),
+        fetch('/api/user/bookings?upcoming=true'),
+      ]);
+
       if (creditsRes.ok) {
         const creditsData = await creditsRes.json();
         if (creditsData.summary) {
@@ -63,20 +93,23 @@ export default function MinhaContaPage() {
         }
       }
 
-      // Busca reservas futuras (via cookie - não precisa passar phone)
-      const bookingsRes = await fetch('/api/user/bookings?upcoming=true');
       if (bookingsRes.ok) {
         const bookingsData = await bookingsRes.json();
         if (bookingsData.bookings) {
           setBookings(bookingsData.bookings);
         }
       }
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+    } catch (err) {
+      console.error('Erro ao carregar dados:', err);
+      setError(true);
     } finally {
       setLoading(false);
     }
-  }
+  }, [router]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -90,16 +123,14 @@ export default function MinhaContaPage() {
     });
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin h-12 w-12 border-4 border-primary-500 border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-gray-600">Carregando...</p>
-        </div>
-      </div>
-    );
+  function formatHours(cents: number): string {
+    // Estimativa: R$60/hora média
+    const hours = Math.floor(cents / 6000);
+    return hours > 0 ? `≈ ${hours}h` : '';
   }
+
+  // Próxima reserva
+  const nextBooking = bookings.find(b => b.status === 'CONFIRMED');
 
   return (
     <>
@@ -109,184 +140,235 @@ export default function MinhaContaPage() {
 
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200">
-          <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-            <Link href="/">
-              <Image
-                src="/images/Logo/logo.png"
-                alt="Espaço Arthemi"
-                width={140}
-                height={45}
-              />
-            </Link>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">
-                Olá, <strong>{user?.name?.split(' ')[0]}</strong>
-              </span>
-              <button
-                onClick={handleLogout}
-                className="text-sm text-gray-500 hover:text-gray-700"
-              >
-                Sair
-              </button>
-            </div>
-          </div>
-        </header>
+        <DashboardHeader userName={user?.name} onLogout={handleLogout} />
 
-        {/* Conteúdo */}
-        <main className="max-w-5xl mx-auto px-4 py-8">
-          {/* Título */}
+        {/* Conteúdo Principal */}
+        <main className="max-w-6xl mx-auto px-4 py-8">
+          {/* Saudação */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Minha Conta</h1>
-            <p className="text-gray-600 mt-1">
-              Gerencie suas reservas e acompanhe seu saldo
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+              {loading ? (
+                <span className="inline-block h-8 w-48 bg-gray-200 rounded animate-pulse" />
+              ) : (
+                `Olá, ${user?.name?.split(' ')[0]}! 👋`
+              )}
+            </h1>
+            <p className="text-gray-500 mt-1">
+              Gerencie suas reservas e acompanhe seu saldo de horas
             </p>
           </div>
 
-          {/* Cards principais */}
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
-            {/* Card Saldo */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">💰 Meu Saldo</h2>
-                <Link
-                  href="/minha-conta/extrato"
-                  className="text-sm text-primary-600 hover:text-primary-700"
-                >
-                  Ver extrato →
-                </Link>
+          {/* Erro */}
+          {error && (
+            <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-red-800 font-medium">Erro ao carregar dados</p>
+                <p className="text-red-600 text-sm">Verifique sua conexão e tente novamente.</p>
               </div>
-
-              {credits && credits.total > 0 ? (
-                <>
-                  <p className="text-4xl font-bold text-primary-600 mb-4">
-                    {formatCurrency(credits.total)}
-                  </p>
-                  
-                  {credits.byRoom.length > 0 && (
-                    <div className="space-y-2">
-                      {credits.byRoom.map((room, idx) => (
-                        <div key={idx} className="flex justify-between text-sm">
-                          <span className="text-gray-600">{room.roomName}</span>
-                          <span className="text-gray-900 font-medium">
-                            {formatCurrency(room.amount)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-gray-500 mb-4">Você não tem créditos disponíveis</p>
-                  <Link
-                    href="/salas"
-                    className="inline-block bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition-colors"
-                  >
-                    Comprar pacote de horas
-                  </Link>
-                </div>
-              )}
-            </div>
-
-            {/* Card Ações Rápidas */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">⚡ Ações Rápidas</h2>
-              
-              <div className="space-y-3">
-                <Link
-                  href="/minha-conta/nova-reserva"
-                  className="flex items-center gap-3 p-4 bg-primary-50 rounded-xl hover:bg-primary-100 transition-colors"
-                >
-                  <span className="text-2xl">📅</span>
-                  <div>
-                    <p className="font-medium text-gray-900">Nova Reserva</p>
-                    <p className="text-sm text-gray-600">Reservar usando seu saldo</p>
-                  </div>
-                </Link>
-
-                <Link
-                  href="/minha-conta/reservas"
-                  className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
-                >
-                  <span className="text-2xl">📋</span>
-                  <div>
-                    <p className="font-medium text-gray-900">Minhas Reservas</p>
-                    <p className="text-sm text-gray-600">Ver todas as reservas</p>
-                  </div>
-                </Link>
-
-                <Link
-                  href="/salas"
-                  className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
-                >
-                  <span className="text-2xl">🏢</span>
-                  <div>
-                    <p className="font-medium text-gray-900">Comprar mais horas</p>
-                    <p className="text-sm text-gray-600">Ver pacotes disponíveis</p>
-                  </div>
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* Próximas reservas */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">📅 Próximas Reservas</h2>
-              <Link
-                href="/minha-conta/reservas"
-                className="text-sm text-primary-600 hover:text-primary-700"
+              <button
+                onClick={fetchData}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
               >
-                Ver todas →
-              </Link>
+                Tentar novamente
+              </button>
             </div>
+          )}
 
-            {bookings.length > 0 ? (
-              <div className="space-y-3">
-                {bookings.slice(0, 3).map((booking) => (
-                  <div
-                    key={booking.id}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-xl"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900">{booking.roomName}</p>
-                      <p className="text-sm text-gray-600">
-                        {format(new Date(booking.startTime), "EEEE, d 'de' MMMM", { locale: ptBR })}
-                        {' • '}
-                        {format(new Date(booking.startTime), 'HH:mm')} - {format(new Date(booking.endTime), 'HH:mm')}
-                      </p>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      booking.status === 'CONFIRMED' 
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {booking.status === 'CONFIRMED' ? 'Confirmada' : 'Pendente'}
-                    </span>
-                  </div>
-                ))}
-              </div>
+          {/* KPIs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            {loading ? (
+              <>
+                <KpiCardSkeleton />
+                <KpiCardSkeleton />
+                <KpiCardSkeleton />
+              </>
             ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-500 mb-4">Você não tem reservas agendadas</p>
-                {credits && credits.total > 0 && (
-                  <Link
-                    href="/minha-conta/nova-reserva"
-                    className="inline-block bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition-colors"
-                  >
-                    Fazer primeira reserva
-                  </Link>
-                )}
-              </div>
+              <>
+                {/* Próxima Reserva */}
+                <KpiCard
+                  icon={<Calendar className="w-6 h-6" />}
+                  title="Próxima reserva"
+                  value={
+                    nextBooking
+                      ? format(new Date(nextBooking.startTime), "d 'de' MMM", { locale: ptBR })
+                      : '—'
+                  }
+                  subtitle={
+                    nextBooking
+                      ? `${nextBooking.roomName} • ${format(new Date(nextBooking.startTime), 'HH:mm')}`
+                      : 'Nenhuma agendada'
+                  }
+                  variant={nextBooking ? 'primary' : 'default'}
+                  href="/minha-conta/reservas"
+                />
+
+                {/* Créditos */}
+                <KpiCard
+                  icon={<CreditCard className="w-6 h-6" />}
+                  title="Créditos disponíveis"
+                  value={credits?.total ? formatCurrency(credits.total) : 'R$ 0'}
+                  subtitle={credits?.total ? formatHours(credits.total) : 'Sem créditos'}
+                  variant={credits?.total && credits.total > 0 ? 'success' : 'default'}
+                  href="/minha-conta"
+                />
+
+                {/* Info */}
+                <KpiCard
+                  icon={<Clock className="w-6 h-6" />}
+                  title="Política de cancelamento"
+                  value="48h antes"
+                  subtitle="Cancelamento gratuito"
+                  variant="default"
+                />
+              </>
             )}
           </div>
 
-          {/* Info de conta */}
-          <div className="mt-8 p-4 bg-gray-100 rounded-xl">
-            <p className="text-sm text-gray-600">
-              <strong>Email:</strong> {user?.email}
-            </p>
+          {/* Grid Principal */}
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Coluna Principal (2/3) */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Próximas Reservas */}
+              <section className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                  <h2 className="text-lg font-semibold text-gray-900">Próximas Reservas</h2>
+                  <Link
+                    href="/minha-conta/reservas"
+                    className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+                  >
+                    Ver todas
+                    <ChevronRight className="w-4 h-4" />
+                  </Link>
+                </div>
+
+                <div className="p-4">
+                  {loading ? (
+                    <div className="space-y-3">
+                      <BookingListItemSkeleton />
+                      <BookingListItemSkeleton />
+                    </div>
+                  ) : bookings.length > 0 ? (
+                    <div className="space-y-3">
+                      {bookings.slice(0, 3).map((booking) => (
+                        <BookingListItem
+                          key={booking.id}
+                          id={booking.id}
+                          roomName={booking.roomName}
+                          startTime={booking.startTime}
+                          endTime={booking.endTime}
+                          status={booking.status}
+                          showActions={false}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState variant="bookings" />
+                  )}
+                </div>
+              </section>
+
+              {/* Detalhes de Créditos */}
+              {credits && credits.byRoom.length > 0 && (
+                <section className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                    <h2 className="text-lg font-semibold text-gray-900">Saldo por Sala</h2>
+                  </div>
+
+                  <div className="p-4 space-y-2">
+                    {credits.byRoom.map((room, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-4 bg-gray-50 rounded-xl"
+                      >
+                        <span className="font-medium text-gray-900">{room.roomName}</span>
+                        <span className="text-primary-600 font-semibold">
+                          {formatCurrency(room.amount)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
+
+            {/* Sidebar (1/3) */}
+            <div className="space-y-6">
+              {/* Ações Rápidas */}
+              <section className="bg-white rounded-2xl border border-gray-200 p-5">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Ações Rápidas</h2>
+                <div className="space-y-3">
+                  <QuickActionCard
+                    icon={<Plus className="w-5 h-5 text-white" />}
+                    title="Nova Reserva"
+                    description="Agendar usando créditos"
+                    href="/minha-conta/nova-reserva"
+                    variant="primary"
+                  />
+                  <QuickActionCard
+                    icon={<ShoppingBag className="w-5 h-5 text-gray-600" />}
+                    title="Comprar Horas"
+                    description="Ver pacotes disponíveis"
+                    href="/salas"
+                  />
+                  <QuickActionCard
+                    icon={<Calendar className="w-5 h-5 text-gray-600" />}
+                    title="Minhas Reservas"
+                    description="Ver histórico completo"
+                    href="/minha-conta/reservas"
+                  />
+                </div>
+              </section>
+
+              {/* Avisos (se houver créditos baixos) */}
+              {credits && credits.total > 0 && credits.total < 12000 && (
+                <section className="bg-amber-50 rounded-2xl border border-amber-200 p-5">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="font-semibold text-amber-900">Créditos baixos</h3>
+                      <p className="text-sm text-amber-700 mt-1">
+                        Seu saldo está abaixo de 2 horas. Considere adquirir um novo pacote.
+                      </p>
+                      <Link
+                        href="/salas"
+                        className="inline-block mt-3 text-sm font-medium text-amber-700 hover:text-amber-800"
+                      >
+                        Ver pacotes →
+                      </Link>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {/* Suporte */}
+              <section className="bg-gray-50 rounded-2xl border border-gray-200 p-5">
+                <div className="flex items-start gap-3">
+                  <MessageCircle className="w-5 h-5 text-gray-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Precisa de ajuda?</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Nossa equipe está disponível para auxiliar você.
+                    </p>
+                    <a
+                      href="https://wa.me/5511999999999"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block mt-3 text-sm font-medium text-primary-600 hover:text-primary-700"
+                    >
+                      Falar pelo WhatsApp →
+                    </a>
+                  </div>
+                </div>
+              </section>
+
+              {/* Info da conta */}
+              <div className="text-sm text-gray-500 px-1">
+                <p>
+                  <strong>Email:</strong> {user?.email || '...'}
+                </p>
+              </div>
+            </div>
           </div>
         </main>
       </div>

@@ -122,15 +122,19 @@ export default async function handler(
       },
     });
 
-    // Log de auditoria
-    await logAudit({
-      action: 'USER_REGISTER',
-      source: 'USER',
-      actorId: user.id,
-      actorIp: getClientIp(req),
-      userAgent: req.headers['user-agent'] as string,
-      metadata: { email: user.email },
-    });
+    // Log de auditoria (não pode derrubar a rota)
+    try {
+      await logAudit({
+        action: 'USER_REGISTER',
+        source: 'USER',
+        actorId: user.id,
+        actorIp: getClientIp(req),
+        userAgent: req.headers['user-agent'] as string,
+        metadata: { email: user.email },
+      });
+    } catch (auditError) {
+      console.error('❌ [REGISTER] Erro ao gravar audit (não bloqueia):', auditError);
+    }
 
     // Enviar email de boas-vindas (async, não bloqueia resposta)
     sendWelcomeEmail(email, name).catch((err) => {

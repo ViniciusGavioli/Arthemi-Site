@@ -36,6 +36,17 @@ const actionLabels: Record<string, string> = {
   ADMIN_LOGOUT: 'Logout Admin',
   ADMIN_BOOKING_VIEW: 'Visualização Admin',
   ADMIN_BOOKING_UPDATE: 'Atualização Admin',
+  USER_LOGIN: 'Login Usuário',
+  USER_LOGIN_FAILED: 'Login Falhou',
+  USER_LOGOUT: 'Logout Usuário',
+  USER_REGISTER: 'Novo Cadastro',
+  PASSWORD_RESET_REQUESTED: 'Reset Senha Solicitado',
+  PASSWORD_RESET_COMPLETED: 'Reset Senha Concluído',
+  REFUND_REQUESTED: 'Estorno Solicitado',
+  REFUND_REVIEWING: 'Estorno Em Análise',
+  REFUND_APPROVED: 'Estorno Aprovado',
+  REFUND_REJECTED: 'Estorno Rejeitado',
+  REFUND_PAID: 'Estorno Pago',
 };
 
 const actionColors: Record<string, 'gray' | 'green' | 'yellow' | 'red' | 'blue'> = {
@@ -53,6 +64,17 @@ const actionColors: Record<string, 'gray' | 'green' | 'yellow' | 'red' | 'blue'>
   ADMIN_LOGOUT: 'gray',
   ADMIN_BOOKING_VIEW: 'gray',
   ADMIN_BOOKING_UPDATE: 'yellow',
+  USER_LOGIN: 'green',
+  USER_LOGIN_FAILED: 'red',
+  USER_LOGOUT: 'gray',
+  USER_REGISTER: 'green',
+  PASSWORD_RESET_REQUESTED: 'yellow',
+  PASSWORD_RESET_COMPLETED: 'green',
+  REFUND_REQUESTED: 'yellow',
+  REFUND_REVIEWING: 'yellow',
+  REFUND_APPROVED: 'green',
+  REFUND_REJECTED: 'red',
+  REFUND_PAID: 'green',
 };
 
 const sourceLabels: Record<string, string> = {

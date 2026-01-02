@@ -76,24 +76,27 @@ export default async function handler(
     const result = await processLogin(email, password);
 
     if (!result.success) {
-      // Log tentativa falha
-      const user = await prisma.user.findUnique({
-        where: { email },
-        select: { id: true },
-      });
-
-      await logAudit({
-        action: 'USER_LOGIN_FAILED',
-        source: 'USER',
-        actorId: user?.id,
-        actorIp: getClientIp(req),
-        userAgent: req.headers['user-agent'] as string,
-        metadata: { 
-          email,
-          reason: result.error,
-          statusCode: result.statusCode,
-        },
-      });
+      // Log tentativa falha (não pode derrubar a rota)
+      try {
+        const failedUser = await prisma.user.findUnique({
+          where: { email },
+          select: { id: true },
+        });
+        await logAudit({
+          action: 'USER_LOGIN_FAILED',
+          source: 'USER',
+          actorId: failedUser?.id,
+          actorIp: getClientIp(req),
+          userAgent: req.headers['user-agent'] as string,
+          metadata: { 
+            email,
+            reason: result.error,
+            statusCode: result.statusCode,
+          },
+        });
+      } catch (auditError) {
+        console.error('❌ [LOGIN] Erro ao gravar audit (não bloqueia):', auditError);
+      }
 
       return res.status(result.statusCode).json({ 
         error: result.error 
@@ -120,14 +123,18 @@ export default async function handler(
     // Setar cookie HttpOnly
     setAuthCookie(res, token);
 
-    // Log de sucesso
-    await logAudit({
-      action: 'USER_LOGIN',
-      source: 'USER',
-      actorId: user.id,
-      actorIp: getClientIp(req),
-      userAgent: req.headers['user-agent'] as string,
-    });
+    // Log de sucesso (não pode derrubar a rota)
+    try {
+      await logAudit({
+        action: 'USER_LOGIN',
+        source: 'USER',
+        actorId: user.id,
+        actorIp: getClientIp(req),
+        userAgent: req.headers['user-agent'] as string,
+      });
+    } catch (auditError) {
+      console.error('❌ [LOGIN] Erro ao gravar audit (não bloqueia):', auditError);
+    }
 
     console.log(`✅ [LOGIN] Usuário logado: ${email} (${user.role})`);
 

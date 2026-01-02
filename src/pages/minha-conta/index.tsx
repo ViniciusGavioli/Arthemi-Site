@@ -17,6 +17,7 @@ import {
   MessageCircle,
   AlertTriangle,
   ChevronRight,
+  CheckCircle,
 } from 'lucide-react';
 
 import {
@@ -28,6 +29,7 @@ import {
   EmptyState,
   QuickActionCard,
 } from '@/components/dashboard';
+import { BookingWizardModal } from '@/components/booking';
 
 // ===========================================================
 // TIPOS
@@ -79,6 +81,10 @@ export default function MinhaContaPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
+
+  // Modal de reserva
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -143,6 +149,14 @@ export default function MinhaContaPage() {
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/');
+  }
+
+  function handleBookingSuccess(bookingId: string) {
+    setBookingModalOpen(false);
+    setSuccessMessage('Reserva criada com sucesso!');
+    refetchData();
+    // Limpa mensagem após 5s
+    setTimeout(() => setSuccessMessage(''), 5000);
   }
 
   async function refetchData() {
@@ -365,7 +379,7 @@ export default function MinhaContaPage() {
                     icon={<Plus className="w-5 h-5 text-white" />}
                     title="Nova Reserva"
                     description="Agendar usando créditos"
-                    href="/minha-conta/nova-reserva"
+                    onClick={() => setBookingModalOpen(true)}
                     variant="primary"
                   />
                   <QuickActionCard
@@ -434,6 +448,32 @@ export default function MinhaContaPage() {
             </div>
           </div>
         </main>
+
+        {/* Modal de Nova Reserva */}
+        {user && (
+          <BookingWizardModal
+            isOpen={bookingModalOpen}
+            onClose={() => setBookingModalOpen(false)}
+            userId={user.id}
+            onSuccess={handleBookingSuccess}
+          />
+        )}
+
+        {/* Toast de Sucesso */}
+        {successMessage && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom fade-in duration-300">
+            <div className="flex items-center gap-3 bg-green-600 text-white px-6 py-4 rounded-xl shadow-lg">
+              <CheckCircle className="w-5 h-5 flex-shrink-0" />
+              <span className="font-medium">{successMessage}</span>
+              <Link
+                href="/minha-conta/reservas"
+                className="text-green-100 hover:text-white underline"
+              >
+                Ver reservas
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

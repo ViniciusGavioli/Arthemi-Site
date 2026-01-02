@@ -8,7 +8,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
-import { Menu, X, MessageCircle } from 'lucide-react';
+import { Menu, X, MessageCircle, User } from 'lucide-react';
 import { BUSINESS_INFO } from '@/constants/seo';
 
 interface NavLink {
@@ -79,6 +79,13 @@ export default function Header({ variant = 'sticky' }: HeaderProps) {
               <MessageCircle className="w-4 h-4" />
               Fale conosco
             </a>
+            <Link
+              href="/minha-conta"
+              className="inline-flex items-center gap-2 text-primary-700 hover:text-accent-600 transition font-medium"
+            >
+              <User className="w-4 h-4" />
+              Entrar
+            </Link>
             <Link 
               href="/salas" 
               className="bg-gradient-to-r from-accent-600 to-accent-700 text-white px-6 py-2.5 rounded-full font-semibold hover:shadow-lg hover:shadow-accent-500/30 transition-all duration-300 hover:-translate-y-0.5"
@@ -116,6 +123,14 @@ export default function Header({ variant = 'sticky' }: HeaderProps) {
                   {link.label}
                 </Link>
               ))}
+              <Link
+                href="/minha-conta"
+                className="flex items-center justify-center gap-2 text-primary-700 font-medium py-2 border border-primary-300 rounded-full"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <User className="w-5 h-5" />
+                Entrar / Minha Conta
+              </Link>
               <Link 
                 href="/salas" 
                 className="bg-accent-600 text-white px-6 py-3 rounded-full font-semibold text-center"

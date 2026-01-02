@@ -69,7 +69,7 @@ export function DashboardHeader({ userName, onLogout }: DashboardHeaderProps) {
             <div className="h-6 w-px bg-gray-200" />
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-600">
-                Olá, <strong>{userName?.split(' ')[0] || 'Usuário'}</strong>
+                Olá, <strong>{userName || 'Usuário'}</strong>
               </span>
               <button
                 onClick={onLogout}

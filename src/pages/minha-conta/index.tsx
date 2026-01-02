@@ -2,7 +2,7 @@
 // Página: /minha-conta - Dashboard do Cliente (Redesign Premium)
 // ===========================================================
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -36,7 +36,7 @@ import {
 interface User {
   id: string;
   email: string;
-  name: string;
+  name: string | null;
 }
 
 interface CreditSummary {
@@ -52,6 +52,21 @@ interface Booking {
   status: string;
 }
 
+// Helper: exibe nome do usuário com fallback
+function getDisplayName(user: User | null): string {
+  if (!user) return 'Usuário';
+  if (user.name && user.name.trim()) {
+    return user.name.split(' ')[0];
+  }
+  // Fallback: usar parte antes do @ do email
+  if (user.email) {
+    const prefix = user.email.split('@')[0];
+    // Capitalizar primeira letra
+    return prefix.charAt(0).toUpperCase() + prefix.slice(1);
+  }
+  return 'Usuário';
+}
+
 // ===========================================================
 // COMPONENTE PRINCIPAL
 // ===========================================================
@@ -63,24 +78,78 @@ export default function MinhaContaPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
 
-  const fetchData = useCallback(async () => {
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchData() {
+      try {
+        // Busca dados do usuário
+        const authRes = await fetch('/api/auth/me');
+        const authData = await authRes.json();
+
+        if (!mounted) return;
+
+        if (!authData.authenticated) {
+          setRedirecting(true);
+          router.replace('/login');
+          return;
+        }
+
+        setUser(authData.user);
+
+        // Busca créditos e reservas em paralelo
+        const [creditsRes, bookingsRes] = await Promise.all([
+          fetch('/api/user/credits'),
+          fetch('/api/user/bookings?upcoming=true'),
+        ]);
+
+        if (!mounted) return;
+
+        if (creditsRes.ok) {
+          const creditsData = await creditsRes.json();
+          if (creditsData.summary) {
+            setCredits(creditsData.summary);
+          }
+        }
+
+        if (bookingsRes.ok) {
+          const bookingsData = await bookingsRes.json();
+          if (bookingsData.bookings) {
+            setBookings(bookingsData.bookings);
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao carregar dados:', err);
+        if (mounted) setError(true);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    fetchData();
+
+    return () => {
+      mounted = false;
+    };
+  }, [router]);
+
+  // Se está redirecionando, não renderiza nada (evita flash)
+  if (redirecting) {
+    return null;
+  }
+
+  async function handleLogout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.push('/');
+  }
+
+  async function refetchData() {
     setLoading(true);
     setError(false);
 
     try {
-      // Busca dados do usuário
-      const authRes = await fetch('/api/auth/me');
-      const authData = await authRes.json();
-
-      if (!authData.authenticated) {
-        router.push('/login');
-        return;
-      }
-
-      setUser(authData.user);
-
-      // Busca créditos e reservas em paralelo
       const [creditsRes, bookingsRes] = await Promise.all([
         fetch('/api/user/credits'),
         fetch('/api/user/bookings?upcoming=true'),
@@ -105,15 +174,6 @@ export default function MinhaContaPage() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  async function handleLogout() {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/');
   }
 
   function formatCurrency(cents: number): string {
@@ -132,6 +192,9 @@ export default function MinhaContaPage() {
   // Próxima reserva
   const nextBooking = bookings.find(b => b.status === 'CONFIRMED');
 
+  // Nome para exibição
+  const displayName = getDisplayName(user);
+
   return (
     <>
       <Head>
@@ -140,7 +203,7 @@ export default function MinhaContaPage() {
 
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
-        <DashboardHeader userName={user?.name} onLogout={handleLogout} />
+        <DashboardHeader userName={displayName} onLogout={handleLogout} />
 
         {/* Conteúdo Principal */}
         <main className="max-w-6xl mx-auto px-4 py-8">
@@ -150,7 +213,7 @@ export default function MinhaContaPage() {
               {loading ? (
                 <span className="inline-block h-8 w-48 bg-gray-200 rounded animate-pulse" />
               ) : (
-                `Olá, ${user?.name?.split(' ')[0]}! 👋`
+                `Olá, ${displayName}! 👋`
               )}
             </h1>
             <p className="text-gray-500 mt-1">
@@ -167,7 +230,7 @@ export default function MinhaContaPage() {
                 <p className="text-red-600 text-sm">Verifique sua conexão e tente novamente.</p>
               </div>
               <button
-                onClick={fetchData}
+                onClick={refetchData}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
               >
                 Tentar novamente

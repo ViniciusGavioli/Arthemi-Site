@@ -30,6 +30,7 @@ import { sendPixPendingEmail, BookingEmailData } from '@/lib/email';
 import { logBookingCreated } from '@/lib/operation-logger';
 import { generateRequestId, REQUEST_ID_HEADER } from '@/lib/request-id';
 import { recordBookingCreated } from '@/lib/audit-event';
+import { triggerAccountActivation } from '@/lib/account-activation';
 
 // Schema de validação com Zod
 const createBookingSchema = z.object({
@@ -205,6 +206,7 @@ export default async function handler(
       // 5. Determinar userId: sessão (logado) ou resolveOrCreateUser (checkout anônimo)
       const auth = getAuthFromRequest(req);
       let userId: string;
+      let isAnonymousCheckout = false;
       
       if (auth?.userId) {
         // LOGADO: usar userId da sessão diretamente
@@ -219,6 +221,7 @@ export default async function handler(
           cpf: data.userCpf,
         });
         userId = user.id;
+        isAnonymousCheckout = true; // Flag para disparo de email de ativação
       }
 
       // 6. Calcular valor usando hourlyRate V3
@@ -310,8 +313,19 @@ export default async function handler(
         },
       });
 
-      return { booking, userId, amount, amountToPay, creditsUsed, hours };
+      return { booking, userId, amount, amountToPay, creditsUsed, hours, isAnonymousCheckout };
     });
+
+    // ATIVAÇÃO DE CONTA (best-effort) - Apenas checkout anônimo
+    if (result.isAnonymousCheckout && data.userEmail) {
+      triggerAccountActivation({
+        userId: result.userId,
+        userEmail: data.userEmail,
+        userName: data.userName,
+      }).catch((err) => {
+        console.error('❌ [ACTIVATION] Erro não tratado:', err);
+      });
+    }
 
     // LOG DE OPERAÇÃO - Booking criado
     logBookingCreated({

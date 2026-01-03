@@ -58,6 +58,10 @@ jest.mock('@/lib/audit-event', () => ({
   recordPurchaseCreated: jest.fn(),
 }));
 
+jest.mock('@/lib/account-activation', () => ({
+  triggerAccountActivation: jest.fn().mockResolvedValue({ sent: false }),
+}));
+
 jest.mock('@/lib/audit', () => ({
   logUserAction: jest.fn(),
 }));

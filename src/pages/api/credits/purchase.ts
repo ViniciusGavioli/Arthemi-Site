@@ -19,6 +19,7 @@ import { withTimeout, getSafeErrorMessage, TIMEOUTS } from '@/lib/production-saf
 import { logPurchaseCreated } from '@/lib/operation-logger';
 import { generateRequestId, REQUEST_ID_HEADER } from '@/lib/request-id';
 import { recordPurchaseCreated } from '@/lib/audit-event';
+import { triggerAccountActivation } from '@/lib/account-activation';
 import { addDays } from 'date-fns';
 
 // Schema de validação
@@ -196,6 +197,7 @@ export default async function handler(
       // Determinar userId: sessão (logado) ou resolveOrCreateUser (checkout anônimo)
       const auth = getAuthFromRequest(req);
       let userId: string;
+      let isAnonymousCheckout = false;
       
       if (auth?.userId) {
         // LOGADO: usar userId da sessão diretamente
@@ -210,6 +212,7 @@ export default async function handler(
           cpf: data.userCpf,
         });
         userId = user.id;
+        isAnonymousCheckout = true; // Flag para disparo de email de ativação
       }
 
       // Criar crédito PENDENTE (será ativado após pagamento)
@@ -231,8 +234,19 @@ export default async function handler(
         },
       });
 
-      return { userId, credit };
+      return { userId, credit, isAnonymousCheckout };
     });
+
+    // ATIVAÇÃO DE CONTA (best-effort) - Apenas checkout anônimo
+    if (result.isAnonymousCheckout && data.userEmail) {
+      triggerAccountActivation({
+        userId: result.userId,
+        userEmail: data.userEmail,
+        userName: data.userName,
+      }).catch((err) => {
+        console.error('❌ [ACTIVATION] Erro não tratado:', err);
+      });
+    }
 
     // LOG DE OPERAÇÃO - Purchase criado
     logPurchaseCreated({

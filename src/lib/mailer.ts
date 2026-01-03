@@ -322,3 +322,144 @@ export async function sendWelcomeEmail(
     };
   }
 }
+
+// ============================================================
+// TEMPLATE: ATIVAÇÃO DE CONTA (checkout anônimo)
+// ============================================================
+
+function getAccountActivationEmailHtml(data: { 
+  userName: string; 
+  activationLink: string;
+  expiresInHours: number;
+}): string {
+  return `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ative sua Conta - Espaço Arthemi</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; background-color: #f5f5f0; color: #333;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+    
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, #2C3E2D 0%, #4A5D4B 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
+      <h1 style="color: #D4AF37; margin: 0; font-size: 28px; font-weight: 600;">🌿 Espaço Arthemi</h1>
+      <p style="color: #fff; margin: 10px 0 0; font-size: 14px; opacity: 0.9;">Ative sua Conta</p>
+    </div>
+    
+    <!-- Conteúdo -->
+    <div style="background: #fff; padding: 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+      
+      <p style="font-size: 16px; margin: 0 0 20px;">Olá, <strong>${data.userName}</strong>!</p>
+      
+      <p style="font-size: 16px; margin: 0 0 20px; line-height: 1.6;">
+        Sua compra foi realizada com sucesso! 🎉
+      </p>
+      
+      <p style="font-size: 16px; margin: 0 0 20px;">
+        Para acessar sua conta e acompanhar suas reservas, clique no botão abaixo para ativar seu acesso e criar sua senha:
+      </p>
+      
+      <!-- Botão -->
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${data.activationLink}" 
+           style="display: inline-block; background: linear-gradient(135deg, #D4AF37 0%, #F4D03F 100%); 
+                  color: #2C3E2D; padding: 14px 40px; border-radius: 8px; text-decoration: none; 
+                  font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);">
+          Ativar Minha Conta
+        </a>
+      </div>
+      
+      <p style="font-size: 14px; color: #666; margin: 20px 0;">
+        ⏰ Este link expira em <strong>${data.expiresInHours} horas</strong>.
+      </p>
+      
+      <p style="font-size: 14px; color: #666; margin: 20px 0;">
+        Após ativar, você poderá:
+      </p>
+      
+      <ul style="font-size: 14px; margin: 0 0 20px; padding-left: 20px; color: #555;">
+        <li style="margin-bottom: 8px;">• Visualizar suas reservas</li>
+        <li style="margin-bottom: 8px;">• Acompanhar seus créditos</li>
+        <li style="margin-bottom: 8px;">• Fazer novas reservas</li>
+      </ul>
+      
+      <!-- Separador -->
+      <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+      
+      <p style="font-size: 12px; color: #999; margin: 0;">
+        Caso o botão não funcione, copie e cole o link abaixo no seu navegador:
+      </p>
+      <p style="font-size: 12px; color: #666; word-break: break-all; margin: 10px 0 0;">
+        ${data.activationLink}
+      </p>
+      
+    </div>
+    
+    <!-- Footer -->
+    <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+      <p style="margin: 0;">© ${new Date().getFullYear()} Espaço Arthemi</p>
+      <p style="margin: 5px 0 0;">Este é um email automático, não responda.</p>
+    </div>
+    
+  </div>
+</body>
+</html>
+`;
+}
+
+/**
+ * Envia email de ativação de conta (após checkout anônimo)
+ */
+export async function sendAccountActivationEmail(
+  to: string,
+  userName: string,
+  activationLink: string
+): Promise<MailResult> {
+  const client = getResendClient();
+  
+  // Fallback em desenvolvimento: apenas log
+  if (!client) {
+    console.log('\n' + '='.repeat(60));
+    console.log('📧 [MAILER DEV] EMAIL DE ATIVAÇÃO DE CONTA');
+    console.log('='.repeat(60));
+    console.log(`Para: ${to}`);
+    console.log(`Nome: ${userName}`);
+    console.log(`Link: ${activationLink}`);
+    console.log('='.repeat(60) + '\n');
+    
+    return { success: true, messageId: 'dev-console-log' };
+  }
+  
+  try {
+    const html = getAccountActivationEmailHtml({
+      userName,
+      activationLink,
+      expiresInHours: 12,
+    });
+    
+    const result = await client.emails.send({
+      from: FROM_EMAIL,
+      to: [to],
+      subject: 'Ative sua conta - Espaço Arthemi 🌿',
+      html,
+    });
+    
+    if (result.error) {
+      console.error('❌ [MAILER] Erro ao enviar email de ativação:', result.error);
+      return { success: false, error: result.error.message };
+    }
+    
+    console.log(`✅ [MAILER] Email de ativação enviado para ${to}`);
+    return { success: true, messageId: result.data?.id };
+    
+  } catch (error) {
+    console.error('❌ [MAILER] Exceção ao enviar email de ativação:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erro desconhecido' 
+    };
+  }
+}

@@ -21,6 +21,7 @@ model User {
   failedAttempts  Int              @default(0)     // Tentativas de login falhas consecutivas
   lockedUntil     DateTime?        // Bloqueio temporário por rate limit
   lastLoginAt     DateTime?        // Último login bem-sucedido
+  emailVerifiedAt DateTime?        // Data de verificação do email (null = não verificado)
   
   // ========== Reset de Senha ==========
   resetToken       String?         // Token único para reset (hash SHA-256)
@@ -33,6 +34,7 @@ model User {
   subletRequests  SubletRequest[]
   packages        UserPackage[]
   magicLinkTokens MagicLinkToken[]
+  emailActivationTokens EmailActivationToken[]
   refundRequests  RefundRequest[]  @relation("UserRefundRequests")
   reviewedRefunds RefundRequest[]  @relation("AdminReviewedRefunds")
 
@@ -241,6 +243,23 @@ model MagicLinkRateLimit {
   
   @@unique([email])
   @@map("magic_link_rate_limits")
+}
+
+// ===========================================================
+// Email Activation Token - Ativação de Conta (checkout anônimo)
+// ===========================================================
+model EmailActivationToken {
+  id          String    @id @default(cuid())
+  userId      String
+  tokenHash   String    @unique  // SHA-256 do token + PEPPER (nunca salvar token raw)
+  expiresAt   DateTime           // 12 horas após criação
+  usedAt      DateTime?          // Quando foi usado (null = não usado)
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("email_activation_tokens")
 }
 
 // ===========================================================

@@ -227,8 +227,13 @@ export async function sendResetPasswordEmail(
   
   const client = getResendClient();
   
-  // Fallback em desenvolvimento: apenas log
+  // Em produção sem API key = falha explícita
   if (!client) {
+    if (IS_PRODUCTION) {
+      console.error('❌ [MAILER] FALHA: Impossível enviar email em PRODUÇÃO sem RESEND_API_KEY');
+      return { success: false, error: 'RESEND_API_KEY não configurada em produção' };
+    }
+    // Fallback em desenvolvimento: apenas log
     console.log('\n' + '='.repeat(60));
     console.log('📧 [MAILER DEV] EMAIL DE RESET DE SENHA');
     console.log('='.repeat(60));
@@ -283,8 +288,13 @@ export async function sendWelcomeEmail(
   
   const client = getResendClient();
   
-  // Fallback em desenvolvimento: apenas log
+  // Em produção sem API key = falha explícita
   if (!client) {
+    if (IS_PRODUCTION) {
+      console.error('❌ [MAILER] FALHA: Impossível enviar email em PRODUÇÃO sem RESEND_API_KEY');
+      return { success: false, error: 'RESEND_API_KEY não configurada em produção' };
+    }
+    // Fallback em desenvolvimento: apenas log
     console.log('\n' + '='.repeat(60));
     console.log('📧 [MAILER DEV] EMAIL DE BEM-VINDO');
     console.log('='.repeat(60));
@@ -420,8 +430,13 @@ export async function sendAccountActivationEmail(
 ): Promise<MailResult> {
   const client = getResendClient();
   
-  // Fallback em desenvolvimento: apenas log
+  // Em produção sem API key = falha explícita
   if (!client) {
+    if (IS_PRODUCTION) {
+      console.error('❌ [MAILER] FALHA: Impossível enviar email em PRODUÇÃO sem RESEND_API_KEY');
+      return { success: false, error: 'RESEND_API_KEY não configurada em produção' };
+    }
+    // Fallback em desenvolvimento: apenas log
     console.log('\n' + '='.repeat(60));
     console.log('📧 [MAILER DEV] EMAIL DE ATIVAÇÃO DE CONTA');
     console.log('='.repeat(60));

@@ -1,0 +1,31 @@
+{
+  "recommendations": [
+    // Essential for Next.js/React development
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    
+    // TypeScript
+    "ms-vscode.vscode-typescript-next",
+    
+    // Prisma ORM
+    "Prisma.prisma",
+    
+    // Git
+    "eamodio.gitlens",
+    
+    // Testing
+    "orta.vscode-jest",
+    "ms-playwright.playwright",
+    
+    // Utilities
+    "christian-kohler.path-intellisense",
+    "formulahendry.auto-rename-tag",
+    "naumovs.color-highlight",
+    "usernamehw.errorlens",
+    
+    // Environment files
+    "mikestead.dotenv"
+  ],
+  "unwantedRecommendations": []
+}

@@ -12,6 +12,12 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { resolveOrCreateUser } from '@/lib/user-resolve';
 import { getAuthFromRequest } from '@/lib/auth';
 import { 
+  withTimeout, 
+  getSafeErrorMessage, 
+  TIMEOUTS,
+  cpfInUseByOther,
+} from '@/lib/production-safety';
+import { 
   getAvailableCreditsForRoom, 
   consumeCreditsForBooking,
   getCreditBalanceForRoom,
@@ -359,19 +365,27 @@ export default async function handler(
         let paymentResult;
 
         if (data.paymentMethod === 'CARD') {
-          // Pagamento por CARTÃO DE CRÉDITO
-          const cardResult = await createBookingCardPayment({
-            ...basePaymentInput,
-            installmentCount: data.installmentCount || 1,
-          });
+          // Pagamento por CARTÃO DE CRÉDITO (com timeout)
+          const cardResult = await withTimeout(
+            createBookingCardPayment({
+              ...basePaymentInput,
+              installmentCount: data.installmentCount || 1,
+            }),
+            TIMEOUTS.PAYMENT_CREATE,
+            'criação de pagamento cartão'
+          );
           paymentResult = cardResult;
           paymentMethod = 'CREDIT_CARD';
           installmentCount = cardResult.installmentCount;
           installmentValue = cardResult.installmentValue;
           console.log(`💳 [BOOKING] Pagamento CARTÃO criado: ${cardResult.paymentId}`);
         } else {
-          // Pagamento por PIX (default)
-          paymentResult = await createBookingPayment(basePaymentInput);
+          // Pagamento por PIX (default) (com timeout)
+          paymentResult = await withTimeout(
+            createBookingPayment(basePaymentInput),
+            TIMEOUTS.PAYMENT_CREATE,
+            'criação de pagamento PIX'
+          );
           console.log(`🔲 [BOOKING] Pagamento PIX criado: ${paymentResult.paymentId}`);
         }
 
@@ -388,7 +402,7 @@ export default async function handler(
         await prisma.payment.create({
           data: {
             bookingId: result.booking.id,
-            userId: result.user.id,
+            userId: result.userId,
             amount: result.amountToPay,
             status: 'PENDING',
             externalId: paymentResult.paymentId,
@@ -467,7 +481,7 @@ export default async function handler(
     
     return res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : 'Erro ao criar reserva. Tente novamente.',
+      error: getSafeErrorMessage(error, 'bookings'),
     });
   }
 }

@@ -14,6 +14,7 @@ import { logUserAction } from '@/lib/audit';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { resolveOrCreateUser } from '@/lib/user-resolve';
 import { getAuthFromRequest } from '@/lib/auth';
+import { withTimeout, getSafeErrorMessage, TIMEOUTS } from '@/lib/production-safety';
 import { addDays } from 'date-fns';
 
 // Schema de validação
@@ -229,15 +230,23 @@ export default async function handler(
     let paymentResult;
     
     if (data.paymentMethod === 'CARD') {
-      // Pagamento por Cartão
-      paymentResult = await createBookingCardPayment({
-        ...basePaymentInput,
-        installmentCount: data.installmentCount || 1,
-      });
+      // Pagamento por Cartão (com timeout)
+      paymentResult = await withTimeout(
+        createBookingCardPayment({
+          ...basePaymentInput,
+          installmentCount: data.installmentCount || 1,
+        }),
+        TIMEOUTS.PAYMENT_CREATE,
+        'criação de pagamento cartão'
+      );
       console.log(`[CREDIT] Pagamento CARTÃO criado: ${paymentResult.paymentId}`);
     } else {
-      // Pagamento por PIX (default)
-      paymentResult = await createBookingPayment(basePaymentInput);
+      // Pagamento por PIX (default) (com timeout)
+      paymentResult = await withTimeout(
+        createBookingPayment(basePaymentInput),
+        TIMEOUTS.PAYMENT_CREATE,
+        'criação de pagamento PIX'
+      );
       console.log(`[CREDIT] Pagamento PIX criado: ${paymentResult.paymentId}`);
     }
 
@@ -287,7 +296,7 @@ export default async function handler(
     console.error('[CREDIT] Erro na compra:', error);
     return res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : 'Erro interno',
+      error: getSafeErrorMessage(error, 'credits/purchase'),
     });
   }
 }

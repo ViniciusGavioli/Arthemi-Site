@@ -113,6 +113,15 @@ const ENV_CONFIG: EnvVarConfig[] = [
     required: false,
     devDefault: 'contato@arthemi.com.br',
   },
+  
+  // === ATIVAÇÃO DE EMAIL ===
+  {
+    name: 'EMAIL_TOKEN_PEPPER',
+    required: false, // Em dev usa fallback
+    sensitive: true,
+    validator: (v) => v.length >= 20,
+    errorMessage: 'EMAIL_TOKEN_PEPPER deve ter pelo menos 20 caracteres',
+  },
 ];
 
 // ============================================================

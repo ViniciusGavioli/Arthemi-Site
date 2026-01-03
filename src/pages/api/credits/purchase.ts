@@ -12,6 +12,7 @@ import { createBookingPayment, createBookingCardPayment } from '@/lib/asaas';
 import { brazilianPhone, validateCPF } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { resolveOrCreateUser } from '@/lib/user-resolve';
 import { addDays } from 'date-fns';
 
 // Schema de validação
@@ -172,23 +173,12 @@ export default async function handler(
 
     // Transação atômica
     const result = await prisma.$transaction(async (tx) => {
-      // Buscar ou criar usuário (upsert para evitar conflitos)
-      const emailNorm = (data.userEmail || `${data.userPhone}@temp.arthemi.com.br`).trim().toLowerCase();
-      
-      const user = await tx.user.upsert({
-        where: { phone: data.userPhone },
-        create: {
-          name: data.userName,
-          phone: data.userPhone,
-          email: emailNorm,
-          cpf: data.userCpf,
-          role: 'CUSTOMER',
-        },
-        update: {
-          // Atualiza nome e CPF se não tinha
-          name: data.userName,
-          cpf: data.userCpf,
-        },
+      // Buscar ou criar usuário (resolve por email > phone)
+      const { user } = await resolveOrCreateUser(tx, {
+        name: data.userName,
+        email: data.userEmail,
+        phone: data.userPhone,
+        cpf: data.userCpf,
       });
 
       // Criar crédito PENDENTE (será ativado após pagamento)

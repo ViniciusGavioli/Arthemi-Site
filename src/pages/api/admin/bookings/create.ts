@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { isAvailable } from '@/lib/availability';
 import { logAdminAction } from '@/lib/audit';
+import { resolveOrCreateUser } from '@/lib/user-resolve';
 import { 
   SHIFT_HOURS,
   getCreditBalanceForRoom,
@@ -85,26 +86,17 @@ export default async function handler(
       });
     }
 
-    // Buscar ou criar usuário (upsert para evitar conflitos)
+    // Buscar ou criar usuário (resolve por email > phone)
     let user;
     if (data.userId) {
       user = await prisma.user.findUnique({ where: { id: data.userId } });
     } else if (data.userPhone) {
-      const emailNorm = (data.userEmail || `${data.userPhone}@temp.arthemi.com.br`).trim().toLowerCase();
-      
-      user = await prisma.user.upsert({
-        where: { phone: data.userPhone },
-        create: {
-          name: data.userName || 'Sem nome',
-          phone: data.userPhone,
-          email: emailNorm,
-          role: 'CUSTOMER',
-        },
-        update: {
-          // Atualiza nome se fornecido
-          ...(data.userName && { name: data.userName }),
-        },
+      const resolved = await resolveOrCreateUser(prisma, {
+        name: data.userName || 'Sem nome',
+        email: data.userEmail,
+        phone: data.userPhone,
       });
+      user = resolved.user;
     }
 
     if (!user) {

@@ -13,6 +13,7 @@ import { brazilianPhone, validateCPF } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { resolveOrCreateUser } from '@/lib/user-resolve';
+import { getAuthFromRequest } from '@/lib/auth';
 import { addDays } from 'date-fns';
 
 // Schema de validação
@@ -173,13 +174,24 @@ export default async function handler(
 
     // Transação atômica
     const result = await prisma.$transaction(async (tx) => {
-      // Buscar ou criar usuário (resolve por email > phone)
-      const { user } = await resolveOrCreateUser(tx, {
-        name: data.userName,
-        email: data.userEmail,
-        phone: data.userPhone,
-        cpf: data.userCpf,
-      });
+      // Determinar userId: sessão (logado) ou resolveOrCreateUser (checkout anônimo)
+      const auth = getAuthFromRequest(req);
+      let userId: string;
+      
+      if (auth?.userId) {
+        // LOGADO: usar userId da sessão diretamente
+        // NÃO chamar resolveOrCreateUser - email/phone do body são ignorados
+        userId = auth.userId;
+      } else {
+        // NÃO LOGADO: resolver por email > phone
+        const { user } = await resolveOrCreateUser(tx, {
+          name: data.userName,
+          email: data.userEmail,
+          phone: data.userPhone,
+          cpf: data.userCpf,
+        });
+        userId = user.id;
+      }
 
       // Criar crédito PENDENTE (será ativado após pagamento)
       const creditAmount = creditHours * room.hourlyRate; // Valor em centavos
@@ -188,7 +200,7 @@ export default async function handler(
 
       const credit = await tx.credit.create({
         data: {
-          userId: user.id,
+          userId: userId,
           roomId: data.roomId,
           amount: creditAmount,
           remainingAmount: 0, // Será atualizado para creditAmount após pagamento
@@ -200,7 +212,7 @@ export default async function handler(
         },
       });
 
-      return { user, credit };
+      return { userId, credit };
     });
 
     // Criar pagamento no Asaas (PIX ou Cartão)

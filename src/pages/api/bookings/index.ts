@@ -10,6 +10,7 @@ import { brazilianPhone, validateCPF } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { resolveOrCreateUser } from '@/lib/user-resolve';
+import { getAuthFromRequest } from '@/lib/auth';
 import { 
   getAvailableCreditsForRoom, 
   consumeCreditsForBooking,
@@ -177,13 +178,24 @@ export default async function handler(
         throw new Error('CONFLICT');
       }
 
-      // 5. Buscar ou criar usuário (resolve por email > phone)
-      const { user } = await resolveOrCreateUser(tx, {
-        name: data.userName,
-        email: data.userEmail,
-        phone: data.userPhone,
-        cpf: data.userCpf,
-      });
+      // 5. Determinar userId: sessão (logado) ou resolveOrCreateUser (checkout anônimo)
+      const auth = getAuthFromRequest(req);
+      let userId: string;
+      
+      if (auth?.userId) {
+        // LOGADO: usar userId da sessão diretamente
+        // NÃO chamar resolveOrCreateUser - email/phone do body são ignorados
+        userId = auth.userId;
+      } else {
+        // NÃO LOGADO: resolver por email > phone
+        const { user } = await resolveOrCreateUser(tx, {
+          name: data.userName,
+          email: data.userEmail,
+          phone: data.userPhone,
+          cpf: data.userCpf,
+        });
+        userId = user.id;
+      }
 
       // 6. Calcular valor usando hourlyRate V3
       const hours = Math.ceil((endAt.getTime() - startAt.getTime()) / (1000 * 60 * 60));
@@ -223,14 +235,14 @@ export default async function handler(
       let amountToPay = amount;
 
       if (data.useCredits) {
-        const availableCredits = await getCreditBalanceForRoom(user.id, data.roomId, startAt);
+        const availableCredits = await getCreditBalanceForRoom(userId, data.roomId, startAt);
         
         if (availableCredits > 0) {
           const creditsToUse = Math.min(availableCredits, amount);
           amountToPay = amount - creditsToUse;
           
           const consumeResult = await consumeCreditsForBooking(
-            user.id,
+            userId,
             data.roomId,
             creditsToUse,
             startAt
@@ -258,7 +270,7 @@ export default async function handler(
       
       const booking = await tx.booking.create({
         data: {
-          userId: user.id,
+          userId: userId,
           roomId: data.roomId,
           startTime: startAt,
           endTime: endAt,
@@ -274,7 +286,7 @@ export default async function handler(
         },
       });
 
-      return { booking, user, amount, amountToPay, creditsUsed, hours };
+      return { booking, userId, amount, amountToPay, creditsUsed, hours };
     });
 
     await logUserAction(

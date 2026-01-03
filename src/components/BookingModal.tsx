@@ -865,8 +865,9 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
           {/* Seletor de Método de Pagamento */}
           {getTotalPrice() > 0 && (
             <PaymentMethodSelector
-              value={formData.paymentMethod}
-              onChange={(method) => setFormData(prev => ({ ...prev, paymentMethod: method }))}
+              selected={formData.paymentMethod}
+              onSelect={(method) => setFormData(prev => ({ ...prev, paymentMethod: method }))}
+              showInstallments={formData.paymentMethod === 'CARD'}
               installmentCount={formData.installmentCount}
               onInstallmentChange={(count) => setFormData(prev => ({ ...prev, installmentCount: count }))}
               totalAmount={getTotalPrice()}

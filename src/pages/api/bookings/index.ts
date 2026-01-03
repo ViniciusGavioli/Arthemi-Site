@@ -51,6 +51,9 @@ interface ApiResponse {
   success: boolean;
   bookingId?: string;
   paymentUrl?: string;
+  paymentMethod?: 'PIX' | 'CREDIT_CARD';
+  installmentCount?: number;
+  installmentValue?: number;
   creditsUsed?: number;
   amountToPay?: number;
   emailSent?: boolean;
@@ -173,21 +176,24 @@ export default async function handler(
         throw new Error('CONFLICT');
       }
 
-      // 5. Buscar ou criar usuário
-      let user = await tx.user.findUnique({
+      // 5. Buscar ou criar usuário (upsert para evitar conflitos)
+      const emailNorm = (data.userEmail || `${data.userPhone}@temp.arthemi.com.br`).trim().toLowerCase();
+      
+      const user = await tx.user.upsert({
         where: { phone: data.userPhone },
+        create: {
+          name: data.userName,
+          phone: data.userPhone,
+          email: emailNorm,
+          cpf: data.userCpf,
+          role: 'CUSTOMER',
+        },
+        update: {
+          // Atualiza nome e CPF se não tinha (não sobrescreve dados existentes importantes)
+          name: data.userName,
+          cpf: data.userCpf,
+        },
       });
-
-      if (!user) {
-        user = await tx.user.create({
-          data: {
-            name: data.userName,
-            phone: data.userPhone,
-            email: data.userEmail || `${data.userPhone}@temp.arthemi.com.br`,
-            role: 'CUSTOMER',
-          },
-        });
-      }
 
       // 6. Calcular valor usando hourlyRate V3
       const hours = Math.ceil((endAt.getTime() - startAt.getTime()) / (1000 * 60 * 60));

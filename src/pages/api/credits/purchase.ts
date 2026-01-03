@@ -172,28 +172,24 @@ export default async function handler(
 
     // Transação atômica
     const result = await prisma.$transaction(async (tx) => {
-      // Buscar ou criar usuário
-      let user = await tx.user.findUnique({
+      // Buscar ou criar usuário (upsert para evitar conflitos)
+      const emailNorm = (data.userEmail || `${data.userPhone}@temp.arthemi.com.br`).trim().toLowerCase();
+      
+      const user = await tx.user.upsert({
         where: { phone: data.userPhone },
+        create: {
+          name: data.userName,
+          phone: data.userPhone,
+          email: emailNorm,
+          cpf: data.userCpf,
+          role: 'CUSTOMER',
+        },
+        update: {
+          // Atualiza nome e CPF se não tinha
+          name: data.userName,
+          cpf: data.userCpf,
+        },
       });
-
-      if (!user) {
-        user = await tx.user.create({
-          data: {
-            name: data.userName,
-            phone: data.userPhone,
-            email: data.userEmail || `${data.userPhone}@temp.arthemi.com.br`,
-            cpf: data.userCpf,
-            role: 'CUSTOMER',
-          },
-        });
-      } else if (!user.cpf && data.userCpf) {
-        // Atualizar CPF se não tinha
-        user = await tx.user.update({
-          where: { id: user.id },
-          data: { cpf: data.userCpf },
-        });
-      }
 
       // Criar crédito PENDENTE (será ativado após pagamento)
       const creditAmount = creditHours * room.hourlyRate; // Valor em centavos

@@ -85,22 +85,26 @@ export default async function handler(
       });
     }
 
-    // Buscar ou criar usuário
+    // Buscar ou criar usuário (upsert para evitar conflitos)
     let user;
     if (data.userId) {
       user = await prisma.user.findUnique({ where: { id: data.userId } });
     } else if (data.userPhone) {
-      user = await prisma.user.findUnique({ where: { phone: data.userPhone } });
-      if (!user && data.userName) {
-        user = await prisma.user.create({
-          data: {
-            name: data.userName,
-            phone: data.userPhone,
-            email: data.userEmail || `${data.userPhone}@temp.arthemi.com.br`,
-            role: 'CUSTOMER',
-          },
-        });
-      }
+      const emailNorm = (data.userEmail || `${data.userPhone}@temp.arthemi.com.br`).trim().toLowerCase();
+      
+      user = await prisma.user.upsert({
+        where: { phone: data.userPhone },
+        create: {
+          name: data.userName || 'Sem nome',
+          phone: data.userPhone,
+          email: emailNorm,
+          role: 'CUSTOMER',
+        },
+        update: {
+          // Atualiza nome se fornecido
+          ...(data.userName && { name: data.userName }),
+        },
+      });
     }
 
     if (!user) {

@@ -9,6 +9,7 @@ import { createBookingPayment, createBookingCardPayment } from '@/lib/asaas';
 import { brazilianPhone, validateCPF } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { checkApiRateLimit, getClientIp, RATE_LIMIT_MESSAGE } from '@/lib/api-rate-limit';
 import { resolveOrCreateUser } from '@/lib/user-resolve';
 import { getAuthFromRequest } from '@/lib/auth';
 import { 
@@ -26,6 +27,7 @@ import {
 } from '@/lib/business-rules';
 import { sendBookingConfirmationNotification } from '@/lib/booking-notifications';
 import { sendPixPendingEmail, BookingEmailData } from '@/lib/email';
+import { logBookingCreated } from '@/lib/operation-logger';
 
 // Schema de validação com Zod
 const createBookingSchema = z.object({
@@ -96,10 +98,17 @@ export default async function handler(
 
     const data: CreateBookingInput = validation.data;
 
-    // RATE LIMITING - Por IP e por telefone
-    const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || 
-                     (req.headers['x-real-ip'] as string) || 
-                     'unknown';
+    // RATE LIMIT EM MEMÓRIA (3 req/min por IP) - Barreira rápida
+    const clientIp = getClientIp(req);
+    const memRateLimit = checkApiRateLimit('bookings', clientIp);
+    if (!memRateLimit.allowed) {
+      return res.status(429).json({
+        success: false,
+        error: RATE_LIMIT_MESSAGE,
+      });
+    }
+
+    // RATE LIMITING ADICIONAL (DB) - Por IP e por telefone
 
     const ipRateLimit = await checkRateLimit(clientIp, 'create-booking', {
       windowMinutes: 60,
@@ -293,6 +302,17 @@ export default async function handler(
       });
 
       return { booking, userId, amount, amountToPay, creditsUsed, hours };
+    });
+
+    // LOG DE OPERAÇÃO - Booking criado
+    logBookingCreated({
+      bookingId: result.booking.id,
+      userId: result.userId,
+      email: data.userEmail,
+      ip: clientIp,
+      amount: result.amountToPay,
+      paymentMethod: data.paymentMethod,
+      roomId: data.roomId,
     });
 
     await logUserAction(

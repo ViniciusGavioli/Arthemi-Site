@@ -12,9 +12,11 @@ import { createBookingPayment, createBookingCardPayment } from '@/lib/asaas';
 import { brazilianPhone, validateCPF } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { checkApiRateLimit, getClientIp, RATE_LIMIT_MESSAGE } from '@/lib/api-rate-limit';
 import { resolveOrCreateUser } from '@/lib/user-resolve';
 import { getAuthFromRequest } from '@/lib/auth';
 import { withTimeout, getSafeErrorMessage, TIMEOUTS } from '@/lib/production-safety';
+import { logPurchaseCreated } from '@/lib/operation-logger';
 import { addDays } from 'date-fns';
 
 // Schema de validação
@@ -74,10 +76,17 @@ export default async function handler(
 
     const data = validation.data;
 
-    // Rate limiting
-    const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || 
-                     (req.headers['x-real-ip'] as string) || 
-                     'unknown';
+    // RATE LIMIT EM MEMÓRIA (3 req/min por IP) - Barreira rápida
+    const clientIp = getClientIp(req);
+    const memRateLimit = checkApiRateLimit('credits/purchase', clientIp);
+    if (!memRateLimit.allowed) {
+      return res.status(429).json({
+        success: false,
+        error: RATE_LIMIT_MESSAGE,
+      });
+    }
+
+    // Rate limiting adicional (DB)
 
     const ipRateLimit = await checkRateLimit(clientIp, 'purchase-credits', {
       windowMinutes: 60,
@@ -214,6 +223,18 @@ export default async function handler(
       });
 
       return { userId, credit };
+    });
+
+    // LOG DE OPERAÇÃO - Purchase criado
+    logPurchaseCreated({
+      creditId: result.credit.id,
+      userId: result.userId,
+      email: data.userEmail,
+      ip: clientIp,
+      amount,
+      paymentMethod: data.paymentMethod || 'PIX',
+      hours: creditHours,
+      roomId: data.roomId,
     });
 
     // Criar pagamento no Asaas (PIX ou Cartão)

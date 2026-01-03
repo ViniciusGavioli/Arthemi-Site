@@ -19,6 +19,7 @@ import {
   setAuthCookie 
 } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
+import { checkApiRateLimit, getClientIp as getClientIpFromLib, RATE_LIMIT_MESSAGE } from '@/lib/api-rate-limit';
 
 // ============================================================
 // SCHEMA DE VALIDAÇÃO
@@ -61,6 +62,13 @@ export default async function handler(
   }
 
   try {
+    // RATE LIMIT EM MEMÓRIA (3 req/min por IP) - Barreira rápida
+    const clientIp = getClientIpFromLib(req);
+    const memRateLimit = checkApiRateLimit('auth/login', clientIp);
+    if (!memRateLimit.allowed) {
+      return res.status(429).json({ error: RATE_LIMIT_MESSAGE });
+    }
+
     // Validar input
     const parseResult = LoginSchema.safeParse(req.body);
     

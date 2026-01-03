@@ -9,6 +9,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
+import { logPaymentConfirmed, logWebhookReceived } from '@/lib/operation-logger';
 import { 
   AsaasWebhookPayload, 
   validateWebhookToken, 
@@ -102,6 +103,16 @@ export default async function handler(
     const payload = sanitizeWebhookPayload(rawPayload);
     const { id: eventId, event, payment } = payload;
     const bookingId = payment.externalReference;
+
+    // LOG DE OPERAÇÃO - Webhook recebido
+    const webhookIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || 
+                      (req.headers['x-real-ip'] as string) || 
+                      req.socket?.remoteAddress || 'unknown';
+    logWebhookReceived({
+      externalId: payment.id,
+      event,
+      ip: webhookIp,
+    });
 
     console.log(`📥 [Asaas Webhook] Evento: ${event}`, {
       eventId,
@@ -611,6 +622,14 @@ export default async function handler(
     );
 
     console.log(`✅ [Asaas Webhook] Reserva confirmada: ${actualBookingId} (financialStatus=PAID, origin=COMMERCIAL)`);
+
+    // LOG DE OPERAÇÃO - Pagamento confirmado (booking)
+    logPaymentConfirmed({
+      paymentId: payment.id,
+      externalId: payment.id,
+      amount: realToCents(payment.value),
+      bookingId: actualBookingId,
+    });
 
     // Atualizar Payment table se existir
     try {

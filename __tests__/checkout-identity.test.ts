@@ -37,6 +37,17 @@ jest.mock('@/lib/rate-limit', () => ({
   checkRateLimit: jest.fn().mockResolvedValue({ allowed: true, resetAt: new Date() }),
 }));
 
+jest.mock('@/lib/api-rate-limit', () => ({
+  checkApiRateLimit: jest.fn().mockReturnValue({ allowed: true, remaining: 2, resetAt: new Date() }),
+  getClientIp: jest.fn().mockReturnValue('127.0.0.1'),
+  RATE_LIMIT_MESSAGE: 'Muitas tentativas.',
+}));
+
+jest.mock('@/lib/operation-logger', () => ({
+  logBookingCreated: jest.fn(),
+  logPurchaseCreated: jest.fn(),
+}));
+
 jest.mock('@/lib/audit', () => ({
   logUserAction: jest.fn(),
 }));

@@ -15,6 +15,10 @@ import {
 import { logAudit } from '@/lib/audit';
 import { differenceInHours, isBefore } from 'date-fns';
 import { sendBookingConfirmationNotification } from '@/lib/booking-notifications';
+import { 
+  shouldBlockHourlyPurchase,
+  TURNO_PROTECTION_ERROR_CODE,
+} from '@/lib/turno-protection';
 
 interface ApiResponse {
   success: boolean;
@@ -22,6 +26,7 @@ interface ApiResponse {
   creditsUsed?: number;
   emailSent?: boolean;
   error?: string;
+  code?: string; // Código de erro para tratamento no frontend
 }
 
 export default async function handler(
@@ -86,6 +91,17 @@ export default async function handler(
       return res.status(400).json({
         success: false,
         error: 'Horário fora do expediente. Seg-Sex: 08h-20h, Sáb: 08h-12h, Dom: fechado.',
+      });
+    }
+
+    // REGRA ANTI-CANIBALIZAÇÃO: Proteção de Turnos
+    // Horas avulsas/pacotes não podem ser agendados > 30 dias em dias de TURNO
+    const turnoCheck = shouldBlockHourlyPurchase(start, 'HOURLY_RATE');
+    if (turnoCheck.blocked) {
+      return res.status(400).json({
+        success: false,
+        error: turnoCheck.reason || 'Data não permitida para agendamento de horas avulsas',
+        code: turnoCheck.code || TURNO_PROTECTION_ERROR_CODE,
       });
     }
 

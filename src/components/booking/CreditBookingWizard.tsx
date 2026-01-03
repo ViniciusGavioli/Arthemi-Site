@@ -6,6 +6,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { format, addDays, startOfDay, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { 
+  isTurnoDay, 
+  isWithinTurnoProtectionWindow,
+  TURNO_PROTECTION_ERROR_CODE,
+  TURNO_PROTECTION_ERROR_MESSAGE,
+} from '@/lib/turno-protection';
 
 // ===========================================================
 // TIPOS
@@ -195,7 +201,12 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCre
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || 'Erro ao criar reserva');
+        // Tratamento especial para erro de proteção de turno
+        if (data.code === TURNO_PROTECTION_ERROR_CODE) {
+          setError(TURNO_PROTECTION_ERROR_MESSAGE);
+        } else {
+          setError(data.error || 'Erro ao criar reserva');
+        }
         return;
       }
 
@@ -208,12 +219,25 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCre
     }
   }
 
+  // Verifica se uma data está bloqueada pela proteção de turno
+  // Horas avulsas não podem ser agendadas > 30 dias em dias de TURNO (seg-sex)
+  function isDateBlockedByTurnoProtection(date: Date): boolean {
+    // Se é dia de TURNO (seg-sex) e está além de 30 dias, bloqueia
+    return isTurnoDay(date) && !isWithinTurnoProtectionWindow(date);
+  }
+
   // Gera próximos dias disponíveis
-  const maxDays = hasBookingLimit ? 30 : 365;
+  // REGRA ANTI-CANIBALIZAÇÃO: Dias de TURNO só podem ser reservados até 30 dias
+  const maxDays = 365; // Mostra até 365 dias, mas filtra os bloqueados
   const dateOptions = Array.from({ length: maxDays }, (_, i) => addDays(startOfDay(new Date()), i + 1))
     .filter(date => {
-      if (maxBookingDate) {
-        return !isAfter(date, maxBookingDate);
+      // Regra existente de maxBookingDate
+      if (maxBookingDate && isAfter(date, maxBookingDate)) {
+        return false;
+      }
+      // NOVA REGRA: Bloqueia dias de TURNO além de 30 dias
+      if (isDateBlockedByTurnoProtection(date)) {
+        return false;
       }
       return true;
     });
@@ -317,6 +341,14 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCre
         <div className="bg-gray-50 rounded-xl p-5">
           <h3 className="text-base font-semibold text-gray-900 mb-4">2. Escolha a data</h3>
           
+          {/* Aviso sobre proteção de turnos */}
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+            <p className="text-sm text-amber-800">
+              ℹ️ Para dias úteis (seg-sex), reservas de horas avulsas podem ser feitas com até 30 dias de antecedência.
+              Sábados seguem disponibilidade normal.
+            </p>
+          </div>
+
           {hasBookingLimit && maxBookingDate && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
               <p className="text-sm text-blue-800">

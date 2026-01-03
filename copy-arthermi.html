@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Atualizações de Copy – Espaço Arthemi</title>
+  <style>
+    :root{
+      --bg:#0b0f14; --card:#111823; --muted:#9fb0c6; --text:#eaf0f7;
+      --brand:#c89b7b; --brand2:#8f6b52; --line:rgba(255,255,255,.08);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;background:
+      radial-gradient(1200px 600px at 10% 0%, rgba(200,155,123,.22), transparent 55%),
+      radial-gradient(900px 500px at 90% 10%, rgba(143,107,82,.22), transparent 55%),
+      var(--bg);
+      color:var(--text);
+    }
+    a{color:var(--brand);text-decoration:none}
+    .wrap{max-width:1000px;margin:0 auto;padding:40px 20px}
+    .hero{display:grid;grid-template-columns:1.2fr .8fr;gap:20px;align-items:stretch}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid var(--line); border-radius:18px; overflow:hidden}
+    .pad{padding:22px}
+    h1{margin:0 0 10px;font-size:32px;line-height:1.15}
+    p{margin:0;color:var(--muted);line-height:1.6}
+    .badge{display:inline-flex;gap:8px;align-items:center;padding:8px 12px;border-radius:999px;
+      border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--muted); font-size:13px}
+    .img{width:100%;height:100%;object-fit:cover;display:block}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px}
+    .kpi{padding:14px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.03)}
+    .kpi b{display:block;color:var(--text);margin-bottom:6px}
+    h2{margin:26px 0 10px;font-size:18px}
+    ul{margin:10px 0 0 18px;color:var(--muted);line-height:1.7}
+    .cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+    .footer{margin-top:26px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+    @media (max-width:900px){
+      .hero{grid-template-columns:1fr}
+      .grid{grid-template-columns:1fr}
+      .cols{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <div class="hero">
+      <div class="card">
+        <div class="pad">
+          <span class="badge">📌 Copywriting • Persona • Conversão</span>
+          <h1>O que vamos ajustar no texto do Arthemi (curto e direto)</h1>
+          <p>
+            Objetivo: deixar a mensagem mais “clara + desejável + acionável” para
+            profissionais da saúde que precisam de consultório pronto, sem burocracia,
+            pagando só pelo uso.
+          </p>
+
+          <div class="grid">
+            <div class="kpi"><b>Persona</b>Profissional de saúde (autônomo/agenda variável) que quer atender sem custo fixo.</div>
+            <div class="kpi"><b>Promessa</b>“Você atende, nós cuidamos do resto” → reforçar com provas e detalhes concretos.</div>
+            <div class="kpi"><b>Ação</b>CTAs mais objetivos: “Reservar horário”, “Ver preços”, “Falar no WhatsApp”.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <img class="img" src="hero.png" alt="Ilustração do consultório moderno (substitua por hero.png)" />
+      </div>
+    </div>
+
+    <div class="cols">
+      <div class="card">
+        <div class="pad">
+          <h2>Base do “estudo” de copy usado</h2>
+          <ul>
+            <li><b>AIDA</b>: Atenção (headline), Interesse (benefícios), Desejo (diferenciais/provas), Ação (CTA).</li>
+            <li><b>Benefício & Prova</b>: sempre que prometer (“sem burocracia”), mostrar o como (online, confirmação, pronto para atender).</li>
+            <li><b>Clareza > criatividade</b>: linguagem direta, sem “palavras bonitas” que não dizem nada.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <img class="img" src="team.png" alt="Ilustração de profissionais colaborando (substitua por team.png)" />
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="pad">
+        <h2>Alterações recomendadas (em 8 pontos)</h2>
+        <ul>
+          <li><b>Headline</b>: manter “Você atende, nós cuidamos do resto” + completar com prova: “consultório pronto, recepção e limpeza”.</li>
+          <li><b>Subheadline</b>: deixar explícito “por hora/turno/pacote • sem contrato • reserva online”.</li>
+          <li><b>Bloco de benefícios</b>: transformar em frases curtas e concretas (ex.: “Confirmou, tá reservado”).</li>
+          <li><b>Provas</b>: adicionar 3 bullets de “o que já está incluso” perto do primeiro CTA.</li>
+          <li><b>Redução de risco</b>: política de remarcação/cancelamento escrita em 1 frase simples.</li>
+          <li><b>CTAs</b>: 1 primário (“Reservar consultório”) + 1 secundário (“Ver preços e pacotes”).</li>
+          <li><b>FAQ</b>: responder “convênio”, “recepção”, “o que levar” com linguagem mais objetiva.</li>
+          <li><b>Consistência</b>: padronizar termos (consultório 1/2/3 ou Prime/Executive/Essential) e repetir a mesma lógica em todas as páginas.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="pad">
+        <h2>3 sites referência (coworking de saúde)</h2>
+        <ul>
+          <li><a href="https://saudecoworking.com.br/" target="_blank" rel="noreferrer">Saúde Coworking</a> — destaque em “sem burocracia”, networking e benefícios.</li>
+          <li><a href="https://fadsaude.com.br/" target="_blank" rel="noreferrer">FAD Saúde Coworking</a> — reforça “pay-per-use” + sofisticação.</li>
+          <li><a href="https://paradoxosaude.com.br/" target="_blank" rel="noreferrer">Paradoxo Coworking da Saúde</a> — copy focado em flexibilidade e foco no paciente.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer">
+      Documento rápido de ajustes de copy (AIDA + clareza + prova).<br>
+      Dica: mantenha as páginas “Home / Como funciona / Consultórios / FAQ” com a mesma promessa, termos e CTAs.
+    </div>
+
+  </div>
+</body>
+</html>

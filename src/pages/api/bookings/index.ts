@@ -5,7 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
-import { createBookingPayment } from '@/lib/asaas';
+import { createBookingPayment, createBookingCardPayment } from '@/lib/asaas';
 import { brazilianPhone, validateCPF } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -33,6 +33,10 @@ const createBookingSchema = z.object({
   useCredits: z.boolean().default(false),
   couponCode: z.string().optional(),
   notes: z.string().max(500, 'Observações devem ter no máximo 500 caracteres').optional(),
+  // Método de pagamento: PIX (default) ou CARD
+  paymentMethod: z.enum(['PIX', 'CARD']).default('PIX'),
+  // Parcelamento (apenas para CARD, 1-12)
+  installmentCount: z.number().min(1).max(12).optional(),
 });
 
 
@@ -326,12 +330,15 @@ export default async function handler(
       });
     }
 
-    // 8. Criar pagamento se necessário
+    // 8. Criar pagamento se necessário (PIX ou CARTÃO)
     let paymentUrl: string | undefined;
+    let paymentMethod: 'PIX' | 'CREDIT_CARD' = 'PIX';
+    let installmentCount: number | undefined;
+    let installmentValue: number | undefined;
 
     if (data.payNow && result.amountToPay > 0) {
       try {
-        const paymentResult = await createBookingPayment({
+        const basePaymentInput = {
           bookingId: result.booking.id,
           customerName: data.userName,
           customerEmail: data.userEmail || `${data.userPhone}@placeholder.com`,
@@ -339,13 +346,35 @@ export default async function handler(
           customerCpf: data.userCpf,
           value: result.amountToPay,
           description: `Reserva ${room.name} - ${result.hours}h${result.creditsUsed > 0 ? ` (R$ ${(result.creditsUsed/100).toFixed(2)} em créditos)` : ''}`,
-        });
+        };
+
+        let paymentResult;
+
+        if (data.paymentMethod === 'CARD') {
+          // Pagamento por CARTÃO DE CRÉDITO
+          const cardResult = await createBookingCardPayment({
+            ...basePaymentInput,
+            installmentCount: data.installmentCount || 1,
+          });
+          paymentResult = cardResult;
+          paymentMethod = 'CREDIT_CARD';
+          installmentCount = cardResult.installmentCount;
+          installmentValue = cardResult.installmentValue;
+          console.log(`💳 [BOOKING] Pagamento CARTÃO criado: ${cardResult.paymentId}`);
+        } else {
+          // Pagamento por PIX (default)
+          paymentResult = await createBookingPayment(basePaymentInput);
+          console.log(`🔲 [BOOKING] Pagamento PIX criado: ${paymentResult.paymentId}`);
+        }
 
         paymentUrl = paymentResult.invoiceUrl;
 
         await prisma.booking.update({
           where: { id: result.booking.id },
-          data: { paymentId: paymentResult.paymentId },
+          data: { 
+            paymentId: paymentResult.paymentId,
+            paymentMethod,
+          },
         });
 
         await prisma.payment.create({
@@ -359,8 +388,8 @@ export default async function handler(
           },
         });
 
-        // Enviar email de PIX pendente
-        if (data.userEmail) {
+        // Enviar email de pagamento pendente (PIX ou Cartão)
+        if (data.userEmail && data.paymentMethod === 'PIX') {
           const startDate = new Date(data.startAt);
           const endDate = new Date(data.endAt);
           const pixEmailData: BookingEmailData = {
@@ -378,9 +407,10 @@ export default async function handler(
           };
 
           sendPixPendingEmail(pixEmailData).catch((err) => {
-            console.error('⚠️ [BOOKING] Erro ao enviar email PIX pendente:', err);
+            console.error('⚠️ [BOOKING] Erro ao enviar email pagamento pendente:', err);
           });
         }
+        // TODO: Implementar email para pagamento com cartão pendente
       } catch (paymentError) {
         console.error('❌ Erro ao criar cobrança Asaas');
         
@@ -400,6 +430,9 @@ export default async function handler(
       success: true,
       bookingId: result.booking.id,
       paymentUrl,
+      paymentMethod,
+      installmentCount,
+      installmentValue: installmentValue ? Math.round(installmentValue * 100) : undefined,
       creditsUsed: result.creditsUsed,
       amountToPay: result.amountToPay,
     });

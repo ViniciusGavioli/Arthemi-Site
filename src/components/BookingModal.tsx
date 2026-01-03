@@ -10,6 +10,7 @@ import { format, addHours, setHours, setMinutes } from 'date-fns';
 import { formatCurrency, maskPhone, getPhoneError } from '@/lib/utils';
 import Link from 'next/link';
 import { analytics } from '@/lib/analytics';
+import { PaymentMethodSelector } from '@/components/booking';
 
 // Registrar locale português
 registerLocale('pt-BR', ptBR);
@@ -65,6 +66,8 @@ interface BookingFormData {
   productId: string;
   couponCode: string;
   notes: string;
+  paymentMethod: 'PIX' | 'CARD';
+  installmentCount: number;
 }
 
 // Função para formatar CPF (XXX.XXX.XXX-XX)
@@ -95,6 +98,8 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     productId: '',
     couponCode: '',
     notes: '',
+    paymentMethod: 'PIX',
+    installmentCount: 1,
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -289,6 +294,8 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
             productId: isHourlyCredit ? undefined : formData.productId,
             hours: isHourlyCredit ? formData.duration : undefined,
             couponCode: formData.couponCode || undefined,
+            paymentMethod: formData.paymentMethod,
+            installmentCount: formData.paymentMethod === 'CARD' ? formData.installmentCount : undefined,
           }),
         });
 
@@ -328,6 +335,8 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
           payNow: true,
           couponCode: formData.couponCode || undefined,
           notes: formData.notes || undefined,
+          paymentMethod: formData.paymentMethod,
+          installmentCount: formData.paymentMethod === 'CARD' ? formData.installmentCount : undefined,
         }),
       });
 
@@ -852,6 +861,18 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
               </span>
             </div>
           </div>
+
+          {/* Seletor de Método de Pagamento */}
+          {getTotalPrice() > 0 && (
+            <PaymentMethodSelector
+              value={formData.paymentMethod}
+              onChange={(method) => setFormData(prev => ({ ...prev, paymentMethod: method }))}
+              installmentCount={formData.installmentCount}
+              onInstallmentChange={(count) => setFormData(prev => ({ ...prev, installmentCount: count }))}
+              totalAmount={getTotalPrice()}
+              disabled={submitting}
+            />
+          )}
 
           {/* Aceite de Termos - LGPD */}
           <div className="flex items-start gap-3">

@@ -1,25 +1,36 @@
 // ===========================================================
 // API: POST /api/payments/create
 // ===========================================================
-// Cria cobrança PIX no Asaas para uma reserva
+// Cria cobrança PIX ou CARTÃO no Asaas para uma reserva
+// paymentMethod: 'PIX' (default) ou 'CARD'
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { createBookingPayment, isMockMode, PixQrCode } from '@/lib/asaas';
+import { 
+  createBookingPayment, 
+  createBookingCardPayment,
+  isMockMode, 
+  PixQrCode 
+} from '@/lib/asaas';
 
 const createPaymentSchema = z.object({
   bookingId: z.string().min(1, 'bookingId é obrigatório'),
+  paymentMethod: z.enum(['PIX', 'CARD']).optional().default('PIX'),
+  installmentCount: z.number().min(1).max(12).optional(),
 });
 
 interface PaymentResponse {
   success: boolean;
   type: 'asaas' | 'mock';
+  paymentMethod?: 'PIX' | 'CARD';
   paymentId?: string;
   invoiceUrl?: string;
   pixQrCode?: PixQrCode;
   pixCopyPaste?: string;
   amount?: number;
+  installmentCount?: number;
+  installmentValue?: number;
   error?: string;
 }
 
@@ -47,7 +58,7 @@ export default async function handler(
       });
     }
 
-    const { bookingId } = validation.data;
+    const { bookingId, paymentMethod, installmentCount } = validation.data;
 
     // 2. Buscar booking com dados relacionados
     const booking = await prisma.booking.findUnique({
@@ -101,21 +112,25 @@ export default async function handler(
 
     // 4. Modo mock
     if (isMockMode()) {
-      console.log('🎭 [MOCK] Pagamento simulado para booking:', bookingId);
+      console.log('🎭 [MOCK] Pagamento simulado para booking:', bookingId, { paymentMethod });
       
-      const mockUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/mock-payment?bookingId=${bookingId}&amount=${totalAmount}`;
+      const mockUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/mock-payment?bookingId=${bookingId}&amount=${totalAmount}&method=${paymentMethod}`;
       
       return res.status(200).json({
         success: true,
         type: 'mock',
+        paymentMethod,
         invoiceUrl: mockUrl,
-        pixCopyPaste: `00020126580014br.gov.bcb.pix0136mock-${bookingId}520400005303986540${(totalAmount / 100).toFixed(2)}5802BR6009SAO PAULO62070503***6304MOCK`,
+        pixCopyPaste: paymentMethod === 'PIX' 
+          ? `00020126580014br.gov.bcb.pix0136mock-${bookingId}520400005303986540${(totalAmount / 100).toFixed(2)}5802BR6009SAO PAULO62070503***6304MOCK`
+          : undefined,
         amount: totalAmount,
+        installmentCount: paymentMethod === 'CARD' && installmentCount ? installmentCount : undefined,
       });
     }
 
-    // 5. Criar cobrança PIX no Asaas
-    const result = await createBookingPayment({
+    // 5. Criar cobrança no Asaas (PIX ou CARTÃO)
+    const basePaymentInput = {
       bookingId: booking.id,
       customerName: booking.user.name,
       customerEmail: booking.user.email,
@@ -123,9 +138,43 @@ export default async function handler(
       customerCpf: booking.user.cpf || '',
       value: totalAmount, // Em centavos
       description: `Reserva Espaço Arthemi - ${description}`,
-    });
+    };
 
-    console.log('💳 [Asaas] Cobrança criada:', result.paymentId);
+    if (paymentMethod === 'CARD') {
+      // Pagamento por CARTÃO DE CRÉDITO
+      const result = await createBookingCardPayment({
+        ...basePaymentInput,
+        installmentCount: installmentCount || 1,
+      });
+
+      console.log('💳 [Asaas] Cobrança CARTÃO criada:', result.paymentId);
+
+      // Atualizar booking
+      await prisma.booking.update({
+        where: { id: bookingId },
+        data: {
+          paymentId: result.paymentId,
+          paymentStatus: 'PENDING',
+          paymentMethod: 'CREDIT_CARD',
+        },
+      });
+
+      return res.status(200).json({
+        success: true,
+        type: 'asaas',
+        paymentMethod: 'CARD',
+        paymentId: result.paymentId,
+        invoiceUrl: result.invoiceUrl,
+        amount: totalAmount,
+        installmentCount: result.installmentCount,
+        installmentValue: result.installmentValue ? Math.round(result.installmentValue * 100) : undefined,
+      });
+    }
+
+    // Pagamento por PIX (default)
+    const result = await createBookingPayment(basePaymentInput);
+
+    console.log('💳 [Asaas] Cobrança PIX criada:', result.paymentId);
 
     // 6. Atualizar booking com ID do pagamento
     await prisma.booking.update({
@@ -133,13 +182,15 @@ export default async function handler(
       data: {
         paymentId: result.paymentId,
         paymentStatus: 'PENDING',
+        paymentMethod: 'PIX',
       },
     });
 
-    // 7. Retornar dados do pagamento
+    // 7. Retornar dados do pagamento (PIX)
     return res.status(200).json({
       success: true,
       type: 'asaas',
+      paymentMethod: 'PIX',
       paymentId: result.paymentId,
       invoiceUrl: result.invoiceUrl,
       pixQrCode: result.pixQrCode,

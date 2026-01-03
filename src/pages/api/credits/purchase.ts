@@ -3,11 +3,12 @@
 // ===========================================================
 // Compra de pacote de créditos (NÃO cria booking)
 // Fluxo: User + Payment + Credit (após confirmação)
+// Suporta PIX e Cartão de Crédito
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
-import { createBookingPayment } from '@/lib/asaas';
+import { createBookingPayment, createBookingCardPayment } from '@/lib/asaas';
 import { brazilianPhone, validateCPF } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -23,6 +24,9 @@ const purchaseCreditsSchema = z.object({
   productId: z.string().optional(), // Pacote específico
   hours: z.number().min(1).max(20).optional(), // OU horas avulsas
   couponCode: z.string().optional(),
+  // Método de pagamento
+  paymentMethod: z.enum(['PIX', 'CARD']).optional().default('PIX'),
+  installmentCount: z.number().min(1).max(12).optional(),
 }).refine(data => data.productId || data.hours, {
   message: 'Deve informar productId ou hours',
 });
@@ -213,16 +217,31 @@ export default async function handler(
       return { user, credit };
     });
 
-    // Criar pagamento no Asaas
-    const paymentResult = await createBookingPayment({
-      bookingId: `credit_${result.credit.id}`, // Prefixo para identificar no webhook
+    // Criar pagamento no Asaas (PIX ou Cartão)
+    const basePaymentInput = {
+      bookingId: `purchase:${result.credit.id}`, // Prefixo 'purchase:' para distinguir de 'booking:' no webhook
       customerName: data.userName,
       customerPhone: data.userPhone,
       customerCpf: data.userCpf,
       customerEmail: data.userEmail || `${data.userPhone}@temp.arthemi.com.br`,
       value: amount, // Em centavos
       description: `${productName} - ${room.name}`,
-    });
+    };
+
+    let paymentResult;
+    
+    if (data.paymentMethod === 'CARD') {
+      // Pagamento por Cartão
+      paymentResult = await createBookingCardPayment({
+        ...basePaymentInput,
+        installmentCount: data.installmentCount || 1,
+      });
+      console.log(`[CREDIT] Pagamento CARTÃO criado: ${paymentResult.paymentId}`);
+    } else {
+      // Pagamento por PIX (default)
+      paymentResult = await createBookingPayment(basePaymentInput);
+      console.log(`[CREDIT] Pagamento PIX criado: ${paymentResult.paymentId}`);
+    }
 
     if (!paymentResult || !paymentResult.invoiceUrl) {
       // Rollback - excluir crédito pendente
@@ -237,7 +256,7 @@ export default async function handler(
     }
 
     // Nota: O webhook de pagamento irá ativar o crédito quando confirmado
-    // usando o externalReference que começa com 'credit_'
+    // usando o externalReference que começa com 'purchase:' (ou 'credit_' para retrocompatibilidade)
 
     // Log
     await logUserAction(

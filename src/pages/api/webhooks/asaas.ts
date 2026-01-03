@@ -3,7 +3,8 @@
 // ===========================================================
 // Recebe notificações de pagamento do Asaas
 // Idempotência garantida por banco de dados (WebhookEvent)
-// ETAPA 3: Pagamento confirmado = estado financeiro correto
+// Suporta PIX e Cartão (crédito/débito)
+// Trata: PAYMENT_CONFIRMED, PAYMENT_RECEIVED, PAYMENT_REFUNDED, CHARGEBACK_*
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
@@ -12,6 +13,8 @@ import {
   AsaasWebhookPayload, 
   validateWebhookToken, 
   isPaymentConfirmed,
+  isPaymentRefundedOrChargeback,
+  isCardCaptureRefused,
   realToCents,
 } from '@/lib/asaas';
 import { sendBookingConfirmationNotification } from '@/lib/booking-notifications';
@@ -137,8 +140,8 @@ export default async function handler(
       'criação de webhook event'
     );
 
-    // 4. Verificar se é evento de pagamento confirmado
-    if (!isPaymentConfirmed(event)) {
+    // 4. Verificar se é evento de pagamento confirmado, estorno/chargeback ou recusa de cartão
+    if (!isPaymentConfirmed(event) && !isPaymentRefundedOrChargeback(event) && !isCardCaptureRefused(event)) {
       console.log(`ℹ️ [Asaas Webhook] Evento ignorado: ${event}`);
       
       // Marcar evento como processado mesmo sendo ignorado
@@ -154,16 +157,239 @@ export default async function handler(
       return res.status(200).json({ received: true, event });
     }
 
+    // 4.0.5 Tratar CAPTURE_REFUSED - Cartão recusado na captura
+    // IMPORTANTE: NÃO confirmar booking, NÃO creditar horas, NÃO alterar booking.status
+    if (isCardCaptureRefused(event)) {
+      console.log(`❌ [Asaas Webhook] Cartão recusado na captura: ${event}`, {
+        paymentId: payment.id,
+        bookingId,
+        status: payment.status,
+      });
+
+      if (bookingId) {
+        // Verificar se é crédito/purchase ou booking pelo prefixo
+        // Prefixos: booking:<id>, purchase:<id>, credit_<id>, ou ID puro (legado=booking)
+        const isPurchase = bookingId.startsWith('purchase:') || bookingId.startsWith('credit_');
+        
+        if (isPurchase) {
+          // Crédito: marcar como falha (mantém PENDING, não ativa)
+          const creditId = bookingId.replace('purchase:', '').replace('credit_', '');
+          console.log(`💳 [Asaas Webhook] Crédito não ativado (captura recusada): ${creditId}`);
+          // Crédito permanece PENDING - não precisa atualizar nada
+          await logAudit({
+            action: 'PAYMENT_FAILED',
+            source: 'SYSTEM',
+            targetType: 'Credit',
+            targetId: creditId,
+            metadata: { event, paymentId: payment.id, reason: 'card_capture_refused' },
+          });
+        } else {
+          // Booking: extrair ID (suporta "booking:xxx" ou ID direto para legado)
+          const actualBookingId = bookingId.replace('booking:', '');
+          
+          // SOMENTE atualizar paymentStatus - NÃO tocar em status ou financialStatus
+          await prisma.booking.updateMany({
+            where: { id: actualBookingId },
+            data: {
+              paymentStatus: 'REJECTED',
+              // NÃO alterar status (mantém PENDING ou o que for)
+              // NÃO alterar financialStatus
+            },
+          });
+
+          await logAudit({
+            action: 'PAYMENT_FAILED',
+            source: 'SYSTEM',
+            targetType: 'Booking',
+            targetId: actualBookingId,
+            metadata: { event, paymentId: payment.id, reason: 'card_capture_refused' },
+          });
+
+          console.log(`💳 [Asaas Webhook] Booking paymentStatus=REJECTED (status preservado): ${actualBookingId}`);
+        }
+      }
+
+      await prisma.webhookEvent.update({
+        where: { eventId },
+        data: { status: 'PROCESSED' },
+      });
+
+      return res.status(200).json({ 
+        received: true, 
+        event,
+        action: 'capture_refused_processed',
+      });
+    }
+
+    // 4.1 Tratar REFUND/CHARGEBACK - Atualizar status financeiro SEM cancelar booking
+    if (isPaymentRefundedOrChargeback(event)) {
+      console.log(`⚠️ [Asaas Webhook] Evento de estorno/chargeback: ${event}`, {
+        paymentId: payment.id,
+        bookingId,
+        status: payment.status,
+      });
+
+      if (!bookingId) {
+        console.log(`ℹ️ [Asaas Webhook] Estorno sem bookingId - ignorando`);
+        await prisma.webhookEvent.update({
+          where: { eventId },
+          data: { status: 'PROCESSED' },
+        });
+        return res.status(200).json({ received: true, event, message: 'Sem referência' });
+      }
+
+      // Verificar se é crédito/purchase ou booking pelo prefixo
+      const isPurchase = bookingId.startsWith('purchase:') || bookingId.startsWith('credit_');
+      
+      if (isPurchase) {
+        // Extrair ID do crédito (suporta ambos formatos: "purchase:xxx" e "credit_xxx")
+        const creditId = bookingId.replace('purchase:', '').replace('credit_', '');
+        
+        await prisma.credit.updateMany({
+          where: { id: creditId },
+          data: {
+            status: 'REFUNDED',
+            remainingAmount: 0,
+          },
+        });
+        console.log(`💸 [Asaas Webhook] Crédito estornado: ${creditId}`);
+
+        await logAudit({
+          action: 'CREDIT_REFUNDED',
+          source: 'SYSTEM',
+          targetType: 'Credit',
+          targetId: creditId,
+          metadata: { event, paymentId: payment.id, reason: 'chargeback_or_refund' },
+        });
+      } else {
+        // É uma booking - extrair ID (suporta "booking:xxx" ou ID direto para retrocompatibilidade)
+        const actualBookingId = bookingId.replace('booking:', '');
+        
+        const booking = await prisma.booking.findUnique({
+          where: { id: actualBookingId },
+          select: { id: true, status: true, creditIds: true },
+        });
+
+        if (booking) {
+          // IMPORTANTE: NÃO mudar status nem financialStatus - preservar histórico
+          // Apenas atualizar paymentStatus + notes para refletir o estorno
+          // (financialStatus não tem enum REFUNDED, então deixamos inalterado)
+          await prisma.booking.update({
+            where: { id: actualBookingId },
+            data: {
+              // status: mantém o valor atual (CONFIRMED, etc)
+              // financialStatus: mantém o valor atual (PAID, etc) - sem enum para REFUNDED
+              paymentStatus: 'REFUNDED',
+              notes: `⚠️ Estorno/Chargeback em ${new Date().toISOString()} - Evento: ${event}. Status e financialStatus originais mantidos para auditoria.`,
+            },
+          });
+          console.log(`💸 [Asaas Webhook] Booking paymentStatus=REFUNDED (status e financialStatus preservados): ${actualBookingId}`);
+
+          // Se booking usou créditos, restaurar os créditos
+          if (booking.creditIds && booking.creditIds.length > 0) {
+            // Nota: Restaurar créditos é complexo - requer lógica de ledger
+            // Por segurança, apenas logamos e o admin deve tratar manualmente
+            console.log(`⚠️ [Asaas Webhook] Booking tinha créditos: ${booking.creditIds.join(', ')}`);
+          }
+
+          await logAudit({
+            action: 'PAYMENT_REFUNDED',
+            source: 'SYSTEM',
+            targetType: 'Booking',
+            targetId: actualBookingId,
+            metadata: { 
+              event, 
+              paymentId: payment.id, 
+              reason: 'chargeback_or_refund',
+              originalBookingStatus: booking.status,
+            },
+          });
+        }
+      }
+
+      await prisma.webhookEvent.update({
+        where: { eventId },
+        data: { status: 'PROCESSED' },
+      });
+
+      return res.status(200).json({ 
+        received: true, 
+        event,
+        action: 'refund_processed',
+      });
+    }
+
     // 5. Pagamento confirmado - processar
     if (!bookingId) {
       console.error('❌ [Asaas Webhook] Sem externalReference (bookingId)');
       return res.status(400).json({ error: 'Sem referência de reserva' });
     }
 
+    // 5.1 Verificar se é compra de crédito (purchase:xxx ou credit_xxx) vs reserva (booking:xxx ou ID direto)
+    const isPurchase = bookingId.startsWith('purchase:') || bookingId.startsWith('credit_');
+    
+    if (isPurchase) {
+      // Processar confirmação de compra de crédito
+      const creditId = bookingId.replace('purchase:', '').replace('credit_', '');
+      
+      const credit = await prisma.credit.findUnique({
+        where: { id: creditId },
+      });
+
+      if (!credit) {
+        console.error(`❌ [Asaas Webhook] Crédito não encontrado: ${creditId}`);
+        return res.status(404).json({ error: 'Crédito não encontrado' });
+      }
+
+      // Já confirmado?
+      if (credit.status === 'CONFIRMED') {
+        console.log(`⏭️ [Asaas Webhook] Crédito já confirmado: ${creditId}`);
+        await prisma.webhookEvent.update({
+          where: { eventId },
+          data: { status: 'PROCESSED' },
+        });
+        return res.status(200).json({ received: true, alreadyConfirmed: true });
+      }
+
+      // Ativar crédito
+      await prisma.credit.update({
+        where: { id: creditId },
+        data: {
+          status: 'CONFIRMED',
+          // O campo updatedAt é atualizado automaticamente pelo Prisma
+        },
+      });
+
+      console.log(`✅ [Asaas Webhook] Crédito confirmado: ${creditId}`);
+
+      await logAudit({
+        action: 'CREDIT_CONFIRMED',
+        source: 'SYSTEM',
+        targetType: 'Credit',
+        targetId: creditId,
+        metadata: { event, paymentId: payment.id },
+      });
+
+      await prisma.webhookEvent.update({
+        where: { eventId },
+        data: { status: 'PROCESSED' },
+      });
+
+      return res.status(200).json({ 
+        received: true, 
+        event,
+        creditId,
+        action: 'credit_confirmed',
+      });
+    }
+
+    // 5.2 Extrair ID real da booking (suporta "booking:xxx" ou ID direto para retrocompatibilidade)
+    const actualBookingId = bookingId.replace('booking:', '');
+
     // 6. Buscar booking para determinar tipo de processamento
     const booking = await withTimeout(
       prisma.booking.findUnique({
-        where: { id: bookingId },
+        where: { id: actualBookingId },
         include: { 
           user: true,
           room: true,
@@ -175,7 +401,7 @@ export default async function handler(
     );
 
     if (!booking) {
-      console.error(`❌ [Asaas Webhook] Booking não encontrado: ${bookingId}`);
+      console.error(`❌ [Asaas Webhook] Booking não encontrado: ${actualBookingId}`);
       return res.status(404).json({ error: 'Reserva não encontrada' });
     }
 
@@ -185,7 +411,7 @@ export default async function handler(
     
     // Proteção 1: Booking já CONFIRMED - não processar novamente
     if (booking.status === 'CONFIRMED' && booking.financialStatus === 'PAID') {
-      console.log(`⏭️ [Asaas Webhook] Booking já confirmado e pago: ${bookingId}`);
+      console.log(`⏭️ [Asaas Webhook] Booking já confirmado e pago: ${actualBookingId}`);
       await withTimeout(
         prisma.webhookEvent.update({
           where: { eventId },
@@ -199,7 +425,7 @@ export default async function handler(
 
     // Proteção 2: Booking COURTESY - pagamento não pode alterar cortesia
     if (booking.financialStatus === 'COURTESY') {
-      console.warn(`⚠️ [Asaas Webhook] Tentativa de pagamento em reserva COURTESY: ${bookingId}`);
+      console.warn(`⚠️ [Asaas Webhook] Tentativa de pagamento em reserva COURTESY: ${actualBookingId}`);
       await withTimeout(
         prisma.webhookEvent.update({
           where: { eventId },
@@ -291,7 +517,7 @@ export default async function handler(
       // Atualizar booking para CONFIRMED (pacote pago)
       const updatedPackageBooking = await withTimeout(
         prisma.booking.update({
-          where: { id: bookingId },
+          where: { id: actualBookingId },
           data: {
             status: 'CONFIRMED',
             paymentStatus: 'APPROVED',
@@ -309,7 +535,7 @@ export default async function handler(
         'atualização de booking - pacote'
       );
 
-      console.log(`✅ [Asaas Webhook] Pacote confirmado: ${bookingId} (financialStatus=PAID)`);
+      console.log(`✅ [Asaas Webhook] Pacote confirmado: ${actualBookingId} (financialStatus=PAID)`);
 
       // Enviar email de confirmação para PACOTE
       let emailSent = false;
@@ -323,19 +549,19 @@ export default async function handler(
           
           if (emailSuccess) {
             await prisma.booking.update({
-              where: { id: bookingId },
+              where: { id: actualBookingId },
               data: { emailSentAt: new Date() },
             });
             emailSent = true;
-            console.log(`📧 [Asaas Webhook] Email de confirmação enviado para pacote ${bookingId}`);
+            console.log(`📧 [Asaas Webhook] Email de confirmação enviado para pacote ${actualBookingId}`);
           } else {
-            console.warn(`⚠️ [Asaas Webhook] Falha ao enviar email para pacote ${bookingId}`);
+            console.warn(`⚠️ [Asaas Webhook] Falha ao enviar email para pacote ${actualBookingId}`);
           }
         } catch (emailError) {
           console.error('⚠️ [Asaas Webhook] Erro no envio de email (pacote):', emailError);
         }
       } else {
-        console.log(`⏭️ [Asaas Webhook] Email já enviado anteriormente para pacote ${bookingId}`);
+        console.log(`⏭️ [Asaas Webhook] Email já enviado anteriormente para pacote ${actualBookingId}`);
         emailSent = true;
       }
 
@@ -365,7 +591,7 @@ export default async function handler(
     // Atualizar booking com todos os campos necessários
     const updatedBooking = await withTimeout(
       prisma.booking.update({
-        where: { id: bookingId },
+        where: { id: actualBookingId },
         data: {
           status: 'CONFIRMED',
           paymentStatus: 'APPROVED',
@@ -384,7 +610,7 @@ export default async function handler(
       'atualização de booking'
     );
 
-    console.log(`✅ [Asaas Webhook] Reserva confirmada: ${bookingId} (financialStatus=PAID, origin=COMMERCIAL)`);
+    console.log(`✅ [Asaas Webhook] Reserva confirmada: ${actualBookingId} (financialStatus=PAID, origin=COMMERCIAL)`);
 
     // Atualizar Payment table se existir
     try {
@@ -445,20 +671,20 @@ export default async function handler(
         if (emailSuccess) {
           // Marcar email como enviado
           await prisma.booking.update({
-            where: { id: bookingId },
+            where: { id: actualBookingId },
             data: { emailSentAt: new Date() },
           });
           emailSent = true;
-          console.log(`📧 [Asaas Webhook] Email de confirmação enviado para ${bookingId}`);
+          console.log(`📧 [Asaas Webhook] Email de confirmação enviado para ${actualBookingId}`);
         } else {
-          console.warn(`⚠️ [Asaas Webhook] Falha ao enviar email para ${bookingId}`);
+          console.warn(`⚠️ [Asaas Webhook] Falha ao enviar email para ${actualBookingId}`);
         }
       } catch (emailError) {
         console.error('⚠️ [Asaas Webhook] Erro no envio de email:', emailError);
         // Não falha o webhook por erro de email
       }
     } else {
-      console.log(`⏭️ [Asaas Webhook] Email já enviado anteriormente para ${bookingId}`);
+      console.log(`⏭️ [Asaas Webhook] Email já enviado anteriormente para ${actualBookingId}`);
       emailSent = true;
     }
 
@@ -518,3 +744,5 @@ export const config = {
     bodyParser: true,
   },
 };
+
+

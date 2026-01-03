@@ -84,6 +84,9 @@ export interface CreatePaymentInput {
   description: string;
   externalReference: string; // bookingId
   billingType: BillingType;
+  // Parcelamento (apenas para CREDIT_CARD)
+  installmentCount?: number; // 2-12 parcelas
+  installmentValue?: number; // Valor de cada parcela em reais
 }
 
 export interface AsaasPayment {
@@ -140,7 +143,13 @@ export type AsaasWebhookEvent =
   | 'PAYMENT_OVERDUE'
   | 'PAYMENT_DELETED'
   | 'PAYMENT_REFUNDED'
-  | 'PAYMENT_UPDATED';
+  | 'PAYMENT_UPDATED'
+  // Eventos de cartão - captura recusada
+  | 'PAYMENT_CREDIT_CARD_CAPTURE_REFUSED'
+  // Eventos de chargeback (cartão)
+  | 'PAYMENT_CHARGEBACK_REQUESTED'
+  | 'PAYMENT_CHARGEBACK_DISPUTE'
+  | 'PAYMENT_AWAITING_CHARGEBACK_REVERSAL';
 
 export interface AsaasWebhookPayload {
   id: string;
@@ -298,16 +307,29 @@ export async function createPayment(
     };
   }
 
+  const paymentPayload: Record<string, unknown> = {
+    customer: input.customerId,
+    billingType: input.billingType,
+    value: input.value,
+    dueDate: input.dueDate,
+    description: input.description,
+    externalReference: input.externalReference,
+  };
+
+  // Adicionar parcelamento se aplicável (apenas CREDIT_CARD com >= 2 parcelas)
+  // NOTA: Não enviar installmentValue - deixar Asaas calcular para evitar problemas de arredondamento
+  if (
+    input.billingType === 'CREDIT_CARD' &&
+    input.installmentCount &&
+    input.installmentCount >= 2
+  ) {
+    paymentPayload.installmentCount = input.installmentCount;
+    // installmentValue é calculado automaticamente pelo Asaas
+  }
+
   const payment = await asaasRequest<AsaasPayment>('/payments', {
     method: 'POST',
-    body: JSON.stringify({
-      customer: input.customerId,
-      billingType: input.billingType,
-      value: input.value,
-      dueDate: input.dueDate,
-      description: input.description,
-      externalReference: input.externalReference,
-    }),
+    body: JSON.stringify(paymentPayload),
   });
 
   console.log('✅ Cobrança criada:', payment.id);
@@ -498,6 +520,38 @@ export function isPaymentConfirmed(event: AsaasWebhookEvent): boolean {
 }
 
 /**
+ * Verifica se o evento indica estorno (refund)
+ */
+export function isRefundEvent(event: AsaasWebhookEvent): boolean {
+  return event === 'PAYMENT_REFUNDED';
+}
+
+/**
+ * Verifica se o evento indica chargeback
+ */
+export function isChargebackEvent(event: AsaasWebhookEvent): boolean {
+  return (
+    event === 'PAYMENT_CHARGEBACK_REQUESTED' ||
+    event === 'PAYMENT_CHARGEBACK_DISPUTE' ||
+    event === 'PAYMENT_AWAITING_CHARGEBACK_REVERSAL'
+  );
+}
+
+/**
+ * Verifica se o evento indica captura de cartão recusada
+ */
+export function isCardCaptureRefused(event: AsaasWebhookEvent): boolean {
+  return event === 'PAYMENT_CREDIT_CARD_CAPTURE_REFUSED';
+}
+
+/**
+ * Verifica se o evento indica estorno ou chargeback (qualquer reversão)
+ */
+export function isPaymentRefundedOrChargeback(event: AsaasWebhookEvent): boolean {
+  return isRefundEvent(event) || isChargebackEvent(event);
+}
+
+/**
  * Verifica se o status indica pagamento confirmado
  */
 export function isPaymentStatusConfirmed(status: AsaasPaymentStatus): boolean {
@@ -583,7 +637,7 @@ export async function createBookingPayment(
     value: centsToReal(input.value), // Converter centavos para reais
     dueDate,
     description: input.description,
-    externalReference: input.bookingId,
+    externalReference: `booking:${input.bookingId}`,
     billingType: 'PIX',
   });
 
@@ -595,5 +649,103 @@ export async function createBookingPayment(
     invoiceUrl: payment.invoiceUrl,
     pixQrCode: pixQrCode || undefined,
     status: payment.status,
+  };
+}
+
+// ============================================================
+// PAGAMENTO COM CARTÃO (Checkout Hospedado)
+// ============================================================
+
+export interface CreateBookingCardPaymentInput {
+  bookingId: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  customerCpf: string;
+  value: number; // Em centavos
+  description: string;
+  dueDate?: string;
+  installmentCount?: number; // 1 = à vista, 2-12 = parcelado
+}
+
+export interface CardPaymentResult {
+  paymentId: string;
+  invoiceUrl: string;
+  status: AsaasPaymentStatus;
+  installmentCount?: number;
+  installmentValue?: number;
+}
+
+/**
+ * Cria cobrança por CARTÃO DE CRÉDITO para uma reserva
+ * O pagamento é feito na página hospedada do Asaas (invoiceUrl)
+ * NÃO captura dados do cartão no backend - checkout é 100% Asaas
+ * 
+ * Suporta parcelamento: installmentCount >= 2
+ * Valor mínimo por parcela: R$ 5,00 (validado pelo Asaas)
+ * 
+ * @env ASAAS_CARD_BILLING_MODE - Se 'UNDEFINED', aceita débito e crédito (Asaas decide)
+ */
+export async function createBookingCardPayment(
+  input: CreateBookingCardPaymentInput
+): Promise<CardPaymentResult> {
+  // 1. Criar/buscar cliente
+  const customer = await findOrCreateCustomer({
+    name: input.customerName,
+    email: input.customerEmail,
+    phone: input.customerPhone,
+    cpfCnpj: input.customerCpf,
+  });
+
+  // 2. Calcular data de vencimento (hoje + 3 dias para cartão)
+  const dueDate = input.dueDate || 
+    new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+  // 3. Converter valor
+  const valueInReais = centsToReal(input.value);
+  
+  // 4. Determinar billing type (CREDIT_CARD ou UNDEFINED para aceitar débito também)
+  // Se ASAAS_CARD_BILLING_MODE === 'UNDEFINED', deixa Asaas mostrar ambas opções
+  const billingMode = process.env.ASAAS_CARD_BILLING_MODE;
+  const billingType = billingMode === 'UNDEFINED' ? 'UNDEFINED' : 'CREDIT_CARD';
+  
+  // 5. Configurar parcelamento (apenas para crédito e >= 2 parcelas)
+  const installmentCount = 
+    billingType === 'CREDIT_CARD' && input.installmentCount && input.installmentCount >= 2 
+      ? input.installmentCount 
+      : undefined;
+
+  // 6. Validar valor mínimo por parcela (R$ 5,00)
+  if (installmentCount) {
+    const estimatedInstallmentValue = valueInReais / installmentCount;
+    if (estimatedInstallmentValue < 5) {
+      throw new Error(`Valor mínimo por parcela é R$ 5,00. Atual: R$ ${estimatedInstallmentValue.toFixed(2)}`);
+    }
+  }
+
+  // 7. Criar cobrança (installmentValue calculado automaticamente pelo Asaas)
+  const payment = await createPayment({
+    customerId: customer.id,
+    value: valueInReais,
+    dueDate,
+    description: input.description,
+    externalReference: `booking:${input.bookingId}`,
+    billingType: billingType as 'CREDIT_CARD' | 'UNDEFINED',
+    installmentCount,
+    // NÃO enviar installmentValue - Asaas calcula automaticamente
+  });
+
+  console.log('💳 [Asaas] Cobrança CARTÃO criada:', payment.id, {
+    billingType,
+    installmentCount: installmentCount || 1,
+    invoiceUrl: payment.invoiceUrl,
+  });
+
+  return {
+    paymentId: payment.id,
+    invoiceUrl: payment.invoiceUrl,
+    status: payment.status,
+    installmentCount: installmentCount || 1,
+    installmentValue: installmentCount ? valueInReais / installmentCount : valueInReais,
   };
 }

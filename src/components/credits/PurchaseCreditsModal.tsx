@@ -1,11 +1,13 @@
 // ===========================================================
 // Componente: PurchaseCreditsModal - Compra de créditos no painel
 // HUB central para hora avulsa e pacotes
+// Suporta PIX e Cartão de Crédito
 // ===========================================================
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { X, Package, Clock, Check } from 'lucide-react';
+import { PaymentMethodSelector, PaymentMethod } from '@/components/booking/PaymentMethodSelector';
 
 // ===========================================================
 // TIPOS
@@ -66,6 +68,10 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
   // Seleções
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  
+  // Método de pagamento (PIX default, CARD opcional)
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX');
+  const [installmentCount, setInstallmentCount] = useState(1);
 
   // Dados do usuário (pré-preenchidos)
   const [formData, setFormData] = useState({
@@ -202,6 +208,9 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
           userCpf: cpfDigits,
           roomId: selectedRoom.id,
           hours: selectedProduct.hours,
+          // Método de pagamento: PIX ou CARD
+          paymentMethod,
+          installmentCount: paymentMethod === 'CARD' ? installmentCount : undefined,
         }),
       });
 
@@ -246,7 +255,7 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
             <h2 className="text-xl font-bold text-gray-900">Comprar Créditos</h2>
-            <p className="text-sm text-gray-500 mt-1">Escolha um pacote e pague via PIX</p>
+            <p className="text-sm text-gray-500 mt-1">Escolha um pacote e pague via PIX ou Cartão</p>
           </div>
           <button
             onClick={onClose}
@@ -408,6 +417,19 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                   />
                 </div>
               </div>
+
+              {/* Método de Pagamento */}
+              {selectedProduct && (
+                <PaymentMethodSelector
+                  selected={paymentMethod}
+                  onSelect={setPaymentMethod}
+                  disabled={submitting}
+                  showInstallments={true}
+                  installmentCount={installmentCount}
+                  onInstallmentChange={setInstallmentCount}
+                  totalAmount={selectedProduct.price}
+                />
+              )}
 
               {/* Resumo */}
               {selectedRoom && selectedProduct && (

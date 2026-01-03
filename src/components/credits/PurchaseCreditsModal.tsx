@@ -473,7 +473,7 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
             ) : (
               <>
                 <Check className="w-5 h-5" />
-                Pagar via PIX
+                {paymentMethod === 'CARD' ? 'Pagar com Cartão' : 'Pagar via PIX'}
               </>
             )}
           </button>

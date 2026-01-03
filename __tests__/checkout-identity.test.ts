@@ -48,6 +48,16 @@ jest.mock('@/lib/operation-logger', () => ({
   logPurchaseCreated: jest.fn(),
 }));
 
+jest.mock('@/lib/request-id', () => ({
+  generateRequestId: jest.fn().mockReturnValue('test-request-id'),
+  REQUEST_ID_HEADER: 'x-request-id',
+}));
+
+jest.mock('@/lib/audit-event', () => ({
+  recordBookingCreated: jest.fn(),
+  recordPurchaseCreated: jest.fn(),
+}));
+
 jest.mock('@/lib/audit', () => ({
   logUserAction: jest.fn(),
 }));

@@ -494,3 +494,26 @@ model Setting {
   @@index([category])
   @@map("settings")
 }
+
+// ===========================================================
+// AuditEvent - Eventos de auditoria para observabilidade
+// ===========================================================
+// Registro de eventos críticos do sistema (best-effort)
+// Usado para debugging, compliance e análise
+
+model AuditEvent {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  requestId   String?  // Correlation ID do request
+  type        String   // BOOKING_CREATED, PURCHASE_CREATED, PAYMENT_CONFIRMED, etc
+  userId      String?  // ID do usuário (quando disponível)
+  entityType  String   // Booking, Credit, Payment, etc
+  entityId    String   // ID da entidade
+  payloadJson Json?    // Dados adicionais (metadata)
+
+  @@index([type])
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_events")
+}

@@ -20,6 +20,7 @@ import {
 } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 import { checkApiRateLimit, getClientIp as getClientIpFromLib, RATE_LIMIT_MESSAGE } from '@/lib/api-rate-limit';
+import { generateRequestId, REQUEST_ID_HEADER } from '@/lib/request-id';
 
 // ============================================================
 // SCHEMA DE VALIDAÇÃO
@@ -55,6 +56,11 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  // OBSERVABILIDADE: Gerar requestId para correlation
+  const requestId = generateRequestId();
+  res.setHeader(REQUEST_ID_HEADER, requestId);
+  const startTime = Date.now();
+
   // Apenas POST
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
@@ -62,6 +68,8 @@ export default async function handler(
   }
 
   try {
+    console.log(`[API] POST /api/auth/login START`, JSON.stringify({ requestId }));
+
     // RATE LIMIT EM MEMÓRIA (3 req/min por IP) - Barreira rápida
     const clientIp = getClientIpFromLib(req);
     const memRateLimit = checkApiRateLimit('auth/login', clientIp);
@@ -146,13 +154,20 @@ export default async function handler(
 
     console.log(`✅ [LOGIN] Usuário logado: ${email} (${user.role})`);
 
+    console.log(`[API] POST /api/auth/login END`, JSON.stringify({ 
+      requestId, 
+      statusCode: 200, 
+      duration: Date.now() - startTime 
+    }));
+
     return res.status(200).json({ 
       ok: true, 
       role: user.role 
     });
 
   } catch (error) {
-    console.error('❌ [LOGIN] Erro:', error);
+    const duration = Date.now() - startTime;
+    console.error('❌ [LOGIN] Erro:', { requestId, error, duration });
     return res.status(500).json({ 
       error: 'Erro interno. Tente novamente.' 
     });

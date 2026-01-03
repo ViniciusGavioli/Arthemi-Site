@@ -10,6 +10,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
 import { logPaymentConfirmed, logWebhookReceived } from '@/lib/operation-logger';
+import { generateRequestId, REQUEST_ID_HEADER } from '@/lib/request-id';
+import { recordPaymentConfirmed, recordWebhookReceived } from '@/lib/audit-event';
 import { 
   AsaasWebhookPayload, 
   validateWebhookToken, 
@@ -77,12 +79,19 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  // OBSERVABILIDADE: Gerar requestId para correlation
+  const requestId = generateRequestId();
+  res.setHeader(REQUEST_ID_HEADER, requestId);
+  const startTime = Date.now();
+
   // Apenas POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método não permitido' });
   }
 
   try {
+    console.log(`[API] POST /api/webhooks/asaas START`, JSON.stringify({ requestId }));
+
     // 1. Validar token de autenticação
     const token = req.headers['asaas-access-token'] as string | null;
     
@@ -112,6 +121,14 @@ export default async function handler(
       externalId: payment.id,
       event,
       ip: webhookIp,
+    });
+
+    // AUDIT EVENT (DB) - Webhook recebido (best-effort)
+    recordWebhookReceived({
+      requestId,
+      eventId,
+      eventType: event,
+      paymentId: payment.id,
     });
 
     console.log(`📥 [Asaas Webhook] Evento: ${event}`, {
@@ -625,6 +642,15 @@ export default async function handler(
 
     // LOG DE OPERAÇÃO - Pagamento confirmado (booking)
     logPaymentConfirmed({
+      paymentId: payment.id,
+      externalId: payment.id,
+      amount: realToCents(payment.value),
+      bookingId: actualBookingId,
+    });
+
+    // AUDIT EVENT (DB) - Pagamento confirmado (best-effort)
+    recordPaymentConfirmed({
+      requestId,
       paymentId: payment.id,
       externalId: payment.id,
       amount: realToCents(payment.value),

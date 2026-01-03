@@ -28,6 +28,8 @@ import {
 import { sendBookingConfirmationNotification } from '@/lib/booking-notifications';
 import { sendPixPendingEmail, BookingEmailData } from '@/lib/email';
 import { logBookingCreated } from '@/lib/operation-logger';
+import { generateRequestId, REQUEST_ID_HEADER } from '@/lib/request-id';
+import { recordBookingCreated } from '@/lib/audit-event';
 
 // Schema de validação com Zod
 const createBookingSchema = z.object({
@@ -75,6 +77,11 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse>
 ) {
+  // OBSERVABILIDADE: Gerar requestId para correlation
+  const requestId = generateRequestId();
+  res.setHeader(REQUEST_ID_HEADER, requestId);
+  const startTime = Date.now();
+
   // Apenas POST
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
@@ -85,6 +92,8 @@ export default async function handler(
   }
 
   try {
+    console.log(`[API] POST /api/bookings START`, JSON.stringify({ requestId }));
+
     // 1. Validar body com Zod
     const validation = createBookingSchema.safeParse(req.body);
     
@@ -315,6 +324,16 @@ export default async function handler(
       roomId: data.roomId,
     });
 
+    // AUDIT EVENT (DB) - Best-effort
+    recordBookingCreated({
+      requestId,
+      userId: result.userId,
+      bookingId: result.booking.id,
+      roomId: data.roomId,
+      amount: result.amountToPay,
+      paymentMethod: data.paymentMethod,
+    });
+
     await logUserAction(
       'BOOKING_CREATED',
       data.userEmail || data.userPhone,
@@ -468,6 +487,12 @@ export default async function handler(
       }
     }
 
+    console.log(`[API] POST /api/bookings END`, JSON.stringify({ 
+      requestId, 
+      statusCode: 201, 
+      duration: Date.now() - startTime 
+    }));
+
     return res.status(201).json({
       success: true,
       bookingId: result.booking.id,
@@ -480,7 +505,10 @@ export default async function handler(
     });
 
   } catch (error) {
+    const duration = Date.now() - startTime;
+    
     if (error instanceof Error && error.message === 'CONFLICT') {
+      console.log(`[API] POST /api/bookings END`, JSON.stringify({ requestId, statusCode: 409, duration }));
       return res.status(409).json({
         success: false,
         error: 'Horário não disponível. Já existe uma reserva neste período.',
@@ -488,6 +516,7 @@ export default async function handler(
     }
 
     if (error instanceof Error && error.message === 'TEMPO_INSUFICIENTE') {
+      console.log(`[API] POST /api/bookings END`, JSON.stringify({ requestId, statusCode: 400, duration }));
       return res.status(400).json({
         success: false,
         error: 'Reservas sem crédito precisam ser feitas com pelo menos 30 minutos de antecedência.',
@@ -495,8 +524,10 @@ export default async function handler(
     }
 
     console.error('❌ [/api/bookings] ERRO:', {
+      requestId,
       message: error instanceof Error ? error.message : 'Erro desconhecido',
       roomId: req.body.roomId,
+      duration,
     });
     
     return res.status(500).json({

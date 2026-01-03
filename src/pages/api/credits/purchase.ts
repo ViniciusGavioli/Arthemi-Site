@@ -17,6 +17,8 @@ import { resolveOrCreateUser } from '@/lib/user-resolve';
 import { getAuthFromRequest } from '@/lib/auth';
 import { withTimeout, getSafeErrorMessage, TIMEOUTS } from '@/lib/production-safety';
 import { logPurchaseCreated } from '@/lib/operation-logger';
+import { generateRequestId, REQUEST_ID_HEADER } from '@/lib/request-id';
+import { recordPurchaseCreated } from '@/lib/audit-event';
 import { addDays } from 'date-fns';
 
 // Schema de validação
@@ -54,6 +56,11 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse>
 ) {
+  // OBSERVABILIDADE: Gerar requestId para correlation
+  const requestId = generateRequestId();
+  res.setHeader(REQUEST_ID_HEADER, requestId);
+  const startTime = Date.now();
+
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({
@@ -63,6 +70,8 @@ export default async function handler(
   }
 
   try {
+    console.log(`[API] POST /api/credits/purchase START`, JSON.stringify({ requestId }));
+
     // Validação
     const validation = purchaseCreditsSchema.safeParse(req.body);
     
@@ -237,6 +246,17 @@ export default async function handler(
       roomId: data.roomId,
     });
 
+    // AUDIT EVENT (DB) - Best-effort
+    recordPurchaseCreated({
+      requestId,
+      userId: result.userId,
+      creditId: result.credit.id,
+      roomId: data.roomId,
+      amount,
+      hours: creditHours,
+      paymentMethod: data.paymentMethod || 'PIX',
+    });
+
     // Criar pagamento no Asaas (PIX ou Cartão)
     const basePaymentInput = {
       bookingId: `purchase:${result.credit.id}`, // Prefixo 'purchase:' para distinguir de 'booking:' no webhook
@@ -306,6 +326,12 @@ export default async function handler(
 
     console.log(`[CREDIT] Compra iniciada: ${result.credit.id} - ${productName} - R$ ${(amount / 100).toFixed(2)}`);
 
+    console.log(`[API] POST /api/credits/purchase END`, JSON.stringify({ 
+      requestId, 
+      statusCode: 201, 
+      duration: Date.now() - startTime 
+    }));
+
     return res.status(201).json({
       success: true,
       creditId: result.credit.id,
@@ -314,7 +340,12 @@ export default async function handler(
     });
 
   } catch (error) {
-    console.error('[CREDIT] Erro na compra:', error);
+    const duration = Date.now() - startTime;
+    console.error('[CREDIT] Erro na compra:', {
+      requestId,
+      error: error instanceof Error ? error.message : String(error),
+      duration,
+    });
     return res.status(500).json({
       success: false,
       error: getSafeErrorMessage(error, 'credits/purchase'),

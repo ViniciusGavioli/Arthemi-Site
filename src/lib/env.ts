@@ -77,6 +77,15 @@ const ENV_CONFIG: EnvVarConfig[] = [
     errorMessage: 'ASAAS_MOCK_MODE deve ser "true" ou "false"',
   },
   
+  // === AUTENTICAÇÃO ===
+  {
+    name: 'JWT_SECRET',
+    required: false, // Em dev usa fallback
+    sensitive: true,
+    validator: (v) => v.length >= 32,
+    errorMessage: 'JWT_SECRET deve ter pelo menos 32 caracteres',
+  },
+  
   // === CONFIGURAÇÃO ===
   {
     name: 'NEXT_PUBLIC_APP_URL',
@@ -255,6 +264,11 @@ export const env = {
   },
   get ADMIN_SESSION_SECRET(): string {
     return process.env.ADMIN_SESSION_SECRET || 'dev-secret-change-in-production';
+  },
+  
+  // Auth
+  get JWT_SECRET(): string {
+    return process.env.JWT_SECRET || '';
   },
   
   // Asaas

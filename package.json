@@ -19,7 +19,8 @@
     "test:watch": "jest --watch",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "validate:env": "node scripts/validate-env.js"
+    "validate:env": "node scripts/validate-env.js",
+    "smoke": "npx tsc --noEmit && npm test && npm run build"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.10",

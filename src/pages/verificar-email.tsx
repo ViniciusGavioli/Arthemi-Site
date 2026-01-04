@@ -60,11 +60,11 @@ export default function VerificarEmailPage() {
         <meta name="robots" content="noindex,nofollow" />
       </Head>
 
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-primary-beige to-white px-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-warm-100 to-white px-4">
         {/* Logo */}
         <Link href="/" className="mb-8">
           <Image
-            src="/images/Logo/Arthemi.png"
+            src="/images/Logo/logo.png"
             alt="Espaço Arthemi"
             width={180}
             height={60}
@@ -78,7 +78,7 @@ export default function VerificarEmailPage() {
           {/* Loading */}
           {status === 'loading' && (
             <>
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-green mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-600 mx-auto mb-4"></div>
               <h1 className="text-xl font-semibold text-gray-900 mb-2">
                 Verificando seu email...
               </h1>
@@ -98,7 +98,7 @@ export default function VerificarEmailPage() {
               <p className="text-gray-600 mb-4">
                 Redirecionando para criar sua senha...
               </p>
-              <div className="animate-pulse text-primary-green">
+              <div className="animate-pulse text-accent-600">
                 Aguarde...
               </div>
             </>
@@ -117,13 +117,13 @@ export default function VerificarEmailPage() {
               <div className="space-y-3">
                 <Link
                   href="/login"
-                  className="block w-full py-3 px-4 bg-primary-green text-white rounded-lg font-medium hover:bg-primary-green/90 transition-colors"
+                  className="block w-full py-3 px-4 bg-accent-600 text-white rounded-lg font-medium hover:bg-accent-700 transition-colors"
                 >
                   Ir para Login
                 </Link>
                 <Link
                   href="/"
-                  className="block text-primary-green hover:underline"
+                  className="block text-accent-600 hover:underline"
                 >
                   Voltar para o início
                 </Link>

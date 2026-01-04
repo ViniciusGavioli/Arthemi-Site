@@ -77,10 +77,10 @@ export default function CriarSenhaPage() {
           <meta name="robots" content="noindex,nofollow" />
         </Head>
 
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-primary-beige to-white px-4">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-warm-100 to-white px-4">
           <Link href="/" className="mb-8">
             <Image
-              src="/images/Logo/Arthemi.png"
+              src="/images/Logo/logo.png"
               alt="Espaço Arthemi"
               width={180}
               height={60}
@@ -98,7 +98,7 @@ export default function CriarSenhaPage() {
             </p>
             <Link
               href="/login"
-              className="block w-full py-3 px-4 bg-primary-green text-white rounded-lg font-medium hover:bg-primary-green/90 transition-colors"
+              className="block w-full py-3 px-4 bg-accent-600 text-white rounded-lg font-medium hover:bg-accent-700 transition-colors"
             >
               Ir para Login
             </Link>
@@ -115,11 +115,11 @@ export default function CriarSenhaPage() {
         <meta name="robots" content="noindex,nofollow" />
       </Head>
 
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-primary-beige to-white px-4 py-8">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-warm-100 to-white px-4 py-8">
         {/* Logo */}
         <Link href="/" className="mb-8">
           <Image
-            src="/images/Logo/Arthemi.png"
+            src="/images/Logo/logo.png"
             alt="Espaço Arthemi"
             width={180}
             height={60}
@@ -140,7 +140,7 @@ export default function CriarSenhaPage() {
               <p className="text-gray-600 mb-4">
                 Sua senha foi definida. Redirecionando...
               </p>
-              <div className="animate-pulse text-primary-green">
+              <div className="animate-pulse text-accent-600">
                 Aguarde...
               </div>
             </div>
@@ -158,7 +158,7 @@ export default function CriarSenhaPage() {
               </p>
               <button
                 onClick={() => setStatus('form')}
-                className="w-full py-3 px-4 bg-primary-green text-white rounded-lg font-medium hover:bg-primary-green/90 transition-colors"
+                className="w-full py-3 px-4 bg-accent-600 text-white rounded-lg font-medium hover:bg-accent-700 transition-colors"
               >
                 Tentar novamente
               </button>
@@ -188,7 +188,7 @@ export default function CriarSenhaPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Mínimo 8 caracteres"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent-500 focus:border-transparent"
                       required
                       minLength={8}
                       disabled={status === 'loading'}
@@ -214,7 +214,7 @@ export default function CriarSenhaPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Digite a senha novamente"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent-500 focus:border-transparent"
                     required
                     minLength={8}
                     disabled={status === 'loading'}
@@ -232,7 +232,7 @@ export default function CriarSenhaPage() {
                 <button
                   type="submit"
                   disabled={status === 'loading'}
-                  className="w-full py-3 px-4 bg-primary-green text-white rounded-lg font-medium hover:bg-primary-green/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-3 px-4 bg-accent-600 text-white rounded-lg font-medium hover:bg-accent-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {status === 'loading' ? (
                     <span className="flex items-center justify-center gap-2">
@@ -248,7 +248,7 @@ export default function CriarSenhaPage() {
               {/* Link login */}
               <div className="mt-6 text-center text-sm text-gray-600">
                 Já tem uma conta?{' '}
-                <Link href="/login" className="text-primary-green hover:underline font-medium">
+                <Link href="/login" className="text-accent-600 hover:underline font-medium">
                   Faça login
                 </Link>
               </div>

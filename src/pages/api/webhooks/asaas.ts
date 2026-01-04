@@ -349,8 +349,12 @@ export default async function handler(
 
     // 5. Pagamento confirmado - processar
     if (!bookingId) {
-      console.error('❌ [Asaas Webhook] Sem externalReference (bookingId)');
-      return res.status(400).json({ error: 'Sem referência de reserva' });
+      console.warn('⚠️ [Asaas Webhook] Sem externalReference - ignorando evento');
+      await prisma.webhookEvent.update({
+        where: { eventId },
+        data: { status: 'IGNORED_NO_REFERENCE' },
+      });
+      return res.status(200).json({ ok: true, ignored: 'no_reference' });
     }
 
     // 5.1 Verificar se é compra de crédito (purchase:xxx ou credit_xxx) vs reserva (booking:xxx ou ID direto)
@@ -365,8 +369,12 @@ export default async function handler(
       });
 
       if (!credit) {
-        console.error(`❌ [Asaas Webhook] Crédito não encontrado: ${creditId}`);
-        return res.status(404).json({ error: 'Crédito não encontrado' });
+        console.warn(`⚠️ [Asaas Webhook] Crédito não encontrado (legado/deletado): ${creditId}`);
+        await prisma.webhookEvent.update({
+          where: { eventId },
+          data: { status: 'IGNORED_NOT_FOUND' },
+        });
+        return res.status(200).json({ ok: true, ignored: 'credit_not_found', creditId });
       }
 
       // Já confirmado?
@@ -429,8 +437,47 @@ export default async function handler(
     );
 
     if (!booking) {
-      console.error(`❌ [Asaas Webhook] Booking não encontrado: ${actualBookingId}`);
-      return res.status(404).json({ error: 'Reserva não encontrada' });
+      // Fallback: tentar encontrar como crédito (externalReference legado sem prefixo)
+      const creditFallback = await prisma.credit.findUnique({
+        where: { id: actualBookingId },
+      });
+
+      if (creditFallback) {
+        // É um crédito com ID legado - processar como purchase
+        console.log(`🔄 [Asaas Webhook] Fallback: encontrado como crédito: ${actualBookingId}`);
+        
+        if (creditFallback.status === 'CONFIRMED') {
+          await prisma.webhookEvent.update({
+            where: { eventId },
+            data: { status: 'PROCESSED' },
+          });
+          return res.status(200).json({ received: true, alreadyConfirmed: true });
+        }
+
+        await prisma.credit.update({
+          where: { id: actualBookingId },
+          data: {
+            status: 'CONFIRMED',
+            remainingAmount: creditFallback.amount,
+          },
+        });
+
+        await prisma.webhookEvent.update({
+          where: { eventId },
+          data: { status: 'PROCESSED' },
+        });
+
+        console.log(`✅ [Asaas Webhook] Crédito confirmado (fallback): ${actualBookingId}`);
+        return res.status(200).json({ received: true, creditId: actualBookingId, action: 'credit_confirmed_fallback' });
+      }
+
+      // Não é booking nem crédito - ignorar (legado/deletado)
+      console.warn(`⚠️ [Asaas Webhook] Entidade não encontrada (legado/deletado): ${actualBookingId}`);
+      await prisma.webhookEvent.update({
+        where: { eventId },
+        data: { status: 'IGNORED_NOT_FOUND' },
+      });
+      return res.status(200).json({ ok: true, ignored: 'entity_not_found', id: actualBookingId });
     }
 
     // ================================================================

@@ -37,7 +37,7 @@ describe('env', () => {
     });
 
     it('deve retornar valores padrão em dev quando não configurado', async () => {
-      process.env.NODE_ENV = 'development';
+      (process.env as Record<string, string>).NODE_ENV = 'development';
       const { env } = await import('@/lib/env');
       
       // ADMIN_SESSION_SECRET tem fallback (valor pode variar por .env local)
@@ -62,7 +62,7 @@ describe('env', () => {
     });
 
     it('deve retornar isProduction corretamente', async () => {
-      process.env.NODE_ENV = 'production';
+      (process.env as Record<string, string>).NODE_ENV = 'production';
       jest.resetModules();
       const { env } = await import('@/lib/env');
       

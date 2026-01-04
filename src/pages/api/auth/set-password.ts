@@ -8,7 +8,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { hashActivationToken } from '@/lib/email-activation';
-import { hashPassword, createSession } from '@/lib/auth';
+import { hashPassword, signSessionToken, setAuthCookie } from '@/lib/auth';
 import { checkApiRateLimit, getClientIp, RATE_LIMIT_MESSAGE } from '@/lib/api-rate-limit';
 
 // ============================================================
@@ -156,11 +156,8 @@ export default async function handler(
     ]);
 
     // 9. Criar sessão automaticamente
-    await createSession(res, {
-      userId: user.id,
-      email: user.email,
-      role: 'CUSTOMER',
-    });
+    const sessionToken = signSessionToken({ userId: user.id, role: 'CUSTOMER' });
+    setAuthCookie(res, sessionToken);
 
     console.log(`✅ [SET-PASSWORD] Senha definida para userId: ${user.id}`);
 

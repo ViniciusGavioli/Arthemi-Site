@@ -37,7 +37,8 @@ jest.mock('@/lib/prisma', () => ({
 
 jest.mock('@/lib/auth', () => ({
   hashPassword: jest.fn().mockResolvedValue('hashed-password'),
-  createSession: jest.fn(),
+  signSessionToken: jest.fn().mockReturnValue('mock-jwt-token'),
+  setAuthCookie: jest.fn(),
 }));
 
 jest.mock('@/lib/api-rate-limit', () => ({
@@ -52,7 +53,7 @@ jest.mock('@/lib/mailer', () => ({
 
 // Import mocked modules
 import prisma from '@/lib/prisma';
-import { hashPassword, createSession } from '@/lib/auth';
+import { hashPassword, signSessionToken, setAuthCookie } from '@/lib/auth';
 import { checkApiRateLimit } from '@/lib/api-rate-limit';
 import { sendAccountActivationEmail } from '@/lib/mailer';
 
@@ -332,7 +333,7 @@ describe('POST /api/auth/set-password', () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData().ok).toBe(true);
     expect(hashPassword).toHaveBeenCalledWith('newpassword123');
-    expect(createSession).toHaveBeenCalled();
+    expect(setAuthCookie).toHaveBeenCalled();
     expect(mockPrisma.$transaction).toHaveBeenCalled();
   });
 

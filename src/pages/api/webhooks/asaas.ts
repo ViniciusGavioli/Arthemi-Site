@@ -379,16 +379,16 @@ export default async function handler(
         return res.status(200).json({ received: true, alreadyConfirmed: true });
       }
 
-      // Ativar crédito
+      // Ativar crédito - IMPORTANTE: setar remainingAmount para liberar as horas
       await prisma.credit.update({
         where: { id: creditId },
         data: {
           status: 'CONFIRMED',
-          // O campo updatedAt é atualizado automaticamente pelo Prisma
+          remainingAmount: credit.amount, // Libera as horas compradas
         },
       });
 
-      console.log(`✅ [Asaas Webhook] Crédito confirmado: ${creditId}`);
+      console.log(`✅ [Asaas Webhook] Crédito confirmado: ${creditId} (${credit.amount} centavos liberados)`);
 
       await logAudit({
         action: 'CREDIT_CONFIRMED',

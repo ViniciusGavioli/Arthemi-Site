@@ -6,22 +6,39 @@ import { useEffect, useState } from 'react';
 // Timeout máximo de polling: 5 minutos (300 segundos)
 const POLLING_TIMEOUT_MS = 5 * 60 * 1000;
 
+type EntityType = 'booking' | 'credit';
+
 export default function BookingPendingPage() {
   const router = useRouter();
-  const { booking: bookingFromQuery } = router.query;
-  const [bookingId, setBookingId] = useState<string | null>(null);
+  const { booking: bookingFromQuery, credit: creditFromQuery, type: typeFromQuery } = router.query;
+  
+  // Suporta tanto booking quanto credit
+  const [entityId, setEntityId] = useState<string | null>(null);
+  const [entityType, setEntityType] = useState<EntityType>('booking');
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [paymentOpened, setPaymentOpened] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
-    if (bookingFromQuery && typeof bookingFromQuery === 'string') {
-      setBookingId(bookingFromQuery);
+    // Determinar tipo e ID da entidade
+    if (creditFromQuery && typeof creditFromQuery === 'string') {
+      setEntityId(creditFromQuery);
+      setEntityType('credit');
+    } else if (bookingFromQuery && typeof bookingFromQuery === 'string') {
+      setEntityId(bookingFromQuery);
+      setEntityType('booking');
     } else if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('lastBookingId');
-      if (stored) {
-        setBookingId(stored);
+      // Fallback para localStorage
+      const storedBookingId = localStorage.getItem('lastBookingId');
+      const storedCreditId = localStorage.getItem('lastCreditId');
+      
+      if (storedCreditId) {
+        setEntityId(storedCreditId);
+        setEntityType('credit');
+      } else if (storedBookingId) {
+        setEntityId(storedBookingId);
+        setEntityType('booking');
       }
     }
 
@@ -31,10 +48,10 @@ export default function BookingPendingPage() {
         setPaymentUrl(storedUrl);
       }
     }
-  }, [bookingFromQuery]);
+  }, [bookingFromQuery, creditFromQuery, typeFromQuery]);
 
   useEffect(() => {
-    if (!bookingId) return;
+    if (!entityId) return;
 
     // Timer de timeout máximo
     const timeoutTimer = setTimeout(() => {
@@ -42,19 +59,32 @@ export default function BookingPendingPage() {
       console.log('⏰ [PENDING] Timeout de polling atingido após 5 minutos');
     }, POLLING_TIMEOUT_MS);
 
+    // Determinar endpoint baseado no tipo
+    const endpoint = entityType === 'credit' 
+      ? `/api/credits/${entityId}`
+      : `/api/bookings/${entityId}`;
+
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/bookings/${bookingId}`);
+        const res = await fetch(endpoint);
         if (res.ok) {
           const data = await res.json();
+          
+          // Para credits, verificar status CONFIRMED
+          // Para bookings, verificar status CONFIRMED
           if (data.status === 'CONFIRMED') {
+            // Limpar storage
             localStorage.removeItem('lastBookingId');
+            localStorage.removeItem('lastCreditId');
             localStorage.removeItem('lastPaymentUrl');
+            
+            // Redirecionar para minha conta
             router.push('/minha-conta?confirmed=true');
-          } else if (data.status === 'CANCELLED') {
+          } else if (data.status === 'CANCELLED' || data.status === 'REFUNDED') {
             localStorage.removeItem('lastBookingId');
+            localStorage.removeItem('lastCreditId');
             localStorage.removeItem('lastPaymentUrl');
-            router.push(`/booking/failure?booking=${bookingId}`);
+            router.push(`/booking/failure?${entityType}=${entityId}`);
           }
         }
       } catch (error) {
@@ -66,23 +96,30 @@ export default function BookingPendingPage() {
       clearInterval(interval);
       clearTimeout(timeoutTimer);
     };
-  }, [bookingId, router]);
+  }, [entityId, entityType, router]);
 
   async function handleCheckStatus() {
-    if (!bookingId) return;
+    if (!entityId) return;
     setChecking(true);
+    
+    const endpoint = entityType === 'credit' 
+      ? `/api/credits/${entityId}`
+      : `/api/bookings/${entityId}`;
+    
     try {
-      const res = await fetch(`/api/bookings/${bookingId}`);
+      const res = await fetch(endpoint);
       if (res.ok) {
         const data = await res.json();
         if (data.status === 'CONFIRMED') {
           localStorage.removeItem('lastBookingId');
+          localStorage.removeItem('lastCreditId');
           localStorage.removeItem('lastPaymentUrl');
           router.push('/minha-conta?confirmed=true');
-        } else if (data.status === 'CANCELLED') {
+        } else if (data.status === 'CANCELLED' || data.status === 'REFUNDED') {
           localStorage.removeItem('lastBookingId');
+          localStorage.removeItem('lastCreditId');
           localStorage.removeItem('lastPaymentUrl');
-          router.push(`/booking/failure?booking=${bookingId}`);
+          router.push(`/booking/failure?${entityType}=${entityId}`);
         } else {
           alert('Pagamento ainda pendente. Continue aguardando.');
         }
@@ -237,11 +274,13 @@ export default function BookingPendingPage() {
             </ul>
           </div>
 
-          {bookingId && (
+          {entityId && (
             <div className="bg-gray-100 rounded-lg p-4 mb-8">
-              <p className="text-sm text-gray-500 mb-1">Código da Reserva</p>
+              <p className="text-sm text-gray-500 mb-1">
+                {entityType === 'credit' ? 'Código da Compra' : 'Código da Reserva'}
+              </p>
               <p className="font-mono text-lg text-gray-800">
-                {bookingId.slice(0, 8).toUpperCase()}
+                {entityId.slice(0, 8).toUpperCase()}
               </p>
             </div>
           )}

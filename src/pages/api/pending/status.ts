@@ -33,12 +33,12 @@ export default async function handler(
   const { type, id } = req.query;
 
   if (!type || !id || typeof type !== 'string' || typeof id !== 'string') {
-    console.log(`[${requestId}] ❌ Missing or invalid params`, { type, id });
+    console.log(JSON.stringify({ requestId, event: 'PENDING_STATUS_INVALID_PARAMS', type: type || null, hasId: !!id }));
     return res.status(400).json({ error: 'Missing type or id parameter' });
   }
 
   if (type !== 'booking' && type !== 'credit') {
-    console.log(`[${requestId}] ❌ Invalid type`, { type });
+    console.log(JSON.stringify({ requestId, event: 'PENDING_STATUS_INVALID_TYPE', type }));
     return res.status(400).json({ error: 'Type must be "booking" or "credit"' });
   }
 
@@ -54,7 +54,7 @@ export default async function handler(
       });
 
       if (!booking) {
-        console.log(`[${requestId}] ❌ Booking not found`, { id: id.slice(0, 8) });
+        console.log(JSON.stringify({ requestId, event: 'PENDING_STATUS_NOT_FOUND', type: 'booking', idPrefix: id.slice(0, 8) }));
         return res.status(404).json({ error: 'Booking not found' });
       }
 
@@ -68,11 +68,14 @@ export default async function handler(
 
       const status = statusMap[booking.status] || 'PENDING';
       
-      console.log(`[${requestId}] 📊 Booking status`, { 
-        id: id.slice(0, 8), 
+      console.log(JSON.stringify({ 
+        requestId, 
+        event: 'PENDING_STATUS_OK', 
+        type: 'booking',
+        idPrefix: id.slice(0, 8), 
         status,
         originalStatus: booking.status 
-      });
+      }));
 
       return res.status(200).json({
         status,
@@ -92,7 +95,7 @@ export default async function handler(
       });
 
       if (!credit) {
-        console.log(`[${requestId}] ❌ Credit not found`, { id: id.slice(0, 8) });
+        console.log(JSON.stringify({ requestId, event: 'PENDING_STATUS_NOT_FOUND', type: 'credit', idPrefix: id.slice(0, 8) }));
         return res.status(404).json({ error: 'Credit not found' });
       }
 
@@ -106,11 +109,14 @@ export default async function handler(
 
       const status = statusMap[credit.status] || 'PENDING';
       
-      console.log(`[${requestId}] 📊 Credit status`, { 
-        id: id.slice(0, 8), 
+      console.log(JSON.stringify({ 
+        requestId, 
+        event: 'PENDING_STATUS_OK', 
+        type: 'credit',
+        idPrefix: id.slice(0, 8), 
         status,
         originalStatus: credit.status 
-      });
+      }));
 
       return res.status(200).json({
         status,
@@ -119,7 +125,7 @@ export default async function handler(
       });
     }
   } catch (error) {
-    console.error(`[${requestId}] ❌ Error fetching status`, error);
+    console.error(JSON.stringify({ requestId, event: 'PENDING_STATUS_ERROR', error: String(error) }));
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

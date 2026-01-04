@@ -12,6 +12,20 @@ const HARD_TIMEOUT_MS = 5 * 60 * 1000; // 5min: parar polling
 
 type EntityType = 'booking' | 'credit';
 
+// Helper: só loga em dev ou com ?debug=1
+function debugLog(message: string, data?: Record<string, unknown>) {
+  if (typeof window === 'undefined') return;
+  const isDev = process.env.NODE_ENV === 'development';
+  const hasDebugParam = new URLSearchParams(window.location.search).has('debug');
+  if (isDev || hasDebugParam) {
+    if (data) {
+      console.log(message, data);
+    } else {
+      console.log(message);
+    }
+  }
+}
+
 interface PollResult {
   status: string;
   updatedAt?: string;
@@ -120,7 +134,7 @@ export default function BookingPendingPage() {
     const fromQuery = parseQueryParams(router.query);
     
     if (fromQuery.entityId) {
-      console.log(`📍 [PENDING] Entidade da query: ${fromQuery.entityType}/${fromQuery.entityId}`);
+      debugLog(`📍 [PENDING] Entidade da query: ${fromQuery.entityType}/${fromQuery.entityId}`);
       setEntityId(fromQuery.entityId);
       setEntityType(fromQuery.entityType);
       return;
@@ -131,14 +145,14 @@ export default function BookingPendingPage() {
     const fromStorage = getFromLocalStorage(typeHint || null);
     
     if (fromStorage.entityId) {
-      console.log(`📍 [PENDING] Entidade do localStorage: ${fromStorage.entityType}/${fromStorage.entityId}`);
+      debugLog(`📍 [PENDING] Entidade do localStorage: ${fromStorage.entityType}/${fromStorage.entityId}`);
       setEntityId(fromStorage.entityId);
       setEntityType(fromStorage.entityType);
       return;
     }
     
     // 3. Nenhuma entidade encontrada
-    console.warn('⚠️ [PENDING] Nenhuma entidade encontrada na query ou localStorage');
+    debugLog('⚠️ [PENDING] Nenhuma entidade encontrada na query ou localStorage');
     setNoEntityFound(true);
   }, [router.isReady, router.query]);
 
@@ -169,14 +183,14 @@ export default function BookingPendingPage() {
       const requestId = res.headers.get('x-request-id') || 'unknown';
       
       if (!res.ok) {
-        console.error(`❌ [PENDING] Poll failed: ${res.status}`, { requestId, entityType, entityId });
+        debugLog(`❌ [PENDING] Poll failed: ${res.status}`, { requestId, entityType, entityId });
         return null;
       }
       
       const data = await res.json();
       const durationMs = Date.now() - pollStart;
       
-      console.log(`🔄 [PENDING] Poll #${pollCount + 1}`, {
+      debugLog(`🔄 [PENDING] Poll #${pollCount + 1}`, {
         requestId,
         entityType,
         entityId: entityId.slice(0, 8),
@@ -190,7 +204,7 @@ export default function BookingPendingPage() {
         requestId,
       };
     } catch (error) {
-      console.error('❌ [PENDING] Poll error:', error);
+      debugLog('❌ [PENDING] Poll error:', { error: String(error) });
       return null;
     }
   }, [entityId, entityType, pollCount]);
@@ -206,7 +220,7 @@ export default function BookingPendingPage() {
     
     if (result.status === 'CONFIRMED') {
       // Sucesso! Limpar e redirecionar
-      console.log('✅ [PENDING] Pagamento confirmado!', { requestId: result.requestId });
+      debugLog('✅ [PENDING] Pagamento confirmado!', { requestId: result.requestId });
       
       localStorage.removeItem('lastBookingId');
       localStorage.removeItem('lastCreditId');
@@ -220,7 +234,7 @@ export default function BookingPendingPage() {
       router.push('/minha-conta?confirmed=true');
     } else if (result.status === 'CANCELLED' || result.status === 'REFUNDED') {
       // Falha
-      console.log('❌ [PENDING] Pagamento cancelado/estornado', { status: result.status });
+      debugLog('❌ [PENDING] Pagamento cancelado/estornado', { status: result.status });
       
       localStorage.removeItem('lastBookingId');
       localStorage.removeItem('lastCreditId');
@@ -241,13 +255,13 @@ export default function BookingPendingPage() {
     
     // Timer de soft timeout (90s)
     softTimeoutRef.current = setTimeout(() => {
-      console.log('⏰ [PENDING] Soft timeout (90s) - mostrando alternativa');
+      debugLog('⏰ [PENDING] Soft timeout (90s) - mostrando alternativa');
       setSoftTimeout(true);
     }, SOFT_TIMEOUT_MS);
     
     // Timer de hard timeout (5min)
     hardTimeoutRef.current = setTimeout(() => {
-      console.log('⏰ [PENDING] Hard timeout (5min) - parando polling');
+      debugLog('⏰ [PENDING] Hard timeout (5min) - parando polling');
       setHardTimeout(true);
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);

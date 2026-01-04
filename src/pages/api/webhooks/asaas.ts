@@ -60,6 +60,36 @@ function sanitizeWebhookPayload(payload: AsaasWebhookPayload): AsaasWebhookPaylo
   };
 }
 
+// Helper: normaliza externalReference para formato canônico
+// Aceita: booking:<id>, purchase:<id>, booking:purchase:<id> (legado), credit_<id>, <id> puro
+// Retorna: { type: 'booking' | 'purchase', id: string }
+function parseExternalReference(ref: string | null | undefined): { type: 'booking' | 'purchase'; id: string } | null {
+  if (!ref) return null;
+  
+  // booking:purchase:<id> => purchase (legado com prefixo duplicado)
+  if (ref.startsWith('booking:purchase:')) {
+    return { type: 'purchase', id: ref.replace('booking:purchase:', '') };
+  }
+  
+  // purchase:<id> => purchase
+  if (ref.startsWith('purchase:')) {
+    return { type: 'purchase', id: ref.replace('purchase:', '') };
+  }
+  
+  // credit_<id> => purchase (legado)
+  if (ref.startsWith('credit_')) {
+    return { type: 'purchase', id: ref.replace('credit_', '') };
+  }
+  
+  // booking:<id> => booking
+  if (ref.startsWith('booking:')) {
+    return { type: 'booking', id: ref.replace('booking:', '') };
+  }
+  
+  // ID puro => booking (retrocompatibilidade)
+  return { type: 'booking', id: ref };
+}
+
 // Helper: verifica se produto é pacote de horas
 function isPackageProduct(type: string): boolean {
   return ['PACKAGE_10H', 'PACKAGE_20H', 'PACKAGE_40H'].includes(type);
@@ -195,13 +225,13 @@ export default async function handler(
       });
 
       if (bookingId) {
-        // Verificar se é crédito/purchase ou booking pelo prefixo
-        // Prefixos: booking:<id>, purchase:<id>, credit_<id>, ou ID puro (legado=booking)
-        const isPurchase = bookingId.startsWith('purchase:') || bookingId.startsWith('credit_');
+        // Normalizar externalReference para detectar tipo
+        const parsed = parseExternalReference(bookingId);
+        const isPurchase = parsed?.type === 'purchase';
         
-        if (isPurchase) {
+        if (isPurchase && parsed) {
           // Crédito: marcar como falha (mantém PENDING, não ativa)
-          const creditId = bookingId.replace('purchase:', '').replace('credit_', '');
+          const creditId = parsed.id;
           console.log(`💳 [Asaas Webhook] Crédito não ativado (captura recusada): ${creditId}`);
           // Crédito permanece PENDING - não precisa atualizar nada
           await logAudit({
@@ -266,12 +296,13 @@ export default async function handler(
         return res.status(200).json({ received: true, event, message: 'Sem referência' });
       }
 
-      // Verificar se é crédito/purchase ou booking pelo prefixo
-      const isPurchase = bookingId.startsWith('purchase:') || bookingId.startsWith('credit_');
+      // Normalizar externalReference para detectar tipo
+      const parsed = parseExternalReference(bookingId);
+      const isPurchase = parsed?.type === 'purchase';
       
-      if (isPurchase) {
-        // Extrair ID do crédito (suporta ambos formatos: "purchase:xxx" e "credit_xxx")
-        const creditId = bookingId.replace('purchase:', '').replace('credit_', '');
+      if (isPurchase && parsed) {
+        // Extrair ID do crédito (suporta todos os formatos)
+        const creditId = parsed.id;
         
         await prisma.credit.updateMany({
           where: { id: creditId },
@@ -357,12 +388,14 @@ export default async function handler(
       return res.status(200).json({ ok: true, ignored: 'no_reference' });
     }
 
-    // 5.1 Verificar se é compra de crédito (purchase:xxx ou credit_xxx) vs reserva (booking:xxx ou ID direto)
-    const isPurchase = bookingId.startsWith('purchase:') || bookingId.startsWith('credit_');
+    // 5.1 Normalizar externalReference e verificar tipo (purchase vs booking)
+    // Aceita: booking:<id>, purchase:<id>, booking:purchase:<id> (legado), credit_<id>, <id> puro
+    const parsed = parseExternalReference(bookingId);
+    const isPurchase = parsed?.type === 'purchase';
     
-    if (isPurchase) {
+    if (isPurchase && parsed) {
       // Processar confirmação de compra de crédito
-      const creditId = bookingId.replace('purchase:', '').replace('credit_', '');
+      const creditId = parsed.id;
       
       const credit = await prisma.credit.findUnique({
         where: { id: creditId },
@@ -419,8 +452,9 @@ export default async function handler(
       });
     }
 
-    // 5.2 Extrair ID real da booking (suporta "booking:xxx" ou ID direto para retrocompatibilidade)
-    const actualBookingId = bookingId.replace('booking:', '');
+    // 5.2 Extrair ID real da booking (já normalizado por parseExternalReference)
+    // Se chegou aqui, parsed.type === 'booking'
+    const actualBookingId = parsed?.id || bookingId.replace('booking:', '');
 
     // 6. Buscar booking para determinar tipo de processamento
     const booking = await withTimeout(

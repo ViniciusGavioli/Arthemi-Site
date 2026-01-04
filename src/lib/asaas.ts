@@ -594,6 +594,18 @@ export function isPaymentStatusConfirmed(status: AsaasPaymentStatus): boolean {
 // TIPOS PARA INTEGRAÇÃO
 // ============================================================
 
+/**
+ * Constrói externalReference sem duplicar prefixos
+ * Se já tem prefixo (booking:, purchase:), usa como está
+ * Caso contrário, adiciona 'booking:'
+ */
+function buildExternalReference(bookingId: string): string {
+  if (bookingId.startsWith('booking:') || bookingId.startsWith('purchase:')) {
+    return bookingId;
+  }
+  return `booking:${bookingId}`;
+}
+
 export interface CreateBookingPaymentInput {
   bookingId: string;
   customerName: string;
@@ -637,7 +649,7 @@ export async function createBookingPayment(
     value: centsToReal(input.value), // Converter centavos para reais
     dueDate,
     description: input.description,
-    externalReference: `booking:${input.bookingId}`,
+    externalReference: buildExternalReference(input.bookingId),
     billingType: 'PIX',
   });
 
@@ -729,7 +741,7 @@ export async function createBookingCardPayment(
     value: valueInReais,
     dueDate,
     description: input.description,
-    externalReference: `booking:${input.bookingId}`,
+    externalReference: buildExternalReference(input.bookingId),
     billingType: billingType as 'CREDIT_CARD' | 'UNDEFINED',
     installmentCount,
     // NÃO enviar installmentValue - Asaas calcula automaticamente

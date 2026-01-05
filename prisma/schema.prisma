@@ -133,13 +133,14 @@ model UserPackage {
 }
 
 model Credit {
-  id              String         @id @default(cuid())
+  id              String           @id @default(cuid())
   userId          String
-  roomId          String?        // Sala específica do crédito (determina hierarquia)
-  amount          Int            // Valor em centavos
-  remainingAmount Int            @default(0) // Valor restante (para uso parcial)
+  roomId          String?          // Sala específica do crédito (determina hierarquia)
+  amount          Int              // Valor em centavos
+  remainingAmount Int              @default(0) // Valor restante (para uso parcial)
   type            CreditType
-  status          CreditStatus   @default(PENDING)
+  usageType       CreditUsageType? // Regra de uso: HOURLY, SHIFT, etc (null = legado)
+  status          CreditStatus     @default(PENDING)
   subletRequestId String?
   sourceBookingId String?        // Booking que originou o crédito (cancelamento)
   referenceMonth  Int
@@ -349,6 +350,15 @@ enum CreditStatus {
   USED
   EXPIRED
   REFUNDED
+}
+
+// Tipo de uso do crédito (regra de agendamento)
+// Nullable para compatibilidade com créditos legados
+enum CreditUsageType {
+  HOURLY            // Hora avulsa seg-sex (1h fixa)
+  SHIFT             // Turno fixo seg-sex (4h em bloco: 08-12, 12-16, 16-20)
+  SATURDAY_HOURLY   // Hora sábado (1h fixa)
+  SATURDAY_SHIFT    // Turno sábado (4h em bloco: 08-12)
 }
 
 enum ShiftType {

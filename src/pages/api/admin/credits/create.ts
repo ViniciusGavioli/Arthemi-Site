@@ -14,6 +14,7 @@ const createCreditSchema = z.object({
   roomId: z.string().optional(), // Se não informado, crédito genérico
   amount: z.number().positive('Valor deve ser positivo'), // Em centavos
   type: z.enum(['PROMO', 'MANUAL', 'SATURDAY']).default('MANUAL'),
+  usageType: z.enum(['HOURLY', 'SHIFT', 'SATURDAY_HOURLY', 'SATURDAY_SHIFT']).optional(), // Regra de uso
   expiresInMonths: z.number().min(1).max(24).optional(),
   notes: z.string().optional(),
 });
@@ -93,6 +94,7 @@ export default async function handler(
       roomId: data.roomId,
       amount: data.amount,
       type: data.type,
+      usageType: data.usageType,
       expiresInMonths: data.expiresInMonths,
       notes: data.notes,
     });
@@ -107,6 +109,7 @@ export default async function handler(
         roomId: data.roomId,
         amount: data.amount,
         type: data.type,
+        usageType: data.usageType,
       },
       req
     );

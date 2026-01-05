@@ -11,6 +11,7 @@ import {
   consumeCreditsForBooking, 
   getCreditBalanceForRoom,
   isBookingWithinBusinessHours,
+  validateUniversalBookingWindow,
 } from '@/lib/business-rules';
 import { logAudit } from '@/lib/audit';
 import { differenceInHours, isBefore } from 'date-fns';
@@ -91,6 +92,16 @@ export default async function handler(
       return res.status(400).json({
         success: false,
         error: 'Horário fora do expediente. Seg-Sex: 08h-20h, Sáb: 08h-12h, Dom: fechado.',
+        code: 'OUT_OF_BUSINESS_HOURS',
+      });
+    }
+
+    // VALIDAÇÃO UNIVERSAL: Reservas limitadas a 30 dias a partir de hoje
+    const windowValidation = validateUniversalBookingWindow(start);
+    if (!windowValidation.valid) {
+      return res.status(400).json({
+        success: false,
+        error: windowValidation.error || 'Data fora da janela de reserva permitida.',
       });
     }
 
@@ -125,8 +136,9 @@ export default async function handler(
 
     const totalAmount = hours * room.pricePerHour;
 
-    // Verifica saldo de créditos
-    const availableCredits = await getCreditBalanceForRoom(userId, roomId, start);
+    // Verifica saldo de créditos disponíveis para este horário específico
+    // Passa start/end para validar usageType dos créditos
+    const availableCredits = await getCreditBalanceForRoom(userId, roomId, start, start, end);
     
     if (availableCredits < totalAmount) {
       return res.status(402).json({
@@ -158,12 +170,14 @@ export default async function handler(
 
     // TRANSAÇÃO: Cria reserva + consome créditos
     const result = await prisma.$transaction(async (tx) => {
-      // Consome créditos
+      // Consome créditos (passa start/end para validar usageType)
       const { creditIds, totalConsumed } = await consumeCreditsForBooking(
         userId,
         roomId,
         totalAmount,
-        start
+        start,
+        start,
+        end
       );
 
       // Cria reserva com financialStatus = PAID

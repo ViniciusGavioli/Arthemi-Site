@@ -6,7 +6,7 @@
 import { addDays, differenceInHours, isBefore, addMonths, isSaturday, startOfDay, isAfter, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { prisma } from './prisma';
-import type { Credit, Room } from '@prisma/client';
+import type { Credit, Room, CreditUsageType } from '@prisma/client';
 
 // ---- Constantes ----
 export const PACKAGE_VALIDITY = {
@@ -42,6 +42,60 @@ export const CREDIT_VALIDITY_MONTHS = 6;
 // Créditos de hora avulsa/pacotes só podem ser usados para reservar até 30 dias no futuro
 // Turnos fixos não têm limitação de janela (podem reservar o ano todo)
 export const HOURLY_BOOKING_WINDOW_DAYS = 30;
+
+// Janela UNIVERSAL de reserva: nenhum usuário pode reservar além de 30 dias
+// Aplica a TODAS as reservas (com ou sem crédito, com ou sem turno fixo)
+export const MAX_BOOKING_WINDOW_DAYS = 30;
+
+// ===========================================================
+// VALIDAÇÃO UNIVERSAL DE JANELA DE 30 DIAS
+// ===========================================================
+
+/**
+ * Valida se uma data/hora de reserva está dentro da janela universal de 30 dias
+ * Esta validação se aplica a TODAS as reservas, independente do tipo de produto
+ * 
+ * @param bookingDate Data/hora da reserva desejada
+ * @returns { valid: boolean; maxDate: Date; error?: string }
+ */
+export function validateUniversalBookingWindow(
+  bookingDate: Date
+): { valid: boolean; maxDate: Date; error?: string } {
+  // Usa timezone de São Paulo para comparação
+  const now = new Date();
+  const today = startOfDay(now);
+  const maxDate = addDays(today, MAX_BOOKING_WINDOW_DAYS);
+  const bookingDateStart = startOfDay(bookingDate);
+
+  // Verifica se a data está além da janela de 30 dias
+  if (isAfter(bookingDateStart, maxDate)) {
+    return {
+      valid: false,
+      maxDate,
+      error: `Reservas podem ser feitas com no máximo ${MAX_BOOKING_WINDOW_DAYS} dias de antecedência. Data máxima: ${format(maxDate, 'dd/MM/yyyy', { locale: ptBR })}.`,
+    };
+  }
+
+  // Não pode ser no passado
+  if (isBefore(bookingDateStart, today)) {
+    return {
+      valid: false,
+      maxDate,
+      error: 'Não é possível reservar datas no passado.',
+    };
+  }
+
+  return { valid: true, maxDate };
+}
+
+/**
+ * Calcula a data máxima permitida para reserva (30 dias a partir de hoje)
+ * @returns Data máxima permitida
+ */
+export function getUniversalMaxBookingDate(): Date {
+  const today = startOfDay(new Date());
+  return addDays(today, MAX_BOOKING_WINDOW_DAYS);
+}
 
 // ===========================================================
 // SISTEMA DE CRÉDITOS COM HIERARQUIA
@@ -82,6 +136,280 @@ export function validateSaturdayCredit(credit: Credit, bookingDate: Date): boole
   return isSaturday(bookingDate);
 }
 
+// ===========================================================
+// VALIDAÇÃO POR USAGE TYPE (REGRA DE USO DO CRÉDITO)
+// ===========================================================
+
+// Re-import das funções de business-hours para validação de blocos
+import { 
+  isValidShiftBlock, 
+  isValidHourlyBooking,
+  isSaturdayDay,
+  getHourInBrazil,
+} from './business-hours';
+
+/**
+ * Resultado da validação de uso de crédito
+ */
+export interface CreditUsageValidation {
+  valid: boolean;
+  error?: string;
+  code?: string;
+}
+
+/**
+ * Valida se um crédito com usageType pode ser usado para uma reserva específica
+ * 
+ * REGRAS:
+ * - HOURLY: Seg-Sex, 1h fixa (hora cheia)
+ * - SHIFT: Seg-Sex, 4h em bloco fixo (08-12, 12-16, 16-20)
+ * - SATURDAY_HOURLY: Sábado, 1h fixa
+ * - SATURDAY_SHIFT: Sábado, 4h em bloco fixo (08-12)
+ * - null (legado): Comportamento atual (sem restrição de duração)
+ * 
+ * @param credit Crédito a ser validado
+ * @param startTime Início da reserva
+ * @param endTime Fim da reserva
+ * @returns Resultado da validação
+ */
+export function validateCreditUsage(
+  credit: Credit,
+  startTime: Date,
+  endTime: Date
+): CreditUsageValidation {
+  const usageType = credit.usageType;
+  const isSaturdayBooking = isSaturdayDay(startTime);
+  
+  // CRÉDITO LEGADO (sem usageType): Mantém comportamento atual
+  // Não força regras novas, apenas valida sábado se for crédito SATURDAY
+  if (!usageType) {
+    return validateLegacyCreditUsage(credit, startTime, endTime);
+  }
+  
+  // NOVOS CRÉDITOS: Validação estrita por usageType
+  switch (usageType) {
+    case 'HOURLY':
+      return validateHourlyUsage(startTime, endTime, isSaturdayBooking);
+      
+    case 'SHIFT':
+      return validateShiftUsage(startTime, endTime, isSaturdayBooking);
+      
+    case 'SATURDAY_HOURLY':
+      return validateSaturdayHourlyUsage(startTime, endTime, isSaturdayBooking);
+      
+    case 'SATURDAY_SHIFT':
+      return validateSaturdayShiftUsage(startTime, endTime, isSaturdayBooking);
+      
+    default:
+      // Fallback seguro: permite (não bloqueia créditos desconhecidos)
+      return { valid: true };
+  }
+}
+
+/**
+ * Valida crédito LEGADO (sem usageType explícito)
+ * REGRA: Mantém comportamento atual do sistema
+ * - Crédito SATURDAY só pode ser usado em sábado
+ * - Demais créditos: sem restrição de duração (1-8h)
+ */
+function validateLegacyCreditUsage(
+  credit: Credit,
+  startTime: Date,
+  endTime: Date
+): CreditUsageValidation {
+  const isSaturdayBooking = isSaturdayDay(startTime);
+  
+  // Crédito SATURDAY (legado) só pode ser usado em sábado
+  if (credit.type === 'SATURDAY') {
+    if (!isSaturdayBooking) {
+      return {
+        valid: false,
+        error: 'Crédito de sábado só pode ser usado em sábados.',
+        code: 'SATURDAY_CREDIT_WRONG_DAY',
+      };
+    }
+  } else {
+    // Créditos não-SATURDAY não podem ser usados em sábado
+    // (mantém regra atual - sábado requer crédito específico)
+    if (isSaturdayBooking) {
+      return {
+        valid: false,
+        error: 'Para reservar em sábado, você precisa de crédito de sábado.',
+        code: 'SATURDAY_REQUIRES_SATURDAY_CREDIT',
+      };
+    }
+  }
+  
+  // LEGADO: Não força 1h fixa, permite comportamento atual (1-8h)
+  return { valid: true };
+}
+
+/**
+ * Valida crédito HOURLY (novo): Seg-Sex, 1h fixa
+ */
+function validateHourlyUsage(
+  startTime: Date,
+  endTime: Date,
+  isSaturdayBooking: boolean
+): CreditUsageValidation {
+  // HOURLY só pode ser usado seg-sex
+  if (isSaturdayBooking) {
+    return {
+      valid: false,
+      error: 'Crédito de hora avulsa não pode ser usado em sábado. Use crédito de sábado.',
+      code: 'HOURLY_NOT_ON_SATURDAY',
+    };
+  }
+  
+  // HOURLY deve ser exatamente 1 hora
+  if (!isValidHourlyBooking(startTime, endTime)) {
+    return {
+      valid: false,
+      error: 'Crédito de hora avulsa permite apenas reservas de 1 hora.',
+      code: 'HOURLY_MUST_BE_1H',
+    };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Valida crédito SHIFT (novo): Seg-Sex, 4h em bloco fixo
+ */
+function validateShiftUsage(
+  startTime: Date,
+  endTime: Date,
+  isSaturdayBooking: boolean
+): CreditUsageValidation {
+  // SHIFT só pode ser usado seg-sex
+  if (isSaturdayBooking) {
+    return {
+      valid: false,
+      error: 'Crédito de turno não pode ser usado em sábado. Use crédito de sábado turno.',
+      code: 'SHIFT_NOT_ON_SATURDAY',
+    };
+  }
+  
+  // SHIFT deve ser bloco fixo de 4h (08-12, 12-16, 16-20)
+  if (!isValidShiftBlock(startTime, endTime)) {
+    return {
+      valid: false,
+      error: 'Crédito de turno só pode ser usado em blocos fixos de 4h: 08h-12h, 12h-16h ou 16h-20h.',
+      code: 'SHIFT_INVALID_BLOCK',
+    };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Valida crédito SATURDAY_HOURLY (novo): Sábado, 1h fixa
+ */
+function validateSaturdayHourlyUsage(
+  startTime: Date,
+  endTime: Date,
+  isSaturdayBooking: boolean
+): CreditUsageValidation {
+  // SATURDAY_HOURLY só pode ser usado em sábado
+  if (!isSaturdayBooking) {
+    return {
+      valid: false,
+      error: 'Crédito de sábado hora só pode ser usado em sábados.',
+      code: 'SATURDAY_HOURLY_WRONG_DAY',
+    };
+  }
+  
+  // SATURDAY_HOURLY deve ser exatamente 1 hora
+  if (!isValidHourlyBooking(startTime, endTime)) {
+    return {
+      valid: false,
+      error: 'Crédito de sábado hora permite apenas reservas de 1 hora.',
+      code: 'SATURDAY_HOURLY_MUST_BE_1H',
+    };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Valida crédito SATURDAY_SHIFT (novo): Sábado, 4h em bloco fixo
+ */
+function validateSaturdayShiftUsage(
+  startTime: Date,
+  endTime: Date,
+  isSaturdayBooking: boolean
+): CreditUsageValidation {
+  // SATURDAY_SHIFT só pode ser usado em sábado
+  if (!isSaturdayBooking) {
+    return {
+      valid: false,
+      error: 'Crédito de sábado turno só pode ser usado em sábados.',
+      code: 'SATURDAY_SHIFT_WRONG_DAY',
+    };
+  }
+  
+  // SATURDAY_SHIFT deve ser bloco fixo 08-12
+  if (!isValidShiftBlock(startTime, endTime)) {
+    return {
+      valid: false,
+      error: 'Crédito de sábado turno só pode ser usado no bloco 08h-12h.',
+      code: 'SATURDAY_SHIFT_INVALID_BLOCK',
+    };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Verifica se um crédito é compatível com o tipo de reserva
+ * Usado para filtrar créditos disponíveis
+ * 
+ * @param credit Crédito a verificar
+ * @param bookingDate Data da reserva
+ * @param isShiftBooking Se a reserva é de turno (4h) ou hora (1h)
+ * @returns true se o crédito pode ser usado
+ */
+export function isCreditCompatibleWithBooking(
+  credit: Credit,
+  bookingDate: Date,
+  isShiftBooking: boolean
+): boolean {
+  const usageType = credit.usageType;
+  const isSaturdayBooking = isSaturdayDay(bookingDate);
+  
+  // CRÉDITO LEGADO: Comportamento atual
+  if (!usageType) {
+    // Crédito SATURDAY (tipo) só pode em sábado
+    if (credit.type === 'SATURDAY') {
+      return isSaturdayBooking;
+    }
+    // Demais créditos: só em dias úteis (comportamento atual)
+    return !isSaturdayBooking;
+  }
+  
+  // NOVOS CRÉDITOS: Verificar compatibilidade
+  switch (usageType) {
+    case 'HOURLY':
+      // Só seg-sex, só hora
+      return !isSaturdayBooking && !isShiftBooking;
+      
+    case 'SHIFT':
+      // Só seg-sex, só turno
+      return !isSaturdayBooking && isShiftBooking;
+      
+    case 'SATURDAY_HOURLY':
+      // Só sábado, só hora
+      return isSaturdayBooking && !isShiftBooking;
+      
+    case 'SATURDAY_SHIFT':
+      // Só sábado, só turno
+      return isSaturdayBooking && isShiftBooking;
+      
+    default:
+      return true;
+  }
+}
+
 /**
  * Busca créditos disponíveis de um usuário para um consultório específico
  * Considera hierarquia: créditos de consultórios superiores também são retornados
@@ -89,12 +417,16 @@ export function validateSaturdayCredit(credit: Credit, bookingDate: Date): boole
  * @param userId ID do usuário
  * @param roomId ID do consultório alvo
  * @param bookingDate Data da reserva (para validar créditos de sábado)
+ * @param startTime Início da reserva (opcional, para validar usageType)
+ * @param endTime Fim da reserva (opcional, para validar usageType)
  * @returns Lista de créditos disponíveis ordenados por prioridade
  */
 export async function getAvailableCreditsForRoom(
   userId: string,
   roomId: string,
-  bookingDate: Date
+  bookingDate: Date,
+  startTime?: Date,
+  endTime?: Date
 ): Promise<(Credit & { room: Room | null })[]> {
   const now = new Date();
 
@@ -128,7 +460,7 @@ export async function getAvailableCreditsForRoom(
     ],
   });
 
-  // Filtra créditos que podem ser usados neste consultório (hierarquia + sábado)
+  // Filtra créditos que podem ser usados neste consultório (hierarquia + sábado + usageType)
   const validCredits = allCredits.filter((credit) => {
     // Verifica hierarquia
     const creditTier = credit.room?.tier ?? null;
@@ -136,9 +468,17 @@ export async function getAvailableCreditsForRoom(
       return false;
     }
 
-    // Verifica se é sábado (para créditos de sábado)
+    // Verifica se é sábado (para créditos de sábado legados)
     if (!validateSaturdayCredit(credit, bookingDate)) {
       return false;
+    }
+
+    // Se startTime/endTime foram passados, valida usageType
+    if (startTime && endTime) {
+      const usageValidation = validateCreditUsage(credit, startTime, endTime);
+      if (!usageValidation.valid) {
+        return false;
+      }
     }
 
     return true;
@@ -155,13 +495,20 @@ export async function getAvailableCreditsForRoom(
 
 /**
  * Calcula o saldo total de créditos disponíveis para um consultório
+ * @param userId ID do usuário
+ * @param roomId ID do consultório
+ * @param bookingDate Data da reserva
+ * @param startTime Início da reserva (opcional, para validar usageType)
+ * @param endTime Fim da reserva (opcional, para validar usageType)
  */
 export async function getCreditBalanceForRoom(
   userId: string,
   roomId: string,
-  bookingDate: Date = new Date()
+  bookingDate: Date = new Date(),
+  startTime?: Date,
+  endTime?: Date
 ): Promise<number> {
-  const credits = await getAvailableCreditsForRoom(userId, roomId, bookingDate);
+  const credits = await getAvailableCreditsForRoom(userId, roomId, bookingDate, startTime, endTime);
   return credits.reduce((sum, c) => sum + c.remainingAmount, 0);
 }
 
@@ -173,15 +520,19 @@ export async function getCreditBalanceForRoom(
  * @param roomId ID do consultório
  * @param amount Valor a consumir (em centavos)
  * @param bookingDate Data da reserva
+ * @param startTime Início da reserva (opcional, para validar usageType)
+ * @param endTime Fim da reserva (opcional, para validar usageType)
  * @returns { creditIds, totalConsumed }
  */
 export async function consumeCreditsForBooking(
   userId: string,
   roomId: string,
   amount: number,
-  bookingDate: Date
+  bookingDate: Date,
+  startTime?: Date,
+  endTime?: Date
 ): Promise<{ creditIds: string[]; totalConsumed: number }> {
-  const credits = await getAvailableCreditsForRoom(userId, roomId, bookingDate);
+  const credits = await getAvailableCreditsForRoom(userId, roomId, bookingDate, startTime, endTime);
   
   let remaining = amount;
   const usedCreditIds: string[] = [];
@@ -273,6 +624,7 @@ export async function createManualCredit(params: {
   roomId?: string;
   amount: number;
   type: 'PROMO' | 'MANUAL' | 'SATURDAY';
+  usageType?: 'HOURLY' | 'SHIFT' | 'SATURDAY_HOURLY' | 'SATURDAY_SHIFT';
   expiresInMonths?: number;
   notes?: string;
 }): Promise<Credit> {
@@ -286,6 +638,7 @@ export async function createManualCredit(params: {
       amount: params.amount,
       remainingAmount: params.amount,
       type: params.type,
+      usageType: params.usageType ?? null, // null = legado (sem restrição)
       status: 'CONFIRMED',
       referenceMonth: now.getMonth() + 1,
       referenceYear: now.getFullYear(),

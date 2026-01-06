@@ -12,10 +12,18 @@ import {
   TURNO_PROTECTION_ERROR_CODE,
   TURNO_PROTECTION_ERROR_MESSAGE,
 } from '@/lib/turno-protection';
+import { 
+  SHIFT_BLOCKS, 
+  isSaturdayDay, 
+  type ShiftBlock 
+} from '@/lib/business-hours';
 
 // ===========================================================
 // TIPOS
 // ===========================================================
+
+// Tipos de uso de crédito
+type CreditUsageType = 'HOURLY' | 'SHIFT' | 'SATURDAY_HOURLY' | 'SATURDAY_SHIFT' | null;
 
 interface Room {
   id: string;
@@ -30,6 +38,20 @@ interface CreditBalance {
   roomName: string;
   amount: number;
   tier: number | null;
+}
+
+// Crédito individual (lista completa da API)
+interface Credit {
+  id: string;
+  roomId: string | null;
+  roomName: string | null;
+  roomTier: number | null;
+  amount: number;
+  remainingAmount: number;
+  type: string;
+  usageType: CreditUsageType;
+  expiresAt: string | null;
+  createdAt: string;
 }
 
 interface TimeSlot {
@@ -51,14 +73,17 @@ interface CreditBookingWizardProps {
 export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCredits }: CreditBookingWizardProps) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [creditsByRoom, setCreditsByRoom] = useState<CreditBalance[]>([]);
+  const [allCredits, setAllCredits] = useState<Credit[]>([]); // Lista completa de créditos para filtrar por usageType
   const [totalCredits, setTotalCredits] = useState(0);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   // Seleções
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [selectedCredit, setSelectedCredit] = useState<Credit | null>(null); // Crédito selecionado (para restricionar datas/horários)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedHours, setSelectedHours] = useState<number[]>([]);
+  const [selectedShiftBlock, setSelectedShiftBlock] = useState<ShiftBlock | null>(null); // Para créditos SHIFT
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
@@ -88,6 +113,10 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCre
         if (creditsData.summary) {
           setTotalCredits(creditsData.summary.total);
           setCreditsByRoom(creditsData.summary.byRoom || []);
+        }
+        // Armazena lista completa de créditos com usageType
+        if (creditsData.credits) {
+          setAllCredits(creditsData.credits);
         }
       }
 
@@ -149,11 +178,27 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCre
   }
 
   function calculateTotal(): number {
-    if (!selectedRoom || selectedHours.length === 0) return 0;
+    if (!selectedRoom) return 0;
+    // Para SHIFT, o total é 4h (bloco fixo)
+    if (isShiftCredit(selectedCredit) && selectedShiftBlock) {
+      return 4 * selectedRoom.pricePerHour;
+    }
+    if (selectedHours.length === 0) return 0;
     return selectedHours.length * selectedRoom.pricePerHour;
   }
 
   function toggleHour(hour: number) {
+    // Se crédito é HOURLY ou SATURDAY_HOURLY, só permite 1 hora
+    if (isSingleHourCredit(selectedCredit)) {
+      if (selectedHours.includes(hour)) {
+        setSelectedHours([]);
+      } else {
+        setSelectedHours([hour]); // Substitui ao invés de adicionar
+      }
+      return;
+    }
+    
+    // Comportamento legado: múltiplas horas
     if (selectedHours.includes(hour)) {
       setSelectedHours(selectedHours.filter(h => h !== hour));
     } else {
@@ -162,13 +207,21 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCre
   }
 
   async function handleSubmit() {
-    if (!selectedRoom || !selectedDate || selectedHours.length === 0) {
-      setError('Selecione consultório, data e horários');
-      return;
+    // Validação para créditos de SHIFT
+    if (isShiftCredit(selectedCredit)) {
+      if (!selectedRoom || !selectedDate || !selectedShiftBlock) {
+        setError('Selecione consultório, data e bloco de turno');
+        return;
+      }
+    } else {
+      if (!selectedRoom || !selectedDate || selectedHours.length === 0) {
+        setError('Selecione consultório, data e horários');
+        return;
+      }
     }
 
     const total = calculateTotal();
-    const availableCredit = getAvailableCreditsForRoom(selectedRoom);
+    const availableCredit = getAvailableCreditsForRoom(selectedRoom!);
 
     if (total > availableCredit) {
       setError('Saldo insuficiente para esta reserva');
@@ -179,13 +232,22 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCre
     setError('');
 
     try {
-      const startHour = Math.min(...selectedHours);
-      const endHour = Math.max(...selectedHours) + 1;
+      let startHour: number;
+      let endHour: number;
 
-      const startTime = new Date(selectedDate);
+      // Para SHIFT, usa o bloco selecionado
+      if (isShiftCredit(selectedCredit) && selectedShiftBlock) {
+        startHour = selectedShiftBlock.start;
+        endHour = selectedShiftBlock.end;
+      } else {
+        startHour = Math.min(...selectedHours);
+        endHour = Math.max(...selectedHours) + 1;
+      }
+
+      const startTime = new Date(selectedDate!);
       startTime.setHours(startHour, 0, 0, 0);
 
-      const endTime = new Date(selectedDate);
+      const endTime = new Date(selectedDate!);
       endTime.setHours(endHour, 0, 0, 0);
 
       const res = await fetch('/api/bookings/create-with-credit', {
@@ -226,6 +288,52 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCre
     return isTurnoDay(date) && !isWithinTurnoProtectionWindow(date);
   }
 
+  // ===== LÓGICA DE FILTRO DE DATAS POR USAGETYPE =====
+  // Retorna true se a data é válida para o crédito selecionado
+  function isDateValidForCredit(date: Date, credit: Credit | null): boolean {
+    // Crédito legado (null) ou sem crédito selecionado: qualquer dia
+    if (!credit || credit.usageType === null) {
+      return true;
+    }
+
+    const isSaturday = isSaturdayDay(date);
+
+    switch (credit.usageType) {
+      case 'SATURDAY_HOURLY':
+      case 'SATURDAY_SHIFT':
+        // Apenas sábados
+        return isSaturday;
+      case 'HOURLY':
+      case 'SHIFT':
+        // Apenas dias úteis (seg-sex)
+        return !isSaturday;
+      default:
+        return true;
+    }
+  }
+
+  // Retorna os créditos disponíveis para a sala selecionada
+  function getCreditsForSelectedRoom(room: Room): Credit[] {
+    return allCredits.filter(c => {
+      // Verifica se o crédito é aplicável à sala (tier compatível)
+      if (c.roomTier !== null && c.roomTier > room.tier) {
+        return false;
+      }
+      // Verifica se tem saldo
+      return c.remainingAmount > 0;
+    });
+  }
+
+  // Verifica se um crédito é do tipo SHIFT
+  function isShiftCredit(credit: Credit | null): boolean {
+    return credit?.usageType === 'SHIFT' || credit?.usageType === 'SATURDAY_SHIFT';
+  }
+
+  // Verifica se crédito só permite 1 hora
+  function isSingleHourCredit(credit: Credit | null): boolean {
+    return credit?.usageType === 'HOURLY' || credit?.usageType === 'SATURDAY_HOURLY';
+  }
+
   // Gera próximos dias disponíveis
   // REGRA ANTI-CANIBALIZAÇÃO: Dias de TURNO só podem ser reservados até 30 dias
   const maxDays = 365; // Mostra até 365 dias, mas filtra os bloqueados
@@ -237,6 +345,10 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCre
       }
       // NOVA REGRA: Bloqueia dias de TURNO além de 30 dias
       if (isDateBlockedByTurnoProtection(date)) {
+        return false;
+      }
+      // NOVA REGRA: Filtra por usageType do crédito selecionado
+      if (!isDateValidForCredit(date, selectedCredit)) {
         return false;
       }
       return true;
@@ -285,7 +397,19 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCre
 
   const total = calculateTotal();
   const availableForSelected = selectedRoom ? getAvailableCreditsForRoom(selectedRoom) : 0;
-  const canSubmit = selectedRoom && selectedDate && selectedHours.length > 0 && total <= availableForSelected;
+  
+  // Diferentes condições de submit para SHIFT vs horas
+  const canSubmit = (() => {
+    if (!selectedRoom || !selectedDate || total > availableForSelected) return false;
+    
+    // Para SHIFT, precisa ter bloco selecionado
+    if (isShiftCredit(selectedCredit)) {
+      return selectedShiftBlock !== null;
+    }
+    
+    // Para outros, precisa ter horas selecionadas
+    return selectedHours.length > 0;
+  })();
 
   return (
     <div className="space-y-6">
@@ -313,7 +437,13 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCre
             return (
               <button
                 key={room.id}
-                onClick={() => { setSelectedRoom(room); setSelectedHours([]); }}
+                onClick={() => { 
+                  setSelectedRoom(room); 
+                  setSelectedCredit(null); // Reset crédito ao mudar sala
+                  setSelectedHours([]); 
+                  setSelectedShiftBlock(null);
+                  setSelectedDate(null);
+                }}
                 className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all text-left bg-white ${
                   selectedRoom?.id === room.id
                     ? 'border-primary-500 ring-2 ring-primary-100'
@@ -336,18 +466,98 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCre
         </div>
       </div>
 
-      {/* Step 2: Data */}
-      {selectedRoom && (
-        <div className="bg-gray-50 rounded-xl p-5">
-          <h3 className="text-base font-semibold text-gray-900 mb-4">2. Escolha a data</h3>
-          
-          {/* Aviso sobre proteção de turnos */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-            <p className="text-sm text-amber-800">
-              ℹ️ Para dias úteis (seg-sex), reservas de horas avulsas podem ser feitas com até 30 dias de antecedência.
-              Sábados seguem disponibilidade normal.
-            </p>
+      {/* Step 1.5: Escolha do Crédito (só aparece se há créditos com usageType diferente) */}
+      {selectedRoom && (() => {
+        const roomCredits = getCreditsForSelectedRoom(selectedRoom);
+        // Se só há créditos legados (null), não mostra seleção
+        const hasTypedCredits = roomCredits.some(c => c.usageType !== null);
+        if (!hasTypedCredits && roomCredits.length > 0) {
+          // Auto-seleciona crédito legado (comportamento padrão)
+          if (!selectedCredit && roomCredits.length > 0) {
+            // Não precisa selecionar, usa comportamento legado
+          }
+          return null;
+        }
+        
+        return (
+          <div className="bg-gray-50 rounded-xl p-5">
+            <h3 className="text-base font-semibold text-gray-900 mb-4">2. Escolha o tipo de crédito</h3>
+            <div className="grid gap-3">
+              {roomCredits.map((credit) => {
+                const label = credit.usageType === 'SHIFT' ? 'Turno Fixo (4h)' :
+                              credit.usageType === 'SATURDAY_SHIFT' ? 'Turno Sábado (4h)' :
+                              credit.usageType === 'HOURLY' ? 'Hora Avulsa (dias úteis)' :
+                              credit.usageType === 'SATURDAY_HOURLY' ? 'Hora Avulsa (sábado)' :
+                              'Crédito Flex';
+                              
+                return (
+                  <button
+                    key={credit.id}
+                    onClick={() => { 
+                      setSelectedCredit(credit); 
+                      setSelectedHours([]); 
+                      setSelectedShiftBlock(null);
+                      setSelectedDate(null);
+                    }}
+                    className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all text-left bg-white ${
+                      selectedCredit?.id === credit.id
+                        ? 'border-primary-500 ring-2 ring-primary-100'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div>
+                      <p className="font-medium text-gray-900">{label}</p>
+                      <p className="text-sm text-gray-500">
+                        {credit.usageType === 'SHIFT' || credit.usageType === 'SATURDAY_SHIFT' 
+                          ? 'Bloco de 4 horas' 
+                          : credit.usageType === null 
+                            ? 'Múltiplas horas'
+                            : '1 hora por reserva'
+                        }
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500">Disponível</p>
+                      <p className="font-medium text-primary-600">{formatCurrency(credit.remainingAmount)}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
+        );
+      })()}
+
+      {/* Step 2/3: Data */}
+      {selectedRoom && (selectedCredit || !getCreditsForSelectedRoom(selectedRoom).some(c => c.usageType !== null)) && (
+        <div className="bg-gray-50 rounded-xl p-5">
+          <h3 className="text-base font-semibold text-gray-900 mb-4">
+            {getCreditsForSelectedRoom(selectedRoom).some(c => c.usageType !== null) ? '3' : '2'}. Escolha a data
+          </h3>
+          
+          {/* Aviso contextual baseado no tipo de crédito */}
+          {isShiftCredit(selectedCredit) ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-blue-800">
+                ℹ️ Crédito de turno: você reservará um bloco fixo de 4 horas.
+                {selectedCredit?.usageType === 'SATURDAY_SHIFT' ? ' Disponível apenas aos sábados.' : ' Disponível de seg-sex.'}
+              </p>
+            </div>
+          ) : isSingleHourCredit(selectedCredit) ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-blue-800">
+                ℹ️ Crédito de hora avulsa: você pode reservar 1 hora por vez.
+                {selectedCredit?.usageType === 'SATURDAY_HOURLY' ? ' Disponível apenas aos sábados.' : ' Disponível de seg-sex.'}
+              </p>
+            </div>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-amber-800">
+                ℹ️ Para dias úteis (seg-sex), reservas de horas avulsas podem ser feitas com até 30 dias de antecedência.
+                Sábados seguem disponibilidade normal.
+              </p>
+            </div>
+          )}
 
           {hasBookingLimit && maxBookingDate && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
@@ -362,7 +572,7 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCre
             {dateOptions.slice(0, 14).map((date) => (
               <button
                 key={date.toISOString()}
-                onClick={() => { setSelectedDate(date); setSelectedHours([]); }}
+                onClick={() => { setSelectedDate(date); setSelectedHours([]); setSelectedShiftBlock(null); }}
                 className={`flex-shrink-0 w-16 p-3 rounded-xl text-center transition-all ${
                   selectedDate?.toDateString() === date.toDateString()
                     ? 'bg-primary-500 text-white shadow-lg'
@@ -378,40 +588,91 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCre
         </div>
       )}
 
-      {/* Step 3: Horários */}
+      {/* Step 3/4: Horários ou Turnos */}
       {selectedRoom && selectedDate && (
         <div className="bg-gray-50 rounded-xl p-5">
-          <h3 className="text-base font-semibold text-gray-900 mb-4">3. Escolha os horários</h3>
+          <h3 className="text-base font-semibold text-gray-900 mb-4">
+            {getCreditsForSelectedRoom(selectedRoom).some(c => c.usageType !== null) ? '4' : '3'}. 
+            {isShiftCredit(selectedCredit) ? ' Escolha o turno' : ' Escolha os horários'}
+          </h3>
           
           {loadingSlots ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin h-8 w-8 border-4 border-primary-500 border-t-transparent rounded-full" />
             </div>
-          ) : (
-            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-              {availableSlots.map((slot) => (
-                <button
-                  key={slot.hour}
-                  onClick={() => slot.available && toggleHour(slot.hour)}
-                  disabled={!slot.available}
-                  className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
-                    selectedHours.includes(slot.hour)
-                      ? 'bg-primary-500 text-white shadow-lg'
-                      : slot.available
-                      ? 'bg-white border border-gray-200 hover:border-primary-300 text-gray-900'
-                      : 'bg-gray-100 text-gray-300 cursor-not-allowed'
-                  }`}
-                >
-                  {String(slot.hour).padStart(2, '0')}:00
-                </button>
-              ))}
+          ) : isShiftCredit(selectedCredit) ? (
+            /* UI de blocos de turno para créditos SHIFT */
+            <div className="grid gap-3">
+              {(isSaturdayDay(selectedDate) ? SHIFT_BLOCKS.SATURDAY : SHIFT_BLOCKS.WEEKDAY).map((block) => {
+                // Verifica se todos os horários do bloco estão disponíveis
+                const blockHours = Array.from({ length: block.end - block.start }, (_, i) => block.start + i);
+                const isBlockAvailable = blockHours.every(h => 
+                  availableSlots.find(s => s.hour === h)?.available
+                );
+                
+                return (
+                  <button
+                    key={block.id}
+                    onClick={() => isBlockAvailable && setSelectedShiftBlock(block)}
+                    disabled={!isBlockAvailable}
+                    className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all text-left ${
+                      selectedShiftBlock?.id === block.id
+                        ? 'border-primary-500 ring-2 ring-primary-100 bg-primary-50'
+                        : isBlockAvailable
+                        ? 'bg-white border-gray-200 hover:border-gray-300'
+                        : 'bg-gray-100 border-gray-200 cursor-not-allowed opacity-50'
+                    }`}
+                  >
+                    <div>
+                      <p className={`font-medium ${selectedShiftBlock?.id === block.id ? 'text-primary-700' : isBlockAvailable ? 'text-gray-900' : 'text-gray-400'}`}>
+                        {block.label}
+                      </p>
+                      <p className={`text-sm ${selectedShiftBlock?.id === block.id ? 'text-primary-600' : 'text-gray-500'}`}>
+                        {String(block.start).padStart(2, '0')}:00 - {String(block.end).padStart(2, '0')}:00 (4h)
+                      </p>
+                    </div>
+                    {!isBlockAvailable && (
+                      <span className="text-xs text-red-500">Indisponível</span>
+                    )}
+                    {selectedShiftBlock?.id === block.id && (
+                      <span className="text-primary-600 text-lg">✓</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
+          ) : (
+            <>
+              {isSingleHourCredit(selectedCredit) && (
+                <p className="text-sm text-gray-500 mb-3">
+                  Selecione apenas 1 hora por reserva
+                </p>
+              )}
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                {availableSlots.map((slot) => (
+                  <button
+                    key={slot.hour}
+                    onClick={() => slot.available && toggleHour(slot.hour)}
+                    disabled={!slot.available}
+                    className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
+                      selectedHours.includes(slot.hour)
+                        ? 'bg-primary-500 text-white shadow-lg'
+                        : slot.available
+                        ? 'bg-white border border-gray-200 hover:border-primary-300 text-gray-900'
+                        : 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                    }`}
+                  >
+                    {String(slot.hour).padStart(2, '0')}:00
+                  </button>
+                ))}
+              </div>
+            </>
           )}
         </div>
       )}
 
       {/* Resumo */}
-      {selectedRoom && selectedHours.length > 0 && (
+      {selectedRoom && (selectedHours.length > 0 || selectedShiftBlock) && (
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h3 className="text-base font-semibold text-gray-900 mb-4">Resumo</h3>
           
@@ -429,9 +690,19 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCre
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Horário</span>
               <span className="font-medium text-gray-900">
-                {String(Math.min(...selectedHours)).padStart(2, '0')}:00 - 
-                {String(Math.max(...selectedHours) + 1).padStart(2, '0')}:00
-                ({selectedHours.length}h)
+                {isShiftCredit(selectedCredit) && selectedShiftBlock ? (
+                  <>
+                    {String(selectedShiftBlock.start).padStart(2, '0')}:00 - 
+                    {String(selectedShiftBlock.end).padStart(2, '0')}:00
+                    (4h - Turno)
+                  </>
+                ) : (
+                  <>
+                    {String(Math.min(...selectedHours)).padStart(2, '0')}:00 - 
+                    {String(Math.max(...selectedHours) + 1).padStart(2, '0')}:00
+                    ({selectedHours.length}h)
+                  </>
+                )}
               </span>
             </div>
             <div className="flex justify-between pt-3 border-t border-gray-100">

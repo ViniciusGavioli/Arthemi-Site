@@ -17,6 +17,7 @@ interface ExtendedCredit {
   remainingAmount: number;
   type: string;
   status: string;
+  usageType?: string | null; // HOURLY | SHIFT | SATURDAY_HOURLY | SATURDAY_SHIFT
   expiresAt: Date | null;
   createdAt: Date;
 }
@@ -29,6 +30,7 @@ interface CreditItem {
   amount: number;
   remainingAmount: number;
   type: string;
+  usageType: string | null; // HOURLY | SHIFT | SATURDAY_HOURLY | SATURDAY_SHIFT
   expiresAt: string | null;
   createdAt: string;
 }
@@ -106,6 +108,7 @@ export default async function handler(
           amount: c.amount,
           remainingAmount: c.remainingAmount || c.amount,
           type: c.type,
+          usageType: c.usageType ?? null,
           expiresAt: c.expiresAt?.toISOString() ?? null,
           createdAt: c.createdAt.toISOString(),
         })),
@@ -141,6 +144,7 @@ export default async function handler(
         amount: c.amount,
         remainingAmount: c.remainingAmount,
         type: c.type,
+        usageType: c.usageType ?? null,
         expiresAt: c.expiresAt?.toISOString() ?? null,
         createdAt: c.createdAt.toISOString(),
       })),

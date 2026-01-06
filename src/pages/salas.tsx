@@ -14,7 +14,7 @@ import SEO, { BreadcrumbSchema } from '@/components/SEO';
 import Layout from '@/components/Layout';
 import { PAGE_SEO } from '@/constants/seo';
 import { formatCurrency } from '@/lib/utils';
-import { PRICES_V3, formatPrice } from '@/constants/prices';
+import { PRICES_V3, formatPrice, getAllProductsForRoom } from '@/constants/prices';
 import { Lightbulb, CheckCircle2, Eye } from 'lucide-react';
 
 // Helper para calcular menor preço por hora de um consultório
@@ -362,7 +362,10 @@ export default function SalasPage({ rooms }: SalasPageProps) {
       {isModalOpen && selectedRoom && (
         <BookingModal
           room={selectedRoom}
-          products={selectedRoom.products}
+          products={getAllProductsForRoom(
+            selectedRoom.slug === 'sala-a' ? 'SALA_A' :
+            selectedRoom.slug === 'sala-b' ? 'SALA_B' : 'SALA_C'
+          )}
           onClose={handleCloseModal}
         />
       )}

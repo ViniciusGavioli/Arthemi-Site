@@ -182,8 +182,9 @@ export default async function handler(
         });
       }
 
-      // Bloquear produtos descontinuados (DAY_PASS)
-      if (product.type === 'DAY_PASS') {
+      // Bloquear produtos descontinuados (DAY_PASS, SHIFT_FIXED, SATURDAY_5H)
+      const discontinuedTypes = ['DAY_PASS', 'SHIFT_FIXED', 'SATURDAY_5H'];
+      if (discontinuedTypes.includes(product.type)) {
         return res.status(400).json({
           success: false,
           error: 'Este produto foi descontinuado e não está mais disponível para compra.',

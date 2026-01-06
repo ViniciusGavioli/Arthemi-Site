@@ -141,9 +141,19 @@ export const PRODUCT_HOURS = {
 // ===========================================================
 // PACOTES DISPONÍVEIS PARA VENDA (fonte única de verdade)
 // ===========================================================
-// Exclui DAY_PASS que foi descontinuado
+// Exclui DAY_PASS, SHIFT_FIXED, SATURDAY_5H que foram descontinuados
 export const PURCHASABLE_PACKAGES = ['PACKAGE_10H', 'PACKAGE_20H', 'PACKAGE_40H'] as const;
 export type PurchasablePackage = typeof PURCHASABLE_PACKAGES[number];
+
+// Produtos oficiais para dias úteis
+export const WEEKDAY_PRODUCTS = ['HOURLY_RATE', 'PACKAGE_10H', 'PACKAGE_20H', 'PACKAGE_40H'] as const;
+
+// Produtos oficiais para sábado
+export const SATURDAY_PRODUCTS = ['SATURDAY_HOUR'] as const;
+
+// Todos os produtos vendáveis (catálogo oficial)
+export const OFFICIAL_PRODUCT_TYPES = [...WEEKDAY_PRODUCTS, ...SATURDAY_PRODUCTS] as const;
+export type OfficialProductType = typeof OFFICIAL_PRODUCT_TYPES[number];
 
 // Helper para obter pacotes com preços para uma sala
 export function getPackagesForRoom(roomKey: RoomKey) {
@@ -169,5 +179,55 @@ export function getPackagesForRoom(roomKey: RoomKey) {
   });
 }
 
+// Helper para obter TODOS os produtos oficiais para uma sala (usado em BookingModal)
+export function getAllProductsForRoom(roomKey: RoomKey): Array<{
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  hoursIncluded: number;
+  type: string;
+  roomId: string | null;
+}> {
+  const room = PRICES_V3[roomKey];
+  const products: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    price: number;
+    hoursIncluded: number;
+    type: string;
+    roomId: string | null;
+  }> = [];
+  
+  // Pacotes dias úteis (10h, 20h, 40h)
+  PURCHASABLE_PACKAGES.forEach(pkgType => {
+    const hours = PRODUCT_HOURS[pkgType];
+    const priceReais = room.prices[pkgType];
+    products.push({
+      id: `${pkgType.toLowerCase()}-${roomKey.toLowerCase()}`,
+      name: PRODUCT_DESCRIPTIONS[pkgType],
+      slug: `${pkgType.toLowerCase().replace(/_/g, '-')}-${roomKey.toLowerCase().replace('_', '-')}`,
+      price: Math.round(priceReais * 100), // em centavos
+      hoursIncluded: hours,
+      type: pkgType,
+      roomId: null,
+    });
+  });
+  
+  // Sábado hora avulsa
+  products.push({
+    id: `saturday-hour-${roomKey.toLowerCase()}`,
+    name: PRODUCT_DESCRIPTIONS.SATURDAY_HOUR,
+    slug: `saturday-hour-${roomKey.toLowerCase().replace('_', '-')}`,
+    price: Math.round(room.prices.SATURDAY_HOUR * 100), // em centavos
+    hoursIncluded: 1,
+    type: 'SATURDAY_HOUR',
+    roomId: null,
+  });
+  
+  return products;
+}
+
 // Produtos descontinuados (bloquear venda)
-export const DISCONTINUED_PRODUCTS = ['DAY_PASS'] as const;
+export const DISCONTINUED_PRODUCTS = ['DAY_PASS', 'SHIFT_FIXED', 'SATURDAY_5H'] as const;

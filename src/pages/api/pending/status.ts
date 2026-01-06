@@ -85,7 +85,7 @@ export default async function handler(
     }
 
     if (type === 'credit') {
-      const credit = await prisma.creditPurchase.findUnique({
+      const credit = await prisma.credit.findUnique({
         where: { id },
         select: {
           id: true,

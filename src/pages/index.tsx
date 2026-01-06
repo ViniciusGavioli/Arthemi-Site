@@ -10,7 +10,7 @@ import Layout from '@/components/Layout';
 import RoomDetailsModal from '@/components/RoomDetailsModal';
 import BookingModal from '@/components/BookingModal';
 import { PAGE_SEO, BUSINESS_INFO } from '@/constants/seo';
-import { PRICES_V3, formatPrice } from '@/constants/prices';
+import { PRICES_V3, formatPrice, getPackagesForRoom, type RoomKey } from '@/constants/prices';
 import { 
   Sparkles, 
   Clock, 
@@ -70,6 +70,28 @@ const roomsData = [
   },
 ];
 
+// Helper para gerar products a partir do PRICES_V3
+function getProductsForRoom(roomKey: RoomKey): Array<{
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  hoursIncluded: number;
+  type: string;
+  roomId: string | null;
+}> {
+  const packages = getPackagesForRoom(roomKey);
+  return packages.map(pkg => ({
+    id: `${pkg.type.toLowerCase()}-${roomKey.toLowerCase()}`,
+    name: pkg.name,
+    slug: `${pkg.type.toLowerCase().replace(/_/g, '-')}-${roomKey.toLowerCase().replace('_', '-')}`,
+    price: pkg.priceCents, // Em centavos para compatibilidade com BookingModal
+    hoursIncluded: pkg.hours,
+    type: pkg.type,
+    roomId: null,
+  }));
+}
+
 // Dados estáticos das salas para o BookingModal (sem buscar do banco)
 const staticRoomsForBooking = [
   {
@@ -81,7 +103,7 @@ const staticRoomsForBooking = [
     capacity: 4,
     amenities: ['Maca profissional', 'Ar-condicionado', 'Wi-Fi', 'Lavatório'],
     hourlyRate: Math.round(PRICES_V3.SALA_A.prices.HOURLY_RATE * 100), // em centavos
-    products: [],
+    products: getProductsForRoom('SALA_A'),
   },
   {
     id: 'sala-b-static',
@@ -92,7 +114,7 @@ const staticRoomsForBooking = [
     capacity: 3,
     amenities: ['Maca profissional', 'Ar-condicionado', 'Wi-Fi', 'Lavatório'],
     hourlyRate: Math.round(PRICES_V3.SALA_B.prices.HOURLY_RATE * 100), // em centavos
-    products: [],
+    products: getProductsForRoom('SALA_B'),
   },
   {
     id: 'sala-c-static',
@@ -103,7 +125,7 @@ const staticRoomsForBooking = [
     capacity: 2,
     amenities: ['Ar-condicionado', 'Wi-Fi', 'Poltronas'],
     hourlyRate: Math.round(PRICES_V3.SALA_C.prices.HOURLY_RATE * 100), // em centavos
-    products: [],
+    products: getProductsForRoom('SALA_C'),
   },
 ];
 
@@ -719,7 +741,7 @@ export default function Home() {
       {bookingRoom && (
         <BookingModal
           room={bookingRoom}
-          products={[]}
+          products={bookingRoom.products}
           onClose={() => setBookingRoom(null)}
         />
       )}

@@ -449,7 +449,6 @@ export default function NovaReservaPage() {
                   options={[
                     { value: 'HOURLY', label: 'Hora Avulsa' },
                     { value: 'SHIFT', label: 'Turno (4h)' },
-                    { value: 'DAY_PASS', label: 'Diária (8h-20h)' },
                   ]}
                 />
 

@@ -137,3 +137,37 @@ export const PRODUCT_HOURS = {
   SATURDAY_HOUR: 1,
   SATURDAY_5H: 5,
 } as const;
+
+// ===========================================================
+// PACOTES DISPONÍVEIS PARA VENDA (fonte única de verdade)
+// ===========================================================
+// Exclui DAY_PASS que foi descontinuado
+export const PURCHASABLE_PACKAGES = ['PACKAGE_10H', 'PACKAGE_20H', 'PACKAGE_40H'] as const;
+export type PurchasablePackage = typeof PURCHASABLE_PACKAGES[number];
+
+// Helper para obter pacotes com preços para uma sala
+export function getPackagesForRoom(roomKey: RoomKey) {
+  const room = PRICES_V3[roomKey];
+  const hourlyRate = room.prices.HOURLY_RATE;
+  
+  return PURCHASABLE_PACKAGES.map(pkgType => {
+    const hours = PRODUCT_HOURS[pkgType];
+    const price = room.prices[pkgType];
+    const pricePerHour = price / hours;
+    const discount = Math.round(((hourlyRate - pricePerHour) / hourlyRate) * 100);
+    
+    return {
+      type: pkgType,
+      name: PRODUCT_DESCRIPTIONS[pkgType],
+      hours,
+      price,         // em reais (ex: 559.90)
+      priceCents: Math.round(price * 100), // em centavos (ex: 55990)
+      pricePerHour,
+      discount,
+      validity: PRODUCT_VALIDITY[pkgType],
+    };
+  });
+}
+
+// Produtos descontinuados (bloquear venda)
+export const DISCONTINUED_PRODUCTS = ['DAY_PASS'] as const;

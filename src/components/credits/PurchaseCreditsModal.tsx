@@ -8,6 +8,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { X, Package, Clock, Check } from 'lucide-react';
 import { PaymentMethodSelector, PaymentMethod } from '@/components/booking/PaymentMethodSelector';
+import { PRICES_V3, ROOM_SLUG_MAP, getPackagesForRoom, type RoomKey } from '@/constants/prices';
 
 // ===========================================================
 // TIPOS
@@ -44,14 +45,7 @@ interface PurchaseCreditsModalProps {
   user: User;
 }
 
-// Pacotes com desconto (fixos)
-const PACKAGES: Omit<Product, 'price'>[] = [
-  { id: 'pkg-5h', name: 'Pacote 5 horas', hours: 5, discount: 5, type: 'pacote' },
-  { id: 'pkg-10h', name: 'Pacote 10 horas', hours: 10, discount: 10, type: 'pacote' },
-  { id: 'pkg-20h', name: 'Pacote 20 horas', hours: 20, discount: 20, type: 'pacote' },
-];
-
-// Horas avulsas (preço cheio)
+// Horas avulsas (preço cheio) - apenas 1, 2, 3 horas
 const AVULSA_OPTIONS = [1, 2, 3];
 
 // ===========================================================
@@ -81,25 +75,37 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
   });
 
   // Gera produtos dinamicamente baseado na sala selecionada
+  // USA PRICES_V3 como fonte única de verdade
   const products = useMemo<Product[]>(() => {
     if (!selectedRoom) return [];
     
-    const pricePerHour = selectedRoom.pricePerHour; // já em centavos
+    // Mapear slug para roomKey
+    const roomKey = ROOM_SLUG_MAP[selectedRoom.slug] as RoomKey | undefined;
+    if (!roomKey) return [];
+    
+    const roomPrices = PRICES_V3[roomKey].prices;
+    const pricePerHourReais = roomPrices.HOURLY_RATE; // Em reais
+    const pricePerHourCents = Math.round(pricePerHourReais * 100); // Em centavos
     
     // Horas avulsas (preço cheio)
     const avulsas: Product[] = AVULSA_OPTIONS.map(hours => ({
       id: `avulsa-${hours}h`,
       name: `${hours} hora${hours > 1 ? 's' : ''}`,
       hours,
-      price: pricePerHour * hours,
+      price: pricePerHourCents * hours,
       discount: 0,
       type: 'avulsa' as const,
     }));
     
-    // Pacotes com desconto
-    const pacotes: Product[] = PACKAGES.map(pkg => ({
-      ...pkg,
-      price: Math.round(pricePerHour * pkg.hours * (1 - pkg.discount / 100)),
+    // Pacotes com preços do PRICES_V3 (NÃO calculados dinamicamente)
+    const packages = getPackagesForRoom(roomKey);
+    const pacotes: Product[] = packages.map(pkg => ({
+      id: `pkg-${pkg.hours}h`,
+      name: pkg.name,
+      hours: pkg.hours,
+      price: pkg.priceCents, // Em centavos
+      discount: pkg.discount,
+      type: 'pacote' as const,
     }));
     
     return [...avulsas, ...pacotes];

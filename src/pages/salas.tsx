@@ -240,20 +240,17 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                         </thead>
                         <tbody className="divide-y divide-warm-100">
                           {(() => {
-                            // Valor base da hora avulsa (usar hourlyRate da sala)
-                            const baseHourlyPrice = room.hourlyRate || 0;
-                            
-                            // Pegar valores de sábado e turno fixo do PRICES_V3
+                            // Usar PRICES_V3 como fonte única de verdade
                             const roomKey = room.slug === 'sala-a' ? 'SALA_A' : room.slug === 'sala-b' ? 'SALA_B' : 'SALA_C';
                             const roomPrices = PRICES_V3[roomKey].prices;
+                            const baseHourlyPrice = roomPrices.HOURLY_RATE; // Em reais
                             
-                            // Definir pacotes com preços calculados
-                            // Regra: 10h = -7%, 20h = -13%, 40h = -18%
+                            // Pacotes com preços do PRICES_V3 (não calculados)
                             const packages = [
-                              { hours: 1, label: '1h', price: baseHourlyPrice, isHourly: true, isSaturday: false },
-                              { hours: 10, label: '10h', price: Math.round(baseHourlyPrice * 10 * 0.93), isHourly: false, isSaturday: false }, // -7%
-                              { hours: 20, label: '20h', price: Math.round(baseHourlyPrice * 20 * 0.87), isHourly: false, isSaturday: false }, // -13%
-                              { hours: 40, label: '40h', price: Math.round(baseHourlyPrice * 40 * 0.82), isHourly: false, isSaturday: false }, // -18%
+                              { hours: 1, label: '1h', price: baseHourlyPrice, isHourly: true },
+                              { hours: 10, label: '10h', price: roomPrices.PACKAGE_10H, isHourly: false },
+                              { hours: 20, label: '20h', price: roomPrices.PACKAGE_20H, isHourly: false },
+                              { hours: 40, label: '40h', price: roomPrices.PACKAGE_40H, isHourly: false },
                             ];
 
                             return packages.map((pkg, idx) => {
@@ -264,7 +261,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                                 <tr key={idx} className={`hover:bg-warm-50 ${!pkg.isHourly ? 'bg-accent-50/30' : ''}`}>
                                   <td className="px-4 sm:px-6 py-4 text-center">
                                     <span className="text-secondary-600">
-                                      {formatCurrency(baseHourlyPrice)}
+                                      {formatPrice(baseHourlyPrice)}
                                     </span>
                                   </td>
                                   <td className="px-4 sm:px-6 py-4 text-center text-secondary-600 font-medium">
@@ -272,12 +269,12 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                                   </td>
                                   <td className="px-4 sm:px-6 py-4 text-center">
                                     <span className="font-semibold text-accent-600">
-                                      {formatCurrency(pkg.price)}
+                                      {formatPrice(pkg.price)}
                                     </span>
                                   </td>
                                   <td className="px-4 sm:px-6 py-4 text-center">
                                     <span className="font-medium text-primary-800">
-                                      {formatCurrency(pricePerHour)}
+                                      {formatPrice(pricePerHour)}
                                     </span>
                                   </td>
                                   <td className="px-4 sm:px-6 py-4 text-center">
@@ -313,10 +310,6 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                               <div className="flex justify-between items-center bg-white rounded-lg px-4 py-3 border border-warm-200">
                                 <span className="text-secondary-600">Sábado - Turno fixo (16h/mês)</span>
                                 <span className="font-semibold text-accent-600">{formatPrice(roomPrices.SATURDAY_SHIFT)}/mês</span>
-                              </div>
-                              <div className="flex justify-between items-center bg-white rounded-lg px-4 py-3 border border-warm-200">
-                                <span className="text-secondary-600">Diária (8h seguidas)</span>
-                                <span className="font-semibold text-accent-600">{formatPrice(roomPrices.DAY_PASS)}</span>
                               </div>
                             </>
                           );

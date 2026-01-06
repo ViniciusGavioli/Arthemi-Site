@@ -208,9 +208,9 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     }
   }, [formData.startHour]);
 
-  // Produtos filtrados para esta sala (excluindo hora avulsa que é calculado automaticamente)
+  // Produtos filtrados para esta sala (excluindo hora avulsa e DAY_PASS descontinuado)
   const filteredProducts = products.filter((p) => 
-    ['PACKAGE_10H', 'PACKAGE_20H', 'PACKAGE_40H', 'SHIFT_FIXED', 'DAY_PASS', 'SATURDAY_5H'].includes(p.type)
+    ['PACKAGE_10H', 'PACKAGE_20H', 'PACKAGE_40H', 'SHIFT_FIXED', 'SATURDAY_5H'].includes(p.type)
   );
 
   // Handler de submit

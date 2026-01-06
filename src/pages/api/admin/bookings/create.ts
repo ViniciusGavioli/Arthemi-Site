@@ -21,7 +21,7 @@ const createManualBookingSchema = z.object({
   userEmail: z.string().email().optional(),
   roomId: z.string().min(1, 'roomId é obrigatório'),
   date: z.string().datetime({ message: 'Data inválida' }),
-  bookingType: z.enum(['HOURLY', 'SHIFT', 'DAY_PASS']).default('HOURLY'),
+  bookingType: z.enum(['HOURLY', 'SHIFT']).default('HOURLY'), // DAY_PASS descontinuado
   shiftType: z.enum(['MORNING', 'AFTERNOON']).optional(), // Para turno
   startHour: z.number().min(0).max(23).optional(), // Para HOURLY
   endHour: z.number().min(0).max(23).optional(), // Para HOURLY
@@ -124,12 +124,6 @@ export default async function handler(
       startTime.setHours(shift.start, 0, 0, 0);
       endTime = new Date(bookingDate);
       endTime.setHours(shift.end, 0, 0, 0);
-    } else if (data.bookingType === 'DAY_PASS') {
-      // Diária: 8h às 18h
-      startTime = new Date(bookingDate);
-      startTime.setHours(8, 0, 0, 0);
-      endTime = new Date(bookingDate);
-      endTime.setHours(18, 0, 0, 0);
     } else {
       // HOURLY
       if (!data.startHour || !data.endHour) {
@@ -210,7 +204,7 @@ export default async function handler(
         status: financialStatus === 'PENDING_PAYMENT' ? 'PENDING' : 'CONFIRMED',
         paymentStatus: financialStatus === 'PAID' ? 'APPROVED' : 'PENDING',
         amountPaid: creditsUsed,
-        bookingType: data.bookingType === 'DAY_PASS' ? 'HOURLY' : data.bookingType,
+        bookingType: data.bookingType,
         isManual: true,
         notes: data.notes || `Reserva manual - ${data.bookingType}`,
         creditsUsed,

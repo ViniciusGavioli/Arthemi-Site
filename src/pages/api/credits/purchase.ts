@@ -182,6 +182,14 @@ export default async function handler(
         });
       }
 
+      // Bloquear produtos descontinuados (DAY_PASS)
+      if (product.type === 'DAY_PASS') {
+        return res.status(400).json({
+          success: false,
+          error: 'Este produto foi descontinuado e não está mais disponível para compra.',
+        });
+      }
+
       creditHours = product.hoursIncluded || 0;
       amount = product.price;
       productName = product.name;

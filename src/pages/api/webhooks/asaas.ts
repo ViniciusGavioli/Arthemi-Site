@@ -105,6 +105,24 @@ function getPackageHours(type: string): number {
   }
 }
 
+// Helper: mapear ProductType → CreditUsageType
+// Retorna o tipo de uso do crédito baseado no tipo do produto
+type CreditUsageType = 'HOURLY' | 'SHIFT' | 'SATURDAY_HOURLY' | 'SATURDAY_SHIFT';
+function getUsageTypeFromProduct(productType: string | null): CreditUsageType {
+  if (!productType) return 'HOURLY';
+
+  switch (productType) {
+    case 'SHIFT_FIXED':
+      return 'SHIFT';
+    case 'SATURDAY_HOUR':
+    case 'SATURDAY_5H':
+      return 'SATURDAY_HOURLY';
+    // HOURLY_RATE, PACKAGE_10H, PACKAGE_20H, PACKAGE_40H, DAY_PASS, PROMO → HOURLY
+    default:
+      return 'HOURLY';
+  }
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -557,6 +575,9 @@ export default async function handler(
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + (booking.product.validityDays || 90));
       
+      // Determinar usageType baseado no tipo do produto
+      const usageType = getUsageTypeFromProduct(booking.product.type);
+      
       // Criar crédito
       const credit = await withTimeout(
         prisma.credit.create({
@@ -566,6 +587,7 @@ export default async function handler(
             amount: creditAmount,
             remainingAmount: creditAmount,
             type: 'MANUAL', // Crédito gerado por compra de pacote
+            usageType, // Regra de uso: HOURLY, SHIFT, SATURDAY_HOURLY, etc
             status: 'CONFIRMED',
             referenceMonth: new Date().getMonth() + 1,
             referenceYear: new Date().getFullYear(),
@@ -576,7 +598,7 @@ export default async function handler(
         'criação de crédito'
       );
       
-      console.log(`💳 [Asaas Webhook] Crédito criado: ${creditAmount} centavos para user ${booking.userId}`);
+      console.log(`💳 [Asaas Webhook] Crédito criado: ${creditAmount} centavos para user ${booking.userId} (usageType: ${usageType})`);
       
       // Atualizar Payment table se existir
       try {

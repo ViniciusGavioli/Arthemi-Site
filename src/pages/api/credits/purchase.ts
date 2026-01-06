@@ -44,6 +44,24 @@ const VALID_COUPONS: Record<string, { discountType: 'fixed' | 'percent'; value: 
   'TESTE50': { discountType: 'fixed', value: -1 }, // -1 = preço fixo de R$ 5,00
 };
 
+// Helper: mapear ProductType → CreditUsageType
+// Retorna o tipo de uso do crédito baseado no tipo do produto
+type CreditUsageType = 'HOURLY' | 'SHIFT' | 'SATURDAY_HOURLY' | 'SATURDAY_SHIFT';
+function getUsageTypeFromProduct(productType: string | null): CreditUsageType {
+  if (!productType) return 'HOURLY'; // Horas avulsas sem produto
+
+  switch (productType) {
+    case 'SHIFT_FIXED':
+      return 'SHIFT';
+    case 'SATURDAY_HOUR':
+    case 'SATURDAY_5H':
+      return 'SATURDAY_HOURLY';
+    // HOURLY_RATE, PACKAGE_10H, PACKAGE_20H, PACKAGE_40H, DAY_PASS, PROMO → HOURLY
+    default:
+      return 'HOURLY';
+  }
+}
+
 interface ApiResponse {
   success: boolean;
   creditId?: string;
@@ -135,12 +153,14 @@ export default async function handler(
     let amount: number;
     let productName: string;
     let validityDays = 365; // padrão 1 ano
+    let productType: string | null = null; // Para determinar usageType do crédito
 
     if (data.hours) {
       // Compra de horas avulsas
       creditHours = data.hours;
       amount = room.hourlyRate * data.hours;
       productName = `${data.hours} hora${data.hours > 1 ? 's' : ''} avulsa${data.hours > 1 ? 's' : ''}`;
+      productType = null; // Horas avulsas → HOURLY
     } else if (data.productId) {
       // Compra de pacote
       const product = await prisma.product.findUnique({
@@ -166,6 +186,7 @@ export default async function handler(
       amount = product.price;
       productName = product.name;
       validityDays = product.validityDays || 365;
+      productType = product.type; // Captura tipo para definir usageType
     } else {
       return res.status(400).json({
         success: false,
@@ -220,6 +241,9 @@ export default async function handler(
       const now = new Date();
       const expiresAt = addDays(now, validityDays);
 
+      // Determinar usageType baseado no tipo do produto
+      const usageType = getUsageTypeFromProduct(productType);
+
       const credit = await tx.credit.create({
         data: {
           userId: userId,
@@ -227,6 +251,7 @@ export default async function handler(
           amount: creditAmount,
           remainingAmount: 0, // Será atualizado para creditAmount após pagamento
           type: 'MANUAL', // Usando MANUAL para compras - TODO: adicionar PACKAGE
+          usageType, // Regra de uso: HOURLY, SHIFT, SATURDAY_HOURLY, etc
           status: 'PENDING', // Pendente até pagamento confirmado
           referenceMonth: now.getMonth() + 1,
           referenceYear: now.getFullYear(),

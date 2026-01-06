@@ -29,14 +29,15 @@ const purchaseCreditsSchema = z.object({
   userEmail: z.string().email('Email inválido').optional(),
   userCpf: z.string().length(11, 'CPF deve ter 11 dígitos').regex(/^\d+$/, 'CPF deve conter apenas números'),
   roomId: z.string().min(1, 'Sala é obrigatória'),
-  productId: z.string().optional(), // Pacote específico
+  productId: z.string().optional(), // Pacote específico (ID do banco)
+  productType: z.string().optional(), // Tipo de produto (SHIFT_FIXED, SATURDAY_SHIFT, etc)
   hours: z.number().min(1).max(20).optional(), // OU horas avulsas
   couponCode: z.string().optional(),
   // Método de pagamento
   paymentMethod: z.enum(['PIX', 'CARD']).optional().default('PIX'),
   installmentCount: z.number().min(1).max(12).optional(),
-}).refine(data => data.productId || data.hours, {
-  message: 'Deve informar productId ou hours',
+}).refine(data => data.productId || data.productType || data.hours, {
+  message: 'Deve informar productId, productType ou hours',
 });
 
 // Cupons válidos
@@ -53,10 +54,11 @@ function getUsageTypeFromProduct(productType: string | null): CreditUsageType {
   switch (productType) {
     case 'SHIFT_FIXED':
       return 'SHIFT';
+    case 'SATURDAY_SHIFT':
+      return 'SATURDAY_SHIFT';
     case 'SATURDAY_HOUR':
-    case 'SATURDAY_5H':
       return 'SATURDAY_HOURLY';
-    // HOURLY_RATE, PACKAGE_10H, PACKAGE_20H, PACKAGE_40H, DAY_PASS, PROMO → HOURLY
+    // HOURLY_RATE, PACKAGE_10H, PACKAGE_20H, PACKAGE_40H → HOURLY
     default:
       return 'HOURLY';
   }
@@ -161,8 +163,39 @@ export default async function handler(
       amount = room.hourlyRate * data.hours;
       productName = `${data.hours} hora${data.hours > 1 ? 's' : ''} avulsa${data.hours > 1 ? 's' : ''}`;
       productType = null; // Horas avulsas → HOURLY
+    } else if (data.productType) {
+      // Compra por tipo de produto (SHIFT_FIXED, SATURDAY_SHIFT, etc)
+      const product = await prisma.product.findFirst({
+        where: { 
+          roomId: data.roomId,
+          type: data.productType as any, // Cast necessário - validado pelo schema
+          isActive: true,
+        },
+      });
+
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          error: 'Produto não encontrado ou inativo.',
+        });
+      }
+
+      // Bloquear produtos descontinuados (DAY_PASS, SATURDAY_5H)
+      const discontinuedTypes = ['DAY_PASS', 'SATURDAY_5H'];
+      if (discontinuedTypes.includes(product.type)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Este produto foi descontinuado e não está mais disponível para compra.',
+        });
+      }
+
+      creditHours = product.hoursIncluded || 0;
+      amount = product.price;
+      productName = product.name;
+      validityDays = product.validityDays || 365;
+      productType = product.type; // Captura tipo para definir usageType
     } else if (data.productId) {
-      // Compra de pacote
+      // Compra de pacote por ID (legado)
       const product = await prisma.product.findUnique({
         where: { id: data.productId },
       });
@@ -182,8 +215,8 @@ export default async function handler(
         });
       }
 
-      // Bloquear produtos descontinuados (DAY_PASS, SHIFT_FIXED, SATURDAY_5H)
-      const discontinuedTypes = ['DAY_PASS', 'SHIFT_FIXED', 'SATURDAY_5H'];
+      // Bloquear produtos descontinuados (DAY_PASS, SATURDAY_5H)
+      const discontinuedTypes = ['DAY_PASS', 'SATURDAY_5H'];
       if (discontinuedTypes.includes(product.type)) {
         return res.status(400).json({
           success: false,
@@ -199,7 +232,7 @@ export default async function handler(
     } else {
       return res.status(400).json({
         success: false,
-        error: 'Deve informar hours ou productId.',
+        error: 'Deve informar hours, productType ou productId.',
       });
     }
 

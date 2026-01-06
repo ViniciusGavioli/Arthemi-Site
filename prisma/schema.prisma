@@ -382,6 +382,7 @@ enum ProductType {
   DAY_PASS
   SATURDAY_HOUR
   SATURDAY_5H
+  SATURDAY_SHIFT
   PROMO
 }
 

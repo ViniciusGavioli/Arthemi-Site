@@ -21,11 +21,11 @@ export const PRICES_V3 = {
       PACKAGE_10H: 559.90,
       PACKAGE_20H: 1039.80,
       PACKAGE_40H: 1959.60,
-      SHIFT_FIXED: 728.99,    // Turno fixo mensal (16h)
-      DAY_PASS: 369.99,       // Diária (8h seguidas)
+      SHIFT_FIXED: 189.99,      // Turno fixo 4h seg-sex (preço avulso)
+      DAY_PASS: 369.99,         // DESCONTINUADO
       SATURDAY_HOUR: 64.99,
-      SATURDAY_5H: 299.95,
-      SATURDAY_SHIFT: 959.99, // Turno fixo sábado (16h/mês)
+      SATURDAY_5H: 299.95,      // DESCONTINUADO
+      SATURDAY_SHIFT: 239.99,   // Turno sábado 4h (preço avulso)
     },
   },
 
@@ -45,11 +45,11 @@ export const PRICES_V3 = {
       PACKAGE_10H: 459.90,
       PACKAGE_20H: 839.80,
       PACKAGE_40H: 1559.60,
-      SHIFT_FIXED: 580.99,    // Turno fixo mensal (16h)
-      DAY_PASS: 299.99,       // Diária (8h seguidas)
+      SHIFT_FIXED: 159.99,      // Turno fixo 4h seg-sex (preço avulso)
+      DAY_PASS: 299.99,         // DESCONTINUADO
       SATURDAY_HOUR: 53.99,
-      SATURDAY_5H: 249.95,
-      SATURDAY_SHIFT: 799.99, // Turno fixo sábado (16h/mês)
+      SATURDAY_5H: 249.95,      // DESCONTINUADO
+      SATURDAY_SHIFT: 199.99,   // Turno sábado 4h (preço avulso)
     },
   },
 
@@ -69,11 +69,11 @@ export const PRICES_V3 = {
       PACKAGE_10H: 359.90,
       PACKAGE_20H: 659.80,
       PACKAGE_40H: 1199.60,
-      SHIFT_FIXED: 446.99,    // Turno fixo mensal (16h)
-      DAY_PASS: 229.99,       // Diária (8h seguidas)
+      SHIFT_FIXED: 129.99,      // Turno fixo 4h seg-sex (preço avulso)
+      DAY_PASS: 229.99,         // DESCONTINUADO
       SATURDAY_HOUR: 42.99,
-      SATURDAY_5H: 199.95,
-      SATURDAY_SHIFT: 629.99, // Turno fixo sábado (16h/mês)
+      SATURDAY_5H: 199.95,      // DESCONTINUADO
+      SATURDAY_SHIFT: 159.99,   // Turno sábado 4h (preço avulso)
     },
   },
 } as const;
@@ -108,10 +108,11 @@ export const PRODUCT_DESCRIPTIONS = {
   PACKAGE_10H: 'Pacote 10 horas',
   PACKAGE_20H: 'Pacote 20 horas',
   PACKAGE_40H: 'Pacote 40 horas',
-  SHIFT_FIXED: 'Turno fixo mensal (16h)',
-  DAY_PASS: 'Diária (8h seguidas)',
+  SHIFT_FIXED: 'Turno fixo (4h)',
+  DAY_PASS: 'Diária (8h seguidas)',     // DESCONTINUADO
   SATURDAY_HOUR: 'Sábado - Hora avulsa',
-  SATURDAY_5H: 'Sábado - Pacote 5h',
+  SATURDAY_5H: 'Sábado - Pacote 5h',    // DESCONTINUADO
+  SATURDAY_SHIFT: 'Sábado - Turno (4h)',
 } as const;
 
 // Validades em dias
@@ -120,10 +121,11 @@ export const PRODUCT_VALIDITY = {
   PACKAGE_10H: 90,
   PACKAGE_20H: 90,
   PACKAGE_40H: 180,
-  SHIFT_FIXED: 30,    // Mensal
+  SHIFT_FIXED: 30,    // 30 dias para usar
   DAY_PASS: 1,
   SATURDAY_HOUR: 1,
   SATURDAY_5H: 1,
+  SATURDAY_SHIFT: 30, // 30 dias para usar
 } as const;
 
 // Horas incluídas em cada produto
@@ -132,28 +134,44 @@ export const PRODUCT_HOURS = {
   PACKAGE_10H: 10,
   PACKAGE_20H: 20,
   PACKAGE_40H: 40,
-  SHIFT_FIXED: 16,
+  SHIFT_FIXED: 4,       // Turno = 4h (bloco único)
   DAY_PASS: 8,
   SATURDAY_HOUR: 1,
   SATURDAY_5H: 5,
+  SATURDAY_SHIFT: 4,    // Turno sábado = 4h (bloco único)
 } as const;
 
+// Blocos de turno válidos (seg-sex)
+export const SHIFT_BLOCKS = [
+  { start: 8, end: 12, label: '08:00 - 12:00' },
+  { start: 12, end: 16, label: '12:00 - 16:00' },
+  { start: 16, end: 20, label: '16:00 - 20:00' },
+] as const;
+
+// Bloco de turno sábado (único válido)
+export const SATURDAY_SHIFT_BLOCK = { start: 8, end: 12, label: '08:00 - 12:00' } as const;
+
 // ===========================================================
-// PACOTES DISPONÍVEIS PARA VENDA (fonte única de verdade)
+// CATÁLOGO OFICIAL (fonte única de verdade)
 // ===========================================================
-// Exclui DAY_PASS, SHIFT_FIXED, SATURDAY_5H que foram descontinuados
+// 7 produtos por consultório
+
+// Pacotes de horas (dias úteis)
 export const PURCHASABLE_PACKAGES = ['PACKAGE_10H', 'PACKAGE_20H', 'PACKAGE_40H'] as const;
 export type PurchasablePackage = typeof PURCHASABLE_PACKAGES[number];
 
 // Produtos oficiais para dias úteis
-export const WEEKDAY_PRODUCTS = ['HOURLY_RATE', 'PACKAGE_10H', 'PACKAGE_20H', 'PACKAGE_40H'] as const;
+export const WEEKDAY_PRODUCTS = ['HOURLY_RATE', 'PACKAGE_10H', 'PACKAGE_20H', 'PACKAGE_40H', 'SHIFT_FIXED'] as const;
 
 // Produtos oficiais para sábado
-export const SATURDAY_PRODUCTS = ['SATURDAY_HOUR'] as const;
+export const SATURDAY_PRODUCTS = ['SATURDAY_HOUR', 'SATURDAY_SHIFT'] as const;
 
-// Todos os produtos vendáveis (catálogo oficial)
+// Todos os produtos vendáveis (catálogo oficial - 7 tipos)
 export const OFFICIAL_PRODUCT_TYPES = [...WEEKDAY_PRODUCTS, ...SATURDAY_PRODUCTS] as const;
 export type OfficialProductType = typeof OFFICIAL_PRODUCT_TYPES[number];
+
+// Produtos descontinuados (bloquear venda)
+export const DISCONTINUED_PRODUCTS = ['DAY_PASS', 'SATURDAY_5H'] as const;
 
 // Helper para obter pacotes com preços para uma sala
 export function getPackagesForRoom(roomKey: RoomKey) {
@@ -179,7 +197,8 @@ export function getPackagesForRoom(roomKey: RoomKey) {
   });
 }
 
-// Helper para obter TODOS os produtos oficiais para uma sala (usado em BookingModal)
+// Helper para obter TODOS os produtos oficiais para uma sala
+// Retorna os 7 produtos oficiais na ordem correta
 export function getAllProductsForRoom(roomKey: RoomKey): Array<{
   id: string;
   name: string;
@@ -200,34 +219,40 @@ export function getAllProductsForRoom(roomKey: RoomKey): Array<{
     roomId: string | null;
   }> = [];
   
-  // Pacotes dias úteis (10h, 20h, 40h)
-  PURCHASABLE_PACKAGES.forEach(pkgType => {
-    const hours = PRODUCT_HOURS[pkgType];
-    const priceReais = room.prices[pkgType];
+  // Adicionar todos os produtos oficiais
+  OFFICIAL_PRODUCT_TYPES.forEach((productType, index) => {
+    const hours = PRODUCT_HOURS[productType];
+    const priceReais = room.prices[productType];
     products.push({
-      id: `${pkgType.toLowerCase()}-${roomKey.toLowerCase()}`,
-      name: PRODUCT_DESCRIPTIONS[pkgType],
-      slug: `${pkgType.toLowerCase().replace(/_/g, '-')}-${roomKey.toLowerCase().replace('_', '-')}`,
+      id: `${productType.toLowerCase()}-${roomKey.toLowerCase()}`,
+      name: PRODUCT_DESCRIPTIONS[productType],
+      slug: `${productType.toLowerCase().replace(/_/g, '-')}-${roomKey.toLowerCase().replace('_', '-')}`,
       price: Math.round(priceReais * 100), // em centavos
       hoursIncluded: hours,
-      type: pkgType,
+      type: productType,
       roomId: null,
     });
-  });
-  
-  // Sábado hora avulsa
-  products.push({
-    id: `saturday-hour-${roomKey.toLowerCase()}`,
-    name: PRODUCT_DESCRIPTIONS.SATURDAY_HOUR,
-    slug: `saturday-hour-${roomKey.toLowerCase().replace('_', '-')}`,
-    price: Math.round(room.prices.SATURDAY_HOUR * 100), // em centavos
-    hoursIncluded: 1,
-    type: 'SATURDAY_HOUR',
-    roomId: null,
   });
   
   return products;
 }
 
-// Produtos descontinuados (bloquear venda)
-export const DISCONTINUED_PRODUCTS = ['DAY_PASS', 'SHIFT_FIXED', 'SATURDAY_5H'] as const;
+// Mapear tipo de produto para usageType do crédito
+export function getUsageTypeForProduct(productType: string): string | null {
+  switch (productType) {
+    case 'HOURLY_RATE':
+      return 'HOURLY';
+    case 'PACKAGE_10H':
+    case 'PACKAGE_20H':
+    case 'PACKAGE_40H':
+      return 'HOURLY'; // Pacotes geram créditos de hora avulsa
+    case 'SHIFT_FIXED':
+      return 'SHIFT';
+    case 'SATURDAY_HOUR':
+      return 'SATURDAY_HOURLY';
+    case 'SATURDAY_SHIFT':
+      return 'SATURDAY_SHIFT';
+    default:
+      return null;
+  }
+}

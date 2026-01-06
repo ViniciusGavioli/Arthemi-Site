@@ -294,9 +294,9 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                       </table>
                     </div>
                     
-                    {/* Tabela de Sábados e Turno Fixo */}
+                    {/* Tabela de Turnos e Sábados */}
                     <div className="border-t border-warm-200 bg-warm-50/50 p-4">
-                      <h4 className="text-sm font-semibold text-primary-800 mb-3">Sábados (8h às 12h) e Turno Fixo</h4>
+                      <h4 className="text-sm font-semibold text-primary-800 mb-3">Turnos Fixos (4h) e Sábados</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                         {(() => {
                           const roomKey = room.slug === 'sala-a' ? 'SALA_A' : room.slug === 'sala-b' ? 'SALA_B' : 'SALA_C';
@@ -304,12 +304,22 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                           return (
                             <>
                               <div className="flex justify-between items-center bg-white rounded-lg px-4 py-3 border border-warm-200">
+                                <div>
+                                  <span className="text-secondary-600">Turno fixo (4h)</span>
+                                  <p className="text-xs text-secondary-400">08-12h / 12-16h / 16-20h</p>
+                                </div>
+                                <span className="font-semibold text-accent-600">{formatPrice(roomPrices.SHIFT_FIXED)}</span>
+                              </div>
+                              <div className="flex justify-between items-center bg-white rounded-lg px-4 py-3 border border-warm-200">
                                 <span className="text-secondary-600">Sábado - Hora avulsa</span>
                                 <span className="font-semibold text-accent-600">{formatPrice(roomPrices.SATURDAY_HOUR)}</span>
                               </div>
                               <div className="flex justify-between items-center bg-white rounded-lg px-4 py-3 border border-warm-200">
-                                <span className="text-secondary-600">Sábado - Turno fixo (16h/mês)</span>
-                                <span className="font-semibold text-accent-600">{formatPrice(roomPrices.SATURDAY_SHIFT)}/mês</span>
+                                <div>
+                                  <span className="text-secondary-600">Sábado - Turno (4h)</span>
+                                  <p className="text-xs text-secondary-400">08-12h</p>
+                                </div>
+                                <span className="font-semibold text-accent-600">{formatPrice(roomPrices.SATURDAY_SHIFT)}</span>
                               </div>
                             </>
                           );

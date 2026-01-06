@@ -40,9 +40,9 @@
 
 | Ambiente | URL |
 |----------|-----|
-| Site Público | https://espacoarthemi.com.br |
-| Admin | https://espacoarthemi.com.br/admin |
-| Status | https://espacoarthemi.com.br/admin/status |
+| Site Público | https://www.arthemisaude.com |
+| Admin | https://www.arthemisaude.com/admin |
+| Status | https://www.arthemisaude.com/admin/status |
 
 ---
 

@@ -502,11 +502,15 @@ export default function MinhaContaPage() {
             onSuccess={handleBookingSuccess}
             onPurchaseCredits={() => setPurchaseModalOpen(true)}
             onResendVerification={async () => {
-              await fetch('/api/auth/resend-activation', {
+              const res = await fetch('/api/auth/resend-activation', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: user.email }),
               });
+              const data = await res.json();
+              if (!res.ok || !data.ok) {
+                throw new Error(data.error || 'Falha ao reenviar');
+              }
             }}
           />
         )}

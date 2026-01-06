@@ -110,7 +110,7 @@ curl -X GET "https://api.asaas.com/v3/customers" \
 
 2. **Verificar configuração no Asaas**
    - Acessar Asaas > Integrações > Webhooks
-   - Confirmar URL: `https://espacoarthemi.com.br/api/webhooks/asaas`
+   - Confirmar URL: `https://www.arthemisaude.com/api/webhooks/asaas`
    - Verificar histórico de entregas
 
 3. **Se URL correta, verificar servidor**

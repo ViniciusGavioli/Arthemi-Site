@@ -59,10 +59,17 @@ export default async function handler(
       });
     }
 
-    // Verificar se sala existe
-    const room = await prisma.room.findUnique({
+    // Verificar se sala existe (busca por id ou fallback por slug)
+    let room = await prisma.room.findUnique({
       where: { id: roomId },
     });
+
+    // Fallback: se não encontrar por id, tenta por slug
+    if (!room) {
+      room = await prisma.room.findUnique({
+        where: { slug: roomId },
+      });
+    }
 
     if (!room) {
       return res.status(404).json({
@@ -70,6 +77,9 @@ export default async function handler(
         error: 'Sala não encontrada',
       });
     }
+
+    // Usar o ID real da sala para as queries subsequentes
+    const realRoomId = room.id;
 
     // Buscar reservas do dia para esta sala
     const startOfDay = new Date(dateObj);
@@ -80,7 +90,7 @@ export default async function handler(
 
     const bookings = await prisma.booking.findMany({
       where: {
-        roomId,
+        roomId: realRoomId,
         status: { in: ['PENDING', 'CONFIRMED'] },
         OR: [
           // Reserva começa neste dia
@@ -113,7 +123,7 @@ export default async function handler(
       return res.status(200).json({
         success: true,
         date,
-        roomId,
+        roomId: realRoomId,
         slots: [],
       });
     }
@@ -149,7 +159,7 @@ export default async function handler(
     return res.status(200).json({
       success: true,
       date,
-      roomId,
+      roomId: realRoomId,
       slots,
     });
   } catch (error) {

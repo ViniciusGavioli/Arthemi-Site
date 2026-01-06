@@ -76,7 +76,7 @@ function getConfirmationEmailHtml(data: BookingEmailData): string {
 
   const whatsappNumber = WHATSAPP_NUMBER;
   const whatsappLink = `https://wa.me/${whatsappNumber}`;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://arthemi.com.br';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.arthemisaude.com';
 
   return `
 <!DOCTYPE html>
@@ -274,7 +274,7 @@ export interface MagicLinkEmailData {
  * Redireciona sempre para /minha-conta (área central do cliente)
  */
 function getMagicLinkUrl(token: string): string {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://arthemi.com.br';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.arthemisaude.com';
   return `${baseUrl}/api/auth/verify?token=${encodeURIComponent(token)}&redirect=/minha-conta`;
 }
 
@@ -431,7 +431,7 @@ function getRefundRequestedAdminEmailHtml(data: RefundEmailData): string {
     currency: 'BRL',
   }).format(data.amount / 100);
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://arthemi.com.br';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.arthemisaude.com';
 
   return `
 <!DOCTYPE html>
@@ -539,7 +539,7 @@ function getRefundStatusEmailHtml(data: RefundEmailData): string {
 
   const whatsappNumber = WHATSAPP_NUMBER;
   const whatsappLink = `https://wa.me/${whatsappNumber}`;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://arthemi.com.br';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.arthemisaude.com';
 
   // Configuração de cada status
   const statusConfig: Record<string, { 
@@ -822,7 +822,7 @@ function getPixPendingEmailHtml(data: BookingEmailData): string {
 
   const whatsappNumber = WHATSAPP_NUMBER;
   const whatsappLink = `https://wa.me/${whatsappNumber}`;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://arthemi.com.br';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.arthemisaude.com';
 
   return `
 <!DOCTYPE html>
@@ -981,7 +981,7 @@ export interface CancellationEmailData {
 function getCancellationEmailHtml(data: CancellationEmailData): string {
   const whatsappNumber = WHATSAPP_NUMBER;
   const whatsappLink = `https://wa.me/${whatsappNumber}`;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://arthemi.com.br';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.arthemisaude.com';
 
   return `
 <!DOCTYPE html>
@@ -1111,7 +1111,7 @@ function getRefundRequestedUserEmailHtml(data: RefundEmailData): string {
 
   const whatsappNumber = WHATSAPP_NUMBER;
   const whatsappLink = `https://wa.me/${whatsappNumber}`;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://arthemi.com.br';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.arthemisaude.com';
 
   return `
 <!DOCTYPE html>

@@ -3,6 +3,8 @@
 // ===========================================================
 // Reenvia email de ativação de conta
 // Rate limit: 3 tentativas por hora por email
+// SEGURANÇA: Não revela se email existe (retorna ok:true)
+// EXCEÇÃO: Se email existe e envio falha, retorna 500 para feedback ao usuário
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
@@ -82,15 +84,15 @@ export default async function handler(
     });
 
     // SEGURANÇA: Não revelar se email existe ou não
-    // Sempre retorna sucesso para o cliente
+    // Sempre retorna sucesso para o cliente (exceto quando envio falha)
     if (!user) {
-      console.log(`⏭️ [RESEND-ACTIVATION] Email não encontrado: ${normalizedEmail}`);
+      console.log(`⏭️ [RESEND-ACTIVATION] Email não cadastrado: ${normalizedEmail} (retornando ok:true por segurança)`);
       return res.status(200).json({ ok: true });
     }
 
     // Se já verificado e tem senha, não precisa ativar
     if (user.emailVerifiedAt && user.passwordHash) {
-      console.log(`⏭️ [RESEND-ACTIVATION] Usuário já ativo: ${normalizedEmail}`);
+      console.log(`⏭️ [RESEND-ACTIVATION] Usuário já ativo (emailVerifiedAt + senha): ${normalizedEmail}`);
       return res.status(200).json({ ok: true });
     }
 
@@ -106,10 +108,12 @@ export default async function handler(
     });
 
     if (recentToken) {
-      console.log(`⏭️ [RESEND-ACTIVATION] Token recente já existe (menos de 2min)`);
-      // Ainda retorna sucesso para não revelar existência
+      console.log(`⏭️ [RESEND-ACTIVATION] Token recente já existe para ${normalizedEmail} (criado há menos de 2min)`);
+      // Retorna sucesso para não revelar existência, mas não reenvia
       return res.status(200).json({ ok: true });
     }
+
+    console.log(`🔄 [RESEND-ACTIVATION] Gerando novo token para: ${normalizedEmail}`);
 
     // Invalidar tokens antigos
     await prisma.emailActivationToken.updateMany({
@@ -136,6 +140,7 @@ export default async function handler(
 
     // Montar URL e enviar email
     const activationUrl = buildActivationUrl(rawToken);
+    console.log(`📧 [RESEND-ACTIVATION] Tentando enviar para: ${normalizedEmail}`);
 
     const emailResult = await sendAccountActivationEmail(
       user.email,
@@ -144,16 +149,19 @@ export default async function handler(
     );
 
     if (!emailResult.success) {
-      console.error(`❌ [RESEND-ACTIVATION] Falha ao enviar email: ${emailResult.error}`);
-      // Não revelar erro específico ao usuário
-      return res.status(200).json({ ok: true });
+      // AQUI JÁ SABEMOS QUE O USUÁRIO EXISTE - podemos retornar erro real
+      console.error(`❌ [RESEND-ACTIVATION] Falha ao enviar email para ${normalizedEmail}: ${emailResult.error}`);
+      return res.status(500).json({
+        ok: false,
+        error: 'Não foi possível enviar o e-mail. Tente novamente em alguns minutos.',
+      });
     }
 
-    console.log(`✅ [RESEND-ACTIVATION] Email enviado para: ${normalizedEmail}`);
+    console.log(`✅ [RESEND-ACTIVATION] Email enviado com sucesso para: ${normalizedEmail} (messageId: ${emailResult.messageId})`);
     return res.status(200).json({ ok: true });
 
   } catch (error) {
-    console.error('❌ [RESEND-ACTIVATION] Erro:', error);
+    console.error('❌ [RESEND-ACTIVATION] Erro inesperado:', error);
     return res.status(500).json({
       ok: false,
       error: 'Erro interno. Tente novamente.',

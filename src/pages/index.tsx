@@ -3,12 +3,14 @@
 // ===========================================================
 
 import { useState } from 'react';
+import { GetServerSideProps } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import SEO from '@/components/SEO';
 import Layout from '@/components/Layout';
 import RoomDetailsModal from '@/components/RoomDetailsModal';
 import BookingModal from '@/components/BookingModal';
+import { prisma } from '@/lib/prisma';
 import { PAGE_SEO, BUSINESS_INFO } from '@/constants/seo';
 import { PRICES_V3, formatPrice, getPackagesForRoom, type RoomKey } from '@/constants/prices';
 import { 
@@ -92,46 +94,35 @@ function getProductsForRoom(roomKey: RoomKey): Array<{
   }));
 }
 
-// Dados estáticos das salas para o BookingModal (sem buscar do banco)
-const staticRoomsForBooking = [
-  {
-    id: 'sala-a-static',
-    name: 'Consultório 1 | Prime',
-    slug: 'sala-a',
-    description: 'Espaço premium',
-    imageUrl: '/images/sala-a/foto-4.jpeg',
-    capacity: 4,
-    amenities: ['Maca profissional', 'Ar-condicionado', 'Wi-Fi', 'Lavatório'],
-    hourlyRate: Math.round(PRICES_V3.SALA_A.prices.HOURLY_RATE * 100), // em centavos
-    products: getProductsForRoom('SALA_A'),
-  },
-  {
-    id: 'sala-b-static',
-    name: 'Consultório 2 | Executive',
-    slug: 'sala-b',
-    description: 'Consultório amplo',
-    imageUrl: '/images/sala-b/02-3.jpeg',
-    capacity: 3,
-    amenities: ['Maca profissional', 'Ar-condicionado', 'Wi-Fi', 'Lavatório'],
-    hourlyRate: Math.round(PRICES_V3.SALA_B.prices.HOURLY_RATE * 100), // em centavos
-    products: getProductsForRoom('SALA_B'),
-  },
-  {
-    id: 'sala-c-static',
-    name: 'Consultório 3 | Essential',
-    slug: 'sala-c',
-    description: 'Consultório acolhedor',
-    imageUrl: '/images/sala-c/03-1.jpeg',
-    capacity: 2,
-    amenities: ['Ar-condicionado', 'Wi-Fi', 'Poltronas'],
-    hourlyRate: Math.round(PRICES_V3.SALA_C.prices.HOURLY_RATE * 100), // em centavos
-    products: getProductsForRoom('SALA_C'),
-  },
-];
+// Dados estáticos das salas para o BookingModal (buscaremos do banco via SSR)
+// Interface para as salas vindas do banco
+interface DBRoom {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  imageUrl: string | null;
+  capacity: number;
+  amenities: string[];
+  hourlyRate: number;
+  products: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    price: number;
+    hoursIncluded: number | null;
+    type: string;
+    roomId: string | null;
+  }>;
+}
 
-export default function Home() {
+interface HomeProps {
+  dbRooms: DBRoom[];
+}
+
+export default function Home({ dbRooms }: HomeProps) {
   const [selectedRoom, setSelectedRoom] = useState<typeof roomsData[0] | null>(null);
-  const [bookingRoom, setBookingRoom] = useState<typeof staticRoomsForBooking[0] | null>(null);
+  const [bookingRoom, setBookingRoom] = useState<DBRoom | null>(null);
   const whatsappLink = `https://wa.me/${BUSINESS_INFO.whatsapp}`;
 
   // Preços calculados dinamicamente (menor preço por hora de cada sala)
@@ -144,9 +135,10 @@ export default function Home() {
   // Handler para abrir o modal de reserva
   const handleOpenBooking = () => {
     if (selectedRoom) {
-      const roomIndex = roomsData.findIndex(r => r.slug === selectedRoom.slug);
-      if (roomIndex >= 0) {
-        setBookingRoom(staticRoomsForBooking[roomIndex]);
+      // Busca a sala do banco pelo slug
+      const dbRoom = dbRooms.find(r => r.slug === selectedRoom.slug);
+      if (dbRoom) {
+        setBookingRoom(dbRoom);
       }
     }
   };
@@ -748,3 +740,42 @@ export default function Home() {
     </>
   );
 }
+// Busca as salas do banco com IDs reais
+export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
+  const rooms = await prisma.room.findMany({
+    where: { isActive: true },
+    orderBy: { tier: 'asc' }, // Ordenar por tier (1=sala-a, 2=sala-b, 3=sala-c)
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      imageUrl: true,
+      capacity: true,
+      amenities: true,
+      hourlyRate: true,
+      products: {
+        where: { isActive: true },
+        orderBy: { sortOrder: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          price: true,
+          hoursIncluded: true,
+          type: true,
+          roomId: true,
+        },
+      },
+    },
+  });
+
+  return {
+    props: {
+      dbRooms: rooms.map(room => ({
+        ...room,
+        hourlyRate: room.hourlyRate || 0,
+      })),
+    },
+  };
+};

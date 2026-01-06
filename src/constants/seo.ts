@@ -10,7 +10,7 @@ export const SITE_CONFIG = {
   tagline: 'Coworking de Saúde em Belo Horizonte',
   
   // URL do site (sem barra no final)
-  url: process.env.NEXT_PUBLIC_APP_URL || 'https://arthemisaude.com',
+  url: process.env.NEXT_PUBLIC_APP_URL || 'https://www.arthemisaude.com',
   
   // Imagem padrão para Open Graph (1200x630 recomendado)
   // TODO: Criar imagem og-image.jpg (1200x630) com logo + tagline

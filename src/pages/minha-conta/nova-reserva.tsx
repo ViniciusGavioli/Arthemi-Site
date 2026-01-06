@@ -90,11 +90,17 @@ export default function NovaReservaPage() {
             onSuccess={handleSuccess}
             onCancel={handleCancel}
             onResendVerification={async () => {
-              await fetch('/api/auth/resend-activation', {
+              const res = await fetch('/api/auth/resend-activation', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: user.email }),
               });
+              const data = await res.json();
+              // API retorna ok:true mesmo em falhas silenciosas (segurança)
+              // Mas propagamos erro se a requisição falhou
+              if (!res.ok || !data.ok) {
+                throw new Error(data.error || 'Falha ao reenviar');
+              }
             }}
           />
         </main>

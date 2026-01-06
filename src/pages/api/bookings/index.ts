@@ -173,10 +173,17 @@ export default async function handler(
       });
     }
 
-    // 3. Verificar se sala existe
-    const room = await prisma.room.findUnique({
+    // 3. Verificar se sala existe (busca por id ou fallback por slug)
+    let room = await prisma.room.findUnique({
       where: { id: data.roomId },
     });
+
+    // Fallback: se não encontrar por id, tenta por slug
+    if (!room) {
+      room = await prisma.room.findUnique({
+        where: { slug: data.roomId },
+      });
+    }
 
     if (!room || !room.isActive) {
       return res.status(404).json({
@@ -185,12 +192,15 @@ export default async function handler(
       });
     }
 
+    // Usar o ID real da sala para as queries subsequentes
+    const realRoomId = room.id;
+
     // TRANSACTION ATÔMICA - Previne race condition
     const result = await prisma.$transaction(async (tx) => {
       // 4. Verificar disponibilidade com lock (FOR UPDATE)
       const conflictingBooking = await tx.booking.findFirst({
         where: {
-          roomId: data.roomId,
+          roomId: realRoomId,
           status: { in: ['PENDING', 'CONFIRMED'] },
           OR: [
             { startTime: { lt: endAt, gte: startAt } },
@@ -269,7 +279,7 @@ export default async function handler(
       let amountToPay = amount;
 
       if (data.useCredits) {
-        const availableCredits = await getCreditBalanceForRoom(userId, data.roomId, startAt);
+        const availableCredits = await getCreditBalanceForRoom(userId, realRoomId, startAt);
         
         if (availableCredits > 0) {
           const creditsToUse = Math.min(availableCredits, amount);
@@ -277,7 +287,7 @@ export default async function handler(
           
           const consumeResult = await consumeCreditsForBooking(
             userId,
-            data.roomId,
+            realRoomId,
             creditsToUse,
             startAt
           );
@@ -305,7 +315,7 @@ export default async function handler(
       const booking = await tx.booking.create({
         data: {
           userId: userId,
-          roomId: data.roomId,
+          roomId: realRoomId,
           startTime: startAt,
           endTime: endAt,
           status: amountToPay > 0 ? 'PENDING' : 'CONFIRMED',
@@ -342,7 +352,7 @@ export default async function handler(
       ip: clientIp,
       amount: result.amountToPay,
       paymentMethod: data.paymentMethod,
-      roomId: data.roomId,
+      roomId: realRoomId,
     });
 
     // AUDIT EVENT (DB) - Best-effort
@@ -350,7 +360,7 @@ export default async function handler(
       requestId,
       userId: result.userId,
       bookingId: result.booking.id,
-      roomId: data.roomId,
+      roomId: realRoomId,
       amount: result.amountToPay,
       paymentMethod: data.paymentMethod,
     });
@@ -361,7 +371,7 @@ export default async function handler(
       'Booking',
       result.booking.id,
       {
-        roomId: data.roomId,
+        roomId: realRoomId,
         roomName: room.name,
         startAt: data.startAt,
         endAt: data.endAt,

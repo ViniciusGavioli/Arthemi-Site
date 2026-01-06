@@ -15,7 +15,7 @@ interface BookingWizardModalProps {
   emailVerified?: boolean;
   onSuccess?: (bookingId: string) => void;
   onPurchaseCredits?: () => void;
-  onResendVerification?: () => void;
+  onResendVerification?: () => Promise<void>;
 }
 
 export function BookingWizardModal({ 

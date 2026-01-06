@@ -65,7 +65,7 @@ interface CreditBookingWizardProps {
   onSuccess: (bookingId: string) => void;
   onCancel: () => void;
   onPurchaseCredits?: () => void;
-  onResendVerification?: () => void; // Callback para reenviar email de verificação
+  onResendVerification?: () => Promise<void>; // Callback para reenviar email de verificação (async)
 }
 
 // ===========================================================
@@ -102,6 +102,10 @@ export function CreditBookingWizard({
 
   // Erro
   const [error, setError] = useState('');
+
+  // Estado do reenvio de verificação de e-mail
+  const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [resendMessage, setResendMessage] = useState('');
 
   useEffect(() => {
     fetchInitialData();
@@ -290,6 +294,23 @@ export function CreditBookingWizard({
     }
   }
 
+  // Handler para reenviar e-mail de verificação com feedback
+  async function handleResendVerification() {
+    if (!onResendVerification || resendStatus === 'sending') return;
+    
+    setResendStatus('sending');
+    setResendMessage('');
+    
+    try {
+      await onResendVerification();
+      setResendStatus('sent');
+      setResendMessage('E-mail enviado! Verifique sua caixa de entrada e spam.');
+    } catch (err) {
+      setResendStatus('error');
+      setResendMessage('Erro ao reenviar. Tente novamente em alguns minutos.');
+    }
+  }
+
   // Verifica se uma data está bloqueada pela proteção de turno
   // Horas avulsas não podem ser agendadas > 30 dias em dias de TURNO (seg-sex)
   function isDateBlockedByTurnoProtection(date: Date): boolean {
@@ -426,27 +447,13 @@ export function CreditBookingWizard({
 
   return (
     <div className="space-y-6">
-      {/* Banner de email não verificado */}
+      {/* Banner de email não verificado (pequeno, referencia ação no final) */}
       {!emailVerified && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-          <div className="flex items-start gap-3">
-            <span className="text-xl">⚠️</span>
-            <div className="flex-1">
-              <p className="font-semibold text-red-800">Verificação de e-mail necessária</p>
-              <p className="text-sm text-red-700 mt-1">
-                Para agendar, você precisa verificar seu e-mail. 
-                Verifique sua caixa de entrada ou clique abaixo para reenviar.
-              </p>
-              {onResendVerification && (
-                <button
-                  onClick={onResendVerification}
-                  className="mt-3 text-sm font-medium text-red-700 underline hover:text-red-800"
-                >
-                  Reenviar e-mail de verificação
-                </button>
-              )}
-            </div>
-          </div>
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-center gap-2">
+          <span className="text-lg">📧</span>
+          <p className="text-sm text-amber-800">
+            <strong>E-mail não verificado.</strong> Veja instruções abaixo para concluir sua reserva.
+          </p>
         </div>
       )}
 
@@ -766,6 +773,54 @@ export function CreditBookingWizard({
         </div>
       )}
 
+      {/* Aviso inline de verificação de e-mail (próximo ao botão) */}
+      {!emailVerified && (
+        <div className="bg-amber-50 border border-amber-300 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <span className="text-xl flex-shrink-0">📧</span>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-amber-800">Verifique seu e-mail para reservar</p>
+              <p className="text-sm text-amber-700 mt-1">
+                Enviamos um link de verificação para seu e-mail. Confira também a pasta de spam.
+              </p>
+              
+              {/* Feedback do reenvio */}
+              {resendStatus === 'sent' && (
+                <p className="text-sm text-green-700 mt-2 font-medium">
+                  ✓ {resendMessage}
+                </p>
+              )}
+              {resendStatus === 'error' && (
+                <p className="text-sm text-red-700 mt-2">
+                  ✗ {resendMessage}
+                </p>
+              )}
+              
+              {/* Botão de reenvio */}
+              {onResendVerification && resendStatus !== 'sent' && (
+                <button
+                  onClick={handleResendVerification}
+                  disabled={resendStatus === 'sending'}
+                  className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-amber-800 bg-amber-100 hover:bg-amber-200 px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {resendStatus === 'sending' ? (
+                    <>
+                      <span className="animate-spin">⏳</span>
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <span>🔄</span>
+                      Reenviar e-mail de verificação
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Botões de ação */}
       <div className="flex gap-3 pt-4 border-t border-gray-200">
         <button
@@ -779,7 +834,12 @@ export function CreditBookingWizard({
           disabled={!canSubmit || submitting}
           className="flex-1 bg-primary-600 text-white py-3 rounded-xl font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {submitting ? 'Processando...' : 'Confirmar Reserva'}
+          {submitting 
+            ? 'Processando...' 
+            : !emailVerified 
+              ? '⚠️ Verificação Pendente' 
+              : 'Confirmar Reserva'
+          }
         </button>
       </div>
     </div>

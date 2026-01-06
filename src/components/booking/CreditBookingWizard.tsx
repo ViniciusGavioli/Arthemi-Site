@@ -61,16 +61,25 @@ interface TimeSlot {
 
 interface CreditBookingWizardProps {
   userId: string;
+  emailVerified?: boolean; // Se false, bloqueia o botão de confirmar
   onSuccess: (bookingId: string) => void;
   onCancel: () => void;
   onPurchaseCredits?: () => void;
+  onResendVerification?: () => void; // Callback para reenviar email de verificação
 }
 
 // ===========================================================
 // COMPONENTE
 // ===========================================================
 
-export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCredits }: CreditBookingWizardProps) {
+export function CreditBookingWizard({ 
+  userId, 
+  emailVerified = true, 
+  onSuccess, 
+  onCancel, 
+  onPurchaseCredits,
+  onResendVerification,
+}: CreditBookingWizardProps) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [creditsByRoom, setCreditsByRoom] = useState<CreditBalance[]>([]);
   const [allCredits, setAllCredits] = useState<Credit[]>([]); // Lista completa de créditos para filtrar por usageType
@@ -399,7 +408,11 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCre
   const availableForSelected = selectedRoom ? getAvailableCreditsForRoom(selectedRoom) : 0;
   
   // Diferentes condições de submit para SHIFT vs horas
+  // emailVerified=false também bloqueia
   const canSubmit = (() => {
+    // BLOQUEIO: Email não verificado
+    if (!emailVerified) return false;
+    
     if (!selectedRoom || !selectedDate || total > availableForSelected) return false;
     
     // Para SHIFT, precisa ter bloco selecionado
@@ -413,6 +426,30 @@ export function CreditBookingWizard({ userId, onSuccess, onCancel, onPurchaseCre
 
   return (
     <div className="space-y-6">
+      {/* Banner de email não verificado */}
+      {!emailVerified && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <span className="text-xl">⚠️</span>
+            <div className="flex-1">
+              <p className="font-semibold text-red-800">Verificação de e-mail necessária</p>
+              <p className="text-sm text-red-700 mt-1">
+                Para agendar, você precisa verificar seu e-mail. 
+                Verifique sua caixa de entrada ou clique abaixo para reenviar.
+              </p>
+              {onResendVerification && (
+                <button
+                  onClick={onResendVerification}
+                  className="mt-3 text-sm font-medium text-red-700 underline hover:text-red-800"
+                >
+                  Reenviar e-mail de verificação
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header com saldo */}
       <div className="flex items-center justify-between pb-4 border-b border-gray-200">
         <h2 className="text-xl font-bold text-gray-900">Nova Reserva</h2>

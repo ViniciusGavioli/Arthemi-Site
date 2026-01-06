@@ -12,11 +12,21 @@ interface BookingWizardModalProps {
   isOpen: boolean;
   onClose: () => void;
   userId: string;
+  emailVerified?: boolean;
   onSuccess?: (bookingId: string) => void;
   onPurchaseCredits?: () => void;
+  onResendVerification?: () => void;
 }
 
-export function BookingWizardModal({ isOpen, onClose, userId, onSuccess, onPurchaseCredits }: BookingWizardModalProps) {
+export function BookingWizardModal({ 
+  isOpen, 
+  onClose, 
+  userId, 
+  emailVerified = true,
+  onSuccess, 
+  onPurchaseCredits,
+  onResendVerification,
+}: BookingWizardModalProps) {
   // Fecha com ESC
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -72,9 +82,11 @@ export function BookingWizardModal({ isOpen, onClose, userId, onSuccess, onPurch
         <div className="flex-1 overflow-y-auto p-6 sm:p-8">
           <CreditBookingWizard
             userId={userId}
+            emailVerified={emailVerified}
             onSuccess={handleSuccess}
             onCancel={onClose}
             onPurchaseCredits={onPurchaseCredits}
+            onResendVerification={onResendVerification}
           />
         </div>
       </div>

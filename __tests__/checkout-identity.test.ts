@@ -16,7 +16,11 @@ jest.mock('@/lib/prisma', () => ({
     booking: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
     credit: { create: jest.fn(), delete: jest.fn() },
     product: { findUnique: jest.fn() },
+    user: { findUnique: jest.fn() },
     $transaction: jest.fn(),
+  },
+  prisma: {
+    user: { findUnique: jest.fn() },
   },
 }));
 
@@ -60,6 +64,10 @@ jest.mock('@/lib/audit-event', () => ({
 
 jest.mock('@/lib/account-activation', () => ({
   triggerAccountActivation: jest.fn().mockResolvedValue({ sent: false }),
+}));
+
+jest.mock('@/lib/email-verification', () => ({
+  requireEmailVerifiedForBooking: jest.fn().mockResolvedValue({ canBook: true }),
 }));
 
 jest.mock('@/lib/audit', () => ({

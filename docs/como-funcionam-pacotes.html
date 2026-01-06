@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Como funcionam os pacotes de horas | Espaço Arthemi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #09090b;
+      --bg-card: #18181b;
+      --border: #27272a;
+      --white: #fafafa;
+      --gray: #a1a1aa;
+      --muted: #52525b;
+      --green: #4ade80;
+      --purple: #a78bfa;
+      --orange: #fb923c;
+      --blue: #60a5fa;
+      --pink: #f472b6;
+      --font-sans: 'Inter', -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg);
+      color: var(--white);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      padding: 3rem 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 3rem;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--white);
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      color: var(--gray);
+      font-size: 1.125rem;
+    }
+
+    /* Sections */
+    section {
+      margin-bottom: 3rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .section-num {
+      font-family: var(--font-mono);
+      font-size: 0.875rem;
+      color: var(--purple);
+      font-weight: 500;
+    }
+
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--white);
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .card p {
+      color: var(--gray);
+      margin-bottom: 0.75rem;
+    }
+
+    .card p:last-child {
+      margin-bottom: 0;
+    }
+
+    .card strong {
+      color: var(--white);
+    }
+
+    /* Highlight text */
+    .highlight-green { color: var(--green); }
+    .highlight-purple { color: var(--purple); }
+    .highlight-orange { color: var(--orange); }
+    .highlight-blue { color: var(--blue); }
+
+    /* Callout */
+    .callout {
+      display: flex;
+      gap: 0.75rem;
+      padding: 1rem 1.25rem;
+      background: rgba(74, 222, 128, 0.08);
+      border-left: 3px solid var(--green);
+      border-radius: 0 8px 8px 0;
+      margin: 1rem 0;
+    }
+
+    .callout .icon {
+      color: var(--green);
+      font-size: 1.125rem;
+    }
+
+    .callout p {
+      color: var(--gray);
+      margin: 0;
+    }
+
+    .callout strong {
+      color: var(--white);
+    }
+
+    /* Sala grid */
+    .sala-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+
+    .sala-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      transition: border-color 0.2s;
+    }
+
+    .sala-card:hover {
+      border-color: var(--muted);
+    }
+
+    .sala-card .name {
+      font-size: 0.875rem;
+      color: var(--gray);
+      margin-bottom: 0.5rem;
+    }
+
+    .sala-card .rate {
+      font-family: var(--font-mono);
+      font-size: 2rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .sala-card.essencial .rate { color: var(--green); }
+    .sala-card.avancada .rate { color: var(--orange); }
+    .sala-card.premium .rate { color: var(--purple); }
+
+    .sala-card .unit {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    /* Rule box */
+    .rule-box {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.625rem 1rem;
+      background: rgba(251, 146, 60, 0.1);
+      border: 1px dashed var(--orange);
+      border-radius: 6px;
+      font-size: 0.875rem;
+      color: var(--orange);
+    }
+
+    /* Terminal */
+    .terminal {
+      background: #0c0c0c;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 1.5rem 0;
+    }
+
+    .terminal-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0.75rem 1rem;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .terminal-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .terminal-dot.red { background: #ef4444; }
+    .terminal-dot.yellow { background: #eab308; }
+    .terminal-dot.green { background: #22c55e; }
+
+    .terminal-title {
+      margin-left: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .terminal-body {
+      padding: 1.25rem;
+      font-family: var(--font-mono);
+      font-size: 0.875rem;
+      line-height: 1.8;
+    }
+
+    .terminal-line {
+      margin-bottom: 0.25rem;
+    }
+
+    .terminal-line .label {
+      color: var(--muted);
+    }
+
+    .terminal-line .action {
+      color: var(--blue);
+    }
+
+    .terminal-line .result {
+      color: var(--orange);
+    }
+
+    .terminal-line.final {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px dashed var(--border);
+      color: var(--green);
+    }
+
+    /* Tradeoff */
+    .tradeoff-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+
+    .tradeoff-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+
+    .tradeoff-card h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .tradeoff-card.qty h4 { color: var(--green); }
+    .tradeoff-card.quality h4 { color: var(--purple); }
+
+    .tradeoff-card p {
+      font-size: 0.9375rem;
+      color: var(--gray);
+      margin: 0;
+    }
+
+    /* Benefits */
+    .benefits {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin: 1.5rem 0;
+    }
+
+    .benefit-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.875rem 1rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.9375rem;
+      color: var(--gray);
+    }
+
+    .benefit-item .check {
+      color: var(--green);
+      font-weight: 600;
+    }
+
+    /* Golden rule */
+    .golden-rule {
+      margin-top: 2rem;
+      padding: 2rem;
+      background: var(--bg-card);
+      border: 1px solid var(--purple);
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .golden-rule .tag {
+      display: inline-block;
+      font-size: 0.6875rem;
+      color: var(--purple);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 1rem;
+      padding: 0.25rem 0.75rem;
+      background: rgba(167, 139, 250, 0.1);
+      border-radius: 4px;
+    }
+
+    .golden-rule .main {
+      font-size: 1.375rem;
+      font-weight: 600;
+      color: var(--white);
+      margin-bottom: 0.5rem;
+    }
+
+    .golden-rule .sub {
+      font-size: 1rem;
+      color: var(--gray);
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 2rem 0;
+      border-top: 1px solid var(--border);
+      margin-top: 2rem;
+    }
+
+    footer p {
+      font-size: 0.875rem;
+      color: var(--muted);
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .container {
+        padding: 1.25rem 1rem;
+      }
+
+      header h1 {
+        font-size: 1.5rem;
+      }
+
+      .sala-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .tradeoff-grid,
+      .benefits {
+        grid-template-columns: 1fr;
+      }
+
+      .terminal-body {
+        font-size: 0.75rem;
+      }
+
+      .golden-rule .main {
+        font-size: 1.125rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <h1>Como funcionam os pacotes de horas</h1>
+      <p>Um sistema simples, justo e sem surpresas</p>
+    </header>
+
+    <!-- Seção 1 -->
+    <section>
+      <div class="section-header">
+        <span class="section-num">01</span>
+        <h2 class="section-title">Conceito principal</h2>
+      </div>
+      
+      <div class="card">
+        <p>
+          Ao adquirir um pacote, você compra <strong class="highlight-green">horas de uso</strong> do espaço.
+        </p>
+        <p>
+          O sistema não trabalha com saldo financeiro para evitar distorções, erros de preço ou prejuízo.
+        </p>
+      </div>
+
+      <div class="callout">
+        <span class="icon">→</span>
+        <p>
+          As reservas são feitas em <strong>horas inteiras</strong> (1h, 2h, 3h…). 
+          Seu saldo é sempre medido em horas disponíveis.
+        </p>
+      </div>
+    </section>
+
+    <!-- Seção 2 -->
+    <section>
+      <div class="section-header">
+        <span class="section-num">02</span>
+        <h2 class="section-title">Diferença entre as salas</h2>
+      </div>
+
+      <div class="card">
+        <p>
+          A diferença entre salas é o <strong>consumo de horas</strong>, não o preço. 
+          Salas com mais estrutura consomem mais horas do pacote.
+        </p>
+      </div>
+
+      <div class="sala-grid">
+        <div class="sala-card essencial">
+          <div class="name">Essencial</div>
+          <div class="rate">1.0h</div>
+          <div class="unit">por hora reservada</div>
+        </div>
+        <div class="sala-card avancada">
+          <div class="name">Avançada</div>
+          <div class="rate">1.2h</div>
+          <div class="unit">por hora reservada</div>
+        </div>
+        <div class="sala-card premium">
+          <div class="name">Premium</div>
+          <div class="rate">1.5h</div>
+          <div class="unit">por hora reservada</div>
+        </div>
+      </div>
+
+      <div class="rule-box">
+        ⚠ O consumo é sempre arredondado para cima
+      </div>
+    </section>
+
+    <!-- Seção 3 -->
+    <section>
+      <div class="section-header">
+        <span class="section-num">03</span>
+        <h2 class="section-title">Exemplo prático</h2>
+      </div>
+
+      <div class="card">
+        <p>
+          Veja como funciona: um cliente com <strong class="highlight-orange">40 horas</strong> no pacote 
+          faz reservas em diferentes salas.
+        </p>
+      </div>
+
+      <div class="terminal">
+        <div class="terminal-header">
+          <span class="terminal-dot red"></span>
+          <span class="terminal-dot yellow"></span>
+          <span class="terminal-dot green"></span>
+          <span class="terminal-title">Simulação de uso</span>
+        </div>
+        <div class="terminal-body">
+          <div class="terminal-line">
+            <span class="label">Saldo inicial:</span> <span class="result">40h</span>
+          </div>
+          <br>
+          <div class="terminal-line">
+            <span class="action">Reserva 1h na Essencial</span> → <span class="result">-1h</span> <span class="label">(saldo: 39h)</span>
+          </div>
+          <div class="terminal-line">
+            <span class="action">Reserva 1h na Avançada</span> → <span class="result">-2h</span> <span class="label">(saldo: 37h)</span>
+          </div>
+          <div class="terminal-line">
+            <span class="action">Reserva 1h na Premium</span> → <span class="result">-2h</span> <span class="label">(saldo: 35h)</span>
+          </div>
+          <div class="terminal-line final">
+            ✓ Saldo final: 35 horas disponíveis
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="icon">→</span>
+        <p>
+          <strong>Salas mais completas consomem mais horas.</strong> 
+          Você escolhe como utilizar seu saldo.
+        </p>
+      </div>
+    </section>
+
+    <!-- Seção 4 -->
+    <section>
+      <div class="section-header">
+        <span class="section-num">04</span>
+        <h2 class="section-title">O que você está escolhendo</h2>
+      </div>
+
+      <div class="card">
+        <p>
+          O pacote garante horas de uso. Você decide como utilizá-las, equilibrando 
+          <strong>quantidade de sessões</strong> e <strong>qualidade do espaço</strong>.
+        </p>
+      </div>
+
+      <div class="tradeoff-grid">
+        <div class="tradeoff-card qty">
+          <h4>▸ Mais sessões</h4>
+          <p>
+            Use salas básicas para maximizar o número de atendimentos.
+          </p>
+        </div>
+        <div class="tradeoff-card quality">
+          <h4>▸ Mais conforto</h4>
+          <p>
+            Use salas premium para oferecer mais estrutura aos seus clientes.
+          </p>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="icon">→</span>
+        <p>
+          O valor do pacote é o mesmo. O que muda é como as horas são consumidas.
+        </p>
+      </div>
+    </section>
+
+    <!-- Seção 5 -->
+    <section>
+      <div class="section-header">
+        <span class="section-num">05</span>
+        <h2 class="section-title">Por que esse modelo funciona</h2>
+      </div>
+
+      <div class="benefits">
+        <div class="benefit-item">
+          <span class="check">✓</span> Não quebra com promoções
+        </div>
+        <div class="benefit-item">
+          <span class="check">✓</span> Não gera prejuízo oculto
+        </div>
+        <div class="benefit-item">
+          <span class="check">✓</span> Evita confusão de preços
+        </div>
+        <div class="benefit-item">
+          <span class="check">✓</span> Justo para todos
+        </div>
+        <div class="benefit-item">
+          <span class="check">✓</span> Funciona para qualquer sala
+        </div>
+        <div class="benefit-item">
+          <span class="check">✓</span> Transparente e previsível
+        </div>
+      </div>
+    </section>
+
+    <!-- Seção 6 -->
+    <section>
+      <div class="section-header">
+        <span class="section-num">06</span>
+        <h2 class="section-title">Resumindo</h2>
+      </div>
+
+      <div class="golden-rule">
+        <div class="tag">Regra de ouro</div>
+        <div class="main">Quem compra horas, usa horas.</div>
+        <div class="sub">Salas diferentes apenas consomem essas horas de formas diferentes.</div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <p>Espaço Arthemi · Sistema de pacotes de horas</p>
+    </footer>
+  </div>
+</body>
+</html>

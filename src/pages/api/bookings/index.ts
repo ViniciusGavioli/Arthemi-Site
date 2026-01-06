@@ -31,6 +31,7 @@ import { logBookingCreated } from '@/lib/operation-logger';
 import { generateRequestId, REQUEST_ID_HEADER } from '@/lib/request-id';
 import { recordBookingCreated } from '@/lib/audit-event';
 import { triggerAccountActivation } from '@/lib/account-activation';
+import { requireEmailVerifiedForBooking } from '@/lib/email-verification';
 
 // Schema de validação com Zod
 const createBookingSchema = z.object({
@@ -212,6 +213,12 @@ export default async function handler(
         // LOGADO: usar userId da sessão diretamente
         // NÃO chamar resolveOrCreateUser - email/phone do body são ignorados
         userId = auth.userId;
+
+        // BLOQUEIO: Usuário logado deve ter email verificado para agendar
+        const emailCheck = await requireEmailVerifiedForBooking(userId);
+        if (!emailCheck.canBook) {
+          throw new Error('EMAIL_NOT_VERIFIED');
+        }
       } else {
         // NÃO LOGADO: resolver por email > phone
         const { user } = await resolveOrCreateUser(tx, {
@@ -534,6 +541,15 @@ export default async function handler(
       return res.status(400).json({
         success: false,
         error: 'Reservas sem crédito precisam ser feitas com pelo menos 30 minutos de antecedência.',
+      });
+    }
+
+    // BLOQUEIO: Email não verificado
+    if (error instanceof Error && error.message === 'EMAIL_NOT_VERIFIED') {
+      console.log(`[API] POST /api/bookings END`, JSON.stringify({ requestId, statusCode: 403, duration }));
+      return res.status(403).json({
+        success: false,
+        error: 'Você precisa verificar seu e-mail para agendar.',
       });
     }
 

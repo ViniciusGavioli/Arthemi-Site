@@ -16,6 +16,7 @@ interface MeResponse {
     email: string;
     name: string | null;
     role: string;
+    emailVerified: boolean; // true se emailVerifiedAt não é null
   };
   error?: string;
 }
@@ -45,6 +46,7 @@ export default async function handler(
         email: true,
         name: true,
         role: true,
+        emailVerifiedAt: true,
       },
     });
 
@@ -60,6 +62,7 @@ export default async function handler(
         email: user.email,
         name: user.name,
         role: user.role,
+        emailVerified: user.emailVerifiedAt !== null,
       },
     });
 

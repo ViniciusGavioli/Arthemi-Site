@@ -20,6 +20,7 @@ import {
   shouldBlockHourlyPurchase,
   TURNO_PROTECTION_ERROR_CODE,
 } from '@/lib/turno-protection';
+import { requireEmailVerifiedForBooking } from '@/lib/email-verification';
 
 interface ApiResponse {
   success: boolean;
@@ -47,6 +48,16 @@ export default async function handler(
     }
 
     const userId = auth.userId;
+
+    // Verifica se o email foi verificado (bloqueio de agendamento)
+    const emailCheck = await requireEmailVerifiedForBooking(userId);
+    if (!emailCheck.canBook) {
+      return res.status(emailCheck.response!.status).json({
+        success: false,
+        error: emailCheck.response!.body.message,
+        code: emailCheck.response!.body.code,
+      });
+    }
 
     // Busca usuário
     const user = await prisma.user.findUnique({

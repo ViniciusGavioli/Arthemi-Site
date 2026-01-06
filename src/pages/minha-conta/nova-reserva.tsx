@@ -8,11 +8,13 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { CreditBookingWizard } from '@/components/booking';
+import { EmailVerificationBanner } from '@/components/dashboard';
 
 interface User {
   id: string;
   email: string;
   name: string;
+  emailVerified: boolean;
 }
 
 export default function NovaReservaPage() {
@@ -67,6 +69,11 @@ export default function NovaReservaPage() {
       </Head>
 
       <div className="min-h-screen bg-gray-50">
+        {/* Banner de verificação de email */}
+        {user && !user.emailVerified && (
+          <EmailVerificationBanner userEmail={user.email} />
+        )}
+
         {/* Header */}
         <header className="bg-white border-b border-gray-200">
           <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -79,8 +86,16 @@ export default function NovaReservaPage() {
         <main className="max-w-3xl mx-auto px-4 py-8">
           <CreditBookingWizard
             userId={user.id}
+            emailVerified={user.emailVerified}
             onSuccess={handleSuccess}
             onCancel={handleCancel}
+            onResendVerification={async () => {
+              await fetch('/api/auth/resend-activation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: user.email }),
+              });
+            }}
           />
         </main>
       </div>

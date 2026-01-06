@@ -28,6 +28,7 @@ import {
   BookingListItemSkeleton,
   EmptyState,
   QuickActionCard,
+  EmailVerificationBanner,
 } from '@/components/dashboard';
 import { BookingWizardModal } from '@/components/booking';
 import { PurchaseCreditsModal } from '@/components/credits';
@@ -40,6 +41,7 @@ interface User {
   id: string;
   email: string;
   name: string | null;
+  emailVerified: boolean;
 }
 
 interface CreditSummary {
@@ -252,6 +254,11 @@ export default function MinhaContaPage() {
       </Head>
 
       <div className="min-h-screen bg-gray-50">
+        {/* Banner de verificação de email - fixo no topo */}
+        {user && !user.emailVerified && (
+          <EmailVerificationBanner userEmail={user.email} />
+        )}
+
         {/* Header */}
         <DashboardHeader userName={displayName} onLogout={handleLogout} />
 
@@ -491,8 +498,16 @@ export default function MinhaContaPage() {
             isOpen={bookingModalOpen}
             onClose={() => setBookingModalOpen(false)}
             userId={user.id}
+            emailVerified={user.emailVerified}
             onSuccess={handleBookingSuccess}
             onPurchaseCredits={() => setPurchaseModalOpen(true)}
+            onResendVerification={async () => {
+              await fetch('/api/auth/resend-activation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: user.email }),
+              });
+            }}
           />
         )}
 

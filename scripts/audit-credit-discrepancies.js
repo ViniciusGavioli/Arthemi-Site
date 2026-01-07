@@ -69,7 +69,7 @@ async function main() {
         eventType: { in: ['PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED'] },
         status: 'PROCESSED',
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { processedAt: 'asc' },
       take: 1,
     });
 
@@ -113,37 +113,39 @@ async function main() {
         diff,
         diffPercent: `${diffPercent}%`,
         createdAt: credit.createdAt,
-        webhookCreatedAt: webhook.createdAt,
+        webhookProcessedAt: webhook.processedAt,
       });
     }
   }
 
-  // 3. Também verificar via tabela Payment
+  // 3. Verificar via tabela Payment (busca simples sem relações)
   const payments = await prisma.payment.findMany({
     where: {
       status: 'APPROVED',
     },
-    include: {
-      booking: {
-        include: {
-          product: true,
-        },
-      },
-    },
   });
 
   for (const payment of payments) {
-    if (!payment.booking?.product) continue;
+    // Buscar crédito relacionado ao booking do payment
+    if (!payment.bookingId) continue;
+    
+    // Buscar booking para verificar se é pacote
+    const booking = await prisma.booking.findUnique({
+      where: { id: payment.bookingId },
+      include: { product: true },
+    });
+    
+    if (!booking?.product) continue;
     
     // Verificar se é pacote de horas
-    const isPackage = ['PACKAGE_10H', 'PACKAGE_20H', 'PACKAGE_40H'].includes(payment.booking.product.type);
+    const isPackage = ['PACKAGE_10H', 'PACKAGE_20H', 'PACKAGE_40H'].includes(booking.product.type);
     if (!isPackage) continue;
 
     // Buscar crédito relacionado a este booking
     const relatedCredits = await prisma.credit.findMany({
       where: {
-        userId: payment.booking.userId,
-        roomId: payment.booking.roomId,
+        userId: booking.userId,
+        roomId: booking.roomId,
         status: 'CONFIRMED',
         type: 'MANUAL',
         createdAt: {

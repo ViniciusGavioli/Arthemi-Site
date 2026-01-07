@@ -284,6 +284,9 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
         // Determinar se é horas avulsas ou pacote
         const isHourlyCredit = formData.productId === 'hourly_credit';
         
+        // Buscar o produto selecionado para obter o type
+        const selectedProduct = products.find((p) => p.id === formData.productId);
+        
         const response = await fetch('/api/credits/purchase', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -293,8 +296,8 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
             userEmail: formData.userEmail || undefined,
             userCpf: formData.userCpf.replace(/\D/g, ''),
             roomId: room.id,
-            // Se é hora avulsa, envia hours; se é pacote, envia productId
-            productId: isHourlyCredit ? undefined : formData.productId,
+            // Se é hora avulsa, envia hours; se é pacote, envia productType
+            productType: isHourlyCredit ? undefined : selectedProduct?.type,
             hours: isHourlyCredit ? formData.duration : undefined,
             couponCode: formData.couponCode || undefined,
             paymentMethod: formData.paymentMethod,

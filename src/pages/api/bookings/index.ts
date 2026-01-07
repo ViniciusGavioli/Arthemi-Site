@@ -4,7 +4,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
-import prisma from '@/lib/prisma';
+import prisma, { isOverbookingError, OVERBOOKING_ERROR_MESSAGE } from '@/lib/prisma';
 import { createBookingPayment, createBookingCardPayment } from '@/lib/asaas';
 import { brazilianPhone, validateCPF } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
@@ -553,6 +553,15 @@ export default async function handler(
 
   } catch (error) {
     const duration = Date.now() - startTime;
+    
+    // P-001: Detectar violação de constraint de overbooking
+    if (isOverbookingError(error)) {
+      console.log(`[API] POST /api/bookings END (OVERBOOKING)`, JSON.stringify({ requestId, statusCode: 409, duration }));
+      return res.status(409).json({
+        success: false,
+        error: OVERBOOKING_ERROR_MESSAGE,
+      });
+    }
     
     if (error instanceof Error && error.message === 'CONFLICT') {
       console.log(`[API] POST /api/bookings END`, JSON.stringify({ requestId, statusCode: 409, duration }));

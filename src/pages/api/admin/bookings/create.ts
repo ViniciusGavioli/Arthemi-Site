@@ -4,7 +4,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
-import { prisma } from '@/lib/prisma';
+import { prisma, isOverbookingError, OVERBOOKING_ERROR_MESSAGE } from '@/lib/prisma';
 import { isAvailable } from '@/lib/availability';
 import { logAdminAction } from '@/lib/audit';
 import { resolveOrCreateUser } from '@/lib/user-resolve';
@@ -272,6 +272,15 @@ export default async function handler(
       bookingId: booking.id,
     });
   } catch (error) {
+    // P-001: Detectar violação de constraint de overbooking
+    if (isOverbookingError(error)) {
+      console.error('[ADMIN] Overbooking detectado pelo constraint:', error);
+      return res.status(409).json({
+        success: false,
+        error: OVERBOOKING_ERROR_MESSAGE,
+      });
+    }
+    
     console.error('Erro ao criar reserva manual:', error);
     return res.status(500).json({
       success: false,

@@ -5,6 +5,9 @@
 
 import { PrismaClient } from '@prisma/client';
 
+// Re-exportar helpers de overbooking
+export { isOverbookingError, OVERBOOKING_ERROR_MESSAGE } from './overbooking';
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };

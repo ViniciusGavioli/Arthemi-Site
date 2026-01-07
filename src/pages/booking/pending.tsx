@@ -231,7 +231,9 @@ export default function BookingPendingPage() {
       if (softTimeoutRef.current) clearTimeout(softTimeoutRef.current);
       if (hardTimeoutRef.current) clearTimeout(hardTimeoutRef.current);
       
-      router.push('/minha-conta?confirmed=true');
+      // Redirecionar para página de sucesso (sem exigir login)
+      // O usuário ainda não ativou a conta, então não pode ir para /minha-conta
+      router.push('/pagamento/sucesso');
     } else if (result.status === 'CANCELLED' || result.status === 'REFUNDED') {
       // Falha
       debugLog('❌ [PENDING] Pagamento cancelado/estornado', { status: result.status });

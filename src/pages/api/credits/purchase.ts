@@ -138,10 +138,17 @@ export default async function handler(
       });
     }
 
-    // Verificar sala
-    const room = await prisma.room.findUnique({
+    // Verificar sala (busca por id ou fallback por slug)
+    let room = await prisma.room.findUnique({
       where: { id: data.roomId },
     });
+
+    // Fallback: se não encontrar por id, tenta por slug
+    if (!room) {
+      room = await prisma.room.findUnique({
+        where: { slug: data.roomId },
+      });
+    }
 
     if (!room || !room.isActive) {
       return res.status(404).json({
@@ -149,6 +156,9 @@ export default async function handler(
         error: 'Sala não encontrada ou inativa.',
       });
     }
+
+    // Usar o ID real da sala para as queries subsequentes
+    const realRoomId = room.id;
 
     // Determinar se é compra de horas avulsas ou pacote
     let creditHours: number;
@@ -167,7 +177,7 @@ export default async function handler(
       // Compra por tipo de produto (SHIFT_FIXED, SATURDAY_SHIFT, etc)
       const product = await prisma.product.findFirst({
         where: { 
-          roomId: data.roomId,
+          roomId: realRoomId,
           type: data.productType as any, // Cast necessário - validado pelo schema
           isActive: true,
         },
@@ -289,7 +299,7 @@ export default async function handler(
       const credit = await tx.credit.create({
         data: {
           userId: userId,
-          roomId: data.roomId,
+          roomId: realRoomId,
           amount: creditAmount,
           remainingAmount: 0, // Será atualizado para creditAmount após pagamento
           type: 'MANUAL', // Usando MANUAL para compras - TODO: adicionar PACKAGE
@@ -324,7 +334,7 @@ export default async function handler(
       amount,
       paymentMethod: data.paymentMethod || 'PIX',
       hours: creditHours,
-      roomId: data.roomId,
+      roomId: realRoomId,
     });
 
     // AUDIT EVENT (DB) - Best-effort
@@ -332,7 +342,7 @@ export default async function handler(
       requestId,
       userId: result.userId,
       creditId: result.credit.id,
-      roomId: data.roomId,
+      roomId: realRoomId,
       amount,
       hours: creditHours,
       paymentMethod: data.paymentMethod || 'PIX',
@@ -394,7 +404,7 @@ export default async function handler(
       'Credit',
       result.credit.id,
       {
-        roomId: data.roomId,
+        roomId: realRoomId,
         roomName: room.name,
         productName,
         hours: creditHours,

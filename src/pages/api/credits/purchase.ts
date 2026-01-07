@@ -289,7 +289,8 @@ export default async function handler(
       }
 
       // Criar crédito PENDENTE (será ativado após pagamento)
-      const creditAmount = creditHours * room.hourlyRate; // Valor em centavos
+      // IMPORTANTE: usar 'amount' que é o valor EFETIVAMENTE PAGO (com desconto/cupom aplicado)
+      // NÃO usar creditHours * room.hourlyRate pois ignora descontos
       const now = new Date();
       const expiresAt = addDays(now, validityDays);
 
@@ -300,8 +301,8 @@ export default async function handler(
         data: {
           userId: userId,
           roomId: realRoomId,
-          amount: creditAmount,
-          remainingAmount: 0, // Será atualizado para creditAmount após pagamento
+          amount: amount, // Valor PAGO (com desconto/cupom), não preço de tabela
+          remainingAmount: 0, // Será atualizado para amount após pagamento confirmado
           type: 'MANUAL', // Usando MANUAL para compras - TODO: adicionar PACKAGE
           usageType, // Regra de uso: HOURLY, SHIFT, SATURDAY_HOURLY, etc
           status: 'PENDING', // Pendente até pagamento confirmado

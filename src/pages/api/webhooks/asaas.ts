@@ -569,7 +569,10 @@ export default async function handler(
     // ================================================================
     if (booking.product && isPackageProduct(booking.product.type)) {
       const hoursIncluded = booking.product.hoursIncluded || getPackageHours(booking.product.type);
-      const creditAmount = hoursIncluded * (booking.room?.hourlyRate || booking.product.price / hoursIncluded);
+      
+      // IMPORTANTE: usar payment.value (valor PAGO) convertido para centavos
+      // NÃO usar preço de tabela (hourlyRate * hoursIncluded) pois ignora descontos
+      const creditAmount = realToCents(payment.value);
       
       // Calcular expiração (90 dias padrão para pacotes)
       const expiresAt = new Date();
@@ -584,7 +587,7 @@ export default async function handler(
           data: {
             userId: booking.userId,
             roomId: booking.roomId,
-            amount: creditAmount,
+            amount: creditAmount, // Valor PAGO, não preço de tabela
             remainingAmount: creditAmount,
             type: 'MANUAL', // Crédito gerado por compra de pacote
             usageType, // Regra de uso: HOURLY, SHIFT, SATURDAY_HOURLY, etc
@@ -598,7 +601,7 @@ export default async function handler(
         'criação de crédito'
       );
       
-      console.log(`💳 [Asaas Webhook] Crédito criado: ${creditAmount} centavos para user ${booking.userId} (usageType: ${usageType})`);
+      console.log(`💳 [Asaas Webhook] Crédito criado: ${creditAmount} centavos (pago: R$ ${payment.value}) para user ${booking.userId} (usageType: ${usageType})`);
       
       // Atualizar Payment table se existir
       try {
@@ -631,6 +634,7 @@ export default async function handler(
           targetId: credit.id,
           metadata: {
             amount: creditAmount,
+            paidValue: payment.value, // Valor pago em reais (fonte da verdade)
             hoursIncluded,
             productId: booking.product.id,
             productType: booking.product.type,

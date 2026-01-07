@@ -22,6 +22,7 @@ import { recordPurchaseCreated } from '@/lib/audit-event';
 import { triggerAccountActivation } from '@/lib/account-activation';
 import { addDays } from 'date-fns';
 import { computeCreditAmountCents } from '@/lib/credits';
+import { getBookingTotalByDate } from '@/lib/pricing';
 
 // Schema de validação
 const purchaseCreditsSchema = z.object({

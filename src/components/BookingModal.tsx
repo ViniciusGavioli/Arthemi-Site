@@ -45,6 +45,7 @@ interface Product {
 interface Room {
   id: string;
   name: string;
+  slug: string;
   hourlyRate: number;
   products?: Product[];
 }

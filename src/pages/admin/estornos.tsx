@@ -3,7 +3,7 @@
 // ===========================================================
 
 import type { GetServerSideProps, GetServerSidePropsContext } from 'next';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { requireAdminSSR, AuthUser } from '@/lib/auth';
@@ -75,7 +75,7 @@ export default function AdminEstornosPage({ user: _user }: PageProps) {
   const [proofUrl, setProofUrl] = useState('');
   const [notes, setNotes] = useState('');
 
-  async function fetchRefunds() {
+  const fetchRefunds = useCallback(async () => {
     try {
       const url = filter ? `/api/admin/refunds?status=${filter}` : '/api/admin/refunds';
       const res = await fetch(url);
@@ -90,11 +90,11 @@ export default function AdminEstornosPage({ user: _user }: PageProps) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [filter]);
 
   useEffect(() => {
     fetchRefunds();
-  }, [filter]);
+  }, [fetchRefunds]);
 
   // Formatar data
   function formatDate(dateStr: string): string {

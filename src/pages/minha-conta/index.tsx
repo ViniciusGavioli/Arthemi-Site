@@ -122,7 +122,7 @@ export default function MinhaContaPage() {
       // Limpa mensagem após 5s
       setTimeout(() => setSuccessMessage(''), 5000);
     }
-  }, [router.isReady, router.query]);
+  }, [router]);
 
   useEffect(() => {
     let mounted = true;

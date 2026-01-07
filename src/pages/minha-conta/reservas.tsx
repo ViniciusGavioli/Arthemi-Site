@@ -28,29 +28,28 @@ export default function ReservasPage() {
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('upcoming');
 
   useEffect(() => {
-    fetchBookings();
-  }, []);
+    async function fetchBookings() {
+      try {
+        const authRes = await fetch('/api/auth/me');
+        const authData = await authRes.json();
+        if (!authData.authenticated) {
+          router.push('/login');
+          return;
+        }
 
-  async function fetchBookings() {
-    try {
-      const authRes = await fetch('/api/auth/me');
-      const authData = await authRes.json();
-      if (!authData.authenticated) {
-        router.push('/login');
-        return;
+        const res = await fetch('/api/user/bookings?limit=100');
+        if (res.ok) {
+          const data = await res.json();
+          setBookings(data.bookings || []);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar reservas:', err);
+      } finally {
+        setLoading(false);
       }
-
-      const res = await fetch('/api/user/bookings?limit=100');
-      if (res.ok) {
-        const data = await res.json();
-        setBookings(data.bookings || []);
-      }
-    } catch (err) {
-      console.error('Erro ao buscar reservas:', err);
-    } finally {
-      setLoading(false);
     }
-  }
+    fetchBookings();
+  }, [router]);
 
   function formatCurrency(cents: number): string {
     return (cents / 100).toLocaleString('pt-BR', {

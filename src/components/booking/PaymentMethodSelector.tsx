@@ -2,8 +2,11 @@
 // Componente: PaymentMethodSelector - Seleção de método de pagamento
 // PIX (default) ou Cartão de Crédito
 // ===========================================================
+// NOTA: Parcelamento/taxas são exibidos SOMENTE no checkout hospedado.
+// NÃO simular parcelas localmente - checkout externo é fonte da verdade.
+// ===========================================================
 
-import { CreditCard, QrCode } from 'lucide-react';
+import { CreditCard, QrCode, Shield } from 'lucide-react';
 
 export type PaymentMethod = 'PIX' | 'CARD';
 
@@ -11,44 +14,13 @@ interface PaymentMethodSelectorProps {
   selected: PaymentMethod;
   onSelect: (method: PaymentMethod) => void;
   disabled?: boolean;
-  showInstallments?: boolean;
-  installmentCount?: number;
-  onInstallmentChange?: (count: number) => void;
-  totalAmount?: number; // Em centavos
 }
-
-// Valor mínimo por parcela: R$ 5,00 (Asaas)
-const MIN_INSTALLMENT_VALUE = 500; // centavos
-const MAX_INSTALLMENTS = 12;
 
 export function PaymentMethodSelector({
   selected,
   onSelect,
   disabled = false,
-  showInstallments = false,
-  installmentCount = 1,
-  onInstallmentChange,
-  totalAmount = 0,
 }: PaymentMethodSelectorProps) {
-  // Calcula número máximo de parcelas baseado no valor
-  const maxInstallments = Math.min(
-    MAX_INSTALLMENTS,
-    totalAmount > 0 ? Math.floor(totalAmount / MIN_INSTALLMENT_VALUE) : 1
-  );
-
-  // Gera opções de parcelamento
-  const installmentOptions = Array.from(
-    { length: Math.max(1, maxInstallments) },
-    (_, i) => i + 1
-  );
-
-  function formatCurrency(cents: number): string {
-    return (cents / 100).toLocaleString('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    });
-  }
-
   return (
     <div className="space-y-4">
       <label className="block text-sm font-medium text-gray-700">
@@ -93,46 +65,16 @@ export function PaymentMethodSelector({
         </button>
       </div>
 
-      {/* Seletor de parcelas (apenas para cartão) */}
-      {selected === 'CARD' && showInstallments && maxInstallments > 1 && (
-        <div className="mt-4 p-4 bg-gray-50 rounded-xl">
-          <label htmlFor="installment-select" className="block text-sm font-medium text-gray-700 mb-2">
-            Parcelamento
-          </label>
-          <select
-            id="installment-select"
-            aria-label="Selecione o número de parcelas"
-            value={installmentCount}
-            onChange={(e) => onInstallmentChange?.(Number(e.target.value))}
-            disabled={disabled}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          >
-            {installmentOptions.map((count) => {
-              const installmentValue = totalAmount / count;
-              return (
-                <option key={count} value={count}>
-                  {count}x de {formatCurrency(installmentValue)}
-                  {count === 1 ? ' (à vista)' : ''}
-                </option>
-              );
-            })}
-          </select>
-          {installmentCount > 1 && (
-            <p className="text-xs text-gray-500 mt-2">
-              Total: {formatCurrency(totalAmount)} em {installmentCount}x de{' '}
-              {formatCurrency(totalAmount / installmentCount)}
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Aviso de segurança */}
-      {selected === 'CARD' && (
-        <p className="text-xs text-gray-500 flex items-center gap-1">
-          <span className="inline-block w-3 h-3 bg-green-500 rounded-full" />
-          Pagamento seguro processado pelo Asaas. Seus dados de cartão não passam pelo nosso servidor.
+      {/* Aviso de redirecionamento para checkout seguro */}
+      <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+        <p className="text-sm text-blue-700 flex items-start gap-2">
+          <Shield className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <span>
+            Você será direcionado para um ambiente seguro para finalizar o pagamento.
+            {selected === 'CARD' && ' As opções de parcelamento e eventuais taxas são exibidas nesse momento.'}
+          </span>
         </p>
-      )}
+      </div>
     </div>
   );
 }

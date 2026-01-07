@@ -113,59 +113,9 @@ describe('Idempotência do Webhook', () => {
 });
 
 // ============================================================
-// TESTES: PARCELAMENTO
+// NOTA: Parcelamento é tratado EXCLUSIVAMENTE no checkout hospedado.
+// NÃO há cálculo de parcelas no frontend - Asaas é a fonte da verdade.
 // ============================================================
-
-describe('Cálculo de Parcelamento', () => {
-  const MIN_INSTALLMENT_VALUE = 500; // R$ 5,00 em centavos
-
-  function calculateMaxInstallments(totalAmount: number): number {
-    return Math.min(12, Math.floor(totalAmount / MIN_INSTALLMENT_VALUE));
-  }
-
-  function calculateInstallmentValue(totalAmount: number, installments: number): number {
-    return totalAmount / installments;
-  }
-
-  test('valor de R$ 60,00 permite até 12 parcelas', () => {
-    const total = 6000; // R$ 60,00
-    expect(calculateMaxInstallments(total)).toBe(12);
-  });
-
-  test('valor de R$ 30,00 permite até 6 parcelas', () => {
-    const total = 3000; // R$ 30,00
-    expect(calculateMaxInstallments(total)).toBe(6);
-  });
-
-  test('valor de R$ 10,00 permite até 2 parcelas', () => {
-    const total = 1000; // R$ 10,00
-    expect(calculateMaxInstallments(total)).toBe(2);
-  });
-
-  test('valor de R$ 4,00 não permite parcelamento', () => {
-    const total = 400; // R$ 4,00
-    expect(calculateMaxInstallments(total)).toBe(0);
-  });
-
-  test('parcela de R$ 100 em 3x = R$ 33,33 cada', () => {
-    const total = 10000; // R$ 100,00
-    const installmentValue = calculateInstallmentValue(total, 3);
-    expect(Math.round(installmentValue)).toBe(3333);
-  });
-
-  test('installmentCount=1 não envia parcelamento para Asaas', () => {
-    // Regra: se installmentCount é 1, não deve enviar installmentCount para API
-    const installmentCount = 1;
-    const shouldSendInstallment = installmentCount >= 2;
-    expect(shouldSendInstallment).toBe(false);
-  });
-
-  test('installmentCount=3 deve enviar parcelamento para Asaas', () => {
-    const installmentCount = 3;
-    const shouldSendInstallment = installmentCount >= 2;
-    expect(shouldSendInstallment).toBe(true);
-  });
-});
 
 // ============================================================
 // TESTES: PAYMENTMETHOD VALIDATION

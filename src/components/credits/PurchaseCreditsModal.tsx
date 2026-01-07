@@ -66,7 +66,6 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
   
   // Método de pagamento (PIX default, CARD opcional)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX');
-  const [installmentCount, setInstallmentCount] = useState(1);
 
   // Dados do usuário (pré-preenchidos)
   const [formData, setFormData] = useState({
@@ -229,7 +228,6 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
           productType: !isAvulsa ? selectedProduct.productType : undefined,
           // Método de pagamento: PIX ou CARD
           paymentMethod,
-          installmentCount: paymentMethod === 'CARD' ? installmentCount : undefined,
         }),
       });
 
@@ -443,10 +441,6 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                   selected={paymentMethod}
                   onSelect={setPaymentMethod}
                   disabled={submitting}
-                  showInstallments={true}
-                  installmentCount={installmentCount}
-                  onInstallmentChange={setInstallmentCount}
-                  totalAmount={selectedProduct.price}
                 />
               )}
 

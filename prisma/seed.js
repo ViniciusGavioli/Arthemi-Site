@@ -145,6 +145,10 @@ async function main() {
   const rooms = [];
 
   for (const roomData of roomsData) {
+    // PRICES_V3 armazena valores em REAIS, mas o banco armazena em CENTAVOS (Int)
+    const hourlyRateCents = Math.round(roomData.prices.HOURLY_RATE * 100);
+    const shiftPriceCents = Math.round(roomData.prices.SHIFT_FIXED * 100);
+    
     const room = await prisma.room.create({
       data: {
         name: roomData.name,
@@ -154,16 +158,15 @@ async function main() {
         capacity: roomData.capacity,
         amenities: roomData.amenities,
         tier: roomData.tier, // Hierarquia: 1=A, 2=B, 3=C
-        hourlyRate: roomData.prices.HOURLY_RATE,
-        // Campos extras para compatibilidade
-        pricePerHour: roomData.prices.HOURLY_RATE,
-        pricePackage4: Math.round(roomData.prices.HOURLY_RATE * 4 * 0.95), // 5% desconto
-        pricePackage8: Math.round(roomData.prices.HOURLY_RATE * 8 * 0.90), // 10% desconto
-        priceShift: roomData.prices.SHIFT_FIXED,
+        hourlyRate: hourlyRateCents,          // Em CENTAVOS
+        pricePerHour: hourlyRateCents,        // Em CENTAVOS
+        pricePackage4: Math.round(hourlyRateCents * 4 * 0.95), // 5% desconto
+        pricePackage8: Math.round(hourlyRateCents * 8 * 0.90), // 10% desconto
+        priceShift: shiftPriceCents,          // Em CENTAVOS
       },
     });
     rooms.push(room);
-    console.log(`  ✅ ${room.name} (Tier ${roomData.tier}) - Hora: R$ ${(roomData.prices.HOURLY_RATE / 100).toFixed(2)}`);
+    console.log(`  ✅ ${room.name} (Tier ${roomData.tier}) - Hora: R$ ${roomData.prices.HOURLY_RATE.toFixed(2)}`);
   }
 
   console.log(`✅ ${rooms.length} salas criadas`);
@@ -191,8 +194,11 @@ async function main() {
     const pricesForRoom = PRICES_V3[roomKey].prices;
 
     for (const pt of productTypes) {
-      const price = pricesForRoom[pt.type];
-      if (!price) continue;
+      const priceReais = pricesForRoom[pt.type];
+      if (!priceReais) continue;
+      
+      // PRICES_V3 está em REAIS, converter para CENTAVOS para o banco
+      const priceCents = Math.round(priceReais * 100);
 
       await prisma.product.create({
         data: {
@@ -200,7 +206,7 @@ async function main() {
           slug: `${pt.type.toLowerCase().replace(/_/g, '-')}-${room.slug}`,
           description: pt.desc,
           type: pt.type,
-          price: price,
+          price: priceCents,  // Em CENTAVOS
           hoursIncluded: pt.hours,
           validityDays: pt.validity,
           isActive: true,

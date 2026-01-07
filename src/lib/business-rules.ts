@@ -649,10 +649,12 @@ export async function createManualCredit(params: {
 
 /**
  * Busca saldo total de créditos do usuário por consultório
+ * Retorna valores em centavos E horas calculadas
  */
 export async function getUserCreditsSummary(userId: string): Promise<{
   total: number;
-  byRoom: { roomId: string | null; roomName: string; amount: number; tier: number | null }[];
+  totalHours: number;
+  byRoom: { roomId: string | null; roomName: string; amount: number; hours: number; tier: number | null }[];
 }> {
   const credits = await prisma.credit.findMany({
     where: {
@@ -668,28 +670,46 @@ export async function getUserCreditsSummary(userId: string): Promise<{
     include: { room: true },
   });
 
-  const byRoomMap = new Map<string, { roomId: string | null; roomName: string; amount: number; tier: number | null }>();
+  const byRoomMap = new Map<string, { roomId: string | null; roomName: string; amount: number; hours: number; tier: number | null; hourlyRate: number }>();
 
   for (const credit of credits) {
     const key = credit.roomId ?? 'generic';
+    const hourlyRate = credit.room?.hourlyRate ?? 6000; // Fallback: R$ 60/h
     const existing = byRoomMap.get(key);
     
     if (existing) {
       existing.amount += credit.remainingAmount;
+      existing.hours += credit.remainingAmount / existing.hourlyRate;
     } else {
       byRoomMap.set(key, {
         roomId: credit.roomId,
         roomName: credit.room?.name ?? 'Genérico',
         amount: credit.remainingAmount,
+        hours: credit.remainingAmount / hourlyRate,
         tier: credit.room?.tier ?? null,
+        hourlyRate,
       });
     }
   }
 
   const total = credits.reduce((sum, c) => sum + c.remainingAmount, 0);
-  const byRoom = Array.from(byRoomMap.values()).sort((a, b) => (a.tier ?? 99) - (b.tier ?? 99));
+  
+  // Calcular horas totais por sala (cada sala tem seu próprio hourlyRate)
+  let totalHours = 0;
+  const byRoom = Array.from(byRoomMap.values())
+    .map(r => {
+      totalHours += r.hours;
+      return {
+        roomId: r.roomId,
+        roomName: r.roomName,
+        amount: r.amount,
+        hours: Math.floor(r.hours * 10) / 10, // Arredondar para 1 casa decimal
+        tier: r.tier,
+      };
+    })
+    .sort((a, b) => (a.tier ?? 99) - (b.tier ?? 99));
 
-  return { total, byRoom };
+  return { total, totalHours: Math.floor(totalHours * 10) / 10, byRoom };
 }
 
 // ---- Validação de Disponibilidade ----

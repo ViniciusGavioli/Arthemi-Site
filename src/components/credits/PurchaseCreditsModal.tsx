@@ -77,7 +77,8 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
 
   // Gera produtos dinamicamente baseado na sala selecionada
   // USA PRICES_V3 como fonte única de verdade
-  // Catálogo completo: Horas avulsas, Pacotes, Turnos seg-sex, Sábado
+  // Catálogo: Horas avulsas e Pacotes apenas
+  // Turnos (SHIFT_FIXED, SATURDAY_SHIFT) são tratados manualmente via WhatsApp/Admin
   const products = useMemo<Product[]>(() => {
     if (!selectedRoom) return [];
     
@@ -112,40 +113,10 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
       productType: pkg.type,
     }));
     
-    // Turno fixo seg-sex (4h) - blocos fixos
-    const turnoFixo: Product = {
-      id: 'turno-fixo-4h',
-      name: 'Turno fixo (4h)',
-      hours: 4,
-      price: Math.round(roomPrices.SHIFT_FIXED * 100), // Em centavos
-      discount: Math.round(((pricePerHourReais * 4 - roomPrices.SHIFT_FIXED) / (pricePerHourReais * 4)) * 100),
-      type: 'turno' as const,
-      productType: 'SHIFT_FIXED',
-    };
+    // REMOVIDO: Turno fixo seg-sex (tratado manualmente)
+    // REMOVIDO: Sábado hora/turno (tratado manualmente)
     
-    // Sábado - hora avulsa
-    const sabadoHora: Product = {
-      id: 'sabado-hora',
-      name: 'Sábado - Hora avulsa',
-      hours: 1,
-      price: Math.round(roomPrices.SATURDAY_HOUR * 100), // Em centavos
-      discount: 0,
-      type: 'sabado' as const,
-      productType: 'SATURDAY_HOUR',
-    };
-    
-    // Sábado - turno (4h)
-    const sabadoTurno: Product = {
-      id: 'sabado-turno',
-      name: 'Sábado - Turno (4h)',
-      hours: 4,
-      price: Math.round(roomPrices.SATURDAY_SHIFT * 100), // Em centavos
-      discount: Math.round(((roomPrices.SATURDAY_HOUR * 4 - roomPrices.SATURDAY_SHIFT) / (roomPrices.SATURDAY_HOUR * 4)) * 100),
-      type: 'sabado' as const,
-      productType: 'SATURDAY_SHIFT',
-    };
-    
-    return [...avulsas, ...pacotes, turnoFixo, sabadoHora, sabadoTurno];
+    return [...avulsas, ...pacotes];
   }, [selectedRoom]);
 
   // Limpa seleção de produto quando muda sala
@@ -418,94 +389,6 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                             <p className="text-xs text-gray-400 line-through">
                               {formatCurrency(selectedRoom.pricePerHour * product.hours)}
                             </p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Turno Fixo (seg-sex) */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <Clock className="w-4 h-4 inline mr-1" />
-                      Turno Fixo (seg-sex)
-                    </label>
-                    <div className="grid gap-2">
-                      {products.filter(p => p.type === 'turno').map((product) => (
-                        <button
-                          key={product.id}
-                          onClick={() => setSelectedProduct(product)}
-                          className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all text-left ${
-                            selectedProduct?.id === product.id
-                              ? 'border-primary-500 bg-primary-50'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                              <Clock className="w-5 h-5 text-purple-600" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{product.name}</p>
-                              <p className="text-xs text-purple-600">
-                                Blocos: 08-12h / 12-16h / 16-20h
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-semibold text-primary-600">
-                              {formatCurrency(product.price)}
-                            </p>
-                            {product.discount > 0 && (
-                              <p className="text-xs text-green-600 font-medium">
-                                -{product.discount}%
-                              </p>
-                            )}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Sábado */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <Clock className="w-4 h-4 inline mr-1" />
-                      Sábado
-                    </label>
-                    <div className="grid gap-2">
-                      {products.filter(p => p.type === 'sabado').map((product) => (
-                        <button
-                          key={product.id}
-                          onClick={() => setSelectedProduct(product)}
-                          className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all text-left ${
-                            selectedProduct?.id === product.id
-                              ? 'border-primary-500 bg-primary-50'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
-                              <Clock className="w-5 h-5 text-amber-600" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{product.name}</p>
-                              {product.productType === 'SATURDAY_SHIFT' && (
-                                <p className="text-xs text-amber-600">
-                                  Bloco fixo: 08-12h
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-semibold text-primary-600">
-                              {formatCurrency(product.price)}
-                            </p>
-                            {product.discount > 0 && (
-                              <p className="text-xs text-green-600 font-medium">
-                                -{product.discount}%
-                              </p>
-                            )}
                           </div>
                         </button>
                       ))}

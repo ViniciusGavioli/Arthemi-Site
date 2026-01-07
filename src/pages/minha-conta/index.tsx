@@ -10,7 +10,6 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   Calendar,
-  CreditCard,
   Clock,
   Plus,
   ShoppingBag,
@@ -46,7 +45,8 @@ interface User {
 
 interface CreditSummary {
   total: number;
-  byRoom: { roomId: string | null; roomName: string; amount: number; tier: number | null }[];
+  totalHours: number;
+  byRoom: { roomId: string | null; roomName: string; amount: number; hours: number; tier: number | null }[];
 }
 
 interface Booking {
@@ -235,10 +235,11 @@ export default function MinhaContaPage() {
     });
   }
 
-  function formatHours(cents: number): string {
-    // Estimativa: R$60/hora média
-    const hours = Math.floor(cents / 6000);
-    return hours > 0 ? `≈ ${hours}h` : '';
+  function formatHoursDisplay(hours: number): string {
+    if (hours <= 0) return '0h';
+    if (hours === 1) return '1 hora';
+    if (Number.isInteger(hours)) return `${hours} horas`;
+    return `${hours.toFixed(1)}h`;
   }
 
   // Próxima reserva
@@ -323,13 +324,13 @@ export default function MinhaContaPage() {
                   href="/minha-conta/reservas"
                 />
 
-                {/* Créditos */}
+                {/* Horas disponíveis */}
                 <KpiCard
-                  icon={<CreditCard className="w-6 h-6" />}
-                  title="Créditos disponíveis"
-                  value={credits?.total ? formatCurrency(credits.total) : 'R$ 0'}
-                  subtitle={credits?.total ? formatHours(credits.total) : 'Sem créditos'}
-                  variant={credits?.total && credits.total > 0 ? 'success' : 'default'}
+                  icon={<Clock className="w-6 h-6" />}
+                  title="Horas disponíveis"
+                  value={credits?.totalHours ? formatHoursDisplay(credits.totalHours) : '0h'}
+                  subtitle={credits?.totalHours ? `≈ ${formatCurrency(credits.total)}` : 'Compre créditos'}
+                  variant={credits?.totalHours && credits.totalHours > 0 ? 'success' : 'default'}
                   href="/minha-conta"
                 />
 
@@ -388,11 +389,11 @@ export default function MinhaContaPage() {
                 </div>
               </section>
 
-              {/* Detalhes de Créditos */}
+              {/* Detalhes de Horas por Sala */}
               {credits && credits.byRoom.length > 0 && (
                 <section className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                   <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                    <h2 className="text-lg font-semibold text-gray-900">Saldo por Sala</h2>
+                    <h2 className="text-lg font-semibold text-gray-900">Horas por Consultório</h2>
                   </div>
 
                   <div className="p-4 space-y-2">
@@ -402,9 +403,14 @@ export default function MinhaContaPage() {
                         className="flex items-center justify-between p-4 bg-gray-50 rounded-xl"
                       >
                         <span className="font-medium text-gray-900">{room.roomName}</span>
-                        <span className="text-primary-600 font-semibold">
-                          {formatCurrency(room.amount)}
-                        </span>
+                        <div className="text-right">
+                          <span className="text-primary-600 font-semibold">
+                            {formatHoursDisplay(room.hours)}
+                          </span>
+                          <span className="text-xs text-gray-400 ml-2">
+                            ({formatCurrency(room.amount)})
+                          </span>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -440,15 +446,15 @@ export default function MinhaContaPage() {
                 </div>
               </section>
 
-              {/* Avisos (se houver créditos baixos) */}
-              {credits && credits.total > 0 && credits.total < 12000 && (
+              {/* Avisos (se houver menos de 2 horas) */}
+              {credits && credits.totalHours > 0 && credits.totalHours < 2 && (
                 <section className="bg-amber-50 rounded-2xl border border-amber-200 p-5">
                   <div className="flex items-start gap-3">
                     <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="font-semibold text-amber-900">Créditos baixos</h3>
+                      <h3 className="font-semibold text-amber-900">Poucas horas restantes</h3>
                       <p className="text-sm text-amber-700 mt-1">
-                        Seu saldo está abaixo de 2 horas. Considere adquirir um novo pacote.
+                        Você tem menos de 2 horas disponíveis. Considere adquirir um novo pacote.
                       </p>
                       <button
                         onClick={() => setPurchaseModalOpen(true)}

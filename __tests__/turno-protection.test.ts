@@ -1,6 +1,10 @@
 // ===========================================================
 // Testes: Proteção Anti-Canibalização de Turnos
 // ===========================================================
+// NOTA: A proteção de turnos foi DESATIVADA.
+// Turnos agora são vendidos apenas manualmente via admin/WhatsApp.
+// Os testes abaixo verificam que a função shouldBlockHourlyPurchase
+// sempre retorna { blocked: false }.
 
 import {
   isTurnoDay,
@@ -161,17 +165,17 @@ describe('Turno Protection', () => {
     });
   });
 
-  describe('shouldBlockHourlyPurchase', () => {
-    it('deve bloquear sexta-feira daqui 45 dias', () => {
-      // Encontra a próxima sexta-feira daqui 45 dias
+  describe('shouldBlockHourlyPurchase (DESATIVADO)', () => {
+    it('nunca deve bloquear - proteção desativada', () => {
+      // Com a proteção desativada, qualquer data/produto deve ser permitido
       const futureDate = addDays(new Date(), 45);
       const dayOfWeek = futureDate.getDay();
       const daysUntilFriday = (5 - dayOfWeek + 7) % 7;
       const friday45DaysAway = addDays(futureDate, daysUntilFriday);
 
       const result = shouldBlockHourlyPurchase(friday45DaysAway, 'HOURLY_RATE');
-      expect(result.blocked).toBe(true);
-      expect(result.code).toBe(TURNO_PROTECTION_ERROR_CODE);
+      // Proteção DESATIVADA: sempre permite
+      expect(result.blocked).toBe(false);
     });
 
     it('deve permitir sexta-feira daqui 10 dias', () => {
@@ -181,18 +185,11 @@ describe('Turno Protection', () => {
       const daysUntilFriday = (5 - dayOfWeek + 7) % 7;
       const fridayIn10Days = addDays(futureDate, daysUntilFriday);
 
-      // Se a sexta estiver dentro de 30 dias, deve permitir
-      const daysFromNow = Math.ceil(
-        (fridayIn10Days.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-      );
-      
-      if (daysFromNow <= 30) {
-        const result = shouldBlockHourlyPurchase(fridayIn10Days, 'HOURLY_RATE');
-        expect(result.blocked).toBe(false);
-      }
+      const result = shouldBlockHourlyPurchase(fridayIn10Days, 'HOURLY_RATE');
+      expect(result.blocked).toBe(false);
     });
 
-    it('deve permitir sábado daqui 45 dias (não é dia de TURNO)', () => {
+    it('deve permitir sábado daqui 45 dias', () => {
       const futureDate = addDays(new Date(), 45);
       const dayOfWeek = futureDate.getDay();
       const daysUntilSaturday = (6 - dayOfWeek + 7) % 7;
@@ -202,7 +199,7 @@ describe('Turno Protection', () => {
       expect(result.blocked).toBe(false);
     });
 
-    it('deve permitir TURNO (SHIFT_FIXED) sempre, mesmo > 30 dias', () => {
+    it('deve permitir TURNO (SHIFT_FIXED) sempre', () => {
       const futureDate = addDays(new Date(), 45);
       const dayOfWeek = futureDate.getDay();
       const daysUntilFriday = (5 - dayOfWeek + 7) % 7;
@@ -212,7 +209,7 @@ describe('Turno Protection', () => {
       expect(result.blocked).toBe(false);
     });
 
-    it('deve permitir DAY_PASS sempre (considerado TURNO)', () => {
+    it('deve permitir DAY_PASS sempre', () => {
       const futureDate = addDays(new Date(), 45);
       const dayOfWeek = futureDate.getDay();
       const daysUntilFriday = (5 - dayOfWeek + 7) % 7;
@@ -222,7 +219,7 @@ describe('Turno Protection', () => {
       expect(result.blocked).toBe(false);
     });
 
-    it('não deve bloquear domingo (fechado, não é dia de TURNO)', () => {
+    it('deve permitir domingo', () => {
       const futureDate = addDays(new Date(), 45);
       const dayOfWeek = futureDate.getDay();
       const daysUntilSunday = (0 - dayOfWeek + 7) % 7 || 7;
@@ -243,11 +240,11 @@ describe('Turno Protection', () => {
 
       const blocked = validateDatesForTurnoProtection(dates, 'HOURLY_RATE');
       
-      // Todas devem estar dentro de 30 dias
-      expect(blocked.every(b => !b.result.blocked)).toBe(true);
+      // Com proteção desativada, nenhuma data deve ser bloqueada
+      expect(blocked.length).toBe(0);
     });
 
-    it('deve identificar datas bloqueadas em dias de TURNO > 30 dias', () => {
+    it('não deve identificar datas bloqueadas - proteção desativada', () => {
       const dates = [
         addDays(new Date(), 35), // 35 dias
         addDays(new Date(), 45), // 45 dias
@@ -256,16 +253,8 @@ describe('Turno Protection', () => {
 
       const blocked = validateDatesForTurnoProtection(dates, 'HOURLY_RATE');
       
-      // Filtra apenas dias de semana (seg-sex) que estão bloqueados
-      const weekdayBlocked = blocked.filter(b => {
-        const day = b.date.getDay();
-        return day >= 1 && day <= 5;
-      });
-
-      // Todos os dias de semana > 30 dias devem estar bloqueados
-      weekdayBlocked.forEach(b => {
-        expect(b.result.blocked).toBe(true);
-      });
+      // Com proteção DESATIVADA, nenhuma data deve ser bloqueada
+      expect(blocked.length).toBe(0);
     });
   });
 

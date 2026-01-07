@@ -208,10 +208,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     }
   }, [formData.startHour]);
 
-  // Produtos filtrados para esta sala - catálogo oficial de 7 produtos
-  // Catálogo: HOURLY_RATE, PACKAGE_10H, PACKAGE_20H, PACKAGE_40H, SHIFT_FIXED, SATURDAY_HOUR, SATURDAY_SHIFT
+  // Produtos filtrados para esta sala - apenas pacotes de horas
+  // Turnos (SHIFT_FIXED, SATURDAY_SHIFT) são tratados manualmente via WhatsApp/Admin
   // Excluídos: DAY_PASS, SATURDAY_5H (descontinuados)
-  const officialTypes = ['PACKAGE_10H', 'PACKAGE_20H', 'PACKAGE_40H', 'SHIFT_FIXED', 'SATURDAY_HOUR', 'SATURDAY_SHIFT'];
+  const officialTypes = ['PACKAGE_10H', 'PACKAGE_20H', 'PACKAGE_40H'];
   const filteredProducts = products.filter((p) => 
     officialTypes.includes(p.type)
   );

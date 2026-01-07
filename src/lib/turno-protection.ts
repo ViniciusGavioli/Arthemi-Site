@@ -1,9 +1,13 @@
 // ===========================================================
 // Proteção Anti-Canibalização de Turnos
 // ===========================================================
-// Regra: Horas avulsas e pacotes por hora não podem ser
-// comprados/agendados para datas com mais de 30 dias de
-// antecedência em dias que têm produto TURNO disponível.
+// DESATIVADO: Turnos não são mais vendidos automaticamente.
+// São gerenciados manualmente via admin/WhatsApp.
+// Mantido arquivo para compatibilidade com código existente.
+//
+// Regra original (desativada): Horas avulsas e pacotes por hora
+// não podiam ser comprados/agendados para datas com mais de 30
+// dias de antecedência em dias que têm produto TURNO disponível.
 
 import { startOfDay, addDays, isAfter, differenceInCalendarDays } from 'date-fns';
 import { getDayOfWeek } from './business-hours';
@@ -129,53 +133,20 @@ export function isShiftProduct(productType: string | null | undefined): boolean 
  * Verifica se uma compra/agendamento de horas deve ser bloqueada
  * pela regra de proteção de turnos
  * 
- * Regra:
- * - Se é dia de TURNO (seg-sex) E data > 30 dias no futuro
- * - E o produto é hora avulsa ou pacote por hora
- * => BLOQUEAR
+ * DESATIVADO: Turnos não são mais vendidos automaticamente.
+ * Esta função agora sempre retorna { blocked: false }
  * 
  * @param date Data do agendamento
  * @param productType Tipo de produto (opcional, para validar só se for hourly)
- * @returns Resultado com blocked, reason, code, etc
+ * @returns Resultado sempre com blocked: false (proteção desativada)
  */
 export function shouldBlockHourlyPurchase(
   date: Date,
   productType?: string | null
 ): TurnoProtectionResult {
-  const today = startOfDay(new Date());
-  const targetDate = startOfDay(date);
-  
-  // Se não é dia de TURNO, não bloqueia
-  if (!isTurnoDay(date)) {
-    return { blocked: false };
-  }
-  
-  // Se o produto for TURNO/SHIFT, não bloqueia
-  if (productType && isShiftProduct(productType)) {
-    return { blocked: false };
-  }
-  
-  // Se productType for passado e não for hourly, não bloqueia
-  if (productType && !isHourlyProduct(productType)) {
-    return { blocked: false };
-  }
-  
-  // Verifica se está dentro da janela de 30 dias
-  if (isWithinTurnoProtectionWindow(date)) {
-    return { blocked: false };
-  }
-  
-  // BLOQUEAR: É dia de turno + data > 30 dias + produto hourly
-  const maxAllowedDate = addDays(today, TURNO_PROTECTION_WINDOW_DAYS);
-  const daysUntilAllowed = differenceInCalendarDays(targetDate, maxAllowedDate);
-  
-  return {
-    blocked: true,
-    reason: TURNO_PROTECTION_ERROR_MESSAGE,
-    code: TURNO_PROTECTION_ERROR_CODE,
-    maxAllowedDate,
-    daysUntilAllowed,
-  };
+  // DESATIVADO: Proteção de turno não é mais necessária
+  // Turnos são vendidos apenas manualmente via admin/WhatsApp
+  return { blocked: false };
 }
 
 /**

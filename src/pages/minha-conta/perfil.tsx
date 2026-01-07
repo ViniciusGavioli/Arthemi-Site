@@ -49,7 +49,8 @@ interface UserProfile {
 
 interface CreditSummary {
   total: number;
-  byRoom: { roomId: string | null; roomName: string; amount: number; tier: number | null }[];
+  totalHours: number;
+  byRoom: { roomId: string | null; roomName: string; amount: number; hours: number; tier: number | null }[];
 }
 
 interface Stats {
@@ -99,6 +100,16 @@ function formatCurrency(cents: number): string {
     style: 'currency',
     currency: 'BRL',
   });
+}
+
+/**
+ * Formata horas para exibição
+ */
+function formatHoursDisplay(hours: number): string {
+  if (hours <= 0) return '0h';
+  if (hours === 1) return '1 hora';
+  if (Number.isInteger(hours)) return `${hours} horas`;
+  return `${hours.toFixed(1)}h`;
 }
 
 /**
@@ -625,15 +636,15 @@ export default function PerfilPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Resumo da Conta</h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* Créditos */}
+              {/* Horas disponíveis */}
               <Link href="/minha-conta" className="block">
                 <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-xl p-4 hover:shadow-md transition-shadow cursor-pointer">
                   <div className="flex items-center gap-2 text-primary-600 mb-2">
-                    <CreditCard className="w-5 h-5" />
-                    <span className="text-sm font-medium">Saldo de Créditos</span>
+                    <Clock className="w-5 h-5" />
+                    <span className="text-sm font-medium">Horas Disponíveis</span>
                   </div>
                   <p className="text-2xl font-bold text-primary-900">
-                    {credits ? formatCurrency(credits.total) : 'R$ 0,00'}
+                    {credits?.totalHours ? formatHoursDisplay(credits.totalHours) : '0h'}
                   </p>
                   <p className="text-xs text-primary-600 mt-1 flex items-center gap-1">
                     Ver detalhes <ExternalLink className="w-3 h-3" />
@@ -675,10 +686,10 @@ export default function PerfilPage() {
             </div>
           </section>
 
-          {/* Créditos por Sala */}
+          {/* Horas por Consultório */}
           {credits && credits.byRoom && credits.byRoom.length > 0 && (
             <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Créditos por Consultório</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Horas por Consultório</h2>
               <div className="space-y-3">
                 {credits.byRoom.map((room, index) => (
                   <div
@@ -686,9 +697,14 @@ export default function PerfilPage() {
                     className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                   >
                     <span className="font-medium text-gray-900">{room.roomName}</span>
-                    <span className="text-primary-600 font-semibold">
-                      {formatCurrency(room.amount)}
-                    </span>
+                    <div className="text-right">
+                      <span className="text-primary-600 font-semibold">
+                        {formatHoursDisplay(room.hours)}
+                      </span>
+                      <span className="text-xs text-gray-400 ml-2">
+                        ({formatCurrency(room.amount)})
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>

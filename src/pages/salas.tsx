@@ -294,36 +294,26 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                       </table>
                     </div>
                     
-                    {/* Tabela de Turnos e Sábados */}
-                    <div className="border-t border-warm-200 bg-warm-50/50 p-4">
-                      <h4 className="text-sm font-semibold text-primary-800 mb-3">Turnos Fixos (4h) e Sábados</h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                        {(() => {
-                          const roomKey = room.slug === 'sala-a' ? 'SALA_A' : room.slug === 'sala-b' ? 'SALA_B' : 'SALA_C';
-                          const roomPrices = PRICES_V3[roomKey].prices;
-                          return (
-                            <>
-                              <div className="flex justify-between items-center bg-white rounded-lg px-4 py-3 border border-warm-200">
-                                <div>
-                                  <span className="text-secondary-600">Turno fixo (4h)</span>
-                                  <p className="text-xs text-secondary-400">08-12h / 12-16h / 16-20h</p>
-                                </div>
-                                <span className="font-semibold text-accent-600">{formatPrice(roomPrices.SHIFT_FIXED)}</span>
-                              </div>
-                              <div className="flex justify-between items-center bg-white rounded-lg px-4 py-3 border border-warm-200">
-                                <span className="text-secondary-600">Sábado - Hora avulsa</span>
-                                <span className="font-semibold text-accent-600">{formatPrice(roomPrices.SATURDAY_HOUR)}</span>
-                              </div>
-                              <div className="flex justify-between items-center bg-white rounded-lg px-4 py-3 border border-warm-200">
-                                <div>
-                                  <span className="text-secondary-600">Sábado - Turno (4h)</span>
-                                  <p className="text-xs text-secondary-400">08-12h</p>
-                                </div>
-                                <span className="font-semibold text-accent-600">{formatPrice(roomPrices.SATURDAY_SHIFT)}</span>
-                              </div>
-                            </>
-                          );
-                        })()}
+                    {/* Aviso sobre Turnos Fixos e Sábados */}
+                    <div className="border-t border-warm-200 bg-amber-50/50 p-4">
+                      <div className="flex items-start gap-3">
+                        <span className="text-amber-600 text-lg">💬</span>
+                        <div>
+                          <h4 className="text-sm font-semibold text-amber-800 mb-1">
+                            Turnos fixos e sábados
+                          </h4>
+                          <p className="text-xs text-amber-700 mb-2">
+                            Para contratar turnos fixos semanais ou agendar aos sábados, entre em contato conosco pelo WhatsApp.
+                          </p>
+                          <a
+                            href={`https://wa.me/5531991153634?text=${encodeURIComponent(`Olá! Tenho interesse em turnos fixos ou agendamentos aos sábados no ${room.name}. Podemos conversar sobre dia da semana e horário disponíveis?`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-800 hover:text-amber-900 underline"
+                          >
+                            Falar no WhatsApp →
+                          </a>
+                        </div>
                       </div>
                     </div>
                   </div>

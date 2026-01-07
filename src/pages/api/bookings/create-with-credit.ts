@@ -21,6 +21,7 @@ import {
   TURNO_PROTECTION_ERROR_CODE,
 } from '@/lib/turno-protection';
 import { requireEmailVerifiedForBooking } from '@/lib/email-verification';
+import { getBookingTotalCentsByDate } from '@/lib/pricing';
 
 interface ApiResponse {
   success: boolean;
@@ -145,7 +146,17 @@ export default async function handler(
       });
     }
 
-    const totalAmount = hours * room.pricePerHour;
+    // Calcular valor total usando helper unificado (weekday vs saturday)
+    let totalAmount: number;
+    try {
+      totalAmount = getBookingTotalCentsByDate(roomId, start, hours, room.slug);
+    } catch (err) {
+      console.error('[BOOKING] Erro ao calcular preço:', err);
+      return res.status(400).json({
+        success: false,
+        error: 'Erro ao calcular o preço da reserva. Tente novamente.',
+      });
+    }
 
     // Verifica saldo de créditos disponíveis para este horário específico
     // Passa start/end para validar usageType dos créditos

@@ -192,9 +192,12 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                     <h3 className="text-lg font-bold text-primary-900 mb-1">{galleryData.name}</h3>
                     <p className="text-sm text-accent-600 font-medium mb-3">{galleryData.description}</p>
                     <div className="flex items-center justify-between">
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-xl font-bold text-accent-600">{galleryData.price}</span>
-                        <span className="text-secondary-500 text-sm">/hora</span>
+                      <div>
+                        <span className="text-sm text-secondary-500">A partir de</span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-xl font-bold text-accent-600">{galleryData.price}</span>
+                          <span className="text-secondary-500 text-sm">/hora</span>
+                        </div>
                       </div>
                       <button
                         onClick={() => handleReservar(room)}

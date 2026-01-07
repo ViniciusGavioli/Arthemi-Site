@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { logAdminAction } from '@/lib/audit';
 import { getCreditBalanceForRoom, consumeCreditsForBooking } from '@/lib/business-rules';
 import { addMonths } from 'date-fns';
+import { getBookingTotalByDate } from '@/lib/pricing';
 
 const CREDIT_VALIDITY_MONTHS = 6;
 
@@ -125,8 +126,20 @@ export default async function handler(
           (newEndTime.getTime() - newStartTime.getTime()) / (1000 * 60 * 60)
         );
         const hoursDifference = newDurationHours - oldDurationHours;
-        const hourlyRate = booking.room?.hourlyRate || 0;
-        const valueDifference = hoursDifference * hourlyRate;
+        
+        // Usar helper PRICES_V3 para calcular diferença de preço (respeita sábado)
+        let oldValue: number;
+        let newValue: number;
+        try {
+          oldValue = getBookingTotalByDate(booking.roomId, booking.startTime, oldDurationHours, booking.room?.slug);
+          newValue = getBookingTotalByDate(booking.roomId, newStartTime, newDurationHours, booking.room?.slug);
+        } catch (err) {
+          console.error('[ADMIN] Erro ao calcular preço:', err);
+          return res.status(400).json({ 
+            error: `Erro ao calcular o preço: ${err instanceof Error ? err.message : 'Desconhecido'}` 
+          });
+        }
+        const valueDifference = newValue - oldValue;
 
         let creditAdjustment = 0;
         let adjustmentType: 'INCREASE' | 'DECREASE' | 'NONE' = 'NONE';

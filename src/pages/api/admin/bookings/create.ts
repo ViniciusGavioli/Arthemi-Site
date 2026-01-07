@@ -13,6 +13,7 @@ import {
   getCreditBalanceForRoom,
   consumeCreditsForBooking,
 } from '@/lib/business-rules';
+import { getBookingTotalByDate } from '@/lib/pricing';
 
 const createManualBookingSchema = z.object({
   userId: z.string().optional(),
@@ -154,7 +155,23 @@ export default async function handler(
 
     // Calcular valor da reserva baseado no tipo
     const hours = Math.ceil((endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60));
-    const calculatedAmount = data.amount > 0 ? data.amount : (room.hourlyRate * hours);
+    let calculatedAmount: number;
+    
+    if (data.amount > 0) {
+      // Valor informado manualmente
+      calculatedAmount = data.amount;
+    } else {
+      // Calcular usando helper PRICES_V3 (respeita sábado)
+      try {
+        calculatedAmount = getBookingTotalByDate(data.roomId, startTime, hours, room.slug);
+      } catch (err) {
+        console.error('[ADMIN] Erro ao calcular preço:', err);
+        return res.status(400).json({
+          success: false,
+          error: `Erro ao calcular o preço da reserva: ${err instanceof Error ? err.message : 'Desconhecido'}`,
+        });
+      }
+    }
 
     // VALIDAÇÃO E CRIAÇÃO baseado na origem
     let creditsUsed = 0;

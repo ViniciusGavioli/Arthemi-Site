@@ -17,6 +17,7 @@ import {
   isSaturdayDay, 
   type ShiftBlock 
 } from '@/lib/business-hours';
+import { getPricingInfoForUI } from '@/lib/pricing';
 
 // ===========================================================
 // TIPOS
@@ -191,13 +192,18 @@ export function CreditBookingWizard({
   }
 
   function calculateTotal(): number {
-    if (!selectedRoom) return 0;
+    if (!selectedRoom || !selectedDate) return 0;
+    
+    // Usar helper PRICES_V3 para respeitar preço de sábado
+    const pricingInfo = getPricingInfoForUI(selectedRoom.id, selectedDate, selectedRoom.slug);
+    const hourlyPrice = pricingInfo.hourlyPrice;
+    
     // Para SHIFT, o total é 4h (bloco fixo)
     if (isShiftCredit(selectedCredit) && selectedShiftBlock) {
-      return 4 * selectedRoom.pricePerHour;
+      return 4 * hourlyPrice;
     }
     if (selectedHours.length === 0) return 0;
-    return selectedHours.length * selectedRoom.pricePerHour;
+    return selectedHours.length * hourlyPrice;
   }
 
   function toggleHour(hour: number) {

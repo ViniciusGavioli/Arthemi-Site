@@ -32,6 +32,7 @@ import { generateRequestId, REQUEST_ID_HEADER } from '@/lib/request-id';
 import { recordBookingCreated } from '@/lib/audit-event';
 import { triggerAccountActivation } from '@/lib/account-activation';
 import { requireEmailVerifiedForBooking } from '@/lib/email-verification';
+import { getBookingTotalByDate } from '@/lib/pricing';
 
 // Schema de validação com Zod
 const createBookingSchema = z.object({
@@ -241,10 +242,11 @@ export default async function handler(
         isAnonymousCheckout = true; // Flag para disparo de email de ativação
       }
 
-      // 6. Calcular valor usando hourlyRate V3
+      // 6. Calcular valor usando helper unificado de preço (weekday vs saturday)
       const hours = Math.ceil((endAt.getTime() - startAt.getTime()) / (1000 * 60 * 60));
-      let amount = room.hourlyRate * hours;
-
+      
+      let amount: number;
+      
       // Se tem productId, busca preço do produto
       if (data.productId) {
         const product = await tx.product.findUnique({
@@ -252,6 +254,20 @@ export default async function handler(
         });
         if (product) {
           amount = product.price;
+        } else {
+          // Fallback: usar preço por hora baseado na data
+          try {
+            amount = getBookingTotalByDate(realRoomId, startAt, hours, room.slug);
+          } catch (err) {
+            throw new Error(`PRICING_ERROR: ${err instanceof Error ? err.message : 'Erro ao calcular preço'}`);
+          }
+        }
+      } else {
+        // Sem produto específico: usar preço por hora conforme data (weekday/saturday)
+        try {
+          amount = getBookingTotalByDate(realRoomId, startAt, hours, room.slug);
+        } catch (err) {
+          throw new Error(`PRICING_ERROR: ${err instanceof Error ? err.message : 'Erro ao calcular preço'}`);
         }
       }
 

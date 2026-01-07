@@ -21,6 +21,7 @@ import { generateRequestId, REQUEST_ID_HEADER } from '@/lib/request-id';
 import { recordPurchaseCreated } from '@/lib/audit-event';
 import { triggerAccountActivation } from '@/lib/account-activation';
 import { addDays } from 'date-fns';
+import { computeCreditAmountCents } from '@/lib/credits';
 
 // Schema de validação
 const purchaseCreditsSchema = z.object({
@@ -170,7 +171,13 @@ export default async function handler(
     if (data.hours) {
       // Compra de horas avulsas
       creditHours = data.hours;
-      amount = room.hourlyRate * data.hours;
+      // Usar helper PRICES_V3: default para HOURLY_RATE (dia útil, sem data booking)
+      try {
+        amount = Math.round(getBookingTotalByDate(realRoomId, new Date(), data.hours, room.slug) * 100);
+      } catch (err) {
+        console.error('[CREDITS] Erro ao calcular preço de horas:', err);
+        throw new Error(`Erro ao calcular o preço do crédito: ${err instanceof Error ? err.message : 'Desconhecido'}`);
+      }
       productName = `${data.hours} hora${data.hours > 1 ? 's' : ''} avulsa${data.hours > 1 ? 's' : ''}`;
       productType = null; // Horas avulsas → HOURLY
     } else if (data.productType) {
@@ -289,7 +296,20 @@ export default async function handler(
       }
 
       // Criar crédito PENDENTE (será ativado após pagamento)
-      const creditAmount = creditHours * room.hourlyRate; // Valor em centavos
+      // Usar helper PRICES_V3: calcular creditAmount baseado no tipo do produto
+      let creditAmount: number;
+      try {
+        creditAmount = computeCreditAmountCents({
+          amountCents: amount,
+          isHoursPurchase: !!data.hours,
+          roomId: realRoomId,
+          creditHours,
+          roomSlug: room.slug,
+        });
+      } catch (err) {
+        console.error('[CREDITS] Erro ao calcular creditAmount:', err);
+        throw new Error(`Erro ao calcular o valor do crédito: ${err instanceof Error ? err.message : 'Desconhecido'}`);
+      }
       const now = new Date();
       const expiresAt = addDays(now, validityDays);
 
@@ -443,3 +463,4 @@ export default async function handler(
     });
   }
 }
+

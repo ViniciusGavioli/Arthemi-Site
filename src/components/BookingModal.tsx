@@ -11,6 +11,7 @@ import { formatCurrency, maskPhone, getPhoneError } from '@/lib/utils';
 import Link from 'next/link';
 import { analytics } from '@/lib/analytics';
 import { PaymentMethodSelector } from '@/components/booking';
+import { getPricingInfoForUI } from '@/lib/pricing';
 
 // Registrar locale português
 registerLocale('pt-BR', ptBR);
@@ -154,9 +155,8 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     analytics.bookingStarted(room.name);
   }, [room.name]);
 
-  // Pegar preço da hora avulsa desta sala
-  const hourlyProduct = products.find(p => p.type === 'HOURLY_RATE');
-  const hourlyPrice = hourlyProduct?.price || room.hourlyRate || 0;
+  // Obter informações de preço usando helper unificado (weekday vs saturday)
+  const pricingInfo = getPricingInfoForUI(room.id, formData.date, room.slug);
 
   // Cupons válidos (deve estar sincronizado com o backend)
   const VALID_COUPONS: Record<string, { discountType: 'fixed' | 'percent'; value: number; description: string }> = {
@@ -170,7 +170,8 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
       const product = products.find((p) => p.id === formData.productId);
       basePrice = product?.price || 0;
     } else {
-      basePrice = hourlyPrice * formData.duration;
+      // Usar preço da sala conforme data (helper unificado)
+      basePrice = pricingInfo.hourlyPrice * formData.duration;
     }
 
     // Aplicar cupom se válido
@@ -596,7 +597,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                         <div className="text-sm text-gray-500">Compre horas para usar quando quiser</div>
                       </div>
                       <div className="text-right">
-                        <div className="font-bold text-accent-600">{formatCurrency(hourlyPrice)}/hora</div>
+                        <div className="font-bold text-accent-600">{formatCurrency(pricingInfo.hourlyPrice)}/hora</div>
+                        {pricingInfo.isSaturday && (
+                          <div className="text-xs text-amber-600 mt-1">{pricingInfo.label}</div>
+                        )}
                       </div>
                     </div>
                     
@@ -618,7 +622,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                             ))}
                           </select>
                           <div className="text-lg font-bold text-gray-900">
-                            = {formatCurrency(hourlyPrice * formData.duration)}
+                            = {formatCurrency(pricingInfo.hourlyPrice * formData.duration)}
                           </div>
                         </div>
                       </div>

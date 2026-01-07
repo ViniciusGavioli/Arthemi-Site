@@ -13,6 +13,7 @@ import {
   isMockMode, 
   PixQrCode 
 } from '@/lib/asaas';
+import { getBookingTotalCentsByDate } from '@/lib/pricing';
 
 const createPaymentSchema = z.object({
   bookingId: z.string().min(1, 'bookingId é obrigatório'),
@@ -106,7 +107,13 @@ export default async function handler(
       totalAmount = booking.product.price;
       description = booking.product.name;
     } else {
-      totalAmount = booking.room.hourlyRate * hours;
+      // Usar helper PRICES_V3 para calcular preço (respeita sábado)
+      try {
+        totalAmount = getBookingTotalCentsByDate(booking.roomId, booking.startTime, hours, booking.room.slug);
+      } catch (err) {
+        console.error('[PAYMENTS] Erro ao calcular preço:', err);
+        throw new Error(`Erro ao calcular o preço da reserva: ${err instanceof Error ? err.message : 'Desconhecido'}`);
+      }
       description = `${hours}h em ${booking.room.name}`;
     }
 

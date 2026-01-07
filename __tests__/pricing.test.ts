@@ -140,23 +140,23 @@ describe('Pricing Helper - Weekday vs Saturday', () => {
   });
 
   describe('getPricingInfoForUI', () => {
-    it('deve retornar preço de dia útil sem data selecionada', () => {
+    it('deve retornar preço de dia útil sem data selecionada (em CENTAVOS)', () => {
       const info = getPricingInfoForUI('room-123', null, 'sala-a');
-      expect(info.hourlyPrice).toBe(59.99);
+      expect(info.hourlyPrice).toBe(5999); // 59.99 * 100 = 5999 centavos
       expect(info.isSaturday).toBe(false);
       expect(info.label).toBe('Preço por hora');
     });
 
-    it('deve retornar preço de dia útil para quarta-feira', () => {
+    it('deve retornar preço de dia útil para quarta-feira (em CENTAVOS)', () => {
       const info = getPricingInfoForUI('room-123', weekdayDate, 'sala-a');
-      expect(info.hourlyPrice).toBe(59.99);
+      expect(info.hourlyPrice).toBe(5999); // 59.99 * 100 = 5999 centavos
       expect(info.isSaturday).toBe(false);
       expect(info.label).toBe('Preço por hora');
     });
 
-    it('deve retornar preço de sábado com label especial', () => {
+    it('deve retornar preço de sábado com label especial (em CENTAVOS)', () => {
       const info = getPricingInfoForUI('room-123', saturdayDate, 'sala-a');
-      expect(info.hourlyPrice).toBe(64.99);
+      expect(info.hourlyPrice).toBe(6499); // 64.99 * 100 = 6499 centavos
       expect(info.isSaturday).toBe(true);
       expect(info.label).toContain('Sábado');
     });
@@ -167,7 +167,7 @@ describe('Pricing Helper - Weekday vs Saturday', () => {
       // Ambos devem ter sábado, mas preços diferentes
       expect(infoA.isSaturday).toBe(true);
       expect(infoB.isSaturday).toBe(true);
-      expect(infoA.hourlyPrice).toBeGreaterThan(infoB.hourlyPrice); // 64.99 > 53.99
+      expect(infoA.hourlyPrice).toBeGreaterThan(infoB.hourlyPrice); // 6499 > 5399 centavos
     });
   });
 
@@ -178,10 +178,11 @@ describe('Pricing Helper - Weekday vs Saturday', () => {
       const date = weekdayDate;
       const hours = 3;
 
-      const uiPrice = getPricingInfoForUI(roomId, date, slug).hourlyPrice;
-      const backendTotal = getBookingTotalByDate(roomId, date, hours, slug);
+      const uiPriceCents = getPricingInfoForUI(roomId, date, slug).hourlyPrice;
+      const backendTotalReais = getBookingTotalByDate(roomId, date, hours, slug);
+      const backendTotalCents = Math.round(backendTotalReais * 100);
 
-      expect(uiPrice * hours).toBeCloseTo(backendTotal, 2);
+      expect(uiPriceCents * hours).toBe(backendTotalCents);
     });
 
     it('preço exibido no UI deve bater com valor cobrado no backend (saturday)', () => {
@@ -190,10 +191,11 @@ describe('Pricing Helper - Weekday vs Saturday', () => {
       const date = saturdayDate;
       const hours = 2;
 
-      const uiPrice = getPricingInfoForUI(roomId, date, slug).hourlyPrice;
-      const backendTotal = getBookingTotalByDate(roomId, date, hours, slug);
+      const uiPriceCents = getPricingInfoForUI(roomId, date, slug).hourlyPrice;
+      const backendTotalReais = getBookingTotalByDate(roomId, date, hours, slug);
+      const backendTotalCents = Math.round(backendTotalReais * 100);
 
-      expect(uiPrice * hours).toBeCloseTo(backendTotal, 2);
+      expect(uiPriceCents * hours).toBe(backendTotalCents);
     });
 
     it('backend pago deve usar mesmo preço que créditos (weekday)', () => {

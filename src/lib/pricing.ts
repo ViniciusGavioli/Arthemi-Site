@@ -123,27 +123,27 @@ export function getBookingTotalCentsByDate(
 
 /**
  * Obtém informações de preço para exibição no UI
- * Retorna preço, indicador se é sábado, e labels
+ * Retorna preço EM CENTAVOS, indicador se é sábado, e labels
  * @param roomId - ID da sala
  * @param date - Data selecionada
  * @param roomSlug - slug da sala (opcional)
- * @returns { hourlyPrice, isSat, label }
+ * @returns { hourlyPrice (CENTAVOS), isSaturday, label }
  */
 export function getPricingInfoForUI(
   roomId: string,
   date: Date | null,
   roomSlug?: string
 ): {
-  hourlyPrice: number;
+  hourlyPrice: number; // EM CENTAVOS para compatibilidade com formatCurrency
   isSaturday: boolean;
   label: string; // Ex: "Sábado - Preço diferente"
 } {
   if (!date) {
     // Sem data: retornar preço de dia útil padrão
     const roomKey = getRoomKeyFromId(roomId, roomSlug);
-    const weekdayPrice = roomKey ? PRICES_V3[roomKey]?.prices.HOURLY_RATE : 0;
+    const weekdayPriceReais = roomKey ? PRICES_V3[roomKey]?.prices.HOURLY_RATE : 0;
     return {
-      hourlyPrice: weekdayPrice || 0,
+      hourlyPrice: Math.round((weekdayPriceReais || 0) * 100), // Converter para CENTAVOS
       isSaturday: false,
       label: 'Preço por hora',
     };
@@ -151,9 +151,9 @@ export function getPricingInfoForUI(
 
   const isSat = isSaturday(date);
   try {
-    const price = getRoomHourlyPriceByDate(roomId, date, roomSlug);
+    const priceReais = getRoomHourlyPriceByDate(roomId, date, roomSlug);
     return {
-      hourlyPrice: price,
+      hourlyPrice: Math.round(priceReais * 100), // Converter para CENTAVOS
       isSaturday: isSat,
       label: isSat ? '💙 Sábado - Preço especial' : 'Preço por hora',
     };
@@ -161,9 +161,9 @@ export function getPricingInfoForUI(
     // Fallback silencioso (UI pode exibir preço padrão)
     console.error('[PRICING] Erro ao calcular preço:', err);
     const roomKey = getRoomKeyFromId(roomId, roomSlug);
-    const weekdayPrice = roomKey ? PRICES_V3[roomKey]?.prices.HOURLY_RATE : 0;
+    const weekdayPriceReais = roomKey ? PRICES_V3[roomKey]?.prices.HOURLY_RATE : 0;
     return {
-      hourlyPrice: weekdayPrice || 0,
+      hourlyPrice: Math.round((weekdayPriceReais || 0) * 100), // Converter para CENTAVOS
       isSaturday: false,
       label: 'Preço por hora',
     };

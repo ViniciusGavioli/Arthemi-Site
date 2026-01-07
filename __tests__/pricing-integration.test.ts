@@ -11,8 +11,9 @@ import {
 import { PRICES_V3 } from '@/constants/prices';
 
 describe('P0 Integration Tests - PRICES_V3 vs Database', () => {
-  const weekdayDate = new Date('2025-01-15'); // Quarta-feira
-  const saturdayDate = new Date('2025-01-18'); // Sábado
+  // IMPORTANTE: Usar timezone -03:00 para garantir dia correto no Brasil
+  const weekdayDate = new Date('2025-01-15T10:00:00-03:00'); // Quarta-feira
+  const saturdayDate = new Date('2025-01-18T10:00:00-03:00'); // Sábado
 
   describe('1. payments/create.ts - Fallback sem produto deve usar PRICES_V3', () => {
     it('deve calcular payment em sábado com SATURDAY_HOUR, não com DB hourlyRate', () => {
@@ -67,10 +68,11 @@ describe('P0 Integration Tests - PRICES_V3 vs Database', () => {
       const roomId = 'room-sala-b';
       const hours = 2;
       
-      const totalReais = getBookingTotalByDate(roomId, new Date(), hours, 'sala-b');
+      // Usar weekdayDate para garantir preço de dia útil
+      const totalReais = getBookingTotalByDate(roomId, weekdayDate, hours, 'sala-b');
       
-      // SALA_B weekday = 53.99/h (default para horas avulsas)
-      const expected = 53.99 * 2;
+      // SALA_B weekday = 49.99/h (de PRICES_V3)
+      const expected = 49.99 * 2;
       expect(totalReais).toBeCloseTo(expected, 2);
     });
 

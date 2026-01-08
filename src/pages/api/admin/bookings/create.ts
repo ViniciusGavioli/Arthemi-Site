@@ -4,6 +4,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
+import { requireAdminAuth } from '@/lib/admin-auth';
 import { prisma, isOverbookingError, OVERBOOKING_ERROR_MESSAGE } from '@/lib/prisma';
 import { isAvailable } from '@/lib/availability';
 import { logAdminAction } from '@/lib/audit';
@@ -14,6 +15,7 @@ import {
   consumeCreditsForBooking,
 } from '@/lib/business-rules';
 import { getBookingTotalByDate } from '@/lib/pricing';
+import { createDateInBrazilTimezone } from '@/lib/business-hours';
 
 const createManualBookingSchema = z.object({
   userId: z.string().optional(),
@@ -52,14 +54,8 @@ export default async function handler(
     });
   }
 
-  // Verificar autenticação admin
-  const adminToken = req.cookies.admin_token;
-  if (!adminToken) {
-    return res.status(401).json({
-      success: false,
-      error: 'Não autorizado',
-    });
-  }
+  // P-005: Verificar autenticação admin via JWT
+  if (!requireAdminAuth(req, res)) return;
 
   try {
     const validation = createManualBookingSchema.safeParse(req.body);
@@ -73,7 +69,6 @@ export default async function handler(
     }
 
     const data = validation.data;
-    const bookingDate = new Date(data.date);
 
     // Verificar sala
     const room = await prisma.room.findUnique({
@@ -115,16 +110,15 @@ export default async function handler(
       });
     }
 
-    // Calcular horários baseado no tipo
+    // P-010: Calcular horários baseado no tipo (usando timezone de São Paulo)
     let startTime: Date;
     let endTime: Date;
 
     if (data.bookingType === 'SHIFT' && data.shiftType) {
       const shift = SHIFT_HOURS[data.shiftType];
-      startTime = new Date(bookingDate);
-      startTime.setHours(shift.start, 0, 0, 0);
-      endTime = new Date(bookingDate);
-      endTime.setHours(shift.end, 0, 0, 0);
+      // P-010: Criar datas no timezone correto de São Paulo
+      startTime = createDateInBrazilTimezone(data.date, shift.start);
+      endTime = createDateInBrazilTimezone(data.date, shift.end);
     } else {
       // HOURLY
       if (!data.startHour || !data.endHour) {
@@ -133,10 +127,9 @@ export default async function handler(
           error: 'startHour e endHour são obrigatórios para reservas por hora',
         });
       }
-      startTime = new Date(bookingDate);
-      startTime.setHours(data.startHour, 0, 0, 0);
-      endTime = new Date(bookingDate);
-      endTime.setHours(data.endHour, 0, 0, 0);
+      // P-010: Criar datas no timezone correto de São Paulo
+      startTime = createDateInBrazilTimezone(data.date, data.startHour);
+      endTime = createDateInBrazilTimezone(data.date, data.endHour);
     }
 
     // Verificar disponibilidade

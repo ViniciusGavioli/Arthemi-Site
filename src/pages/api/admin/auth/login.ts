@@ -1,11 +1,13 @@
 // ===========================================================
 // API: POST /api/admin/auth/login
 // ===========================================================
+// P-005: Usa JWT assinado em vez de token estático
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { env } from '@/lib/env';
 import { serialize } from 'cookie';
 import { logAdminAction } from '@/lib/audit';
+import { signAdminToken, ADMIN_COOKIE_NAME, ADMIN_SESSION_DURATION_SECONDS } from '@/lib/admin-auth';
 
 interface LoginResponse {
   success: boolean;
@@ -38,16 +40,16 @@ export default async function handler(
     return res.status(401).json({ success: false, error: 'Senha incorreta'});
   }
 
-  // Gera token de sessão
-  const token = generateToken();
+  // P-005: Gera token JWT assinado em vez de hash estático
+  const token = signAdminToken();
 
   // Define cookie httpOnly (7 dias)
-  const cookie = serialize('admin_token', token, {
+  const cookie = serialize(ADMIN_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: 60 * 60 * 24 * 7, // 7 dias
+    maxAge: ADMIN_SESSION_DURATION_SECONDS,
   });
 
   res.setHeader('Set-Cookie', cookie);
@@ -62,19 +64,4 @@ export default async function handler(
   );
   
   return res.status(200).json({ success: true });
-}
-
-// Gera token (mesmo algoritmo do middleware)
-function generateToken(): string {
-  const password = env.ADMIN_PASSWORD;
-  const secret = env.ADMIN_SESSION_SECRET;
-  
-  const combined = `${password}:${secret}`;
-  let hash = 0;
-  for (let i = 0; i < combined.length; i++) {
-    const char = combined.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return `admin_${Math.abs(hash).toString(36)}`;
 }

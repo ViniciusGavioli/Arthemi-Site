@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
+import { requireAdminAuth } from '@/lib/admin-auth';
 
 /**
  * GET /api/admin/bookings - Lista reservas para o painel admin
@@ -12,11 +13,8 @@ export default async function handler(
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Verificar autenticação admin
-  const adminToken = req.cookies.admin_token;
-  if (!adminToken) {
-    return res.status(401).json({ error: 'Não autorizado' });
-  }
+  // P-005: Verificar autenticação admin via JWT
+  if (!requireAdminAuth(req, res)) return;
 
   try {
     const { roomId, status, startDate, endDate } = req.query;

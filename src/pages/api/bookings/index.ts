@@ -24,6 +24,7 @@ import {
   getCreditBalanceForRoom,
   validateBookingWindow,
   isBookingWithinBusinessHours,
+  validateUniversalBookingWindow,
 } from '@/lib/business-rules';
 import { sendBookingConfirmationNotification } from '@/lib/booking-notifications';
 import { sendPixPendingEmail, BookingEmailData } from '@/lib/email';
@@ -171,6 +172,15 @@ export default async function handler(
       return res.status(400).json({
         success: false,
         error: 'Horário fora do expediente. Seg-Sex: 08h-20h, Sáb: 08h-12h, Dom: fechado.',
+      });
+    }
+
+    // P-009: VALIDAÇÃO UNIVERSAL - Reservas limitadas a 30 dias a partir de hoje
+    const windowValidation = validateUniversalBookingWindow(startAt);
+    if (!windowValidation.valid) {
+      return res.status(400).json({
+        success: false,
+        error: windowValidation.error || 'Data fora da janela de reserva permitida.',
       });
     }
 

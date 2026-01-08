@@ -120,12 +120,13 @@ export default async function handler(
             console.log(`⏭️ [BOOKING] Email já enviado anteriormente para ${booking.id}`);
           }
           
-        } else if (!isConfirmed && booking.status !== 'PENDING') {
-          await prisma.booking.update({
-            where: { id: booking.id },
-            data: { status: 'PENDING' },
-          });
-          console.log(`🔄 [BOOKING] Reserva ${booking.id} atualizada para PENDING`);
+        } else if (!isConfirmed && booking.status === 'PENDING') {
+          // P-012: Só atualiza se ainda estiver PENDING
+          // Estados finais (CONFIRMED, CANCELLED) não devem ser rebaixados
+          console.log(`ℹ️ [BOOKING] Reserva ${booking.id} ainda PENDING, pagamento não confirmado`);
+        } else if (!isConfirmed && (booking.status === 'CONFIRMED' || booking.status === 'CANCELLED')) {
+          // P-012: NÃO rebaixar estados finais - apenas log
+          console.log(`⚠️ [BOOKING] Reserva ${booking.id} em estado final ${booking.status}, não rebaixar`);
         }
       }
     } catch (error) {

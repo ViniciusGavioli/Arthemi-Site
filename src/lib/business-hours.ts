@@ -49,6 +49,53 @@ export function getDayOfWeekInBrazil(date: Date): number {
 }
 
 /**
+ * P-010: Cria uma data com hora específica no timezone de São Paulo
+ * Útil para admin criar reservas com hora local correta
+ * @param dateString - Data no formato YYYY-MM-DD ou ISO
+ * @param hour - Hora (0-23) no timezone de São Paulo
+ * @param minute - Minuto (0-59), default 0
+ * @returns Date em UTC que representa a hora especificada em São Paulo
+ */
+export function createDateInBrazilTimezone(
+  dateString: string,
+  hour: number,
+  minute: number = 0
+): Date {
+  // Extrai apenas a parte da data (YYYY-MM-DD) se for ISO
+  const datePart = dateString.split('T')[0];
+  const [year, month, day] = datePart.split('-').map(Number);
+  
+  // Monta string ISO com a hora desejada no timezone de São Paulo
+  // O formato offset depende do horário de verão, então usamos a abordagem de criar
+  // a data temporária e ajustar pelo offset real
+  const tempDate = new Date(Date.UTC(year, month - 1, day, hour, minute, 0, 0));
+  
+  // Descobre o offset real de São Paulo para essa data específica
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: SYSTEM_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  
+  // Formata a tempDate no timezone de São Paulo
+  const parts = formatter.formatToParts(tempDate);
+  const getPart = (type: string) => parseInt(parts.find(p => p.type === type)?.value || '0', 10);
+  
+  // Calcula a diferença entre o que temos e o que queremos
+  const spHour = getPart('hour');
+  const hourDiff = hour - spHour;
+  
+  // Ajusta a data UTC para que fique correta em São Paulo
+  const result = new Date(tempDate.getTime() + hourDiff * 60 * 60 * 1000);
+  
+  return result;
+}
+
+/**
  * Horários de funcionamento
  * - Seg-Sex: 08:00 - 20:00
  * - Sábado: 08:00 - 12:00

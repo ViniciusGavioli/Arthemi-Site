@@ -9,6 +9,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
+import { requireAdminAuth } from '@/lib/admin-auth';
 import { z } from 'zod';
 import { logAdminAction } from '@/lib/audit';
 import { getCreditBalanceForRoom, consumeCreditsForBooking } from '@/lib/business-rules';
@@ -31,11 +32,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // Verificar autenticação admin
-  const adminToken = req.cookies.admin_token;
-  if (!adminToken) {
-    return res.status(401).json({ error: 'Não autorizado' });
-  }
+  // P-005: Verificar autenticação admin via JWT
+  if (!requireAdminAuth(req, res)) return;
 
   const { id } = req.query;
 

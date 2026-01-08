@@ -5,6 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
+import { requireAdminAuth } from '@/lib/admin-auth';
 import { createManualCredit } from '@/lib/business-rules';
 import { logAdminAction, type AuditAction } from '@/lib/audit';
 
@@ -38,14 +39,8 @@ export default async function handler(
     });
   }
 
-  // TODO: Verificar autenticação admin via cookie
-  const adminToken = req.cookies.admin_token;
-  if (!adminToken) {
-    return res.status(401).json({
-      success: false,
-      error: 'Não autorizado',
-    });
-  }
+  // P-005: Verificar autenticação admin via JWT
+  if (!requireAdminAuth(req, res)) return;
 
   try {
     const validation = createCreditSchema.safeParse(req.body);

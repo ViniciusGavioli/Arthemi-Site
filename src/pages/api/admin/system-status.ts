@@ -8,15 +8,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import prisma from '@/lib/prisma';
 import { getMetrics, getLastErrors } from '@/lib/logger';
 import { getAllContingencyFlags, initializeContingencyFlags, setContingencyFlag, ContingencyFlagKey } from '@/lib/contingency';
-
-// Verificação de autenticação admin
-async function isAdminAuthenticated(req: NextApiRequest): Promise<boolean> {
-  const adminToken = req.cookies.admin_token;
-  if (!adminToken) return false;
-
-  // Token existe = autenticado (validação já feita pelo middleware)
-  return true;
-}
+import { requireAdminAuth } from '@/lib/admin-auth';
 
 // ============================================================
 // VERIFICAÇÕES DE SAÚDE DOS SERVIÇOS
@@ -146,10 +138,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // Autenticação
-  if (!(await isAdminAuthenticated(req))) {
-    return res.status(401).json({ error: 'Não autorizado' });
-  }
+  // P-005: Verificar autenticação admin via JWT
+  if (!requireAdminAuth(req, res)) return;
 
   // GET: Retorna status completo
   if (req.method === 'GET') {

@@ -9,6 +9,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
+import { requireAdminAuth } from '@/lib/admin-auth';
 import { prisma } from '@/lib/prisma';
 import { MIN_CANCELLATION_HOURS } from '@/lib/business-rules';
 import { logAdminAction } from '@/lib/audit';
@@ -42,14 +43,8 @@ export default async function handler(
     });
   }
 
-  // Verificar autenticação admin
-  const adminToken = req.cookies.admin_token;
-  if (!adminToken) {
-    return res.status(401).json({
-      success: false,
-      error: 'Não autorizado',
-    });
-  }
+  // P-005: Verificar autenticação admin via JWT
+  if (!requireAdminAuth(req, res)) return;
 
   try {
     const validation = cancelBookingSchema.safeParse(req.body);

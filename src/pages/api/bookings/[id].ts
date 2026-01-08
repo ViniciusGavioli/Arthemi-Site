@@ -99,12 +99,15 @@ export default async function handler(
       } else {
         const isConfirmed = isPaymentStatusConfirmed(payment.status);
         
-        // P-013: Verificar se reserva está em estado final (CANCELLED) antes de atualizar
-        // NUNCA reviver uma reserva cancelada, mesmo que o pagamento seja confirmado
+        // P-013: Verificar se reserva está em estado final antes de atualizar
+        // Estados finais: CANCELLED, CONFIRMED, COMPLETED, NO_SHOW
+        const isFinalState = ['CANCELLED', 'CONFIRMED', 'COMPLETED', 'NO_SHOW'].includes(booking.status);
+        
         if (booking.status === 'CANCELLED') {
+          // NUNCA reviver uma reserva cancelada, mesmo que o pagamento seja confirmado
           console.log(`⚠️ [BOOKING] Reserva ${booking.id} está CANCELADA - NÃO reviver mesmo com pagamento confirmado`);
-        } else if (isConfirmed && booking.status !== 'CONFIRMED') {
-          // Atualizar TODOS os estados financeiros (fallback do webhook)
+        } else if (isConfirmed && booking.status === 'PENDING') {
+          // Atualizar apenas se PENDING e pagamento confirmado
           const updatedBooking = await prisma.booking.update({
             where: { id: booking.id },
             data: { 
@@ -146,12 +149,11 @@ export default async function handler(
           }
           
         } else if (!isConfirmed && booking.status === 'PENDING') {
-          // P-012: Só atualiza se ainda estiver PENDING
-          // Estados finais (CONFIRMED, CANCELLED) não devem ser rebaixados
+          // Reserva ainda pendente, pagamento não confirmado
           console.log(`ℹ️ [BOOKING] Reserva ${booking.id} ainda PENDING, pagamento não confirmado`);
-        } else if (!isConfirmed && (booking.status === 'CONFIRMED' || booking.status === 'CANCELLED')) {
+        } else if (isFinalState) {
           // P-012: NÃO rebaixar estados finais - apenas log
-          console.log(`⚠️ [BOOKING] Reserva ${booking.id} em estado final ${booking.status}, não rebaixar`);
+          console.log(`⚠️ [BOOKING] Reserva ${booking.id} em estado final ${booking.status}, não alterar`);
         }
       }
     } catch (error) {

@@ -192,12 +192,25 @@ async function asaasRequest<T>(
     clearTimeout(timeout);
 
     if (!response.ok) {
+      // CRÍTICO: Ler o body do erro para diagnóstico
+      let errorBody: unknown;
+      try {
+        errorBody = await response.json();
+      } catch {
+        errorBody = await response.text().catch(() => 'Unable to read response body');
+      }
+      
       console.error('❌ Asaas API Error:', {
         status: response?.status,
         endpoint,
         timestamp: new Date().toISOString(),
+        errorBody, // ← AGORA TEMOS O ERRO REAL DO ASAAS
       });
-      throw new Error('Erro na integração com gateway de pagamento');
+      
+      // Se for erro de validação, propagar mensagem específica
+      const asaasError = errorBody as { errors?: Array<{ description?: string }> };
+      const errorMessage = asaasError?.errors?.[0]?.description || 'Erro na integração com gateway de pagamento';
+      throw new Error(errorMessage);
     }
 
     return response.json();
@@ -716,14 +729,14 @@ export async function createBookingCardPayment(
   // 3. Converter valor
   const valueInReais = centsToReal(input.value);
   
-  // 4. Determinar billing type (CREDIT_CARD ou UNDEFINED para aceitar débito também)
-  // Se ASAAS_CARD_BILLING_MODE === 'UNDEFINED', deixa Asaas mostrar ambas opções
-  const billingMode = process.env.ASAAS_CARD_BILLING_MODE;
-  const billingType = billingMode === 'UNDEFINED' ? 'UNDEFINED' : 'CREDIT_CARD';
+  // 4. Billing type SEMPRE CREDIT_CARD para checkout hospedado
+  // NOTA: UNDEFINED não funciona com /payments - causa erro 400
+  // Para aceitar débito, use checkout transparente com tokenização
+  const billingType: BillingType = 'CREDIT_CARD';
   
-  // 5. Configurar parcelamento (apenas para crédito e >= 2 parcelas)
+  // 5. Configurar parcelamento (>= 2 parcelas)
   const installmentCount = 
-    billingType === 'CREDIT_CARD' && input.installmentCount && input.installmentCount >= 2 
+    input.installmentCount && input.installmentCount >= 2 
       ? input.installmentCount 
       : undefined;
 
@@ -742,7 +755,7 @@ export async function createBookingCardPayment(
     dueDate,
     description: input.description,
     externalReference: buildExternalReference(input.bookingId),
-    billingType: billingType as 'CREDIT_CARD' | 'UNDEFINED',
+    billingType, // Sempre CREDIT_CARD
     installmentCount,
     // NÃO enviar installmentValue - Asaas calcula automaticamente
   });

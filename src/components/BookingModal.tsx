@@ -282,13 +282,21 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
         setError('Por favor, selecione uma data.');
         return;
       }
+      
+      // Verificar se é dia fechado
+      const bh = getBusinessHoursForDate(formData.date);
+      if (!bh) {
+        setError('Fechado neste dia. Por favor, selecione outra data.');
+        return;
+      }
+      
       if (!formData.startHour) {
         setError('Por favor, selecione um horário.');
         return;
       }
-      // E1: Validar que horário não ultrapassa fechamento (20h)
-      if (formData.startHour + formData.duration > 20) {
-        setError(`A reserva ultrapassa o horário de fechamento (20h). Duração máxima disponível: ${20 - formData.startHour}h.`);
+      // E1: Validar que horário não ultrapassa fechamento (usa businessHours.end dinâmico)
+      if (formData.startHour + formData.duration > bh.end) {
+        setError(`A reserva ultrapassa o horário de fechamento (${bh.end}h). Duração máxima disponível: ${bh.end - formData.startHour}h.`);
         return;
       }
     } else {

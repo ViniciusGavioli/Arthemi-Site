@@ -192,14 +192,15 @@ export default async function handler(
 
     // TRANSAÇÃO: Cria reserva + consome créditos
     const result = await prisma.$transaction(async (tx) => {
-      // Consome créditos (passa start/end para validar usageType)
+      // P-002: Consome créditos dentro da transação (passa tx)
       const { creditIds, totalConsumed } = await consumeCreditsForBooking(
         userId,
         roomId,
         totalAmount,
         start,
         start,
-        end
+        end,
+        tx // P-002: Passar transação
       );
 
       // Cria reserva com financialStatus = PAID

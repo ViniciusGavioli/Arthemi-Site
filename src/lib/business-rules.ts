@@ -6,7 +6,10 @@
 import { addDays, differenceInHours, isBefore, addMonths, isSaturday, startOfDay, isAfter, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { prisma } from './prisma';
-import type { Credit, Room, CreditUsageType } from '@prisma/client';
+import type { Credit, Room, CreditUsageType, Prisma, PrismaClient } from '@prisma/client';
+
+// Tipo para transação Prisma (compatível com $transaction)
+type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
 
 // ---- Constantes ----
 export const PACKAGE_VALIDITY = {
@@ -513,8 +516,10 @@ export async function getCreditBalanceForRoom(
 }
 
 /**
- * Consome créditos para uma reserva
- * Retorna os IDs dos créditos consumidos e o valor total consumido
+ * Consome créditos para uma reserva de forma ATÔMICA
+ * P-002: Previne double-spend e saldo negativo
+ * 
+ * IMPORTANTE: Sempre passar o objeto `tx` quando dentro de uma transação!
  * 
  * @param userId ID do usuário
  * @param roomId ID do consultório
@@ -522,7 +527,9 @@ export async function getCreditBalanceForRoom(
  * @param bookingDate Data da reserva
  * @param startTime Início da reserva (opcional, para validar usageType)
  * @param endTime Fim da reserva (opcional, para validar usageType)
+ * @param tx Objeto de transação Prisma (opcional, mas RECOMENDADO)
  * @returns { creditIds, totalConsumed }
+ * @throws Error se saldo insuficiente ou update falhar
  */
 export async function consumeCreditsForBooking(
   userId: string,
@@ -530,9 +537,20 @@ export async function consumeCreditsForBooking(
   amount: number,
   bookingDate: Date,
   startTime?: Date,
-  endTime?: Date
+  endTime?: Date,
+  tx?: PrismaTransaction
 ): Promise<{ creditIds: string[]; totalConsumed: number }> {
-  const credits = await getAvailableCreditsForRoom(userId, roomId, bookingDate, startTime, endTime);
+  // Usar transação passada ou prisma global (fallback)
+  const db = tx ?? prisma;
+  
+  // Buscar créditos disponíveis (usa db para consistência na transação)
+  const credits = await getAvailableCreditsForRoomWithTx(db, userId, roomId, bookingDate, startTime, endTime);
+  
+  // Verificar saldo total antes de consumir
+  const totalAvailable = credits.reduce((sum, c) => sum + c.remainingAmount, 0);
+  if (totalAvailable < amount) {
+    throw new Error(`INSUFFICIENT_CREDITS:${totalAvailable}:${amount}`);
+  }
   
   let remaining = amount;
   const usedCreditIds: string[] = [];
@@ -542,22 +560,117 @@ export async function consumeCreditsForBooking(
     if (remaining <= 0) break;
 
     const toConsume = Math.min(credit.remainingAmount, remaining);
+    const newRemaining = credit.remainingAmount - toConsume;
+    const isFullyConsumed = newRemaining === 0;
     
-    await prisma.credit.update({
-      where: { id: credit.id },
-      data: {
-        remainingAmount: { decrement: toConsume },
-        usedAt: credit.remainingAmount === toConsume ? new Date() : null,
-        status: credit.remainingAmount === toConsume ? 'USED' : 'CONFIRMED',
-      },
-    });
+    // UPDATE CONDICIONAL ATÔMICO - P-002
+    // Só atualiza se remainingAmount ainda é >= toConsume
+    // Previne double-spend em concorrência
+    const result = await db.$executeRaw`
+      UPDATE credits
+      SET 
+        "remainingAmount" = "remainingAmount" - ${toConsume},
+        "usedAt" = CASE WHEN "remainingAmount" - ${toConsume} = 0 THEN NOW() ELSE "usedAt" END,
+        "status" = CASE WHEN "remainingAmount" - ${toConsume} = 0 THEN 'USED' ELSE 'CONFIRMED' END,
+        "updatedAt" = NOW()
+      WHERE id = ${credit.id}
+        AND "remainingAmount" >= ${toConsume}
+    `;
+    
+    // Verificar se o update afetou exatamente 1 linha
+    if (result !== 1) {
+      // Crédito foi consumido por outra requisição concorrente
+      throw new Error(`CREDIT_CONSUMED_BY_ANOTHER:${credit.id}`);
+    }
 
     usedCreditIds.push(credit.id);
     totalConsumed += toConsume;
     remaining -= toConsume;
   }
 
+  // Verificar se consumiu o valor esperado
+  if (totalConsumed < amount) {
+    throw new Error(`PARTIAL_CONSUMPTION:${totalConsumed}:${amount}`);
+  }
+
   return { creditIds: usedCreditIds, totalConsumed };
+}
+
+/**
+ * Versão interna de getAvailableCreditsForRoom que aceita transação
+ * @internal
+ */
+async function getAvailableCreditsForRoomWithTx(
+  db: PrismaTransaction | typeof prisma,
+  userId: string,
+  roomId: string,
+  bookingDate: Date,
+  startTime?: Date,
+  endTime?: Date
+): Promise<(Credit & { room: Room | null })[]> {
+  const now = new Date();
+
+  // Busca o consultório alvo para obter o tier
+  const targetRoom = await db.room.findUnique({
+    where: { id: roomId },
+  });
+
+  if (!targetRoom) {
+    return [];
+  }
+
+  // Busca todos os créditos disponíveis do usuário
+  const allCredits = await db.credit.findMany({
+    where: {
+      userId,
+      status: 'CONFIRMED',
+      usedAt: null,
+      remainingAmount: { gt: 0 },
+      OR: [
+        { expiresAt: null },
+        { expiresAt: { gt: now } },
+      ],
+    },
+    include: {
+      room: true,
+    },
+    orderBy: [
+      { expiresAt: 'asc' }, // Primeiro os que vencem antes
+      { createdAt: 'asc' }, // Depois os mais antigos
+    ],
+  });
+
+  // Filtra créditos que podem ser usados neste consultório (hierarquia + sábado + usageType)
+  const validCredits = allCredits.filter((credit) => {
+    // Verifica hierarquia
+    const creditTier = credit.room?.tier ?? null;
+    if (!canUseCredit(creditTier, targetRoom.tier)) {
+      return false;
+    }
+
+    // Verifica se é sábado (para créditos de sábado legados)
+    if (!validateSaturdayCredit(credit, bookingDate)) {
+      return false;
+    }
+
+    // Se startTime/endTime foram passados, valida usageType
+    if (startTime && endTime) {
+      const usageValidation = validateCreditUsage(credit, startTime, endTime);
+      if (!usageValidation.valid) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  // Ordena: créditos específicos do consultório primeiro, depois genéricos
+  return validCredits.sort((a, b) => {
+    // Créditos do mesmo consultório têm prioridade
+    if (a.roomId === roomId && b.roomId !== roomId) return -1;
+    if (b.roomId === roomId && a.roomId !== roomId) return 1;
+    return 0;
+  });
 }
 
 /**

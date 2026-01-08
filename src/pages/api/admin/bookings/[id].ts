@@ -205,27 +205,35 @@ export default async function handler(
             });
           }
 
-          // Consumir crédito adicional
-          const consumeResult = await consumeCreditsForBooking(
-            booking.userId,
-            booking.roomId,
-            valueDifference,
-            newStartTime
-          );
+          // P-002: Transação atômica para consumo + update
+          const result = await prisma.$transaction(async (tx) => {
+            // Consumir crédito adicional (dentro da transação)
+            const consumeResult = await consumeCreditsForBooking(
+              booking.userId,
+              booking.roomId,
+              valueDifference,
+              newStartTime,
+              undefined,
+              undefined,
+              tx // P-002: Passar transação
+            );
 
-          creditAdjustment = consumeResult.totalConsumed;
+            // Atualizar booking (dentro da transação)
+            const updatedBooking = await tx.booking.update({
+              where: { id },
+              data: {
+                startTime: newStartTime,
+                endTime: newEndTime,
+                creditsUsed: (booking.creditsUsed || 0) + consumeResult.totalConsumed,
+                notes: notes ?? booking.notes,
+              },
+              include: { room: true, user: true },
+            });
 
-          // Atualizar booking
-          const updatedBooking = await prisma.booking.update({
-            where: { id },
-            data: {
-              startTime: newStartTime,
-              endTime: newEndTime,
-              creditsUsed: (booking.creditsUsed || 0) + creditAdjustment,
-              notes: notes ?? booking.notes,
-            },
-            include: { room: true, user: true },
+            return { updatedBooking, consumeResult };
           });
+
+          creditAdjustment = result.consumeResult.totalConsumed;
 
           await logAdminAction(
             'CREDIT_USED',
@@ -237,13 +245,13 @@ export default async function handler(
               newDurationHours,
               hoursDifference,
               creditDebited: creditAdjustment,
-              creditIds: consumeResult.creditIds,
+              creditIds: result.consumeResult.creditIds,
             },
             req
           );
 
           return res.status(200).json({
-            ...updatedBooking,
+            ...result.updatedBooking,
             _adjustment: {
               type: 'CREDIT_DEBITED',
               amount: creditAdjustment,

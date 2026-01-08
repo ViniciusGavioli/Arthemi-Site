@@ -301,11 +301,15 @@ export default async function handler(
           const creditsToUse = Math.min(availableCredits, amount);
           amountToPay = amount - creditsToUse;
           
+          // P-002: Passa tx para consumo atômico dentro da transação
           const consumeResult = await consumeCreditsForBooking(
             userId,
             realRoomId,
             creditsToUse,
-            startAt
+            startAt,
+            undefined, // startTime
+            undefined, // endTime
+            tx // Transação Prisma
           );
           
           creditsUsed = consumeResult.totalConsumed;
@@ -560,6 +564,26 @@ export default async function handler(
       return res.status(409).json({
         success: false,
         error: OVERBOOKING_ERROR_MESSAGE,
+      });
+    }
+    
+    // P-002: Detectar erros de crédito insuficiente / double-spend
+    if (error instanceof Error && error.message.startsWith('INSUFFICIENT_CREDITS:')) {
+      const parts = error.message.split(':');
+      const available = parseInt(parts[1]) / 100;
+      const required = parseInt(parts[2]) / 100;
+      console.log(`[API] POST /api/bookings END (INSUFFICIENT_CREDITS)`, JSON.stringify({ requestId, statusCode: 400, duration, available, required }));
+      return res.status(400).json({
+        success: false,
+        error: `Saldo de créditos insuficiente. Disponível: R$ ${available.toFixed(2)}, Necessário: R$ ${required.toFixed(2)}.`,
+      });
+    }
+    
+    if (error instanceof Error && error.message.startsWith('CREDIT_CONSUMED_BY_ANOTHER:')) {
+      console.log(`[API] POST /api/bookings END (CREDIT_RACE)`, JSON.stringify({ requestId, statusCode: 409, duration }));
+      return res.status(409).json({
+        success: false,
+        error: 'Seus créditos foram consumidos por outra reserva. Tente novamente.',
       });
     }
     

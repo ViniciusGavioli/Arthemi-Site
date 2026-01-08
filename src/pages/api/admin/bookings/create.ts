@@ -173,70 +173,83 @@ export default async function handler(
       }
     }
 
-    // VALIDAÇÃO E CRIAÇÃO baseado na origem
-    let creditsUsed = 0;
-    let creditIds: string[] = [];
-    let financialStatus: 'PENDING_PAYMENT' | 'PAID' | 'COURTESY';
-    let auditAction: 'BOOKING_MANUAL_CREATED' | 'BOOKING_COURTESY_CREATED';
+    // Verificar saldo disponível antes da transação
+    const availableCredits = await getCreditBalanceForRoom(user.id, data.roomId, startTime);
 
-    if (data.origin === 'ADMIN_COURTESY') {
-      // CORTESIA: Não debita crédito, não exige pagamento
-      financialStatus = 'COURTESY';
-      auditAction = 'BOOKING_COURTESY_CREATED';
-    } else {
-      // COMMERCIAL: Exige crédito suficiente OU marca como PENDING_PAYMENT
-      const availableCredits = await getCreditBalanceForRoom(user.id, data.roomId, startTime);
-
-      if (availableCredits >= calculatedAmount) {
-        // Tem crédito: debitar imediatamente
-        const consumeResult = await consumeCreditsForBooking(
-          user.id,
-          data.roomId,
-          calculatedAmount,
-          startTime
-        );
-        creditsUsed = consumeResult.totalConsumed;
-        creditIds = consumeResult.creditIds;
-        financialStatus = 'PAID';
-      } else if (availableCredits > 0) {
+    // VALIDAÇÃO prévia
+    if (data.origin === 'COMMERCIAL') {
+      if (availableCredits > 0 && availableCredits < calculatedAmount) {
         // Crédito parcial não permitido para admin
         return res.status(402).json({
           success: false,
           error: `Crédito insuficiente. Disponível: R$ ${(availableCredits / 100).toFixed(2)}, Necessário: R$ ${(calculatedAmount / 100).toFixed(2)}. Use cortesia ou adicione créditos.`,
         });
-      } else {
-        // Sem crédito: marcar como PENDING_PAYMENT (precisa pagar)
-        financialStatus = 'PENDING_PAYMENT';
       }
-      auditAction = 'BOOKING_MANUAL_CREATED';
     }
 
-    // Criar booking manual
-    const booking = await prisma.booking.create({
-      data: {
-        userId: user.id,
-        roomId: data.roomId,
-        startTime,
-        endTime,
-        status: financialStatus === 'PENDING_PAYMENT' ? 'PENDING' : 'CONFIRMED',
-        paymentStatus: financialStatus === 'PAID' ? 'APPROVED' : 'PENDING',
-        amountPaid: creditsUsed,
-        bookingType: data.bookingType,
-        isManual: true,
-        notes: data.notes || `Reserva manual - ${data.bookingType}`,
-        creditsUsed,
-        creditIds,
-        origin: data.origin,
-        financialStatus,
-        courtesyReason: data.origin === 'ADMIN_COURTESY' ? data.courtesyReason : null,
-      },
+    // P-002: Transação atômica para consumo de créditos + criação do booking
+    const result = await prisma.$transaction(async (tx) => {
+      let creditsUsed = 0;
+      let creditIds: string[] = [];
+      let financialStatus: 'PENDING_PAYMENT' | 'PAID' | 'COURTESY';
+      let auditAction: 'BOOKING_MANUAL_CREATED' | 'BOOKING_COURTESY_CREATED';
+
+      if (data.origin === 'ADMIN_COURTESY') {
+        // CORTESIA: Não debita crédito, não exige pagamento
+        financialStatus = 'COURTESY';
+        auditAction = 'BOOKING_COURTESY_CREATED';
+      } else {
+        // COMMERCIAL: Exige crédito suficiente OU marca como PENDING_PAYMENT
+        if (availableCredits >= calculatedAmount) {
+          // Tem crédito: debitar imediatamente (dentro da transação)
+          const consumeResult = await consumeCreditsForBooking(
+            user.id,
+            data.roomId,
+            calculatedAmount,
+            startTime,
+            undefined,
+            undefined,
+            tx // P-002: Passar transação
+          );
+          creditsUsed = consumeResult.totalConsumed;
+          creditIds = consumeResult.creditIds;
+          financialStatus = 'PAID';
+        } else {
+          // Sem crédito: marcar como PENDING_PAYMENT (precisa pagar)
+          financialStatus = 'PENDING_PAYMENT';
+        }
+        auditAction = 'BOOKING_MANUAL_CREATED';
+      }
+
+      // Criar booking manual (dentro da transação)
+      const booking = await tx.booking.create({
+        data: {
+          userId: user.id,
+          roomId: data.roomId,
+          startTime,
+          endTime,
+          status: financialStatus === 'PENDING_PAYMENT' ? 'PENDING' : 'CONFIRMED',
+          paymentStatus: financialStatus === 'PAID' ? 'APPROVED' : 'PENDING',
+          amountPaid: creditsUsed,
+          bookingType: data.bookingType,
+          isManual: true,
+          notes: data.notes || `Reserva manual - ${data.bookingType}`,
+          creditsUsed,
+          creditIds,
+          origin: data.origin,
+          financialStatus,
+          courtesyReason: data.origin === 'ADMIN_COURTESY' ? data.courtesyReason : null,
+        },
+      });
+
+      return { booking, creditsUsed, creditIds, auditAction };
     });
 
-    // Log de auditoria
+    // Log de auditoria (fora da transação - best effort)
     await logAdminAction(
-      auditAction,
+      result.auditAction,
       'Booking',
-      booking.id,
+      result.booking.id,
       {
         userId: user.id,
         roomId: data.roomId,
@@ -245,22 +258,22 @@ export default async function handler(
         endTime: endTime.toISOString(),
         amount: calculatedAmount,
         origin: data.origin,
-        financialStatus,
-        creditsUsed,
+        financialStatus: result.booking.financialStatus,
+        creditsUsed: result.creditsUsed,
         courtesyReason: data.courtesyReason || null,
       },
       req
     );
 
     // Log adicional se consumiu créditos
-    if (creditsUsed > 0) {
+    if (result.creditsUsed > 0) {
       await logAdminAction(
         'CREDIT_USED' as any, // Type cast necessário
         'Booking',
-        booking.id,
+        result.booking.id,
         {
-          amount: creditsUsed,
-          creditIds,
+          amount: result.creditsUsed,
+          creditIds: result.creditIds,
           userId: user.id,
         },
         req
@@ -269,7 +282,7 @@ export default async function handler(
 
     return res.status(201).json({
       success: true,
-      bookingId: booking.id,
+      bookingId: result.booking.id,
     });
   } catch (error) {
     // P-001: Detectar violação de constraint de overbooking
@@ -278,6 +291,24 @@ export default async function handler(
       return res.status(409).json({
         success: false,
         error: OVERBOOKING_ERROR_MESSAGE,
+      });
+    }
+    
+    // P-002: Detectar erros de crédito insuficiente / double-spend
+    if (error instanceof Error && error.message.startsWith('INSUFFICIENT_CREDITS:')) {
+      const parts = error.message.split(':');
+      const available = parseInt(parts[1]) / 100;
+      const required = parseInt(parts[2]) / 100;
+      return res.status(400).json({
+        success: false,
+        error: `Saldo de créditos insuficiente. Disponível: R$ ${available.toFixed(2)}, Necessário: R$ ${required.toFixed(2)}.`,
+      });
+    }
+    
+    if (error instanceof Error && error.message.startsWith('CREDIT_CONSUMED_BY_ANOTHER:')) {
+      return res.status(409).json({
+        success: false,
+        error: 'Créditos foram consumidos por outra reserva. Tente novamente.',
       });
     }
     

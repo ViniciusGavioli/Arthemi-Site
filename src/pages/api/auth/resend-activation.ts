@@ -58,16 +58,18 @@ export default async function handler(
       });
     }
 
-    // Rate limit por email (3 por hora)
+    // Rate limit por email (5 por hora)
     const emailRateLimit = await checkRateLimit(normalizedEmail, 'resend-activation', {
       windowMinutes: 60,
-      maxRequests: 3,
+      maxRequests: 5,
     });
 
     if (!emailRateLimit.allowed) {
+      const retryAfterSeconds = Math.ceil((emailRateLimit.resetAt.getTime() - Date.now()) / 1000);
+      res.setHeader('Retry-After', Math.max(1, retryAfterSeconds));
       return res.status(429).json({
         ok: false,
-        error: 'Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.',
+        error: getRateLimitMessage(retryAfterSeconds),
         resetAt: emailRateLimit.resetAt.toISOString(),
       });
     }

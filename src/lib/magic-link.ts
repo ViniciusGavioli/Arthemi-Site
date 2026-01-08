@@ -4,7 +4,7 @@
 // Decisões fechadas:
 // - Token expira em 12 horas
 // - Sessão (cookie) dura 7 dias, renovável a cada acesso
-// - Rate limit: 3 magic links por hora por email
+// - Rate limit: 5 magic links por hora por email
 // - Token hashado com SHA-256 no banco
 
 import { createHash, randomBytes } from 'crypto';
@@ -22,7 +22,7 @@ export const MAGIC_LINK_EXPIRY_HOURS = 12;
 export const SESSION_DURATION_DAYS = 7;
 
 /** Máximo de magic links por hora por email */
-export const MAX_MAGIC_LINKS_PER_HOUR = 3;
+export const MAX_MAGIC_LINKS_PER_HOUR = 5;
 
 /** Tamanho do token em bytes (256 bits de entropia) */
 const TOKEN_BYTES = 32;
@@ -150,6 +150,7 @@ interface CreateMagicLinkResult {
   error?: string;
   rateLimited?: boolean;
   resetAt?: Date;
+  retryAfterSeconds?: number;
 }
 
 /**
@@ -176,11 +177,14 @@ export async function createMagicLink(email: string): Promise<CreateMagicLinkRes
   // Verifica rate limit
   const rateLimit = await checkRateLimit(normalizedEmail);
   if (!rateLimit.allowed) {
+    const retryAfterSeconds = Math.ceil((rateLimit.resetAt.getTime() - Date.now()) / 1000);
+    const minutes = Math.ceil(retryAfterSeconds / 60);
     return {
       success: false,
       rateLimited: true,
       resetAt: rateLimit.resetAt,
-      error: 'Muitas tentativas. Aguarde alguns minutos.',
+      retryAfterSeconds,
+      error: `Muitas tentativas. Tente novamente em ${minutes} minuto${minutes > 1 ? 's' : ''}.`,
     };
   }
 

@@ -83,7 +83,7 @@ export default function ConfirmeEmailPage({ initialEmail, next }: ConfirmeEmailP
         // Rate limited
         setStatus('rate-limited');
         setResetAt(data.resetAt || null);
-        setErrorMessage(data.error || 'Muitas tentativas. Aguarde alguns minutos.');
+        setErrorMessage(data.error || 'Muitas tentativas. Tente novamente em alguns minutos.');
         return;
       }
 

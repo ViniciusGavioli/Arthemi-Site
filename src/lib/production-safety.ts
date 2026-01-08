@@ -159,7 +159,7 @@ const SAFE_ERROR_MESSAGES: Record<string, string> = {
   'HORARIO_INVALIDO': 'Horário fora do expediente.',
   'PAGAMENTO_DUPLICADO': 'Este pagamento já foi processado.',
   'TIMEOUT': 'Operação demorou muito. Tente novamente.',
-  'RATE_LIMIT': 'Muitas tentativas. Aguarde alguns minutos.',
+  'RATE_LIMIT': 'Muitas tentativas. Tente novamente em alguns minutos.',
 };
 
 /**

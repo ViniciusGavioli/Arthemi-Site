@@ -216,6 +216,12 @@ export default function NovaReservaPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
+    // Guard: Não permitir reserva em dia fechado
+    if (isClosed) {
+      showToast('Não é possível reservar em dia fechado (domingo)', 'warning');
+      return;
+    }
+
     if (!selectedUser && !createNewUser) {
       showToast('Selecione ou crie um cliente', 'warning');
       return;
@@ -465,6 +471,13 @@ export default function NovaReservaPage() {
                   ]}
                 />
 
+                {/* Aviso de dia fechado */}
+                {isClosed && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700">
+                    🚫 Fechado neste dia (domingo). Selecione outra data.
+                  </div>
+                )}
+
                 {/* Horários para HOURLY */}
                 {formData.bookingType === 'HOURLY' && (
                   <div className="grid grid-cols-2 gap-4">
@@ -473,12 +486,14 @@ export default function NovaReservaPage() {
                       value={formData.startHour}
                       onChange={(e) => setFormData(d => ({ ...d, startHour: e.target.value }))}
                       options={hourOptions}
+                      disabled={isClosed}
                     />
                     <Select
                       label="Fim"
                       value={formData.endHour}
                       onChange={(e) => setFormData(d => ({ ...d, endHour: e.target.value }))}
                       options={hourOptions.filter(o => Number(o.value) > Number(formData.startHour))}
+                      disabled={isClosed}
                     />
                   </div>
                 )}
@@ -583,6 +598,7 @@ export default function NovaReservaPage() {
             loading={submitting}
             disabled={
               submitting ||
+              isClosed ||
               !!availabilityError ||
               (!selectedUser && !createNewUser) ||
               (createNewUser && (!newUserData.name || !newUserData.phone))

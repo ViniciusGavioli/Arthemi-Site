@@ -208,6 +208,12 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
 
   // Salvar edições (com verificação de confirmação)
   function handleRequestSave() {
+    // Guard: Não permitir salvar horário em dia fechado
+    if (isClosedDate && !hasOnlyNotesChange) {
+      showToast('Não é possível agendar em dia fechado (domingo)', 'error');
+      return;
+    }
+
     if (isLocked && !hasOnlyNotesChange) {
       showToast('Não é possível alterar reservas concluídas ou canceladas', 'error');
       return;
@@ -516,19 +522,27 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
                     disabled={isCompleted}
                   />
                   <div></div>
+                  
+                  {/* Aviso de dia fechado */}
+                  {isClosedDate && (
+                    <div className="col-span-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm">
+                      🚫 Fechado neste dia (domingo). Selecione outra data.
+                    </div>
+                  )}
+                  
                   <Select
                     label="Horário Início"
                     value={String(editData.startHour)}
                     onChange={(e) => setEditData(d => ({ ...d, startHour: Number(e.target.value) }))}
                     options={hourOptions}
-                    disabled={isCompleted}
+                    disabled={isCompleted || isClosedDate}
                   />
                   <Select
                     label="Horário Fim"
                     value={String(editData.endHour)}
                     onChange={(e) => setEditData(d => ({ ...d, endHour: Number(e.target.value) }))}
                     options={hourOptions.filter(o => Number(o.value) > editData.startHour)}
-                    disabled={isCompleted}
+                    disabled={isCompleted || isClosedDate}
                   />
                 </div>
                 <Select
@@ -569,7 +583,7 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
                     variant="primary" 
                     onClick={handleRequestSave} 
                     loading={saving}
-                    disabled={saving || (isCompleted && !hasOnlyNotesChange)}
+                    disabled={saving || (isCompleted && !hasOnlyNotesChange) || (isClosedDate && !hasOnlyNotesChange)}
                   >
                     💾 Salvar Alterações
                   </Button>

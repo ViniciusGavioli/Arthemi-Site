@@ -305,20 +305,22 @@ export default async function handler(
       let amountToPay = amount;
 
       if (data.useCredits) {
-        const availableCredits = await getCreditBalanceForRoom(userId, realRoomId, startAt);
+        // P-008/P-011: Passar startAt/endAt para validar usageType
+        const availableCredits = await getCreditBalanceForRoom(userId, realRoomId, startAt, startAt, endAt);
         
         if (availableCredits > 0) {
           const creditsToUse = Math.min(availableCredits, amount);
           amountToPay = amount - creditsToUse;
           
           // P-002: Passa tx para consumo atômico dentro da transação
+          // P-008/P-011: Passar startAt/endAt para validar usageType
           const consumeResult = await consumeCreditsForBooking(
             userId,
             realRoomId,
             creditsToUse,
             startAt,
-            undefined, // startTime
-            undefined, // endTime
+            startAt, // startTime - validação de usageType
+            endAt,   // endTime - validação de usageType
             tx // Transação Prisma
           );
           

@@ -15,7 +15,7 @@ import {
   consumeCreditsForBooking,
 } from '@/lib/business-rules';
 import { getBookingTotalByDate } from '@/lib/pricing';
-import { createDateInBrazilTimezone } from '@/lib/business-hours';
+import { createDateInBrazilTimezone, isBookingWithinBusinessHours } from '@/lib/business-hours';
 
 const createManualBookingSchema = z.object({
   userId: z.string().optional(),
@@ -132,6 +132,15 @@ export default async function handler(
       endTime = createDateInBrazilTimezone(data.date, data.endHour);
     }
 
+    // Validar horário de funcionamento (mesma regra do usuário)
+    // Seg-Sex: 08h-20h, Sáb: 08h-12h, Dom: fechado
+    if (!isBookingWithinBusinessHours(startTime, endTime)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Horário fora do expediente. Seg-Sex: 08h-20h, Sáb: 08h-12h, Dom: fechado.',
+      });
+    }
+
     // Verificar disponibilidade
     const available = await isAvailable({
       roomId: data.roomId,
@@ -167,7 +176,8 @@ export default async function handler(
     }
 
     // Verificar saldo disponível antes da transação
-    const availableCredits = await getCreditBalanceForRoom(user.id, data.roomId, startTime);
+    // P-008/P-011: Passar startTime/endTime para validar usageType
+    const availableCredits = await getCreditBalanceForRoom(user.id, data.roomId, startTime, startTime, endTime);
 
     // VALIDAÇÃO prévia
     if (data.origin === 'COMMERCIAL') {
@@ -195,13 +205,14 @@ export default async function handler(
         // COMMERCIAL: Exige crédito suficiente OU marca como PENDING_PAYMENT
         if (availableCredits >= calculatedAmount) {
           // Tem crédito: debitar imediatamente (dentro da transação)
+          // P-008/P-011: Passar startTime/endTime para validar usageType
           const consumeResult = await consumeCreditsForBooking(
             user.id,
             data.roomId,
             calculatedAmount,
             startTime,
-            undefined,
-            undefined,
+            startTime, // startTime - validação de usageType
+            endTime,   // endTime - validação de usageType
             tx // P-002: Passar transação
           );
           creditsUsed = consumeResult.totalConsumed;

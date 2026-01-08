@@ -553,8 +553,8 @@ export default function Home({ dbRooms }: HomeProps) {
               {[
                 '/images/sala-a/foto-4.jpeg',
                 '/images/sala-a/foto-7.jpeg',
-                '/images/sala-a/foto-6.jpeg',
-                '/images/sala-a/foto-2.jpeg',
+                '/images/sala-a/foto-5.jpeg',
+                '/images/sala-b/02-3.jpeg',
                 '/images/sala-c/03-1.jpeg',
                 '/images/sala-c/03-2.jpeg',
                 '/images/espaco/Recepcao.jpeg',

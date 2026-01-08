@@ -22,6 +22,8 @@ jest.mock('@/lib/prisma', () => ({
   prisma: {
     user: { findUnique: jest.fn() },
   },
+  isOverbookingError: jest.fn().mockReturnValue(false),
+  OVERBOOKING_ERROR_MESSAGE: 'Horário não disponível. Já existe uma reserva neste período.',
 }));
 
 jest.mock('@/lib/auth', () => ({
@@ -80,6 +82,13 @@ jest.mock('@/lib/business-rules', () => ({
   isBookingWithinBusinessHours: jest.fn().mockReturnValue(true),
   validateBookingWindow: jest.fn(),
   getAvailableCreditsForRoom: jest.fn().mockResolvedValue([]),
+  validateUniversalBookingWindow: jest.fn().mockReturnValue({ valid: true, maxDate: new Date('2026-02-06') }),
+}));
+
+jest.mock('@/lib/pricing', () => ({
+  getBookingTotalByDate: jest.fn().mockReturnValue(5999), // 59.99 reais em centavos
+  getBookingTotalCentsByDate: jest.fn().mockReturnValue(5999),
+  getRoomHourlyPriceByDate: jest.fn().mockReturnValue(59.99),
 }));
 
 jest.mock('@/lib/booking-notifications', () => ({

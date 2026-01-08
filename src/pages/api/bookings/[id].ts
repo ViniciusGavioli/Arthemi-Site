@@ -4,11 +4,18 @@ import { logUserAction } from '@/lib/audit';
 import { MIN_CANCELLATION_HOURS } from '@/lib/business-rules';
 import { getPaymentByExternalReference, isPaymentStatusConfirmed, realToCents } from '@/lib/asaas';
 import { sendBookingConfirmationNotification } from '@/lib/booking-notifications';
+import { getAuthFromRequest } from '@/lib/auth';
+import { getAdminAuth } from '@/lib/admin-auth';
 
 /**
  * API /api/bookings/[id]
- * GET - Busca detalhes de uma reserva específica
- * PATCH - Atualiza status da reserva (cancelamento público)
+ * GET - Busca detalhes de uma reserva específica (autenticado)
+ * PATCH - Atualiza status da reserva (cancelamento - autenticado)
+ * 
+ * P-004: Segurança/Ownership/PII
+ * - Exige autenticação em ambas as rotas
+ * - Verifica ownership: apenas owner ou admin podem acessar
+ * - Remove PII (email/phone) se não for owner/admin
  */
 export default async function handler(
   req: NextApiRequest,
@@ -18,6 +25,14 @@ export default async function handler(
 
   if (!id || typeof id !== 'string') {
     return res.status(400).json({ error: 'ID da reserva é obrigatório' });
+  }
+
+  // P-004: Verificar autenticação (usuário ou admin)
+  const userAuth = getAuthFromRequest(req);
+  const isAdmin = getAdminAuth(req);
+  
+  if (!userAuth && !isAdmin) {
+    return res.status(401).json({ error: 'Não autenticado' });
   }
 
   // ========================================================
@@ -69,6 +84,12 @@ export default async function handler(
         return res.status(404).json({ error: 'Reserva não encontrada' });
       }
 
+      // P-004: Verificar ownership (apenas owner ou admin pode acessar)
+      const isOwner = userAuth && booking.user.id === userAuth.userId;
+      if (!isOwner && !isAdmin) {
+        return res.status(403).json({ error: 'Acesso não autorizado' });
+      }
+
       // Verificar no asaas se o pagamento foi realizado e atualizar status da reserva se necessário
       try {
       const payment = await getPaymentByExternalReference(booking.id);
@@ -78,7 +99,11 @@ export default async function handler(
       } else {
         const isConfirmed = isPaymentStatusConfirmed(payment.status);
         
-        if (isConfirmed && booking.status !== 'CONFIRMED') {
+        // P-013: Verificar se reserva está em estado final (CANCELLED) antes de atualizar
+        // NUNCA reviver uma reserva cancelada, mesmo que o pagamento seja confirmado
+        if (booking.status === 'CANCELLED') {
+          console.log(`⚠️ [BOOKING] Reserva ${booking.id} está CANCELADA - NÃO reviver mesmo com pagamento confirmado`);
+        } else if (isConfirmed && booking.status !== 'CONFIRMED') {
           // Atualizar TODOS os estados financeiros (fallback do webhook)
           const updatedBooking = await prisma.booking.update({
             where: { id: booking.id },
@@ -140,7 +165,7 @@ export default async function handler(
   }
 
   // ========================================================
-  // PATCH - Cancelar reserva (público)
+  // PATCH - Cancelar reserva (autenticado)
   // ========================================================
   if (req.method === 'PATCH') {
     try {
@@ -160,11 +185,18 @@ export default async function handler(
           id: true,
           status: true,
           startTime: true,
+          userId: true, // P-004: Necessário para verificar ownership
         },
       });
 
       if (!booking) {
         return res.status(404).json({ error: 'Reserva não encontrada' });
+      }
+
+      // P-004: Verificar ownership (apenas owner ou admin pode cancelar)
+      const isOwner = userAuth && booking.userId === userAuth.userId;
+      if (!isOwner && !isAdmin) {
+        return res.status(403).json({ error: 'Acesso não autorizado' });
       }
 
       // ====================================================

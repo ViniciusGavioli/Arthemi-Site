@@ -24,16 +24,16 @@ const roomImages: Record<string, { images: string[]; video?: string }> = {
       '/images/sala-a/foto-7.jpeg',
       '/images/sala-a/foto-6.jpeg',
       '/images/sala-a/foto-2.jpeg',
+      '/images/sala-a/foto-5.jpeg',
     ],
     video: '/images/sala-a/video.mp4',
   },
   'sala-b': {
     images: [
-      '/images/sala-b/02-1.jpeg',
       '/images/sala-b/02-3.jpeg',
+      '/images/sala-b/02-1.jpeg',
       '/images/sala-b/02-4.jpeg',
       '/images/sala-b/02-5.jpeg',
-      '/images/sala-b/02-6.jpeg',
     ],
     video: '/images/sala-b/02-1.mp4',
   },
@@ -41,8 +41,6 @@ const roomImages: Record<string, { images: string[]; video?: string }> = {
     images: [
       '/images/sala-c/03-1.jpeg',
       '/images/sala-c/03-2.jpeg',
-      '/images/sala-c/03-3.jpeg',
-      '/images/sala-c/03-4.jpeg',
     ],
     video: '/images/sala-c/03-1.mp4',
   },

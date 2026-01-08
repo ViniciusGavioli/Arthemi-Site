@@ -107,8 +107,8 @@ describe('P0 Integration Tests - PRICES_V3 vs Database', () => {
       
       const amount = getBookingTotalByDate(roomId, saturdayDate, hours, 'sala-c');
       
-      // SALA_C sábado = 51.99/h
-      const expected = 51.99 * 5;
+      // SALA_C sábado = 42.99/h (de PRICES_V3)
+      const expected = 42.99 * 5;
       expect(amount).toBeCloseTo(expected, 2);
     });
 
@@ -164,8 +164,9 @@ describe('P0 Integration Tests - PRICES_V3 vs Database', () => {
       // Deve ser negativo
       expect(valueDifference).toBeLessThan(0);
       
-      // Deve ser -2h * 53.99 = -107.98
-      expect(valueDifference).toBeCloseTo(-53.99 * 2, 2);
+      // SALA_B weekday = 49.99/h (de PRICES_V3)
+      // Deve ser -2h * 49.99 = -99.98
+      expect(valueDifference).toBeCloseTo(-49.99 * 2, 2);
     });
   });
 

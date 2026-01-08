@@ -4,6 +4,7 @@
 // Compra de pacote de créditos (NÃO cria booking)
 // Fluxo: User + Payment + Credit (após confirmação)
 // Suporta PIX e Cartão de Crédito
+// P-003: Idempotência - não cria cobrança duplicada
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
@@ -23,6 +24,10 @@ import { triggerAccountActivation } from '@/lib/account-activation';
 import { addDays } from 'date-fns';
 import { computeCreditAmountCents } from '@/lib/credits';
 import { getBookingTotalByDate } from '@/lib/pricing';
+import { 
+  generatePurchaseIdempotencyKey, 
+  checkPurchaseHasPayment,
+} from '@/lib/payment-idempotency';
 
 // Schema de validação
 const purchaseCreditsSchema = z.object({
@@ -370,6 +375,20 @@ export default async function handler(
     });
 
     // Criar pagamento no Asaas (PIX ou Cartão)
+    // P-003: Gerar idempotencyKey e verificar se já existe pagamento
+    const idempotencyKey = generatePurchaseIdempotencyKey(result.credit.id, data.paymentMethod || 'PIX');
+    const existingPayment = await checkPurchaseHasPayment(result.credit.id);
+    
+    if (existingPayment.exists && existingPayment.existingPayment) {
+      console.log(`♻️ [CREDITS] Pagamento já existe (idempotência): ${existingPayment.existingPayment.id}`);
+      return res.status(200).json({
+        success: true,
+        creditId: result.credit.id,
+        paymentUrl: existingPayment.existingPayment.externalUrl || undefined,
+        amount,
+      });
+    }
+
     const basePaymentInput = {
       bookingId: `purchase:${result.credit.id}`, // Prefixo 'purchase:' para distinguir de 'booking:' no webhook
       customerName: data.userName,
@@ -414,6 +433,20 @@ export default async function handler(
         error: 'Erro ao criar pagamento. Tente novamente.',
       });
     }
+
+    // P-003: Criar registro de Payment com idempotencyKey e purchaseId
+    await prisma.payment.create({
+      data: {
+        purchaseId: result.credit.id,
+        userId: result.userId,
+        amount,
+        status: 'PENDING',
+        method: data.paymentMethod || 'PIX',
+        externalId: paymentResult.paymentId,
+        externalUrl: paymentResult.invoiceUrl,
+        idempotencyKey,
+      },
+    });
 
     // Nota: O webhook de pagamento irá ativar o crédito quando confirmado
     // usando o externalReference que começa com 'purchase:' (ou 'credit_' para retrocompatibilidade)

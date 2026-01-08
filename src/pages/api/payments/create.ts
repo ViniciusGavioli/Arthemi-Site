@@ -3,6 +3,7 @@
 // ===========================================================
 // Cria cobrança PIX ou CARTÃO no Asaas para uma reserva
 // paymentMethod: 'PIX' (default) ou 'CARD'
+// P-003: Idempotência - não cria cobrança duplicada
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
@@ -14,6 +15,11 @@ import {
   PixQrCode 
 } from '@/lib/asaas';
 import { getBookingTotalCentsByDate } from '@/lib/pricing';
+import { 
+  generateBookingIdempotencyKey, 
+  checkPaymentIdempotency,
+  checkBookingHasActivePayment,
+} from '@/lib/payment-idempotency';
 
 const createPaymentSchema = z.object({
   bookingId: z.string().min(1, 'bookingId é obrigatório'),
@@ -33,6 +39,8 @@ interface PaymentResponse {
   installmentCount?: number;
   installmentValue?: number;
   error?: string;
+  /** P-003: True se retornou pagamento existente (idempotência) */
+  cached?: boolean;
 }
 
 export default async function handler(
@@ -60,6 +68,36 @@ export default async function handler(
     }
 
     const { bookingId, paymentMethod, installmentCount } = validation.data;
+
+    // P-003: Verificar idempotência ANTES de buscar booking
+    const idempotencyKey = generateBookingIdempotencyKey(bookingId, paymentMethod);
+    const idempotencyCheck = await checkPaymentIdempotency(idempotencyKey);
+    
+    if (idempotencyCheck.exists && idempotencyCheck.existingPayment) {
+      console.log(`♻️ [PAYMENTS] Pagamento já existe (idempotência): ${idempotencyCheck.existingPayment.id}`);
+      return res.status(200).json({
+        success: true,
+        type: 'asaas',
+        paymentMethod: paymentMethod,
+        paymentId: idempotencyCheck.existingPayment.externalId || undefined,
+        invoiceUrl: idempotencyCheck.existingPayment.externalUrl || undefined,
+        cached: true,
+      });
+    }
+
+    // P-003: Verificar se booking já tem pagamento ativo
+    const activePaymentCheck = await checkBookingHasActivePayment(bookingId);
+    if (activePaymentCheck.exists && activePaymentCheck.existingPayment) {
+      console.log(`♻️ [PAYMENTS] Booking já tem pagamento ativo: ${activePaymentCheck.existingPayment.id}`);
+      return res.status(200).json({
+        success: true,
+        type: 'asaas',
+        paymentMethod: paymentMethod,
+        paymentId: activePaymentCheck.existingPayment.externalId || undefined,
+        invoiceUrl: activePaymentCheck.existingPayment.externalUrl || undefined,
+        cached: true,
+      });
+    }
 
     // 2. Buscar booking com dados relacionados
     const booking = await prisma.booking.findUnique({
@@ -166,6 +204,20 @@ export default async function handler(
         },
       });
 
+      // P-003: Criar registro de Payment com idempotencyKey
+      await prisma.payment.create({
+        data: {
+          bookingId: bookingId,
+          userId: booking.userId,
+          amount: totalAmount,
+          status: 'PENDING',
+          method: 'CREDIT_CARD',
+          externalId: result.paymentId,
+          externalUrl: result.invoiceUrl,
+          idempotencyKey,
+        },
+      });
+
       return res.status(200).json({
         success: true,
         type: 'asaas',
@@ -190,6 +242,20 @@ export default async function handler(
         paymentId: result.paymentId,
         paymentStatus: 'PENDING',
         paymentMethod: 'PIX',
+      },
+    });
+
+    // P-003: Criar registro de Payment com idempotencyKey
+    await prisma.payment.create({
+      data: {
+        bookingId: bookingId,
+        userId: booking.userId,
+        amount: totalAmount,
+        status: 'PENDING',
+        method: 'PIX',
+        externalId: result.paymentId,
+        externalUrl: result.invoiceUrl,
+        idempotencyKey,
       },
     });
 

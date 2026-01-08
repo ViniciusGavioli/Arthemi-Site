@@ -187,6 +187,7 @@ export default async function handler(
     });
 
     // 3. Idempotência via banco de dados - evitar processar mesmo evento duas vezes
+    // P-006: Permitir reprocessamento de eventos PROCESSING ou FAILED
     const existingEvent = await withTimeout(
       prisma.webhookEvent.findUnique({
         where: { eventId },
@@ -196,25 +197,44 @@ export default async function handler(
     );
 
     if (existingEvent) {
-      console.log(`⏭️ [Asaas Webhook] Evento já processado: ${eventId}`);
-      return res.status(200).json({ received: true, skipped: true, processedAt: existingEvent.processedAt });
+      // P-006: Se status é PROCESSED ou IGNORED_*, skip (já processado com sucesso)
+      // Se status é PROCESSING ou FAILED, reprocessar
+      const shouldReprocess = existingEvent.status === 'PROCESSING' || existingEvent.status === 'FAILED';
+      
+      if (!shouldReprocess) {
+        console.log(`⏭️ [Asaas Webhook] Evento já processado: ${eventId} (status: ${existingEvent.status})`);
+        return res.status(200).json({ received: true, skipped: true, processedAt: existingEvent.processedAt });
+      }
+      
+      // Reprocessar evento que falhou ou ficou travado
+      console.log(`🔄 [Asaas Webhook] Reprocessando evento: ${eventId} (status anterior: ${existingEvent.status})`);
+      
+      // Atualizar para PROCESSING antes de reprocessar
+      await withTimeout(
+        prisma.webhookEvent.update({
+          where: { eventId },
+          data: { status: 'PROCESSING' },
+        }),
+        5000,
+        'atualização de status para reprocessamento'
+      );
+    } else {
+      // Registrar evento ANTES de processar (para garantir idempotência mesmo em crash)
+      await withTimeout(
+        prisma.webhookEvent.create({
+          data: {
+            eventId,
+            eventType: event,
+            paymentId: payment.id,
+            bookingId: bookingId || null,
+            status: 'PROCESSING',
+            payload: payload as object,
+          },
+        }),
+        5000,
+        'criação de webhook event'
+      );
     }
-
-    // Registrar evento ANTES de processar (para garantir idempotência mesmo em crash)
-    await withTimeout(
-      prisma.webhookEvent.create({
-        data: {
-          eventId,
-          eventType: event,
-          paymentId: payment.id,
-          bookingId: bookingId || null,
-          status: 'PROCESSING',
-          payload: payload as object,
-        },
-      }),
-      5000,
-      'criação de webhook event'
-    );
 
     // 4. Verificar se é evento de pagamento confirmado, estorno/chargeback ou recusa de cartão
     if (!isPaymentConfirmed(event) && !isPaymentRefundedOrChargeback(event) && !isCardCaptureRefused(event)) {
@@ -344,29 +364,66 @@ export default async function handler(
         
         const booking = await prisma.booking.findUnique({
           where: { id: actualBookingId },
-          select: { id: true, status: true, creditIds: true },
+          select: { id: true, status: true, creditIds: true, creditsUsed: true },
         });
 
         if (booking) {
-          // IMPORTANTE: NÃO mudar status nem financialStatus - preservar histórico
-          // Apenas atualizar paymentStatus + notes para refletir o estorno
-          // (financialStatus não tem enum REFUNDED, então deixamos inalterado)
+          // P-013: Atualizar para REFUNDED (agora existe no enum)
           await prisma.booking.update({
             where: { id: actualBookingId },
             data: {
-              // status: mantém o valor atual (CONFIRMED, etc)
-              // financialStatus: mantém o valor atual (PAID, etc) - sem enum para REFUNDED
+              // status: mantém o valor atual (CONFIRMED, etc) para histórico
+              financialStatus: 'REFUNDED', // P-007: Estado final de estorno
               paymentStatus: 'REFUNDED',
-              notes: `⚠️ Estorno/Chargeback em ${new Date().toISOString()} - Evento: ${event}. Status e financialStatus originais mantidos para auditoria.`,
+              notes: `⚠️ Estorno/Chargeback em ${new Date().toISOString()} - Evento: ${event}`,
             },
           });
-          console.log(`💸 [Asaas Webhook] Booking paymentStatus=REFUNDED (status e financialStatus preservados): ${actualBookingId}`);
+          console.log(`💸 [Asaas Webhook] Booking financialStatus=REFUNDED: ${actualBookingId}`);
 
-          // Se booking usou créditos, restaurar os créditos
-          if (booking.creditIds && booking.creditIds.length > 0) {
-            // Nota: Restaurar créditos é complexo - requer lógica de ledger
-            // Por segurança, apenas logamos e o admin deve tratar manualmente
-            console.log(`⚠️ [Asaas Webhook] Booking tinha créditos: ${booking.creditIds.join(', ')}`);
+          // P-013: Se booking usou créditos, restaurar os créditos consumidos
+          if (booking.creditIds && booking.creditIds.length > 0 && booking.creditsUsed > 0) {
+            console.log(`🔄 [Asaas Webhook] Restaurando créditos para booking ${actualBookingId}...`);
+            
+            // Calcular valor a restaurar por crédito (proporcionalmente)
+            // Nota: simplificação - restaura valor total dividido igualmente
+            const amountPerCredit = Math.floor(booking.creditsUsed / booking.creditIds.length);
+            let remaining = booking.creditsUsed - (amountPerCredit * booking.creditIds.length);
+            
+            for (const creditId of booking.creditIds) {
+              // Valor a restaurar para este crédito (último recebe o restante)
+              const restoreAmount = amountPerCredit + (remaining > 0 ? 1 : 0);
+              if (remaining > 0) remaining--;
+              
+              const credit = await prisma.credit.findUnique({
+                where: { id: creditId },
+                select: { id: true, status: true, remainingAmount: true, amount: true },
+              });
+              
+              if (credit && credit.status === 'USED') {
+                // Restaurar crédito: status volta para CONFIRMED, remainingAmount aumenta
+                await prisma.credit.update({
+                  where: { id: creditId },
+                  data: {
+                    status: 'CONFIRMED',
+                    remainingAmount: Math.min(credit.amount, credit.remainingAmount + restoreAmount),
+                  },
+                });
+                console.log(`✅ [Asaas Webhook] Crédito ${creditId} restaurado: +${restoreAmount} centavos`);
+                
+                await logAudit({
+                  action: 'CREDIT_REFUNDED',
+                  source: 'SYSTEM',
+                  targetType: 'Credit',
+                  targetId: creditId,
+                  metadata: { 
+                    event, 
+                    bookingId: actualBookingId,
+                    restoredAmount: restoreAmount,
+                    reason: 'booking_refunded',
+                  },
+                });
+              }
+            }
           }
 
           await logAudit({
@@ -379,6 +436,7 @@ export default async function handler(
               paymentId: payment.id, 
               reason: 'chargeback_or_refund',
               originalBookingStatus: booking.status,
+              creditsRestored: booking.creditIds?.length || 0,
             },
           });
         }
@@ -533,7 +591,7 @@ export default async function handler(
     }
 
     // ================================================================
-    // PROTEÇÕES CONTRA ESTADOS INVÁLIDOS
+    // PROTEÇÕES CONTRA ESTADOS INVÁLIDOS (P-007)
     // ================================================================
     
     // Proteção 1: Booking já CONFIRMED - não processar novamente
@@ -562,6 +620,57 @@ export default async function handler(
         'atualização de status webhook - courtesy bloqueado'
       );
       return res.status(200).json({ received: true, blocked: true, reason: 'COURTESY_BOOKING' });
+    }
+
+    // P-007: Proteção 3: Booking CANCELLED - NÃO reverter para CONFIRMED/PAID
+    // Webhook de pagamento tardio não deve ressuscitar booking cancelado
+    if (booking.status === 'CANCELLED') {
+      console.warn(`⚠️ [Asaas Webhook] Tentativa de confirmar booking CANCELADO: ${actualBookingId}`);
+      await withTimeout(
+        prisma.webhookEvent.update({
+          where: { eventId },
+          data: { status: 'BLOCKED_CANCELLED' },
+        }),
+        5000,
+        'atualização de status webhook - cancelado bloqueado'
+      );
+      await logAudit({
+        action: 'ALERT_PAYMENT_NOT_CONFIRMED',
+        source: 'SYSTEM',
+        targetType: 'Booking',
+        targetId: actualBookingId,
+        metadata: { 
+          event, 
+          paymentId: payment.id, 
+          reason: 'booking_cancelled',
+          message: 'Pagamento recebido para booking cancelado. Requer análise manual.',
+        },
+      });
+      return res.status(200).json({ 
+        received: true, 
+        blocked: true, 
+        reason: 'BOOKING_CANCELLED',
+        message: 'Booking cancelado não pode ser reativado via webhook. Análise manual necessária.',
+      });
+    }
+
+    // P-007: Proteção 4: Booking REFUNDED - estado final, não reverter
+    if (booking.financialStatus === 'REFUNDED') {
+      console.warn(`⚠️ [Asaas Webhook] Tentativa de pagamento em reserva REFUNDED: ${actualBookingId}`);
+      await withTimeout(
+        prisma.webhookEvent.update({
+          where: { eventId },
+          data: { status: 'BLOCKED_REFUNDED' },
+        }),
+        5000,
+        'atualização de status webhook - refunded bloqueado'
+      );
+      return res.status(200).json({ 
+        received: true, 
+        blocked: true, 
+        reason: 'BOOKING_REFUNDED',
+        message: 'Booking já estornado não pode receber novos pagamentos.',
+      });
     }
 
     // ================================================================

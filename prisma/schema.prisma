@@ -202,19 +202,26 @@ model Product {
 }
 
 model Payment {
-  id          String        @id @default(cuid())
-  bookingId   String?
-  userId      String
-  amount      Int
-  status      PaymentStatus @default(PENDING)
-  method      String?
-  externalId  String?
-  externalUrl String?
-  paidAt      DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id             String        @id @default(cuid())
+  bookingId      String?
+  purchaseId     String?       // ID do crédito (para compras de crédito)
+  userId         String
+  amount         Int
+  status         PaymentStatus @default(PENDING)
+  method         String?
+  externalId     String?       // ID do pagamento no Asaas
+  externalUrl    String?
+  idempotencyKey String?       // Chave única para evitar cobranças duplicadas
+  paidAt         DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
+  // P-003: Indexes únicos para idempotência
+  // Nota: unique parciais definidos na migration SQL
   @@index([externalId])
+  @@index([bookingId])
+  @@index([purchaseId])
+  @@index([idempotencyKey])
   @@map("payments")
 }
 
@@ -434,6 +441,7 @@ enum FinancialStatus {
   PENDING_PAYMENT
   PAID
   COURTESY
+  REFUNDED  // P-007: Estornado via gateway ou chargeback
 }
 
 enum AuditSource {

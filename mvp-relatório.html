@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Prestação de Contas — MVP Espaço Arthemi</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f0f12;
+      --card: #14161c;
+      --text: #f5f6f7;
+      --muted: #a8adb7;
+      --accent: #c9a36b;
+      --accent-2: #4fd1c5;
+      --border: #262a34;
+      --success: #34d399;
+      --warning: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(1200px 600px at 10% 0%, #1d1f27 0%, #0f0f12 70%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 60px 24px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 24px;
+      margin-bottom: 32px;
+    }
+    .logo {
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      font-size: 20px;
+      color: var(--accent);
+    }
+    .tagline {
+      font-size: 14px;
+      color: var(--muted);
+      text-align: right;
+    }
+    h1 {
+      font-size: 36px;
+      margin: 12px 0 6px;
+      font-weight: 800;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 16px;
+    }
+    .section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      margin: 24px 0;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+    }
+    .section h2 {
+      margin: 0 0 16px;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: #101217;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+    }
+    .pill {
+      display: inline-block;
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .status {
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .status.ok { color: var(--success); }
+    .status.warn { color: var(--warning); }
+    .progress-wrap {
+      background: #0d0f14;
+      border-radius: 999px;
+      height: 10px;
+      overflow: hidden;
+      margin: 12px 0 4px;
+    }
+    .progress {
+      height: 10px;
+      width: 80%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    }
+    .note {
+      border-left: 4px solid var(--accent);
+      padding-left: 16px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      margin-top: 40px;
+      padding-top: 20px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">Espaço Arthemi</div>
+      <div class="tagline">
+        Prestação de contas — MVP<br/>
+        Relatório técnico simplificado
+      </div>
+    </header>
+
+    <h1>Status do MVP</h1>
+    <p class="subtitle">
+      MVP funcional com o fluxo principal entregue. Ajustes finais focam em performance, consistência e acabamento operacional.
+    </p>
+
+    <div class="section">
+      <h2>Avanço Geral</h2>
+      <div class="progress-wrap">
+        <div class="progress"></div>
+      </div>
+      <p class="subtitle">Estimativa atual: <strong>~80% concluído</strong></p>
+    </div>
+
+    <div class="section">
+      <h2>Contexto de Retrabalho (Produtos & Pacotes)</h2>
+      <p class="note">
+        Durante o ciclo de produtos/pacotes, ocorreram mudanças de direção solicitadas que exigiram
+        redesenho completo da estrutura. Após o retorno à abordagem anterior, foi necessário
+        reconstruir todo o fluxo. Esse retrabalho explica a extensão do cronograma, mas garantiu
+        a consistência final dos preços e regras de negócio.
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>O que já está entregue</h2>
+      <div class="grid">
+        <div class="card">
+          <p class="pill">Site público</p>
+          <p class="status ok">Home, salas, FAQ e como-funciona prontos</p>
+        </div>
+        <div class="card">
+          <p class="pill">Reservas</p>
+          <p class="status ok">Fluxo completo com validações reais</p>
+        </div>
+        <div class="card">
+          <p class="pill">Preços & Produtos</p>
+          <p class="status ok">Tabela V3 centralizada e consistente</p>
+        </div>
+        <div class="card">
+          <p class="pill">Regras de negócio</p>
+          <p class="status ok">Horários, janela e créditos aplicados</p>
+        </div>
+        <div class="card">
+          <p class="pill">Admin</p>
+          <p class="status ok">Dashboard protegido operante</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>O que ainda falta (refinos finais)</h2>
+      <div class="grid">
+        <div class="card">
+          <p class="pill">Performance</p>
+          <p class="status warn">Otimização de imagens e carregamento</p>
+        </div>
+        <div class="card">
+          <p class="pill">Consistência</p>
+          <p class="status warn">Unificar horários exibidos e regras reais</p>
+        </div>
+        <div class="card">
+          <p class="pill">UX Cliente</p>
+          <p class="status warn">Finalizar cancelamento no painel</p>
+        </div>
+        <div class="card">
+          <p class="pill">Comunicação</p>
+          <p class="status warn">Padronizar política de cancelamento</p>
+        </div>
+        <div class="card">
+          <p class="pill">SEO</p>
+          <p class="status warn">Atualizar endereço completo no schema</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Resumo Executivo</h2>
+      <p>
+        O MVP já entrega o valor principal (consulta, disponibilidade e reserva).
+        O trabalho restante é direcionado a performance, consistência e acabamento.
+        A previsão para concluir é de mais um dia útil, com entrega na sexta-feira.
+      </p>
+    </div>
+
+    <footer>
+      Relatório técnico — Espaço Arthemi • Confidencial • 2025
+    </footer>
+  </div>
+</body>
+</html>

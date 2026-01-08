@@ -2,7 +2,7 @@
 // Componente BookingModal - Modal de reserva com formulário
 // ===========================================================
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import DatePicker, { registerLocale } from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { ptBR } from 'date-fns/locale';
@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { analytics } from '@/lib/analytics';
 import { PaymentMethodSelector } from '@/components/booking';
 import { getPricingInfoForUI } from '@/lib/pricing';
+import { getHourOptionsForDate, getBusinessHoursForDate, isClosedDay } from '@/lib/business-hours';
 
 // Registrar locale português
 registerLocale('pt-BR', ptBR);
@@ -195,18 +196,43 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     return couponKey && VALID_COUPONS[couponKey];
   };
 
-  // Opções de horário (8h às 19h)
-  const hourOptions = Array.from({ length: 12 }, (_, i) => i + 8);
+  // Opções de horário DINÂMICAS baseadas na data selecionada
+  // Sábado: [8,9,10,11], Seg-Sex: [8..19], Domingo: []
+  const hourOptions = useMemo(() => {
+    return getHourOptionsForDate(formData.date);
+  }, [formData.date]);
 
-  // E1: Ajustar duração automaticamente se horário selecionado não permitir a duração atual
+  // Horário de fechamento para a data selecionada
+  const businessHours = useMemo(() => {
+    return formData.date ? getBusinessHoursForDate(formData.date) : { start: 8, end: 20 };
+  }, [formData.date]);
+
+  // Verificar se é dia fechado
+  const isClosed = formData.date ? isClosedDay(formData.date) : false;
+
+  // E1: Ajustar duração e startHour quando data/horário mudar
   useEffect(() => {
-    if (formData.startHour && formData.productType === 'hourly') {
-      const maxDuration = 20 - formData.startHour;
+    if (formData.productType === 'hourly' && formData.date) {
+      const hours = getBusinessHoursForDate(formData.date);
+      
+      // Se dia fechado, resetar horário
+      if (!hours) {
+        return;
+      }
+      
+      // Se startHour está fora do range válido, resetar para primeiro disponível
+      if (formData.startHour < hours.start || formData.startHour >= hours.end) {
+        setFormData(prev => ({ ...prev, startHour: hours.start }));
+        return;
+      }
+      
+      // Ajustar duração se ultrapassar fechamento
+      const maxDuration = hours.end - formData.startHour;
       if (formData.duration > maxDuration) {
         setFormData(prev => ({ ...prev, duration: Math.max(1, maxDuration) }));
       }
     }
-  }, [formData.startHour]);
+  }, [formData.startHour, formData.date, formData.productType, formData.duration]);
 
   // Produtos filtrados para esta sala - apenas pacotes de horas
   // Turnos (SHIFT_FIXED, SATURDAY_SHIFT) são tratados manualmente via WhatsApp/Admin
@@ -716,13 +742,27 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                 
                 {!formData.date ? (
                   <p className="text-sm text-gray-500 italic">Selecione uma data para ver os horários disponíveis</p>
+                ) : isClosed ? (
+                  /* UI para dia fechado */
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
+                    <span className="text-2xl">🚫</span>
+                    <p className="text-amber-800 font-medium mt-2">Fechado neste dia</p>
+                    <p className="text-amber-600 text-sm mt-1">Por favor, selecione outra data.</p>
+                  </div>
+                ) : hourOptions.length === 0 ? (
+                  /* Sem horários disponíveis */
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+                    <span className="text-2xl">📅</span>
+                    <p className="text-gray-600 font-medium mt-2">Nenhum horário disponível</p>
+                  </div>
                 ) : (
                   <>
                     {/* Grid de Horários */}
                     <div className="grid grid-cols-4 gap-2 mb-2">
                       {hourOptions.map((hour) => {
                         const slot = availabilitySlots.find(s => s.hour === hour);
-                        const isAvailable = slot?.available ?? true;
+                        // CORREÇÃO: Se slot não existe no payload, considerar INDISPONÍVEL (não default true)
+                        const isAvailable = slot?.available === true;
                         const isSelected = formData.startHour === hour;
                         
                         return (
@@ -774,25 +814,25 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                   aria-label="Duração da reserva"
                   value={formData.duration}
                   onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })}
-                  disabled={submitting}
+                  disabled={submitting || isClosed}
                   className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                    submitting
+                    submitting || isClosed
                       ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
                       : 'border-gray-300'
                   }`}
                 >
-                  {/* E1: Só mostra durações válidas (que não ultrapassam 20h) */}
+                  {/* Durações válidas baseadas no horário de fechamento DINÂMICO */}
                   {[1, 2, 3, 4]
-                    .filter((hours) => formData.startHour + hours <= 20)
+                    .filter((hours) => businessHours && formData.startHour + hours <= businessHours.end)
                     .map((hours) => (
                       <option key={hours} value={hours}>
                         {hours} hora{hours > 1 ? 's' : ''}
                       </option>
                     ))}
                 </select>
-                {formData.startHour && formData.startHour >= 17 && (
+                {businessHours && formData.startHour && formData.startHour >= businessHours.end - 3 && (
                   <p className="text-xs text-amber-600 mt-1">
-                    ⚠️ Horário próximo ao fechamento. Duração máxima: {20 - formData.startHour}h
+                    ⚠️ Horário próximo ao fechamento. Duração máxima: {businessHours.end - formData.startHour}h
                   </p>
                 )}
               </div>

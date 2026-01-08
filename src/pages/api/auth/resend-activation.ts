@@ -12,7 +12,7 @@ import prisma from '@/lib/prisma';
 import { generateActivationToken, buildActivationUrl } from '@/lib/email-activation';
 import { sendAccountActivationEmail } from '@/lib/mailer';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { checkApiRateLimit, getClientIp, RATE_LIMIT_MESSAGE } from '@/lib/api-rate-limit';
+import { checkApiRateLimit, getClientIp, getRateLimitMessage } from '@/lib/api-rate-limit';
 
 // Schema de validação
 const resendActivationSchema = z.object({
@@ -51,9 +51,10 @@ export default async function handler(
     const clientIp = getClientIp(req);
     const memRateLimit = checkApiRateLimit('resend-activation', clientIp);
     if (!memRateLimit.allowed) {
+      res.setHeader('Retry-After', memRateLimit.retryAfterSeconds || 60);
       return res.status(429).json({
         ok: false,
-        error: RATE_LIMIT_MESSAGE,
+        error: getRateLimitMessage(memRateLimit.retryAfterSeconds),
       });
     }
 

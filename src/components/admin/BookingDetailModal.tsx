@@ -11,6 +11,7 @@ import {
   formatDate, formatTime, formatCurrency, getWhatsAppLink, getPhoneLink,
   statusLabels, statusColors, statusIcons, specialBadges, ToastType, fetchApi
 } from './helpers';
+import { getHourOptionsForDate, getBusinessHoursForDate, isClosedDay } from '@/lib/business-hours';
 
 interface Booking {
   id: string;
@@ -282,11 +283,22 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
     }
   }
 
-  // Gerar opções de hora
-  const hourOptions = Array.from({ length: 15 }, (_, i) => ({
-    value: String(7 + i),
-    label: `${String(7 + i).padStart(2, '0')}:00`,
-  }));
+  // Gerar opções de hora DINÂMICAS baseadas na data de edição
+  const hourOptions = useMemo(() => {
+    const date = editData.date ? new Date(editData.date + 'T12:00:00') : null;
+    const hours = getHourOptionsForDate(date);
+    return hours.map(h => ({
+      value: String(h),
+      label: `${String(h).padStart(2, '0')}:00`,
+    }));
+  }, [editData.date]);
+
+  // Verificar se dia selecionado é fechado
+  const isClosedDate = useMemo(() => {
+    if (!editData.date) return false;
+    const date = new Date(editData.date + 'T12:00:00');
+    return isClosedDay(date);
+  }, [editData.date]);
 
   // =====================================================
   // RENDER
@@ -515,7 +527,7 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
                     label="Horário Fim"
                     value={String(editData.endHour)}
                     onChange={(e) => setEditData(d => ({ ...d, endHour: Number(e.target.value) }))}
-                    options={hourOptions}
+                    options={hourOptions.filter(o => Number(o.value) > editData.startHour)}
                     disabled={isCompleted}
                   />
                 </div>

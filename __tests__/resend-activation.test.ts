@@ -49,6 +49,9 @@ jest.mock('@/lib/api-rate-limit', () => ({
   checkApiRateLimit: (...args: unknown[]) => mockCheckApiRateLimit(...args),
   getClientIp: jest.fn().mockReturnValue('127.0.0.1'),
   RATE_LIMIT_MESSAGE: 'Muitas tentativas. Aguarde.',
+  getRateLimitMessage: jest.fn().mockImplementation((seconds?: number) => 
+    seconds ? `Muitas tentativas. Tente novamente em ${seconds} segundos.` : 'Muitas tentativas.'
+  ),
 }));
 
 jest.mock('@/lib/email-activation', () => ({

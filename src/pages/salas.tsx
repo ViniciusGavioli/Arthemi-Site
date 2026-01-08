@@ -297,19 +297,19 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                       </table>
                     </div>
                     
-                    {/* Aviso sobre Turnos Fixos e Sábados */}
+                    {/* Aviso sobre Turnos Fixos */}
                     <div className="border-t border-warm-200 bg-amber-50/50 p-4">
                       <div className="flex items-start gap-3">
                         <span className="text-amber-600 text-lg">💬</span>
                         <div>
                           <h4 className="text-sm font-semibold text-amber-800 mb-1">
-                            Turnos fixos e sábados
+                            Turnos fixos
                           </h4>
                           <p className="text-xs text-amber-700 mb-2">
-                            Para contratar turnos fixos semanais ou agendar aos sábados, entre em contato conosco pelo WhatsApp.
+                            Para contratar turnos fixos, entre em contato conosco pelo WhatsApp.
                           </p>
                           <a
-                            href={`https://wa.me/5531991153634?text=${encodeURIComponent(`Olá! Tenho interesse em turnos fixos ou agendamentos aos sábados no ${room.name}. Podemos conversar sobre dia da semana e horário disponíveis?`)}`}
+                            href={`https://wa.me/5531991153634?text=${encodeURIComponent(`Olá! Tenho interesse em turnos fixos no ${room.name}. Podemos conversar sobre dia da semana e horário disponíveis?`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-800 hover:text-amber-900 underline"

@@ -9,7 +9,7 @@ import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { hashActivationToken } from '@/lib/email-activation';
 import { hashPassword, signSessionToken, setAuthCookie } from '@/lib/auth';
-import { checkApiRateLimit, getClientIp, RATE_LIMIT_MESSAGE } from '@/lib/api-rate-limit';
+import { checkApiRateLimit, getClientIp, getRateLimitMessage } from '@/lib/api-rate-limit';
 
 // ============================================================
 // VALIDAÇÃO
@@ -58,9 +58,10 @@ export default async function handler(
   const rateLimit = checkApiRateLimit('set-password', clientIp, { maxRequests: 5, windowMs: 60000 });
   
   if (!rateLimit.allowed) {
+    res.setHeader('Retry-After', rateLimit.retryAfterSeconds || 60);
     return res.status(429).json({
       ok: false,
-      error: RATE_LIMIT_MESSAGE,
+      error: getRateLimitMessage(rateLimit.retryAfterSeconds),
     });
   }
 

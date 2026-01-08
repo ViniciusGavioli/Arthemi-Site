@@ -2,7 +2,7 @@
 // Nova Reserva Manual - Formulário completo
 // ===========================================================
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { 
@@ -11,6 +11,7 @@ import {
 import { 
   useToast, formatCurrency, fetchApi 
 } from '@/components/admin/helpers';
+import { getHourOptionsForDate, getBusinessHoursForDate, isClosedDay } from '@/lib/business-hours';
 
 interface User {
   id: string;
@@ -276,11 +277,23 @@ export default function NovaReservaPage() {
     }
   }
 
-  // Opções de hora
-  const hourOptions = Array.from({ length: 15 }, (_, i) => ({
-    value: String(7 + i),
-    label: `${String(7 + i).padStart(2, '0')}:00`,
-  }));
+  // Opções de hora DINÂMICAS baseadas na data selecionada
+  const hourOptions = useMemo(() => {
+    const date = formData.date ? new Date(formData.date + 'T12:00:00') : null;
+    const hours = getHourOptionsForDate(date);
+    // Admin: incluir hora 7 se necessário (antes da abertura oficial)
+    return hours.map(h => ({
+      value: String(h),
+      label: `${String(h).padStart(2, '0')}:00`,
+    }));
+  }, [formData.date]);
+
+  // Verificar se é dia fechado
+  const isClosed = useMemo(() => {
+    if (!formData.date) return false;
+    const date = new Date(formData.date + 'T12:00:00');
+    return isClosedDay(date);
+  }, [formData.date]);
 
   if (loading) {
     return (

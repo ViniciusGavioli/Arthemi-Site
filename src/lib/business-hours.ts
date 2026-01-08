@@ -355,3 +355,76 @@ export function findShiftBlock(startTime: Date): ShiftBlock | null {
   
   return blocks.find(block => block.start === startHour) || null;
 }
+
+/**
+ * Gera array de horas disponíveis para uma data específica
+ * Baseado no horário de funcionamento (business hours)
+ * 
+ * @param date - Data para gerar opções de hora
+ * @returns Array de números representando horas [8, 9, 10, ...] ou [] se fechado
+ * 
+ * @example
+ * // Dia útil (Seg-Sex): [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+ * // Sábado: [8, 9, 10, 11]
+ * // Domingo: []
+ */
+export function getHourOptionsForDate(date: Date | null): number[] {
+  if (!date) {
+    // Sem data, retorna padrão de dia útil para UI inicial
+    return Array.from({ length: 12 }, (_, i) => i + 8); // 8-19
+  }
+  
+  const hours = getBusinessHoursForDate(date);
+  
+  if (!hours) {
+    // Fechado (domingo)
+    return [];
+  }
+  
+  // Gera array de horas: [start, start+1, ..., end-1]
+  // end-1 porque a última hora de início válida é uma hora antes do fechamento
+  return Array.from({ length: hours.end - hours.start }, (_, i) => i + hours.start);
+}
+
+/**
+ * Verifica se uma data é um dia fechado (domingo)
+ */
+export function isClosedDay(date: Date): boolean {
+  return getBusinessHoursForDate(date) === null;
+}
+
+/**
+ * Calcula durações válidas (1h, 2h, 3h, 4h) baseado no horário de início e businessHours.end
+ * Usado pelo BookingModal para limitar seleção de duração
+ * 
+ * @param date - Data da reserva
+ * @param startHour - Hora de início selecionada
+ * @param maxDurations - Array de durações permitidas (default: [1,2,3,4])
+ * @returns Array de durações válidas que não ultrapassam businessHours.end
+ * 
+ * Exemplos:
+ *   - Sábado 10h => [1, 2] (até 12h)
+ *   - Sábado 11h => [1] (até 12h)
+ *   - Dia útil 18h => [1, 2] (até 20h)
+ *   - Dia útil 10h => [1, 2, 3, 4] (todas válidas)
+ */
+export function getValidDurations(
+  date: Date | null,
+  startHour: number,
+  maxDurations: number[] = [1, 2, 3, 4]
+): number[] {
+  // Se date é null, usa horário de dia útil como fallback (mesmo comportamento de getHourOptionsForDate)
+  if (!date) {
+    return maxDurations.filter(duration => startHour + duration <= BUSINESS_HOURS.weekday.end);
+  }
+  
+  const hours = getBusinessHoursForDate(date);
+  
+  if (!hours) {
+    // Fechado (domingo) - nenhuma duração válida
+    return [];
+  }
+  
+  // Filtra durações que não ultrapassam o fechamento
+  return maxDurations.filter(duration => startHour + duration <= hours.end);
+}

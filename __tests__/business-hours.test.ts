@@ -7,6 +7,9 @@
 import { 
   isBookingWithinBusinessHours,
   getBusinessHoursForDate,
+  getHourOptionsForDate,
+  isClosedDay,
+  getValidDurations,
   BUSINESS_HOURS 
 } from '../src/lib/business-hours';
 
@@ -250,5 +253,142 @@ describe('isBookingWithinBusinessHours - Edge Cases', () => {
     end.setHours(9, 0, 0, 0);
     
     expect(isBookingWithinBusinessHours(start, end)).toBe(true);
+  });
+});
+
+// ===========================================================
+// getHourOptionsForDate - Opções de hora para UI
+// ===========================================================
+describe('getHourOptionsForDate - Opções de hora dinâmicas', () => {
+  it('deve retornar [8,9,10,11,12,13,14,15,16,17,18,19] para dia útil (Seg-Sex)', () => {
+    const monday = getNextDayOfWeek(1);
+    const hours = getHourOptionsForDate(monday);
+    expect(hours).toEqual([8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
+    expect(hours.length).toBe(12);
+  });
+
+  it('deve retornar [8,9,10,11] para sábado', () => {
+    const saturday = getNextDayOfWeek(6);
+    const hours = getHourOptionsForDate(saturday);
+    expect(hours).toEqual([8, 9, 10, 11]);
+    expect(hours.length).toBe(4);
+  });
+
+  it('NÃO deve incluir 12h ou 13h no sábado', () => {
+    const saturday = getNextDayOfWeek(6);
+    const hours = getHourOptionsForDate(saturday);
+    expect(hours).not.toContain(12);
+    expect(hours).not.toContain(13);
+    expect(hours).not.toContain(19);
+  });
+
+  it('deve retornar [] (array vazio) para domingo', () => {
+    const sunday = getNextDayOfWeek(0);
+    const hours = getHourOptionsForDate(sunday);
+    expect(hours).toEqual([]);
+    expect(hours.length).toBe(0);
+  });
+
+  it('deve retornar padrão de dia útil quando date é null', () => {
+    const hours = getHourOptionsForDate(null);
+    expect(hours).toEqual([8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
+  });
+});
+
+// ===========================================================
+// isClosedDay - Verificação de dia fechado
+// ===========================================================
+describe('isClosedDay', () => {
+  it('deve retornar true para domingo', () => {
+    const sunday = getNextDayOfWeek(0);
+    expect(isClosedDay(sunday)).toBe(true);
+  });
+
+  it('deve retornar false para sábado', () => {
+    const saturday = getNextDayOfWeek(6);
+    expect(isClosedDay(saturday)).toBe(false);
+  });
+
+  it('deve retornar false para dia útil', () => {
+    const monday = getNextDayOfWeek(1);
+    expect(isClosedDay(monday)).toBe(false);
+  });
+});
+
+// ===========================================================
+// getValidDurations - Durações válidas baseadas em businessHours.end
+// ===========================================================
+describe('getValidDurations - Durações respeitam businessHours.end', () => {
+  describe('Sábado (fecha 12h)', () => {
+    it('Sábado 10h: duração máxima = 2h (10+2=12)', () => {
+      const saturday = getNextDayOfWeek(6);
+      const durations = getValidDurations(saturday, 10);
+      expect(durations).toEqual([1, 2]);
+    });
+
+    it('Sábado 11h: duração máxima = 1h (11+1=12)', () => {
+      const saturday = getNextDayOfWeek(6);
+      const durations = getValidDurations(saturday, 11);
+      expect(durations).toEqual([1]);
+    });
+
+    it('Sábado 8h: permite até 4h (8+4=12)', () => {
+      const saturday = getNextDayOfWeek(6);
+      const durations = getValidDurations(saturday, 8);
+      expect(durations).toEqual([1, 2, 3, 4]);
+    });
+
+    it('Sábado 9h: permite até 3h (9+3=12)', () => {
+      const saturday = getNextDayOfWeek(6);
+      const durations = getValidDurations(saturday, 9);
+      expect(durations).toEqual([1, 2, 3]);
+    });
+  });
+
+  describe('Dias úteis (fecha 20h)', () => {
+    it('Dia útil 18h: duração máxima = 2h (18+2=20)', () => {
+      const monday = getNextDayOfWeek(1);
+      const durations = getValidDurations(monday, 18);
+      expect(durations).toEqual([1, 2]);
+    });
+
+    it('Dia útil 19h: duração máxima = 1h (19+1=20)', () => {
+      const monday = getNextDayOfWeek(1);
+      const durations = getValidDurations(monday, 19);
+      expect(durations).toEqual([1]);
+    });
+
+    it('Dia útil 10h: todas durações permitidas', () => {
+      const monday = getNextDayOfWeek(1);
+      const durations = getValidDurations(monday, 10);
+      expect(durations).toEqual([1, 2, 3, 4]);
+    });
+
+    it('Dia útil 17h: permite até 3h (17+3=20)', () => {
+      const friday = getNextDayOfWeek(5);
+      const durations = getValidDurations(friday, 17);
+      expect(durations).toEqual([1, 2, 3]);
+    });
+  });
+
+  describe('Domingo (fechado)', () => {
+    it('Domingo: nenhuma duração válida', () => {
+      const sunday = getNextDayOfWeek(0);
+      const durations = getValidDurations(sunday, 10);
+      expect(durations).toEqual([]);
+    });
+  });
+
+  describe('Edge cases', () => {
+    it('date null: usa horário de dia útil (fallback)', () => {
+      const durations = getValidDurations(null, 18);
+      expect(durations).toEqual([1, 2]);
+    });
+
+    it('Custom maxDurations [1,2,3,4,5,6]: respeita limite', () => {
+      const monday = getNextDayOfWeek(1);
+      const durations = getValidDurations(monday, 15, [1, 2, 3, 4, 5, 6]);
+      expect(durations).toEqual([1, 2, 3, 4, 5]); // 15+5=20
+    });
   });
 });

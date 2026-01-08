@@ -19,7 +19,7 @@ import {
   setAuthCookie 
 } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
-import { checkApiRateLimit, getClientIp as getClientIpFromLib, RATE_LIMIT_MESSAGE } from '@/lib/api-rate-limit';
+import { checkApiRateLimit, getClientIp as getClientIpFromLib, getRateLimitMessage } from '@/lib/api-rate-limit';
 import { generateRequestId, REQUEST_ID_HEADER } from '@/lib/request-id';
 
 // ============================================================
@@ -74,7 +74,8 @@ export default async function handler(
     const clientIp = getClientIpFromLib(req);
     const memRateLimit = checkApiRateLimit('auth/login', clientIp);
     if (!memRateLimit.allowed) {
-      return res.status(429).json({ error: RATE_LIMIT_MESSAGE });
+      res.setHeader('Retry-After', memRateLimit.retryAfterSeconds || 60);
+      return res.status(429).json({ error: getRateLimitMessage(memRateLimit.retryAfterSeconds) });
     }
 
     // Validar input

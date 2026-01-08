@@ -13,7 +13,7 @@ import { createBookingPayment, createBookingCardPayment } from '@/lib/asaas';
 import { brazilianPhone, validateCPF } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { checkApiRateLimit, getClientIp, RATE_LIMIT_MESSAGE } from '@/lib/api-rate-limit';
+import { checkApiRateLimit, getClientIp, sendRateLimitResponse } from '@/lib/api-rate-limit';
 import { resolveOrCreateUser } from '@/lib/user-resolve';
 import { getAuthFromRequest } from '@/lib/auth';
 import { withTimeout, getSafeErrorMessage, TIMEOUTS } from '@/lib/production-safety';
@@ -113,14 +113,11 @@ export default async function handler(
 
     const data = validation.data;
 
-    // RATE LIMIT EM MEMÓRIA (3 req/min por IP) - Barreira rápida
+    // RATE LIMIT EM MEMÓRIA (5 req/min por IP) - Barreira rápida
     const clientIp = getClientIp(req);
     const memRateLimit = checkApiRateLimit('credits/purchase', clientIp);
     if (!memRateLimit.allowed) {
-      return res.status(429).json({
-        success: false,
-        error: RATE_LIMIT_MESSAGE,
-      });
+      return sendRateLimitResponse(res, memRateLimit);
     }
 
     // Rate limiting adicional (DB)

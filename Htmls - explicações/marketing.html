@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Plano de Escala — Espaço Arthemi</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    /* --- VARIÁVEIS & SETUP (Design System) --- */
+    :root {
+      --bg-deep: #020617;
+      --bg-surface: #0f172a;
+      --primary: #6366f1; /* Indigo - Tecnologia/Confiança */
+      --primary-glow: rgba(99, 102, 241, 0.4);
+      --secondary: #3b82f6; /* Blue - Agilidade/Venda */
+      --accent: #10b981; /* Green - Conversão */
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-light: rgba(255, 255, 255, 0.08);
+      --card-bg: rgba(30, 41, 59, 0.4); /* Glass base */
+      --glass-shine: rgba(255, 255, 255, 0.03);
+      
+      --radius-lg: 24px;
+      --radius-md: 16px;
+      --radius-sm: 8px;
+      
+      --shadow-soft: 0 10px 40px -10px rgba(0,0,0,0.5);
+      --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+      
+      --font-heading: 'Plus Jakarta Sans', sans-serif;
+      --font-body: 'Inter', sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--bg-deep);
+      color: var(--text-main);
+      line-height: 1.6;
+      /* Background sofisticado */
+      background-image: 
+        radial-gradient(circle at 10% 10%, rgba(99, 102, 241, 0.12) 0%, transparent 45%),
+        radial-gradient(circle at 90% 40%, rgba(16, 185, 129, 0.08) 0%, transparent 45%);
+      background-attachment: fixed;
+      overflow-x: hidden;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg-deep); }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+    a { text-decoration: none; color: inherit; transition: 0.3s; }
+    ul { list-style: none; }
+    img { display: block; max-width: 100%; }
+
+    .container {
+      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* --- TIPOGRAFIA --- */
+    h1, h2, h3, h4 {
+      font-family: var(--font-heading);
+      color: #fff;
+      letter-spacing: -0.025em;
+    }
+
+    h1 {
+      font-size: clamp(2.5rem, 5vw, 3.5rem);
+      line-height: 1.1;
+      font-weight: 800;
+      background: linear-gradient(to right, #fff 20%, #93c5fd 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 24px;
+    }
+
+    .subtitle {
+      font-size: 1.125rem;
+      color: var(--text-muted);
+      max-width: 650px;
+      margin-bottom: 32px;
+      font-weight: 300;
+    }
+
+    .section-title {
+      font-size: 2rem;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .section-title::before {
+      content: '';
+      display: block;
+      width: 6px;
+      height: 24px;
+      background: linear-gradient(to bottom, var(--accent), var(--secondary));
+      border-radius: 4px;
+    }
+
+    .section-subtitle {
+      color: var(--text-muted);
+      margin-bottom: 40px;
+      font-size: 1rem;
+      max-width: 700px;
+    }
+
+    /* --- COMPONENTES --- */
+    
+    .chip {
+      display: inline-flex;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 6px 16px;
+      border-radius: 100px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border-light);
+      color: var(--text-muted);
+      margin-right: 8px;
+    }
+
+    /* Cards Glassmorphism */
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      padding: 32px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--glass-shine), transparent);
+      opacity: 0.5;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(99, 102, 241, 0.3);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .card h4 {
+      font-size: 1.1rem;
+      margin-bottom: 16px;
+      color: #e2e8f0;
+    }
+
+    .card p, .card li {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 12px;
+    }
+    
+    .card ul { display: grid; gap: 12px; }
+    .card li { margin-bottom: 0; display: flex; align-items: start; gap: 10px; }
+
+    .icon-box {
+      color: var(--accent);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .grid { display: grid; gap: 24px; }
+    .grid-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+
+    /* Nav Flutuante */
+    .nav-wrapper {
+      position: sticky;
+      top: 20px;
+      z-index: 100;
+      display: flex;
+      justify-content: center;
+      padding: 0 20px;
+    }
+
+    .nav {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 8px 12px;
+      border-radius: 100px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .nav a {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 20px;
+      transition: all 0.25s ease;
+    }
+
+    .nav a:hover {
+      color: #fff;
+      background: rgba(255,255,255,0.1);
+    }
+
+    /* Hero */
+    .hero {
+      padding: 120px 0 80px;
+      position: relative;
+    }
+    
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1fr 0.8fr;
+      gap: 60px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+      background: rgba(16, 185, 129, 0.1);
+      padding: 6px 14px;
+      border-radius: 100px;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    /* Timeline */
+    .timeline {
+      position: relative;
+      margin-top: 40px;
+    }
+
+    .timeline-item {
+      position: relative;
+      padding-left: 50px;
+      padding-bottom: 40px;
+    }
+
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: 20px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--border-light), transparent);
+    }
+    
+    .timeline-item:not(:last-child)::before {
+      background: var(--border-light);
+    }
+
+    .timeline-marker {
+      position: absolute;
+      left: 11px;
+      top: 5px;
+      width: 20px;
+      height: 20px;
+      background: var(--bg-deep);
+      border: 2px solid var(--primary);
+      border-radius: 50%;
+      z-index: 2;
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+    }
+
+    .timeline-content {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      padding: 24px;
+    }
+
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border-light);
+      padding-bottom: 12px;
+    }
+    
+    .timeline-header h4 { margin: 0; color: var(--primary); }
+
+    .col-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    /* Tabelas */
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.9rem;
+    }
+
+    th {
+      text-align: left;
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 16px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    td {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-light);
+      color: #fff;
+    }
+    
+    tr:last-child td { border-bottom: none; }
+
+    .budget-number {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+      display: block;
+      margin: 10px 0;
+    }
+
+    /* Animações */
+    .fade-up {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .fade-up.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Responsivo */
+    @media (max-width: 900px) {
+      .hero-grid { grid-template-columns: 1fr; gap: 40px; }
+      .nav-wrapper { display: none; }
+      .col-layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="nav-wrapper fade-up" data-delay="100">
+    <nav class="nav">
+      <a href="#visao">Estratégia Self-Service</a>
+      <a href="#cronograma">Cronograma</a>
+      <a href="#orcamento">Investimento</a>
+      <a href="#setup">Tecnologia</a>
+      <a href="#proximos">Próximos Passos</a>
+    </nav>
+  </div>
+
+  <main class="container">
+    
+    <header class="hero fade-up">
+      <div class="hero-grid">
+        <div>
+          <div class="eyebrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+            Operação 100% Digital
+          </div>
+          <h1>Espaço Arthemi:<br>Plano de Escala</h1>
+          <p class="subtitle">Estratégia de aquisição focada em <strong>venda direta pelo site</strong>. Sem atendimento manual, sem gargalo. Transformando a ociosidade atual em receita através de automação, preço competitivo e agilidade.</p>
+          
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px;">
+            <span class="chip">Google Ads (Fundo Funil)</span>
+            <span class="chip">Meta Ads (Conversão)</span>
+            <span class="chip">Automação</span>
+          </div>
+        </div>
+
+        <div class="card" style="background: rgba(15, 23, 42, 0.6);">
+          <h3 style="margin-bottom: 20px; color: var(--primary);">Objetivos Críticos</h3>
+          <ul>
+            <li>
+              <div class="icon-box">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M2 12h20"></path></svg>
+              </div>
+              <div>
+                <strong style="color: #fff; display: block;">Ocupação (Tirar do Zero)</strong>
+                <span style="font-size: 0.85rem;">Preencher agenda com volume via preço e facilidade.</span>
+              </div>
+            </li>
+            <li>
+              <div class="icon-box">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              </div>
+              <div>
+                <strong style="color: #fff; display: block;">Agilidade (Flash)</strong>
+                <span style="font-size: 0.85rem;">Do clique à reserva em minutos, sem falar com humanos.</span>
+              </div>
+            </li>
+            <li>
+              <div class="icon-box">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22 6 12 13 2 6"></polyline></svg>
+              </div>
+              <div>
+                <strong style="color: #fff; display: block;">Self-Service</strong>
+                <span style="font-size: 0.85rem;">Eliminar dependência de WhatsApp e atendimento.</span>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </header>
+
+    <section id="visao" class="fade-up" style="margin-bottom: 100px;">
+      <h2 class="section-title">Estratégia de Conversão</h2>
+      <p class="section-subtitle">O plano ignora métricas de vaidade (likes/conversas) e foca na única coisa que importa: Check-out realizado no site.</p>
+      
+      <div class="grid grid-2">
+        <div class="card">
+          <h4>Venda Direta (Low Touch)</h4>
+          <p>Como o site faz tudo, nossos anúncios serão pragmáticos:</p>
+          <ul>
+            <li>✓ Google: "Consultório pronto agora. Reserve online."</li>
+            <li>✓ Meta: "Precisa atender hoje? Sem burocracia."</li>
+            <li>✓ Diferencial: Preço baixo + Rapidez.</li>
+            <li>✓ Público: Cidade toda (Raio Aberto).</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>KPIs (O que vamos medir)</h4>
+          <p>Monitoramento focado em e-commerce/serviço:</p>
+          <ul>
+            <li>✓ <strong>Taxa de Agendamento</strong> (Vendas/Visitas).</li>
+            <li>✓ <strong>Abandono de Carrinho</strong> (Quem iniciou e parou).</li>
+            <li>✓ <strong>CAC</strong> (Custo por Reserva Confirmada).</li>
+            <li>✓ <strong>ROAS</strong> (Retorno sobre Investimento).</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="fade-up" style="margin-bottom: 100px;">
+      <div class="grid grid-2">
+        <div class="card" style="border-top: 4px solid var(--primary);">
+          <div style="margin-bottom: 16px; display: flex; justify-content: space-between;">
+            <h4>Google Ads (Busca Ativa)</h4>
+            <span style="color: var(--primary); font-weight: 700;">50% Verba</span>
+          </div>
+          <p>Foco: Capturar quem precisa com urgência. O texto do anúncio filtrará pelo preço e facilidade.</p>
+          <div style="margin-top: 16px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; font-family: monospace; font-size: 0.85rem; color: #cbd5e1;">
+            "Sala Consultório [Cidade]"<br>
+            "Aluguel hora consultório preço"<br>
+            "Espaço saúde reservar online"
+          </div>
+        </div>
+
+        <div class="card" style="border-top: 4px solid var(--secondary);">
+          <div style="margin-bottom: 16px; display: flex; justify-content: space-between;">
+            <h4>Meta Ads (Oferta Direta)</h4>
+            <span style="color: var(--secondary); font-weight: 700;">30% Verba</span>
+          </div>
+          <p>Interromper profissionais locais com uma oferta irresistível de agilidade.</p>
+          <ul>
+            <li>• <strong>Copy:</strong> "Zero burocracia. Clique e reserve."</li>
+            <li>• <strong>Criativos:</strong> Fotos profissionais (já disponíveis) + Texto de Preço.</li>
+            <li>• <strong>Remarketing:</strong> "Termine sua reserva".</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="cronograma" class="fade-up" style="margin-bottom: 100px;">
+      <h2 class="section-title">Roadmap: 30 Dias</h2>
+      <p class="section-subtitle">Faseamento para sair do zero absoluto para vendas consistentes.</p>
+      
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-marker"></div>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <h4>Semana 1: Infraestrutura de Dados</h4>
+              <span class="chip">Setup</span>
+            </div>
+            <div class="col-layout">
+              <div>
+                <strong>Ação Crítica</strong>
+                <p>Configurar GA4 e Pixel focados em eventos de funil: ViewContent -> AddToCart -> Purchase. Testar checkout no 4G.</p>
+              </div>
+              <div>
+                <strong>Por que?</strong>
+                <p>Se o site travar na hora de pagar, o tráfego é inútil. Validação técnica primeiro.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-marker"></div>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <h4>Semana 2: Criativos & Oferta</h4>
+              <span class="chip">Criação</span>
+            </div>
+            <div class="col-layout">
+              <div>
+                <strong>Ação Crítica</strong>
+                <p>Produção de anúncios usando as imagens profissionais. Foco em quebrar objeções: "É fácil? É barato? É rápido?".</p>
+              </div>
+              <div>
+                <strong>Por que?</strong>
+                <p>A "embalagem" (anúncio) precisa vender a ideia de facilidade antes do clique.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-marker"></div>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <h4>Semana 3: Go-Live (Tráfego)</h4>
+              <span class="chip">Lançamento</span>
+            </div>
+            <div class="col-layout">
+              <div>
+                <strong>Ação Crítica</strong>
+                <p>Ativação de campanhas Google (Palavras exatas) e Meta (Raio Cidade). Monitoramento de cliques vs. reservas.</p>
+              </div>
+              <div>
+                <strong>Por que?</strong>
+                <p>Primeira injeção de tráfego para tirar a ociosidade do zero.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-marker"></div>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <h4>Semana 4: Otimização de Funil</h4>
+              <span class="chip">Ajuste</span>
+            </div>
+            <div class="col-layout">
+              <div>
+                <strong>Ação Crítica</strong>
+                <p>Análise de onde as pessoas desistem no site. Ajuste de lances para CPA desejado.</p>
+              </div>
+              <div>
+                <strong>Por que?</strong>
+                <p>Refinar o custo para escalar o volume nos próximos meses.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="orcamento" class="fade-up" style="margin-bottom: 100px;">
+      <h2 class="section-title">Investimento Inteligente</h2>
+      <p class="section-subtitle">Alocação de R$ 3.000 focada em tirar o espaço da ociosidade.</p>
+      
+      <div class="grid grid-3">
+        <div class="card">
+          <span style="color: var(--primary); font-size: 0.9rem; font-weight: 600;">GOOGLE ADS</span>
+          <span class="budget-number">R$ 1.500</span>
+          <p>Captura de quem busca "alugar sala agora".</p>
+        </div>
+        <div class="card">
+          <span style="color: var(--secondary); font-size: 0.9rem; font-weight: 600;">META ADS</span>
+          <span class="budget-number">R$ 900</span>
+          <p>Oferta visual de preço e estrutura.</p>
+        </div>
+        <div class="card">
+          <span style="color: #fff; font-size: 0.9rem; font-weight: 600;">RESERVA TÁTICA</span>
+          <span class="budget-number">R$ 600</span>
+          <p>Verba extra para acelerar o que funcionar.</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 24px;">
+        <h4>Distribuição Diária Estimada</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>Canal</th>
+              <th>Investimento Diário</th>
+              <th>Objetivo Tático</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Google Ads</td>
+              <td>R$ 50,00</td>
+              <td>Conversão Imediata (Fundo de Funil)</td>
+            </tr>
+            <tr>
+              <td>Meta Ads</td>
+              <td>R$ 30,00</td>
+              <td>Gerar Tráfego Qualificado para o Site</td>
+            </tr>
+            <tr>
+              <td>Otimização</td>
+              <td>R$ 20,00</td>
+              <td>Testes de novos criativos/públicos</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="setup" class="fade-up" style="margin-bottom: 80px;">
+      <div class="grid grid-2">
+        <div>
+          <h2 class="section-title">Tecnologia & Dados</h2>
+          <p class="section-subtitle">Para um modelo 100% online, o rastreamento deve ser perfeito.</p>
+          <div class="card">
+            <ul style="gap: 16px;">
+              <li>
+                <div class="icon-box" style="color: var(--accent);">✓</div>
+                <div><strong>Google Analytics 4:</strong> Funil de E-commerce completo.</div>
+              </li>
+              <li>
+                <div class="icon-box" style="color: var(--accent);">✓</div>
+                <div><strong>Pixel API (Meta):</strong> Rastreamento de "Purchase" e "AddPaymentInfo".</div>
+              </li>
+              <li>
+                <div class="icon-box" style="color: var(--accent);">✓</div>
+                <div><strong>Mapa de Calor:</strong> Entender cliques no site (Hotjar/Clarity).</div>
+              </li>
+              <li>
+                <div class="icon-box" style="color: var(--accent);">✓</div>
+                <div><strong>Recuperação:</strong> Estratégia para quem parou no pagamento.</div>
+              </li>
+            </ul>
+          </div>
+        </div>
+        
+        <div class="card" style="border-color: var(--primary);">
+          <h4 style="color: var(--primary);">Cenário Confirmado</h4>
+          <p>Premissas validadas para início imediato:</p>
+          <ul style="margin-top: 20px;">
+            <li><strong>1. Abrangência:</strong> Cidade Toda (Escala máxima).</li>
+            <li><strong>2. Disponibilidade:</strong> 100% Ocioso (Precisamos de volume).</li>
+            <li><strong>3. Ativos:</strong> Imagens profissionais em mãos.</li>
+            <li><strong>4. Diferenciais:</strong> Preço baixo, Acessibilidade, Agilidade no agendamento.</li>
+            <li><strong>5. Fluxo:</strong> 100% Site (Zero WhatsApp).</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="proximos" class="card fade-up" style="text-align: center; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(16, 185, 129, 0.05)); border: 1px solid rgba(99, 102, 241, 0.2);">
+      <h2>Próximos Passos</h2>
+      <p style="max-width: 600px; margin: 16px auto 32px; color: var(--text-muted);">Para iniciarmos a Fase 0 (Setup Técnico), precisamos validar este escopo e liberar acessos.</p>
+      
+      <div class="grid grid-3" style="text-align: left; margin-bottom: 40px;">
+        <div class="card" style="background: rgba(2, 6, 23, 0.5);">
+          <h4>1. Validação</h4>
+          <p>Aprovação do orçamento e estratégia Self-Service.</p>
+        </div>
+        <div class="card" style="background: rgba(2, 6, 23, 0.5);">
+          <h4>2. Acessos</h4>
+          <p>Liberação Gerenciador de Anúncios e Painel do Site.</p>
+        </div>
+        <div class="card" style="background: rgba(2, 6, 23, 0.5);">
+          <h4>3. Start</h4>
+          <p>Implementação das tags de rastreamento no site.</p>
+        </div>
+      </div>
+
+      <div style="font-size: 0.9rem; color: var(--text-muted); border-top: 1px solid var(--border-light); padding-top: 24px; display: inline-block;">
+        Vinicius Gavioli — <strong>Arthemi Operação & Marketing</strong>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.1 });
+
+      document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+    });
+  </script>
+</body>
+</html>

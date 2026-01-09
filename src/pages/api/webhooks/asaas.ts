@@ -21,6 +21,7 @@ import {
   realToCents,
 } from '@/lib/asaas';
 import { sendBookingConfirmationNotification } from '@/lib/booking-notifications';
+import { triggerAccountActivation } from '@/lib/account-activation';
 
 
 // Idempotência via banco de dados (WebhookEvent table)
@@ -475,6 +476,11 @@ export default async function handler(
       
       const credit = await prisma.credit.findUnique({
         where: { id: creditId },
+        include: {
+          user: {
+            select: { id: true, email: true, name: true, emailVerifiedAt: true },
+          },
+        },
       });
 
       if (!credit) {
@@ -506,6 +512,21 @@ export default async function handler(
       });
 
       console.log(`✅ [Asaas Webhook] Crédito confirmado: ${creditId} (${credit.amount} centavos liberados)`);
+
+      // ATIVAÇÃO DE CONTA (best-effort) - Enviar email se usuário não verificado
+      if (credit.user && !credit.user.emailVerifiedAt) {
+        triggerAccountActivation({
+          userId: credit.user.id,
+          userEmail: credit.user.email,
+          userName: credit.user.name || 'Cliente',
+        }).then((result) => {
+          if (result.sent) {
+            console.log(`📧 [Asaas Webhook] Email de ativação enviado para: ${credit.user!.email}`);
+          }
+        }).catch((err) => {
+          console.error('⚠️ [Asaas Webhook] Erro ao enviar email de ativação:', err);
+        });
+      }
 
       await logAudit({
         action: 'CREDIT_CONFIRMED',
@@ -777,6 +798,21 @@ export default async function handler(
 
       console.log(`✅ [Asaas Webhook] Pacote confirmado: ${actualBookingId} (financialStatus=PAID)`);
 
+      // ATIVAÇÃO DE CONTA (best-effort) - Enviar email se usuário não verificado
+      if (booking.user && !booking.user.emailVerifiedAt) {
+        triggerAccountActivation({
+          userId: booking.user.id,
+          userEmail: booking.user.email,
+          userName: booking.user.name || 'Cliente',
+        }).then((result) => {
+          if (result.sent) {
+            console.log(`📧 [Asaas Webhook] Email de ativação enviado para: ${booking.user.email}`);
+          }
+        }).catch((err) => {
+          console.error('⚠️ [Asaas Webhook] Erro ao enviar email de ativação:', err);
+        });
+      }
+
       // Enviar email de confirmação para PACOTE
       let emailSent = false;
       if (!updatedPackageBooking.emailSentAt) {
@@ -851,6 +887,21 @@ export default async function handler(
     );
 
     console.log(`✅ [Asaas Webhook] Reserva confirmada: ${actualBookingId} (financialStatus=PAID, origin=COMMERCIAL)`);
+
+    // ATIVAÇÃO DE CONTA (best-effort) - Enviar email se usuário não verificado
+    if (booking.user && !booking.user.emailVerifiedAt) {
+      triggerAccountActivation({
+        userId: booking.user.id,
+        userEmail: booking.user.email,
+        userName: booking.user.name || 'Cliente',
+      }).then((result) => {
+        if (result.sent) {
+          console.log(`📧 [Asaas Webhook] Email de ativação enviado para: ${booking.user.email}`);
+        }
+      }).catch((err) => {
+        console.error('⚠️ [Asaas Webhook] Erro ao enviar email de ativação:', err);
+      });
+    }
 
     // LOG DE OPERAÇÃO - Pagamento confirmado (booking)
     logPaymentConfirmed({

@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plano de Crescimento | Arthemi</title>
+    <style>
+        :root {
+            --primary: #2563EB;
+            --primary-dark: #1E3A8A;
+            --accent: #10B981;
+            --bg-gradient: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%);
+            --glass-bg: rgba(255, 255, 255, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text-dark: #1E293B;
+            --text-light: #64748B;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #F1F5F9;
+            color: var(--text-dark);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* --- HERO SECTION ANIMADA --- */
+        header {
+            background: var(--bg-gradient);
+            color: white;
+            padding: 80px 20px 120px;
+            text-align: center;
+            position: relative;
+            clip-path: polygon(0 0, 100% 0, 100% 85%, 0 100%);
+            overflow: hidden;
+        }
+
+        /* Efeito de fundo animado */
+        header::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            max-width: 800px;
+            margin: 0 auto;
+            animation: slideUp 1s ease-out;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            letter-spacing: -2px;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, #fff, #93C5FD);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        /* --- CONTAINER & CARDS --- */
+        .container {
+            max-width: 1000px;
+            margin: -80px auto 40px; /* Sobe por cima do header */
+            padding: 0 20px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+            border: 1px solid white;
+            opacity: 0; /* Começa invisível para animação */
+            transform: translateY(30px);
+            transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .card.visible { opacity: 1; transform: translateY(0); }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 30px 60px rgba(30, 58, 138, 0.15); }
+
+        h2 {
+            font-size: 1.8rem;
+            color: var(--primary-dark);
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* --- GRID DE VANTAGENS --- */
+        .grid-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+        }
+
+        .feature-box {
+            background: #F8FAFC;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid #E2E8F0;
+            transition: 0.3s;
+        }
+        .feature-box:hover { border-color: var(--primary); background: white; }
+        .icon { font-size: 2rem; margin-bottom: 10px; display: block; }
+
+        /* --- FUNIL CSS PURO (NO SVG) --- */
+        .funnel-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .funnel-block {
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+            color: white;
+            border-radius: 12px;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .funnel-block:hover { transform: scale(1.02); }
+
+        .fb-1 { background: linear-gradient(to right, #60A5FA, #3B82F6); width: 90%; }
+        .fb-2 { background: linear-gradient(to right, #3B82F6, #2563EB); width: 75%; }
+        .fb-3 { background: linear-gradient(to right, #1D4ED8, #1E3A8A); width: 60%; }
+        
+        .fb-success {
+            background: #ECFDF5;
+            color: #065F46;
+            border: 2px solid #10B981;
+            width: 100%;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+
+        .funnel-arrow { font-size: 1.5rem; color: #CBD5E1; }
+
+        /* --- BARRA DE ORÇAMENTO ANIMADA --- */
+        .budget-wrapper { margin-top: 20px; }
+        .budget-bar-bg {
+            background: #E2E8F0;
+            height: 40px;
+            border-radius: 20px;
+            overflow: hidden;
+            display: flex;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .budget-segment {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9rem;
+            width: 0; /* Animação */
+            transition: width 1.5s ease-out;
+        }
+
+        /* --- RODAPÉ E BOTÃO --- */
+        .footer { text-align: center; padding: 40px; color: var(--text-light); }
+        
+        .fab-print {
+            position: fixed;
+            bottom: 30px; right: 30px;
+            background: var(--text-dark);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-weight: bold;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            cursor: pointer;
+            border: none;
+            transition: 0.3s;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .fab-print:hover { transform: scale(1.05); background: black; }
+
+        /* Animações Keyframes */
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5rem; }
+            .funnel-block { width: 100% !important; }
+        }
+
+        @media print {
+            header { clip-path: none; padding: 40px; background: #fff; color: #000; border-bottom: 2px solid #000; }
+            h1 { -webkit-text-fill-color: black; }
+            .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; margin-top: 0; }
+            .container { margin-top: 0; }
+            .fab-print { display: none; }
+            body { background: white; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="hero-content">
+        <p style="text-transform: uppercase; letter-spacing: 2px; font-size: 0.8rem; margin-bottom: 10px;">Planejamento Estratégico</p>
+        <h1>Espaço Arthemi</h1>
+        <p class="subtitle">Aquisição Previsível & Agenda Cheia</p>
+    </div>
+</header>
+
+<div class="container">
+
+    <div class="card">
+        <h2>🎯 O Grande Objetivo</h2>
+        <p style="font-size: 1.1rem; color: var(--text-light); margin-bottom: 30px;">
+            Transformar o Arthemi na referência de consultórios flexíveis em BH, focando não em curiosos, mas em <strong>reservas confirmadas</strong>.
+        </p>
+
+        <div class="grid-features">
+            <div class="feature-box">
+                <span class="icon">🚀</span>
+                <strong>Escala</strong>
+                <p style="font-size: 0.9rem;">Crescimento previsível</p>
+            </div>
+            <div class="feature-box">
+                <span class="icon">💎</span>
+                <strong>Qualidade</strong>
+                <p style="font-size: 0.9rem;">Lead qualificado</p>
+            </div>
+            <div class="feature-box">
+                <span class="icon">⚡</span>
+                <strong>Agilidade</strong>
+                <p style="font-size: 0.9rem;">Reserva imediata</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🔥 Nossa Máquina de Vendas</h2>
+        <p>Esqueça "cliques". Nós construímos um ecossistema de captura.</p>
+
+        <div class="funnel-container">
+            <div class="funnel-block fb-1">
+                <strong style="font-size: 1.2rem;">1. Google Search</strong>
+                <div style="font-size: 0.9rem; opacity: 0.9;">Intenção: "Preciso de um consultório agora"</div>
+            </div>
+            
+            <div class="funnel-arrow">⬇</div>
+
+            <div class="funnel-block fb-2">
+                <strong style="font-size: 1.2rem;">2. Meta Ads</strong>
+                <div style="font-size: 0.9rem; opacity: 0.9;">Desejo: Vídeos da estrutura e prova social</div>
+            </div>
+
+            <div class="funnel-arrow">⬇</div>
+
+            <div class="funnel-block fb-3">
+                <strong style="font-size: 1.2rem;">3. Remarketing</strong>
+                <div style="font-size: 0.9rem; opacity: 0.9;">Fechamento: Perseguição inteligente</div>
+            </div>
+
+            <div class="funnel-block fb-success">
+                ✅ SUCESSO = RESERVA PAGA
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>⚔️ Como Vamos Vencer</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+            
+            <div style="background: #EFF6FF; padding: 25px; border-radius: 15px; border-left: 5px solid #2563EB;">
+                <h3 style="margin-bottom: 15px; color: #1E3A8A;">Google Ads</h3>
+                <ul style="list-style: none; padding: 0;">
+                    <li style="margin-bottom: 10px; display: flex; align-items: center;">
+                        <span style="color: #2563EB; margin-right: 10px;">✔</span> Termos de alta intenção
+                    </li>
+                    <li style="margin-bottom: 10px; display: flex; align-items: center;">
+                        <span style="color: #2563EB; margin-right: 10px;">✔</span> Foco geolocalizado (BH)
+                    </li>
+                    <li style="margin-bottom: 10px; display: flex; align-items: center;">
+                        <span style="color: #2563EB; margin-right: 10px;">✔</span> Anti-curiosos (Negativação)
+                    </li>
+                </ul>
+            </div>
+
+            <div style="background: #F0FDF4; padding: 25px; border-radius: 15px; border-left: 5px solid #10B981;">
+                <h3 style="margin-bottom: 15px; color: #064E3B;">Meta Ads</h3>
+                <ul style="list-style: none; padding: 0;">
+                    <li style="margin-bottom: 10px; display: flex; align-items: center;">
+                        <span style="color: #10B981; margin-right: 10px;">✔</span> Tour Virtual em Vídeo
+                    </li>
+                    <li style="margin-bottom: 10px; display: flex; align-items: center;">
+                        <span style="color: #10B981; margin-right: 10px;">✔</span> Carrossel de Diferenciais
+                    </li>
+                    <li style="margin-bottom: 10px; display: flex; align-items: center;">
+                        <span style="color: #10B981; margin-right: 10px;">✔</span> Oferta direta visual
+                    </li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px;">
+            <h2>💰 Investimento Inteligente</h2>
+            <div style="font-size: 2rem; font-weight: 800; color: var(--primary);">R$ 3.000<span style="font-size: 1rem; color: #94A3B8;">/mês</span></div>
+        </div>
+        
+        <p>Alocação dinâmica baseada em performance:</p>
+        
+        <div class="budget-wrapper">
+            <div class="budget-bar-bg">
+                <div class="budget-segment" data-width="50%" style="background: #2563EB;">Google 50%</div>
+                <div class="budget-segment" data-width="30%" style="background: #10B981;">Meta 30%</div>
+                <div class="budget-segment" data-width="20%" style="background: #F59E0B;">Extra 20%</div>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.8rem; color: var(--text-light);">
+                <span>Intenção de Compra</span>
+                <span>Geração de Desejo</span>
+                <span>Segurança e Testes</span>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="footer">
+    <p>© 2026 Arthemi Strategy. Foco total em resultado.</p>
+</div>
+
+<button class="fab-print" onclick="window.print()">
+    <span>🖨️</span> Salvar PDF
+</button>
+
+<script>
+    // SCRIPT DE ANIMAÇÃO (SCROLL REVEAL)
+    document.addEventListener("DOMContentLoaded", function() {
+        
+        // 1. Configurar o Observador de Interseção
+        const observerOptions = {
+            threshold: 0.15 // Dispara quando 15% do elemento está visível
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    
+                    // Se for a barra de orçamento, anima as larguras
+                    if (entry.target.querySelector('.budget-segment')) {
+                        const segments = entry.target.querySelectorAll('.budget-segment');
+                        segments.forEach(seg => {
+                            seg.style.width = seg.getAttribute('data-width');
+                        });
+                    }
+                }
+            });
+        }, observerOptions);
+
+        // 2. Aplicar o observador em todos os cards
+        const cards = document.querySelectorAll('.card');
+        cards.forEach(card => observer.observe(card));
+    });
+</script>
+
+</body>
+</html>

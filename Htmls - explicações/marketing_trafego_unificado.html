@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Guia Unificado — Marketing + Tráfego Pago | Espaço Arthemi</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* --- VARIÁVEIS & SETUP (Design System do marketing.html) --- */
+    :root {
+      --bg-deep: #020617;
+      --bg-surface: #0f172a;
+      --primary: #6366f1;
+      --primary-glow: rgba(99, 102, 241, 0.4);
+      --secondary: #3b82f6;
+      --accent: #10b981;
+      --warning: #f59e0b;
+
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+
+      --border-light: rgba(255, 255, 255, 0.08);
+      --card-bg: rgba(30, 41, 59, 0.4);
+      --glass-shine: rgba(255, 255, 255, 0.03);
+
+      --radius-lg: 24px;
+      --radius-md: 16px;
+      --radius-sm: 8px;
+
+      --shadow-soft: 0 10px 40px -10px rgba(0,0,0,0.5);
+      --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+
+      --font-heading: 'Plus Jakarta Sans', sans-serif;
+      --font-body: 'Inter', sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--bg-deep);
+      color: var(--text-main);
+      line-height: 1.6;
+      background-image:
+        radial-gradient(circle at 10% 10%, rgba(99, 102, 241, 0.12) 0%, transparent 45%),
+        radial-gradient(circle at 90% 40%, rgba(16, 185, 129, 0.08) 0%, transparent 45%);
+      background-attachment: fixed;
+      overflow-x: hidden;
+    }
+
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg-deep); }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+    a { text-decoration: none; color: inherit; transition: 0.3s; }
+    ul { list-style: none; }
+    img { display: block; max-width: 100%; }
+
+    .container {
+      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Tipografia */
+    h1, h2, h3, h4 { font-family: var(--font-heading); color: #fff; letter-spacing: -0.025em; }
+
+    h1 {
+      font-size: clamp(2.5rem, 5vw, 3.5rem);
+      line-height: 1.1;
+      font-weight: 800;
+      background: linear-gradient(to right, #fff 20%, #93c5fd 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 24px;
+    }
+
+    .subtitle {
+      font-size: 1.125rem;
+      color: var(--text-muted);
+      max-width: 760px;
+      margin-bottom: 32px;
+      font-weight: 300;
+    }
+
+    .section-title {
+      font-size: 2rem;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .section-title::before {
+      content: '';
+      display: block;
+      width: 6px;
+      height: 24px;
+      background: linear-gradient(to bottom, var(--accent), var(--secondary));
+      border-radius: 4px;
+    }
+
+    .section-subtitle {
+      color: var(--text-muted);
+      margin-bottom: 40px;
+      font-size: 1rem;
+      max-width: 760px;
+    }
+
+    /* Componentes */
+    .chip {
+      display: inline-flex;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 6px 16px;
+      border-radius: 100px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border-light);
+      color: var(--text-muted);
+      margin-right: 8px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      padding: 32px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--glass-shine), transparent);
+      opacity: 0.5;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(99, 102, 241, 0.3);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .card h4 { font-size: 1.1rem; margin-bottom: 16px; color: #e2e8f0; }
+    .card p, .card li { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 12px; }
+    .card ul { display: grid; gap: 12px; }
+    .card li { margin-bottom: 0; display: flex; align-items: start; gap: 10px; }
+
+    .icon-box { color: var(--accent); flex-shrink: 0; margin-top: 2px; }
+
+    .grid { display: grid; gap: 24px; }
+    .grid-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+
+    /* Nav flutuante */
+    .nav-wrapper {
+      position: sticky;
+      top: 20px;
+      z-index: 100;
+      display: flex;
+      justify-content: center;
+      padding: 0 20px;
+    }
+
+    .nav {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 8px 12px;
+      border-radius: 100px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .nav a {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 20px;
+      transition: all 0.25s ease;
+    }
+
+    .nav a:hover { color: #fff; background: rgba(255,255,255,0.1); }
+
+    /* Hero */
+    .hero { padding: 120px 0 80px; position: relative; }
+    .hero-grid { display: grid; grid-template-columns: 1fr 0.85fr; gap: 60px; align-items: center; }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+      background: rgba(16, 185, 129, 0.1);
+      padding: 6px 14px;
+      border-radius: 100px;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    /* Timeline */
+    .timeline { position: relative; margin-top: 40px; }
+    .timeline-item { position: relative; padding-left: 50px; padding-bottom: 40px; }
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: 20px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--border-light), transparent);
+    }
+    .timeline-item:not(:last-child)::before { background: var(--border-light); }
+
+    .timeline-marker {
+      position: absolute;
+      left: 11px;
+      top: 5px;
+      width: 20px;
+      height: 20px;
+      background: var(--bg-deep);
+      border: 2px solid var(--primary);
+      border-radius: 50%;
+      z-index: 2;
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+    }
+
+    .timeline-content {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      padding: 24px;
+    }
+
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border-light);
+      padding-bottom: 12px;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .timeline-header h4 { margin: 0; color: var(--primary); }
+
+    .col-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+    /* Tabelas */
+    table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.9rem; }
+    th { text-align: left; color: var(--text-muted); font-weight: 600; padding: 16px; border-bottom: 1px solid var(--border-light); }
+    td { padding: 16px; border-bottom: 1px solid var(--border-light); color: #fff; }
+    tr:last-child td { border-bottom: none; }
+
+    .budget-number {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+      display: block;
+      margin: 10px 0;
+    }
+
+    /* Funil (adaptado do Tráfego pago.html para o design do marketing.html) */
+    .funnel-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      margin-top: 20px;
+    }
+
+    .funnel-block {
+      width: 100%;
+      max-width: 860px;
+      padding: 18px 22px;
+      border-radius: 14px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.10);
+      box-shadow: 0 14px 28px rgba(0,0,0,0.25);
+      transition: transform 0.25s ease, border-color 0.25s ease;
+    }
+    .funnel-block:hover { transform: scale(1.01); border-color: rgba(99, 102, 241, 0.35); }
+
+    .fb-1 { background: linear-gradient(90deg, rgba(59,130,246,0.95), rgba(99,102,241,0.95)); }
+    .fb-2 { background: linear-gradient(90deg, rgba(99,102,241,0.95), rgba(16,185,129,0.85)); }
+    .fb-3 { background: linear-gradient(90deg, rgba(16,185,129,0.85), rgba(59,130,246,0.85)); }
+
+    .funnel-arrow { color: rgba(148,163,184,0.8); font-size: 1.25rem; line-height: 1; }
+    .fb-success {
+      background: rgba(16,185,129,0.08);
+      border: 1px solid rgba(16,185,129,0.35);
+      color: #d1fae5;
+      font-weight: 700;
+    }
+
+    /* Barra de orçamento (visual extra) */
+    .budget-bar-bg {
+      background: rgba(255,255,255,0.06);
+      height: 44px;
+      border-radius: 999px;
+      overflow: hidden;
+      display: flex;
+      border: 1px solid var(--border-light);
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.25);
+    }
+
+    .budget-segment {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.85rem;
+      width: 0; /* animação */
+      transition: width 1.2s ease-out;
+      white-space: nowrap;
+      padding: 0 12px;
+    }
+    .seg-google { background: rgba(99,102,241,0.95); }
+    .seg-meta { background: rgba(16,185,129,0.85); }
+    .seg-extra { background: rgba(245,158,11,0.85); }
+
+    /* Botão flutuante de imprimir/salvar PDF */
+    .fab-print {
+      position: fixed;
+      bottom: 26px; right: 26px;
+      background: rgba(15, 23, 42, 0.9);
+      color: #fff;
+      padding: 14px 18px;
+      border-radius: 999px;
+      font-weight: 700;
+      box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.12);
+      transition: 0.25s;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .fab-print:hover { transform: translateY(-3px); border-color: rgba(99,102,241,0.35); }
+    .fab-print svg { opacity: 0.9; }
+
+    /* Animações */
+    .fade-up {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .fade-up.visible { opacity: 1; transform: translateY(0); }
+
+    /* Responsivo */
+    @media (max-width: 900px) {
+      .hero-grid { grid-template-columns: 1fr; gap: 40px; }
+      .nav-wrapper { display: none; }
+      .col-layout { grid-template-columns: 1fr; }
+    }
+
+    @media print {
+      .nav-wrapper, .fab-print { display: none !important; }
+      body { background: #fff; color: #000; }
+      h1, h2, h3, h4 { color: #000; -webkit-text-fill-color: initial; }
+      .card { background: #fff; backdrop-filter: none; border: 1px solid #ddd; box-shadow: none; }
+      .timeline-content { background: #fff; }
+      th, td { color: #000; border-bottom: 1px solid #ddd; }
+      .chip { background: #f1f5f9; border: 1px solid #ddd; color: #334155; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="nav-wrapper fade-up" data-delay="100">
+    <nav class="nav">
+      <a href="#visao">Estratégia</a>
+      <a href="#funil">Funil</a>
+      <a href="#campanhas">Campanhas</a>
+      <a href="#cronograma">Roadmap</a>
+      <a href="#orcamento">Investimento</a>
+      <a href="#setup">Tecnologia</a>
+      <a href="#operacao">Operação</a>
+      <a href="#proximos">Próximos Passos</a>
+    </nav>
+  </div>
+
+  <main class="container">
+
+    <!-- HERO -->
+    <header class="hero fade-up">
+      <div class="hero-grid">
+        <div>
+          <div class="eyebrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+            </svg>
+            Guia interno de execução (Marketing + Tráfego)
+          </div>
+
+          <h1>Espaço Arthemi:<br>Plano Unificado</h1>
+          <p class="subtitle">
+            Documento único para orientar a execução: <strong>aquisição → reserva → pagamento</strong>.
+            Foco em <strong>venda direta pelo site</strong>, com rastreamento perfeito, campanhas enxutas e otimização agressiva.
+          </p>
+
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px;">
+            <span class="chip">Google Ads (Busca)</span>
+            <span class="chip">Meta Ads (Conversão)</span>
+            <span class="chip">Remarketing</span>
+            <span class="chip">CRO (Funil)</span>
+            <span class="chip">Medição (GA4 + Pixel)</span>
+          </div>
+        </div>
+
+        <div class="card" style="background: rgba(15, 23, 42, 0.6);">
+          <h3 style="margin-bottom: 20px; color: var(--primary);">Objetivos Críticos</h3>
+          <ul>
+            <li>
+              <div class="icon-box">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M12 2v20M2 12h20"></path>
+                </svg>
+              </div>
+              <div>
+                <strong style="color: #fff; display: block;">Ocupação</strong>
+                <span style="font-size: 0.85rem;">Sair do “0” e preencher agenda com volume (sem WhatsApp).</span>
+              </div>
+            </li>
+
+            <li>
+              <div class="icon-box">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
+              <div>
+                <strong style="color: #fff; display: block;">Agilidade (Self-Service)</strong>
+                <span style="font-size: 0.85rem;">Do clique à reserva em minutos (sem humano no meio).</span>
+              </div>
+            </li>
+
+            <li>
+              <div class="icon-box">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22 6 12 13 2 6"></polyline>
+                </svg>
+              </div>
+              <div>
+                <strong style="color: #fff; display: block;">Previsibilidade</strong>
+                <span style="font-size: 0.85rem;">Medição de CAC/ROAS e escala por performance.</span>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </header>
+
+    <!-- ESTRATÉGIA -->
+    <section id="visao" class="fade-up" style="margin-bottom: 90px;">
+      <h2 class="section-title">Estratégia de Conversão</h2>
+      <p class="section-subtitle">
+        Ignorar vaidade (likes/conversas) e medir apenas o que importa: <strong>reserva paga</strong>.
+        O anúncio “vende” rapidez + facilidade + preço. O site fecha.
+      </p>
+
+      <div class="grid grid-2">
+        <div class="card">
+          <h4>Oferta Central (o que empurra o clique)</h4>
+          <ul>
+            <li>✓ <strong>“Consultório pronto agora”</strong> (urgência/uso imediato).</li>
+            <li>✓ <strong>“Reserve online”</strong> (sem burocracia).</li>
+            <li>✓ <strong>Preço claro</strong> (filtra curioso e aumenta qualificação).</li>
+            <li>✓ <strong>Raio cidade</strong> (escala máxima + volume).</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h4>KPIs (o placar real)</h4>
+          <ul>
+            <li>✓ <strong>Taxa de Agendamento</strong> (reservas / visitas).</li>
+            <li>✓ <strong>Abandono de Checkout</strong> (iniciou e não pagou).</li>
+            <li>✓ <strong>CAC</strong> (custo por reserva confirmada).</li>
+            <li>✓ <strong>ROAS</strong> (receita / gasto).</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- FUNIL -->
+    <section id="funil" class="fade-up" style="margin-bottom: 90px;">
+      <h2 class="section-title">Máquina de Vendas (Funil)</h2>
+      <p class="section-subtitle">
+        O funil é simples e brutal: <strong>intenção (Google) → desejo (Meta) → fechamento (remarketing)</strong>.
+      </p>
+
+      <div class="card">
+        <div class="funnel-container">
+          <div class="funnel-block fb-1">
+            <strong style="font-size: 1.1rem;">1) Google Search (Intenção)</strong>
+            <div style="font-size: 0.9rem; opacity: 0.92;">“Preciso de consultório hoje / agora / por hora”</div>
+          </div>
+
+          <div class="funnel-arrow">⬇</div>
+
+          <div class="funnel-block fb-2">
+            <strong style="font-size: 1.1rem;">2) Meta Ads (Desejo)</strong>
+            <div style="font-size: 0.9rem; opacity: 0.92;">Estrutura + oferta + prova social (criativo vende)</div>
+          </div>
+
+          <div class="funnel-arrow">⬇</div>
+
+          <div class="funnel-block fb-3">
+            <strong style="font-size: 1.1rem;">3) Remarketing (Fechamento)</strong>
+            <div style="font-size: 0.9rem; opacity: 0.92;">“Volte e conclua — horários disponíveis agora”</div>
+          </div>
+
+          <div class="funnel-block fb-success">
+            ✅ SUCESSO = RESERVA PAGA (Purchase / Booking Confirmed)
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CAMPANHAS -->
+    <section id="campanhas" class="fade-up" style="margin-bottom: 90px;">
+      <h2 class="section-title">Plano de Campanhas</h2>
+      <p class="section-subtitle">
+        Estrutura enxuta (poucas campanhas), mensuração forte e iteração rápida. A meta é “CPA controlável”.
+      </p>
+
+      <div class="grid grid-2">
+        <div class="card" style="border-top: 4px solid var(--primary);">
+          <div style="margin-bottom: 16px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+            <h4>Google Ads (Busca Ativa)</h4>
+            <span style="color: var(--primary); font-weight: 800;">Fundo de Funil</span>
+          </div>
+
+          <p><strong>Objetivo:</strong> capturar quem já está procurando por um consultório (demanda explícita).</p>
+
+          <ul>
+            <li>• <strong>Campanhas:</strong> Search (1–2 campanhas), por “alugar consultório” e por “sala para atendimento”.</li>
+            <li>• <strong>Grupos:</strong> (1) Consultório por hora, (2) Espaço para atendimento, (3) Consultório mobiliado.</li>
+            <li>• <strong>Palavras (exemplos):</strong>
+              <div style="margin-top: 10px; padding: 12px; background: rgba(0,0,0,0.18); border-radius: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 0.85rem; color: #cbd5e1;">
+                "alugar consultório por hora"<br>
+                "consultório mobiliado [bairro/cidade]"<br>
+                "sala para psicólogo por hora"<br>
+                "consultório para fisioterapeuta por hora"<br>
+                "consultório para nutricionista por hora"
+              </div>
+            </li>
+            <li>• <strong>Negativação (anti-curioso):</strong> “vaga emprego”, “curso”, “aluguel mensal”, “imobiliária”, “gratuito”.</li>
+            <li>• <strong>Extensões:</strong> sitelinks (Salas/Preços/Como Funciona), chamadas, snippets estruturados.</li>
+          </ul>
+        </div>
+
+        <div class="card" style="border-top: 4px solid var(--accent);">
+          <div style="margin-bottom: 16px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+            <h4>Meta Ads (Oferta Direta)</h4>
+            <span style="color: var(--accent); font-weight: 800;">Conversão</span>
+          </div>
+
+          <p><strong>Objetivo:</strong> interromper profissionais locais com uma oferta que “vende na hora”.</p>
+
+          <ul>
+            <li>• <strong>Campanhas:</strong> Sales/Conversions (site), com 1 campanha de aquisição + 1 de remarketing.</li>
+            <li>• <strong>Públicos:</strong> raio cidade + interesses (saúde/terapias) + lookalike (quando tiver volume).</li>
+            <li>• <strong>Criativos:</strong> vídeo tour (15–30s), carrossel de diferenciais, imagem com preço + CTA.</li>
+            <li>• <strong>Copys (templates):</strong>
+              <div style="margin-top: 10px; padding: 12px; background: rgba(0,0,0,0.18); border-radius: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 0.85rem; color: #cbd5e1;">
+                "Precisa atender HOJE? Reserve online em 2 minutos."<br>
+                "Consultório pronto + fácil de agendar. Clique e escolha o horário."<br>
+                "Sem burocracia. Pagou, reservou. Estrutura completa."
+              </div>
+            </li>
+            <li>• <strong>Remarketing:</strong> visitantes 30d + add_to_cart 14d + initiated_checkout 7d.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="grid grid-2" style="margin-top: 24px;">
+        <div class="card">
+          <h4>Política de Teste (para não se perder)</h4>
+          <ul>
+            <li>✓ Testar <strong>1 variável por vez</strong> (criativo OU público OU landing).</li>
+            <li>✓ Mínimo de <strong>3–5 dias</strong> por teste (evitar mexer todo dia sem dado).</li>
+            <li>✓ Escalar só com regra: <strong>CPA ≤ meta</strong> e funil estável.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h4>Critério de Corte (matar o que não presta)</h4>
+          <ul>
+            <li>✓ Google: se palavras geram clique caro e <strong>0 checkout</strong> → negativar/pausar.</li>
+            <li>✓ Meta: criativo com CPM alto e CTR baixo → trocar criativo.</li>
+            <li>✓ Site: se carrinho inicia e não paga → <strong>corrigir fricção</strong> antes de escalar.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ROADMAP -->
+    <section id="cronograma" class="fade-up" style="margin-bottom: 90px;">
+      <h2 class="section-title">Roadmap: 30 Dias</h2>
+      <p class="section-subtitle">Faseamento para sair do zero absoluto para vendas consistentes (com loops de otimização).</p>
+
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-marker"></div>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <h4>Semana 1: Medição + Saúde do Checkout</h4>
+              <span class="chip">Setup</span>
+            </div>
+            <div class="col-layout">
+              <div>
+                <strong>Ação Crítica</strong>
+                <p>GA4 e Pixel com eventos de funil (view → add_to_cart → begin_checkout → purchase). Testar checkout no 4G e em navegadores diferentes.</p>
+              </div>
+              <div>
+                <strong>Por que?</strong>
+                <p>Se o checkout falhar, o tráfego vira lixo. Primeiro garante que tudo mede e conclui.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-marker"></div>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <h4>Semana 2: Criativos + Oferta</h4>
+              <span class="chip">Criação</span>
+            </div>
+            <div class="col-layout">
+              <div>
+                <strong>Ação Crítica</strong>
+                <p>Produzir 6–10 variações de criativo (vídeo curto + carrossel + imagem com preço). Mensagens focadas: fácil, rápido, pronto, sem burocracia.</p>
+              </div>
+              <div>
+                <strong>Por que?</strong>
+                <p>O criativo é o “vendedor” antes do clique. Sem criativo forte, não existe CPA bom.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-marker"></div>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <h4>Semana 3: Go-Live (Campanhas)</h4>
+              <span class="chip">Lançamento</span>
+            </div>
+            <div class="col-layout">
+              <div>
+                <strong>Ação Crítica</strong>
+                <p>Ativar Google (exatas/frases) + Meta (conversão). Monitorar: cliques → checkout → purchase. Ajustar negativação e criativos diariamente.</p>
+              </div>
+              <div>
+                <strong>Por que?</strong>
+                <p>Primeira injeção de tráfego tira o espaço do zero e cria dados reais para otimizar.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-marker"></div>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <h4>Semana 4: Otimização de Funil (CRO)</h4>
+              <span class="chip">Ajuste</span>
+            </div>
+            <div class="col-layout">
+              <div>
+                <strong>Ação Crítica</strong>
+                <p>Mapear onde o usuário desiste (mapa de calor/clarity). Ajustar copys, lances e páginas. Definir meta de CPA e escalar somente com estabilidade.</p>
+              </div>
+              <div>
+                <strong>Por que?</strong>
+                <p>Escala é consequência: primeiro o funil fica saudável, depois sobe orçamento.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ORÇAMENTO -->
+    <section id="orcamento" class="fade-up" style="margin-bottom: 90px;">
+      <h2 class="section-title">Investimento Inteligente</h2>
+      <p class="section-subtitle">Alocação inicial sugerida (base) e regra de realocação por performance.</p>
+
+      <div class="grid grid-3">
+        <div class="card">
+          <span style="color: var(--primary); font-size: 0.9rem; font-weight: 700;">GOOGLE ADS</span>
+          <span class="budget-number">R$ 1.500</span>
+          <p>Captura de intenção (fundo de funil) — “quero agora”.</p>
+        </div>
+        <div class="card">
+          <span style="color: var(--accent); font-size: 0.9rem; font-weight: 700;">META ADS</span>
+          <span class="budget-number">R$ 900</span>
+          <p>Oferta + criativo + remarketing.</p>
+        </div>
+        <div class="card">
+          <span style="color: var(--warning); font-size: 0.9rem; font-weight: 700;">RESERVA TÁTICA</span>
+          <span class="budget-number">R$ 600</span>
+          <p>Verba para acelerar o que estiver performando.</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 24px;">
+        <h4>Distribuição Visual (anima no scroll)</h4>
+
+        <div class="budget-bar-bg" style="margin-top: 16px;">
+          <div class="budget-segment seg-google" data-width="50%">Google 50%</div>
+          <div class="budget-segment seg-meta" data-width="30%">Meta 30%</div>
+          <div class="budget-segment seg-extra" data-width="20%">Extra 20%</div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.85rem; color: var(--text-muted);">
+          <span>Intenção</span>
+          <span>Oferta</span>
+          <span>Testes</span>
+        </div>
+
+        <div style="margin-top: 22px; border-top: 1px solid var(--border-light); padding-top: 16px;">
+          <h4 style="margin-bottom: 14px;">Distribuição Diária Estimada</h4>
+          <table>
+            <thead>
+              <tr>
+                <th>Canal</th>
+                <th>Investimento Diário</th>
+                <th>Objetivo Tático</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Google Ads</td>
+                <td>R$ 50,00</td>
+                <td>Conversão imediata (fundo de funil)</td>
+              </tr>
+              <tr>
+                <td>Meta Ads</td>
+                <td>R$ 30,00</td>
+                <td>Tráfego qualificado + remarketing</td>
+              </tr>
+              <tr>
+                <td>Testes/Extra</td>
+                <td>R$ 20,00</td>
+                <td>Novos criativos/públicos e reforço do que performar</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TECNOLOGIA -->
+    <section id="setup" class="fade-up" style="margin-bottom: 80px;">
+      <div class="grid grid-2">
+        <div>
+          <h2 class="section-title">Tecnologia & Dados</h2>
+          <p class="section-subtitle">Para um modelo 100% online, rastreamento e consistência de eventos precisam ser “à prova de bug”.</p>
+
+          <div class="card">
+            <ul style="gap: 16px;">
+              <li>
+                <div class="icon-box" style="color: var(--accent);">✓</div>
+                <div><strong>GA4:</strong> funil completo com eventos e parâmetros (valor, moeda, item).</div>
+              </li>
+              <li>
+                <div class="icon-box" style="color: var(--accent);">✓</div>
+                <div><strong>Meta Pixel + CAPI:</strong> melhorar atribuição e reduzir perda de sinal.</div>
+              </li>
+              <li>
+                <div class="icon-box" style="color: var(--accent);">✓</div>
+                <div><strong>Mapa de Calor:</strong> Microsoft Clarity/Hotjar para identificar fricção.</div>
+              </li>
+              <li>
+                <div class="icon-box" style="color: var(--accent);">✓</div>
+                <div><strong>Recuperação:</strong> remarketing para checkout iniciado / carrinho.</div>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="card" style="border-color: rgba(99, 102, 241, 0.6);">
+          <h4 style="color: var(--primary);">Cenário Confirmado</h4>
+          <p>Premissas para execução imediata:</p>
+          <ul style="margin-top: 20px;">
+            <li><strong>1. Abrangência:</strong> cidade toda (escala máxima).</li>
+            <li><strong>2. Disponibilidade:</strong> agenda precisa de volume.</li>
+            <li><strong>3. Ativos:</strong> imagens profissionais em mãos.</li>
+            <li><strong>4. Diferenciais:</strong> preço baixo + acessibilidade + agilidade.</li>
+            <li><strong>5. Fluxo:</strong> 100% site (zero dependência de WhatsApp).</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- OPERAÇÃO -->
+    <section id="operacao" class="fade-up" style="margin-bottom: 90px;">
+      <h2 class="section-title">Operação (rotina semanal)</h2>
+      <p class="section-subtitle">Ritual simples para evoluir a performance sem virar “achismo”.</p>
+
+      <div class="grid grid-2">
+        <div class="card">
+          <h4>Seg–Qua (performance rápida)</h4>
+          <ul>
+            <li>✓ Checar <strong>reservas pagas</strong> por canal (não só cliques).</li>
+            <li>✓ Google: negativar termos ruins + ajustar correspondência.</li>
+            <li>✓ Meta: pausar criativos fracos e duplicar os vencedores.</li>
+            <li>✓ Verificar taxa de checkout (se cair, é problema de funil).</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h4>Qui–Sex (CRO e escala)</h4>
+          <ul>
+            <li>✓ Rodar 1 teste de funil (headline, preço, CTA, prova social).</li>
+            <li>✓ Ajustar orçamento: mover para o que tem melhor CPA.</li>
+            <li>✓ Revisar páginas/UX com Clarity (onde o usuário trava).</li>
+            <li>✓ Documentar decisões (o que mudou e por quê).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 24px;">
+        <h4>Backlog de Experimentos (modelo)</h4>
+        <p style="margin-bottom: 18px;">Use esta lista como “fila” (não executar tudo ao mesmo tempo).</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Hipótese</th>
+              <th>O que mudar</th>
+              <th>Métrica de sucesso</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Preço visível no criativo reduz curioso</td>
+              <td>Adicionar preço no criativo principal (Meta)</td>
+              <td>↓ CPC e ↑ taxa de checkout</td>
+            </tr>
+            <tr>
+              <td>Copy “reserve em 2 min” aumenta clique</td>
+              <td>Testar 2 headlines (Google/Meta)</td>
+              <td>↑ CTR e ↑ reservas</td>
+            </tr>
+            <tr>
+              <td>Menos campos no checkout aumenta pagamento</td>
+              <td>Remover fricções / auto-preencher</td>
+              <td>↓ abandono de checkout</td>
+            </tr>
+            <tr>
+              <td>Remarketing com prova social aumenta retorno</td>
+              <td>Creative de remarketing com depoimento</td>
+              <td>↑ ROAS remarketing</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- PRÓXIMOS PASSOS -->
+    <section id="proximos" class="card fade-up" style="text-align: center; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(16, 185, 129, 0.05)); border: 1px solid rgba(99, 102, 241, 0.2);">
+      <h2>Próximos Passos</h2>
+      <p style="max-width: 700px; margin: 16px auto 32px; color: var(--text-muted);">
+        Para iniciar e não travar no meio, a ordem é: <strong>medição → checkout → campanhas → otimização</strong>.
+      </p>
+
+      <div class="grid grid-3" style="text-align: left; margin-bottom: 40px;">
+        <div class="card" style="background: rgba(2, 6, 23, 0.5);">
+          <h4>1) Validar</h4>
+          <p>Conferir: eventos, checkout, páginas e oferta.</p>
+        </div>
+        <div class="card" style="background: rgba(2, 6, 23, 0.5);">
+          <h4>2) Acessos</h4>
+          <p>Gerenciador (Meta), Google Ads, GA4 e Tag Manager.</p>
+        </div>
+        <div class="card" style="background: rgba(2, 6, 23, 0.5);">
+          <h4>3) Go-Live</h4>
+          <p>Campanhas no ar + rotina semanal de otimização.</p>
+        </div>
+      </div>
+
+      <div style="font-size: 0.9rem; color: var(--text-muted); border-top: 1px solid var(--border-light); padding-top: 24px; display: inline-block;">
+        Vinicius Gavioli — <strong>Arthemi Operação & Marketing</strong>
+      </div>
+    </section>
+
+  </main>
+
+  <button class="fab-print" onclick="window.print()" title="Salvar em PDF">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 9V2h12v7"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><path d="M6 14h12v8H6z"></path>
+    </svg>
+    Salvar PDF
+  </button>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+
+            // anima barra de orçamento quando entrar em viewport
+            const segments = entry.target.querySelectorAll?.('.budget-segment');
+            if (segments && segments.length) {
+              segments.forEach(seg => {
+                const w = seg.getAttribute('data-width');
+                if (w) seg.style.width = w;
+              });
+            }
+
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.12 });
+
+      document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+    });
+  </script>
+</body>
+</html>

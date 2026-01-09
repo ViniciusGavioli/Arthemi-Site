@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual de Operações | Arthemi Strategy</title>
+    <style>
+        :root {
+            --bg-body: #F0F4F8;
+            --bg-card: #FFFFFF;
+            --primary: #4F46E5; /* Indigo */
+            --primary-soft: #E0E7FF;
+            --accent: #10B981; /* Green */
+            --danger: #EF4444; /* Red */
+            --warning: #F59E0B; /* Amber */
+            --text-main: #1F2937;
+            --text-muted: #6B7280;
+            --border-radius: 16px;
+            --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            padding-bottom: 80px; /* Space for print button */
+        }
+
+        /* --- LAYOUT & NAV --- */
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #4F46E5 0%, #8B5CF6 100%);
+            border-radius: 0 0 30px 30px;
+            color: white;
+            box-shadow: var(--shadow);
+        }
+
+        header h1 { margin: 0; font-size: 2.5rem; letter-spacing: -1px; }
+        header p { font-size: 1.1rem; opacity: 0.9; max-width: 600px; margin: 10px auto 0; }
+
+        /* --- CARDS & SECTIONS --- */
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--border-radius);
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(0,0,0,0.03);
+            transition: transform 0.2s ease;
+        }
+
+        .card:hover { transform: translateY(-2px); }
+
+        h2 { color: var(--primary); border-left: 5px solid var(--accent); padding-left: 15px; margin-top: 0; }
+        h3 { color: #374151; margin-top: 20px; }
+
+        /* --- VISUAL ELEMENTS (ADHD FRIENDLY) --- */
+        .highlight-box {
+            background-color: var(--primary-soft);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid var(--primary);
+        }
+
+        .danger-box {
+            background-color: #FEF2F2;
+            border-left: 4px solid var(--danger);
+            padding: 15px;
+            border-radius: 12px;
+            color: #991B1B;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            background: #F9FAFB;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        
+        .checklist-item input[type="checkbox"] {
+            transform: scale(1.5);
+            margin-right: 15px;
+            cursor: pointer;
+            accent-color: var(--accent);
+        }
+
+        /* --- INTERACTIVE ACCORDIONS --- */
+        details {
+            margin-bottom: 15px;
+            border: 1px solid #E5E7EB;
+            border-radius: 12px;
+            overflow: hidden;
+            background: white;
+        }
+
+        details[open] { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+
+        summary {
+            padding: 15px 20px;
+            font-weight: bold;
+            cursor: pointer;
+            background-color: #F9FAFB;
+            list-style: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        summary::-webkit-details-marker { display: none; }
+        
+        summary::after {
+            content: '+';
+            font-size: 1.5rem;
+            color: var(--text-muted);
+        }
+
+        details[open] summary::after { content: '-'; color: var(--primary); }
+        
+        details[open] summary { background-color: var(--primary-soft); color: var(--primary); }
+
+        .details-content { padding: 20px; animation: fadeIn 0.3s ease; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- PLACEHOLDERS --- */
+        .placeholder-block {
+            border: 2px dashed #9CA3AF;
+            background-color: #F3F4F6;
+            color: #4B5563;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            margin: 15px 0;
+            font-family: monospace;
+            position: relative;
+        }
+        .placeholder-block::before {
+            content: '✏️ PREENCHER DEPOIS';
+            display: block;
+            font-weight: bold;
+            font-size: 0.8rem;
+            margin-bottom: 5px;
+            color: var(--warning);
+        }
+
+        /* --- SVG DIAGRAMS --- */
+        .diagram-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        
+        /* 8Ps Grid */
+        .grid-8ps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            width: 100%;
+        }
+        .p-item {
+            background: white;
+            border: 2px solid var(--primary-soft);
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        /* Funnel SVG */
+        .funnel-svg { width: 100%; max-width: 400px; height: auto; }
+        /* Fix text rendering inside SVG */
+        .funnel-text { font-family: sans-serif; fill: white; text-anchor: middle; }
+        .funnel-title { font-weight: bold; font-size: 14px; }
+        .funnel-sub { font-size: 11px; opacity: 0.9; }
+
+        /* --- FLOATING ACTION BUTTON --- */
+        .fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: var(--text-main);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 50px;
+            text-decoration: none;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            z-index: 100;
+            border: none;
+            transition: transform 0.2s;
+        }
+        .fab:hover { transform: scale(1.05); }
+
+        /* --- PRINT STYLES --- */
+        @media print {
+            body { background: white; padding: 0; }
+            .container { max-width: 100%; padding: 0; }
+            header { background: white; color: black; box-shadow: none; padding: 0; border-radius: 0; text-align: left; margin-bottom: 20px; border-bottom: 2px solid black; }
+            h2 { border-left: 0; color: black; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+            details { border: none; margin-bottom: 20px; }
+            summary { display: none; } /* Show content directly */
+            details[open] .details-content { display: block; padding: 0; }
+            .fab { display: none; }
+            .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
+            .placeholder-block { border: 1px solid black; background: none; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🧭 Arthemi Strategy</h1>
+    <p>Manual do Operador: O Guia Visual para Dominar o Tráfego</p>
+</header>
+
+<div class="container">
+
+    <div class="card">
+        <h2>🗺️ O Mapa Antes do Território</h2>
+        <p>Este documento é sua bússola. Não é para o cliente, é para <strong>você</strong>.</p>
+        
+        <div class="highlight-box">
+            <h3>🎯 Objetivo Real</h3>
+            <p>O Arthemi não vende "sala". O Arthemi vende um <strong>método de atendimento</strong> com estrutura pronta.</p>
+            <p><strong>Meta do Tráfego:</strong> Produzir reservas e recorrência. Não apenas cliques.</p>
+        </div>
+
+        <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px;">
+            <div style="flex: 1; min-width: 250px; background: #ECFDF5; padding: 15px; border-radius: 12px;">
+                <strong style="color: #059669;">✅ O Diferencial Arthemi</strong>
+                <ul style="margin: 5px 0 0 0; padding-left: 20px; font-size: 0.9rem;">
+                    <li>Plataforma Digital</li>
+                    <li>Compra por crédito</li>
+                    <li>Disponibilidade Real-Time</li>
+                    <li>Rastreável</li>
+                </ul>
+            </div>
+            <div style="flex: 1; min-width: 250px; background: #FEF2F2; padding: 15px; border-radius: 12px;">
+                <strong style="color: #DC2626;">❌ O Padrão do Mercado</strong>
+                <ul style="margin: 5px 0 0 0; padding-left: 20px; font-size: 0.9rem;">
+                    <li>Orçamento manual</li>
+                    <li>Whatsapp lento</li>
+                    <li>Sem rastreio</li>
+                    <li>Baixa escala</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🥇 1) Regras de Ouro</h2>
+        <p>Como não fazer besteira (Princípios Básicos).</p>
+
+        <details open>
+            <summary>🛡️ Regra 1: Nunca Inventar Dado</summary>
+            <div class="details-content">
+                <p>Se não consegue provar, marque como <em>"não disponível"</em> ou <em>"a validar"</em>.</p>
+                <p>Isso vale para anúncios de concorrentes e custos médios.</p>
+            </div>
+        </details>
+
+        <details>
+            <summary>🧪 Regra 2: Fato vs Hipótese</summary>
+            <div class="details-content">
+                <ul>
+                    <li><strong>Fato:</strong> Tem print, link ou evidência.</li>
+                    <li><strong>Hipótese:</strong> Estratégia proposta.</li>
+                    <li><strong>Estimativa:</strong> Só com fonte.</li>
+                </ul>
+            </div>
+        </details>
+
+        <details>
+            <summary>🔦 Regra 3: Sem Tracking = Escuro</summary>
+            <div class="details-content">
+                <div class="danger-box">
+                    Se eu não rastreio, o tráfego vira vaidade. Não sei o que cortar nem o que escalar.
+                </div>
+            </div>
+        </details>
+    </div>
+
+    <div class="card">
+        <h2>🧩 2) Fundamentos (Os 8Ps)</h2>
+        <p>O esqueleto da nossa estratégia.</p>
+        
+        <div class="grid-8ps">
+            <div class="p-item">📦 P1<br>Produto</div>
+            <div class="p-item">💲 P2<br>Preço</div>
+            <div class="p-item">📍 P3<br>Praça</div>
+            <div class="p-item">📢 P4<br>Promoção</div>
+            <div class="p-item">👥 P5<br>Pessoas</div>
+            <div class="p-item">⚙️ P6<br>Processos</div>
+            <div class="p-item">🏢 P7<br>Prova Física</div>
+            <div class="p-item">📈 P8<br>Performance</div>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <details>
+                <summary>Ver Detalhes dos 8Ps</summary>
+                <div class="details-content">
+                    <ul>
+                        <li><strong>Produto:</strong> Estrutura + Confiança + Processo Digital.</li>
+                        <li><strong>Preço:</strong> Comparado com aluguel fixo + dores de cabeça. Copy: "A partir de X/h", "Tudo incluso".</li>
+                        <li><strong>Praça:</strong> BH + Raio. Segmentação por presença.</li>
+                        <li><strong>Promoção:</strong> Search (Intenção) + Meta (Demanda) + Remarketing (Fechamento).</li>
+                        <li><strong>Pessoas:</strong> Suporte rápido, script de atendimento.</li>
+                        <li><strong>Processos:</strong> Reservar em 2 min. Sem atrito.</li>
+                        <li><strong>Prova Física:</strong> Fotos reais, limpeza, recepção.</li>
+                        <li><strong>Performance:</strong> Medir -> Decidir -> Ajustar.</li>
+                    </ul>
+                </div>
+            </details>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🕵️ 3) Pesquisa de Mercado Prática</h2>
+        <p>Não é copiar. É mapear o terreno.</p>
+        
+        <div class="highlight-box">
+            <strong>Checklist Rápido:</strong>
+            <div class="checklist-item"><input type="checkbox"> Google (5 termos principais)</div>
+            <div class="checklist-item"><input type="checkbox"> Google Maps (Raio local)</div>
+            <div class="checklist-item"><input type="checkbox"> Instagram (Busca por bairro)</div>
+            <div class="checklist-item"><input type="checkbox"> Site Concorrente (Checkar CTA e Preço)</div>
+            <div class="checklist-item"><input type="checkbox"> Meta Ad Library (Ver criativos)</div>
+        </div>
+
+        <div class="placeholder-block">
+            [AQUI INSERIR A LISTA ENUMERADA QUE JÁ TENHO]<br>
+            Lista de concorrentes para pesquisar
+        </div>
+
+        <div class="placeholder-block">
+            <strong>BLOCO A PREENCHER (Para cada concorrente):</strong><br>
+            - Link Ad Library<br>
+            - 3 Prints<br>
+            - Copy e CTA<br>
+            - Obs: "Qual atrito existe no funil deles?"
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🔻 4) O Funil Arthemi</h2>
+        
+        <div class="diagram-container">
+            <svg viewBox="0 0 300 220" class="funnel-svg">
+                <polygon points="10,10 290,10 230,75 70,75" fill="#60A5FA" stroke="white" stroke-width="2"/>
+                <text x="150" y="38" class="funnel-text funnel-title">Google Search</text>
+                <text x="150" y="55" class="funnel-text funnel-sub">(Intenção)</text>
+                
+                <polygon points="70,80 230,80 190,150 110,150" fill="#818CF8" stroke="white" stroke-width="2"/>
+                <text x="150" y="108" class="funnel-text funnel-title">Meta</text>
+                <text x="150" y="125" class="funnel-text funnel-sub">(Prova + Narrativa)</text>
+                
+                <polygon points="110,155 190,155 150,215" fill="#4F46E5" stroke="white" stroke-width="2"/>
+                <text x="150" y="180" class="funnel-text funnel-title" font-size="12">Remarketing</text>
+                <text x="150" y="195" class="funnel-text funnel-sub">(Fechamento)</text>
+            </svg>
+        </div>
+
+        <div class="highlight-box">
+            <p><strong>Diagnóstico de Saúde:</strong></p>
+            <ul>
+                <li>Search ok mas sem reserva? ➡️ Problema na Landing Page.</li>
+                <li>Meta ok mas lead ruim? ➡️ Segmentação errada.</li>
+                <li>Remarketing ruim? ➡️ Oferta fraca ou tracking quebrado.</li>
+            </ul>
+        </div>
+
+        <div style="background-color: #F8FAFC; border: 2px solid #E2E8F0; border-radius: 12px; padding: 20px; margin-top: 25px;">
+            <h3 style="margin-top:0; color: #1E293B;">🔒 Camada Final do Funil Arthemi (Obrigatória)</h3>
+            <p>O funil do Arthemi não é um funil tradicional de marketing focado em lead.
+            Ele é um funil operacional orientado à reserva, porque o produto final não é um contato, e sim o uso do espaço.
+            Por isso, todo o tráfego pago deve ser pensado para conduzir o usuário até uma ação concreta dentro da plataforma, e não apenas até um formulário ou conversa no WhatsApp.</p>
+    
+            <strong style="display:block; margin-top:15px; margin-bottom:10px; color: var(--primary);">Fluxo correto do funil Arthemi:</strong>
+            <ul style="list-style: none; padding-left: 0;">
+                <li style="margin-bottom: 8px;">1️⃣ Ver horários disponíveis</li>
+                <li style="margin-bottom: 8px;">2️⃣ Selecionar sala / horário</li>
+                <li style="margin-bottom: 8px;">3️⃣ Reservar</li>
+                <li style="margin-bottom: 8px;">4️⃣ Comprar crédito (quando aplicável)</li>
+                <li style="margin-bottom: 8px;">5️⃣ <strong>Reserva confirmada</strong></li>
+            </ul>
+    
+            <div style="background-color: #FFFBEB; padding: 15px; border-radius: 8px; border-left: 4px solid #F59E0B; margin: 20px 0;">
+                <strong>Observação estratégica (importante):</strong><br>
+                Se o funil estiver gerando cliques ou leads, mas não estiver gerando reservas, o problema não está no tráfego em si, e sim em uma destas camadas:
+                <ul style="margin-top: 5px; margin-bottom: 0;">
+                    <li>Oferta mal explicada</li>
+                    <li>Landing page confusa</li>
+                    <li>Processo de reserva com atrito</li>
+                    <li>Falta de prova / clareza</li>
+                    <li>Tracking incompleto</li>
+                </ul>
+            </div>
+    
+            <div style="background-color: #ECFDF5; padding: 15px; border-radius: 8px; border: 1px solid #10B981; text-align: center; font-weight: bold; color: #065F46;">
+                👉 No Arthemi, lead não é sucesso.<br>
+                👉 Reserva confirmada é o evento principal do funil.
+            </div>
+        </div>
+        </div>
+
+    <div class="card">
+        <h2>🔎 5) Google Ads: Execução</h2>
+        <p>A pessoa digita o problema, nós aparecemos com a solução.</p>
+        
+        <details>
+            <summary>🏗️ Estrutura de Campanhas</summary>
+            <div class="details-content">
+                <ol>
+                    <li><strong>Intenção Alta:</strong> Hora/Turno/Sábado</li>
+                    <li><strong>Profissões:</strong> Psicólogo/Nutri/Fisio</li>
+                    <li><strong>Localização:</strong> Bairro/Cidade</li>
+                    <li><strong>Brand:</strong> Arthemi</li>
+                    <li><strong>Concorrentes:</strong> Avaliar</li>
+                </ol>
+            </div>
+        </details>
+
+        <details>
+            <summary>🔑 Palavras-chave (60+)</summary>
+            <div class="details-content">
+                <p>Dividir por intenção:</p>
+                <ul>
+                    <li>Alta: "alugar consultório por hora bh"</li>
+                    <li>Local: "consultório savassi"</li>
+                    <li>Formato: "turno fixo consultório"</li>
+                </ul>
+                <div class="placeholder-block">
+                    TABELA A PREENCHER COM 60+ KEYWORDS
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary>⛔ Negativas (80+)</summary>
+            <div class="details-content">
+                <p>Impedir desperdício com: emprego, curso, residencial, SUS.</p>
+                <div class="placeholder-block">
+                    LISTA 80+ NEGATIVAS
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary>✍️ Anúncios (RSA)</summary>
+            <div class="details-content">
+                <p><strong>A Fórmula:</strong></p>
+                <ul>
+                    <li>30% Intenção</li>
+                    <li>40% Diferencial (Reserva online/Sem burocracia)</li>
+                    <li>20% Prova (Área hospitalar)</li>
+                    <li>10% CTA</li>
+                </ul>
+                <div class="placeholder-block">
+                    RSAs (3 MODELOS POR CAMPANHA)
+                </div>
+            </div>
+        </details>
+    </div>
+
+    <div class="card">
+        <h2>📱 6) Meta Ads: Execução</h2>
+        <p>Demanda, Prova Visual e Confiança.</p>
+
+        <div class="grid-8ps" style="grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+            <div class="p-item" style="border-color: #60A5FA;">
+                🎥 TOPO<br>Vídeo Tour<br>15-25s
+            </div>
+            <div class="p-item" style="border-color: #818CF8;">
+                🖼️ MEIO<br>Prova +<br>Plataforma
+            </div>
+            <div class="p-item" style="border-color: #4F46E5;">
+                🔄 FUNDO<br>Remarketing<br>Abandono
+            </div>
+        </div>
+
+        <details>
+            <summary>🎨 Criativos (O Mix de 8)</summary>
+            <div class="details-content">
+                <ul>
+                    <li><strong>3 Vídeos:</strong> Tour + "Como reservar" / Por hora-turno / Tudo incluso.</li>
+                    <li><strong>3 Imagens:</strong> Consultório por dentro / Carrossel estrutura / Oferta valor.</li>
+                    <li><strong>2 Provas:</strong> Depoimento / Estrutura com frase real.</li>
+                </ul>
+            </div>
+        </details>
+
+        <details>
+            <summary>🎯 Segmentação</summary>
+            <div class="details-content">
+                <p><strong>Início:</strong> BH + Raio + Profissões (sem estreitar demais).</p>
+                <p><strong>Depois:</strong> Quem viu vídeo, quem visitou site, Lookalike.</p>
+            </div>
+        </details>
+    </div>
+
+    <div class="card">
+        <h2>🛬 7) Landing + Conversão</h2>
+        <p>O coração do diferencial. O tráfego compra a visita, a Landing decide a reserva.</p>
+        
+        <div class="highlight-box" style="border-left-color: var(--accent);">
+            <strong>Wireframe Mental (Acima da Dobra):</strong>
+            <ol>
+                <li>Headline (Benefício)</li>
+                <li>Subheadline (Clareza + Prova)</li>
+                <li>CTA "Ver horários"</li>
+                <li>3 Diferenciais Visuais</li>
+            </ol>
+        </div>
+
+        <div class="checklist-item">
+            <strong>🧪 O que testar (A/B):</strong> Headline, Texto do botão, Vídeo vs Imagem.
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📊 8) Tracking e Métricas</h2>
+        <p>Tornando o projeto auditável.</p>
+
+        <details>
+            <summary>🔌 Ferramentas</summary>
+            <div class="details-content">
+                <ul>
+                    <li><strong>GA4:</strong> Comportamento.</li>
+                    <li><strong>GTM:</strong> Gerente de Tags.</li>
+                    <li><strong>Pixel/CAPI:</strong> Rastreio Meta.</li>
+                    <li><strong>G-Ads Conversion:</strong> Otimização.</li>
+                </ul>
+            </div>
+        </details>
+
+        <details>
+            <summary>📍 Eventos Mínimos (O Mapa)</summary>
+            <div class="details-content">
+                <ol>
+                    <li><code>view_content</code> (viu a sala)</li>
+                    <li><code>click_whatsapp</code></li>
+                    <li><code>begin_reservation</code> (escolheu horário)</li>
+                    <li><code>begin_checkout</code> (crédito)</li>
+                    <li><code>purchase</code> (reserva confirmada)</li>
+                </ol>
+            </div>
+        </details>
+    </div>
+
+    <div class="card">
+        <h2>💰 9) Orçamento (R$ 3.000)</h2>
+        <p>Distribuição Lógica.</p>
+
+        <div style="display: flex; align-items: center; justify-content: space-around; flex-wrap: wrap;">
+            <div style="position: relative; width: 150px; height: 150px; border-radius: 50%; background: conic-gradient(#4F46E5 0% 50%, #10B981 50% 80%, #F59E0B 80% 100%); margin: 20px;"></div>
+            <div>
+                <div style="display:flex; align-items:center; margin-bottom:10px;"><span style="width:15px; height:15px; background:#4F46E5; display:inline-block; margin-right:10px; border-radius:3px;"></span> 50% Google</div>
+                <div style="display:flex; align-items:center; margin-bottom:10px;"><span style="width:15px; height:15px; background:#10B981; display:inline-block; margin-right:10px; border-radius:3px;"></span> 30% Meta</div>
+                <div style="display:flex; align-items:center; margin-bottom:10px;"><span style="width:15px; height:15px; background:#F59E0B; display:inline-block; margin-right:10px; border-radius:3px;"></span> 20% Criação/Contingência</div>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <strong>Gatilhos de Decisão:</strong><br>
+            Search converte barato? ➡️ Migrar verba pra lá.<br>
+            Meta ruim? ➡️ Reduzir topo, focar remarketing.<br>
+            Landing não converte? ➡️ Pausa escala e corrige página.
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>⚠️ 10) Riscos e Mitigação</h2>
+        <div class="danger-box" style="color: #374151; background-color: #FFFBEB; border-color: #F59E0B;">
+            <ul style="list-style: none; padding: 0;">
+                <li>🔥 <strong>Risco:</strong> Tráfego frio não confia.<br>🛡️ <strong>Solução:</strong> Prova visual + Remarketing.</li>
+                <br>
+                <li>🔥 <strong>Risco:</strong> Tracking quebrado.<br>🛡️ <strong>Solução:</strong> Checklist técnico antes de ligar.</li>
+                <br>
+                <li>🔥 <strong>Risco:</strong> Lead ruim.<br>🛡️ <strong>Solução:</strong> Refinar copy ("para profissionais de saúde").</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>✅ 11) Checklists Operacionais</h2>
+        <p>Para executar sem esquecer nada.</p>
+
+        <details>
+            <summary>🚀 Lançamento</summary>
+            <div class="details-content">
+                <div class="checklist-item"><input type="checkbox"> Acessos (Ads, GA4, GTM, Meta)</div>
+                <div class="checklist-item"><input type="checkbox"> Landing Page OK</div>
+                <div class="checklist-item"><input type="checkbox"> Eventos/Tracking testados</div>
+                <div class="checklist-item"><input type="checkbox"> Criativos prontos</div>
+                <div class="checklist-item"><input type="checkbox"> Orçamento configurado</div>
+            </div>
+        </details>
+
+        <details>
+            <summary>📅 Rotina Semanal</summary>
+            <div class="details-content">
+                <div class="checklist-item"><input type="checkbox"> Revisar termos de pesquisa</div>
+                <div class="checklist-item"><input type="checkbox"> Adicionar negativas</div>
+                <div class="checklist-item"><input type="checkbox"> Analisar anúncios vencedores</div>
+                <div class="checklist-item"><input type="checkbox"> Checar páginas de abandono</div>
+            </div>
+        </details>
+    </div>
+
+    <div class="card">
+        <h2>📂 Apêndice</h2>
+        <div class="placeholder-block">
+            LINKS, PRINTS E BENCHMARKS
+        </div>
+    </div>
+
+</div>
+
+<button class="fab" onclick="window.print()">
+    🖨️ Imprimir / PDF
+</button>
+
+</body>
+</html>

@@ -263,6 +263,7 @@ export async function findOrCreateCustomer(
           method: 'PUT',
           body: JSON.stringify({
             cpfCnpj: input.cpfCnpj,
+            notificationDisabled: true,
           }),
         }
       );
@@ -281,7 +282,7 @@ export async function findOrCreateCustomer(
       email: input.email,
       phone: input.phone,
       cpfCnpj: input.cpfCnpj,
-      notificationDisabled: false,
+      notificationDisabled: true,
     }),
   });
 

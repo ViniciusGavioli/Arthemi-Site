@@ -179,19 +179,19 @@ describe('P-013: Estornos e Restauração de Créditos', () => {
   describe('Transição de Status de Crédito', () => {
     // Status válidos para restauração
     it('crédito USED pode ser restaurado para CONFIRMED', () => {
-      const status = 'USED';
+      const status: string = 'USED';
       const canRestore = status === 'USED';
       expect(canRestore).toBe(true);
     });
 
     it('crédito EXPIRED não pode ser restaurado', () => {
-      const status = 'EXPIRED';
+      const status: string = 'EXPIRED';
       const canRestore = status === 'USED';
       expect(canRestore).toBe(false);
     });
 
     it('crédito REFUNDED não pode ser restaurado novamente', () => {
-      const status = 'REFUNDED';
+      const status: string = 'REFUNDED';
       const canRestore = status === 'USED';
       expect(canRestore).toBe(false);
     });

@@ -1,6 +1,7 @@
 // ===========================================================
 // CreditModal - Modal para criar crédito manual
 // COM HARDENING OPERACIONAL
+// P1-5: Cupom validado no backend (não duplicar VALID_COUPONS aqui)
 // ===========================================================
 
 import { useState, useMemo } from 'react';
@@ -21,6 +22,10 @@ interface ValidationErrors {
   expiresAt?: string;
 }
 
+// P1-5: VALID_COUPONS agora está APENAS em /lib/coupons.ts
+// Lista para UX apenas - não usar para validação real
+const COUPON_HINTS = ['TESTE50', 'ARTHEMI10', 'PRIMEIRACOMPRA'];
+
 export default function CreditModal({ userId, userName, onClose, onSuccess, showToast }: Props) {
   const [loading, setLoading] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -30,6 +35,7 @@ export default function CreditModal({ userId, userName, onClose, onSuccess, show
     amount: '',
     expiresInMonths: '12',
     notes: '',
+    couponCode: '', // P1-5: Campo de cupom (validado no backend)
   });
 
   // =====================================================
@@ -56,6 +62,13 @@ export default function CreditModal({ userId, userName, onClose, onSuccess, show
 
     return errors;
   }, [formData.amount, formData.notes]);
+
+  // P1-5: Cupom é validado no backend - aqui só mostramos dica visual
+  const couponHint = formData.couponCode 
+    ? COUPON_HINTS.includes(formData.couponCode.toUpperCase().trim())
+      ? 'Cupom reconhecido (desconto aplicado no servidor)'
+      : 'Cupom será validado ao salvar'
+    : null;
 
   const hasErrors = Object.keys(validationErrors).length > 0;
   const canSubmit = formData.amount && Number(formData.amount) > 0 && !hasErrors;
@@ -98,6 +111,7 @@ export default function CreditModal({ userId, userName, onClose, onSuccess, show
           amount: Math.round(Number(formData.amount) * 100), // Converter para centavos
           expiresInMonths: Number(formData.expiresInMonths),
           notes: formData.notes,
+          couponCode: formData.couponCode ? formData.couponCode.toUpperCase().trim() : undefined, // P1-5
         }),
       });
 
@@ -166,6 +180,15 @@ export default function CreditModal({ userId, userName, onClose, onSuccess, show
             <span className="text-gray-600">Validade:</span>
             <span className="font-medium text-gray-800">{expirationDate}</span>
           </div>
+          {/* P1-5: Mostrar cupom se informado */}
+          {formData.couponCode && (
+            <div className="flex justify-between">
+              <span className="text-gray-600">Cupom:</span>
+              <span className="font-medium text-blue-600">
+                🎫 {formData.couponCode.toUpperCase()} (desconto aplicado no servidor)
+              </span>
+            </div>
+          )}
           <div className="pt-2 border-t">
             <span className="text-gray-600 text-sm">Motivo:</span>
             <p className="text-gray-800 mt-1">{formData.notes}</p>
@@ -283,6 +306,25 @@ export default function CreditModal({ userId, userName, onClose, onSuccess, show
         <p className="text-xs text-gray-500 -mt-2">
           Válido até: <strong>{expirationDate}</strong>
         </p>
+
+        {/* P1-5: Cupom (opcional) */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Cupom (opcional)
+          </label>
+          <Input
+            value={formData.couponCode}
+            onChange={(e) => setFormData(d => ({ ...d, couponCode: e.target.value.toUpperCase() }))}
+            placeholder="Ex: ARTHEMI10, PRIMEIRACOMPRA"
+            maxLength={20}
+          />
+          {couponHint && (
+            <p className="text-xs text-blue-600 mt-1">{couponHint}</p>
+          )}
+          <p className="text-xs text-gray-400 mt-1">
+            Cupons aceitos: TESTE50, ARTHEMI10, PRIMEIRACOMPRA
+          </p>
+        </div>
 
         {/* Motivo - OBRIGATÓRIO */}
         <div>

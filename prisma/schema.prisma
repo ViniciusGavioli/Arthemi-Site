@@ -94,6 +94,11 @@ model Booking {
   courtesyReason  String?        // Motivo da cortesia (obrigatório se origin = ADMIN_COURTESY)
   // Campo para controle de envio de email
   emailSentAt     DateTime?      // Data/hora do envio do email de confirmação (evita duplicidade)
+  // P0-4: Campos para cancelamento admin
+  cancelSource    CancelSource?  // Quem cancelou: ADMIN, USER, SYSTEM
+  refundType      RefundType?    // Tipo de devolução: CREDITS ou MONEY
+  cancelledAt     DateTime?      // Data/hora do cancelamento
+  cancelReason    String?        // Motivo do cancelamento
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   product         Product?       @relation(fields: [productId], references: [id])
@@ -490,6 +495,20 @@ enum RefundStatus {
   APPROVED    // Aprovado, aguardando pagamento
   PAID        // Pago (estorno concluído)
   REJECTED    // Rejeitado pelo admin
+}
+
+// P0-4: Quem cancelou a reserva
+enum CancelSource {
+  ADMIN       // Admin cancelou via painel
+  USER        // Usuário cancelou (histórico - agora bloqueado)
+  SYSTEM      // Sistema cancelou (auto-cancel por não pagamento)
+}
+
+// P0-4: Tipo de devolução ao cancelar
+enum RefundType {
+  CREDITS     // Devolver como crédito para usar no sistema
+  MONEY       // Devolver como dinheiro (cria RefundRequest)
+  NONE        // Sem devolução (< 48h ou sem valor)
 }
 
 enum PixKeyType {

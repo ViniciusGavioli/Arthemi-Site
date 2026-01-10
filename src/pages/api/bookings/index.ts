@@ -18,6 +18,7 @@ import {
   TIMEOUTS,
   cpfInUseByOther,
 } from '@/lib/production-safety';
+import { isValidCoupon, applyDiscount } from '@/lib/coupons';
 import { 
   getAvailableCreditsForRoom, 
   consumeCreditsForBooking,
@@ -56,10 +57,7 @@ const createBookingSchema = z.object({
 });
 
 
-// Cupons válidos (hardcoded por simplicidade)
-const VALID_COUPONS: Record<string, { discountType: 'fixed' | 'percent'; value: number; description: string }> = {
-  'TESTE50': { discountType: 'fixed', value: -1, description: 'Cupom de teste - R$ 5,00' }, // -1 = preço fixo de R$ 5,00 (mínimo Asaas)
-};
+// Cupons válidos: centralizados em /lib/coupons.ts (P1-5)
 
 type CreateBookingInput = z.infer<typeof createBookingSchema>;
 
@@ -278,20 +276,14 @@ export default async function handler(
         }
       }
 
-      // 6.0.1 Aplicar cupom de desconto se fornecido
+      // 6.0.1 Aplicar cupom de desconto se fornecido (P1-5: lib/coupons centralizada)
       let couponApplied: string | null = null;
       if (data.couponCode) {
         const couponKey = data.couponCode.toUpperCase().trim();
-        const coupon = VALID_COUPONS[couponKey];
         
-        if (coupon) {
-          if (coupon.discountType === 'fixed' && coupon.value === -1) {
-            amount = 500;
-          } else if (coupon.discountType === 'fixed') {
-            amount = Math.max(0, amount - coupon.value);
-          } else if (coupon.discountType === 'percent') {
-            amount = Math.round(amount * (1 - coupon.value / 100));
-          }
+        if (isValidCoupon(couponKey)) {
+          const discountResult = applyDiscount(amount, couponKey);
+          amount = discountResult.finalAmount;
           couponApplied = couponKey;
         }
       }

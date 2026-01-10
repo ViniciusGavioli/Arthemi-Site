@@ -107,8 +107,7 @@ export default function BookingDetailsPage() {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [cancelling, setCancelling] = useState(false);
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  // P0-3: Removido states de cancelamento - usuário não pode cancelar
 
   // Buscar reserva
   useEffect(() => {
@@ -131,64 +130,7 @@ export default function BookingDetailsPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  // Verificar se pode cancelar
-  const canCancel = (): { allowed: boolean; reason?: string } => {
-    if (!booking) return { allowed: false, reason: 'Reserva não encontrada' };
-    
-    if (booking.status === 'CANCELLED') {
-      return { allowed: false, reason: 'Reserva já cancelada' };
-    }
-
-    const now = new Date();
-    const startTime = new Date(booking.startTime);
-    
-    if (startTime <= now) {
-      return { allowed: false, reason: 'A reserva já iniciou ou passou' };
-    }
-
-    // Regra: cancelamento só permitido com 48h de antecedência
-    const hoursUntilStart = (startTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-    const MIN_HOURS = 48;
-    if (hoursUntilStart < MIN_HOURS) {
-      return { 
-        allowed: false, 
-        reason: 'Cancelamentos só podem ser feitos com no mínimo 48 horas de antecedência.' 
-      };
-    }
-
-    return { allowed: true };
-  };
-
-  // Handler de cancelamento
-  const handleCancel = async () => {
-    if (!booking) return;
-
-    setCancelling(true);
-    try {
-      const res = await fetch(`/api/bookings/${booking.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'cancel' }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Erro ao cancelar');
-      }
-
-      // Rastrear cancelamento
-      analytics.bookingCancelled(booking.room.name);
-
-      // Atualizar estado local
-      setBooking({ ...booking, status: 'CANCELLED' });
-      setShowCancelConfirm(false);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao cancelar reserva');
-    } finally {
-      setCancelling(false);
-    }
-  };
+  // P0-3: Funções de cancelamento removidas - apenas ADMIN pode cancelar
 
   // ============================================================
   // RENDERIZAÇÃO
@@ -237,7 +179,7 @@ export default function BookingDetailsPage() {
   }
 
   const statusConfig = getStatusConfig(booking.status);
-  const cancelCheck = canCancel();
+  // P0-3: cancelCheck removido - usuário não pode cancelar
   const startDate = new Date(booking.startTime);
   const endDate = new Date(booking.endTime);
   const durationHours = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60));
@@ -364,24 +306,22 @@ export default function BookingDetailsPage() {
 
             </div>
 
-            {/* Ações */}
+            {/* Ações - P0-3: Apenas WhatsApp, sem cancelamento direto */}
             <div className="px-6 pb-6 space-y-3">
               
-              {/* Botão Cancelar */}
-              {cancelCheck.allowed ? (
-                <button
-                  onClick={() => setShowCancelConfirm(true)}
-                  className="w-full py-3 border-2 border-red-500 text-red-500 rounded-lg font-semibold hover:bg-red-50 transition"
+              {/* Link WhatsApp para cancelamento */}
+              {booking.status !== 'CANCELLED' && (
+                <a
+                  href={`https://wa.me/5531984916090?text=Olá! Preciso de ajuda para cancelar minha reserva ${booking.id.slice(0, 8).toUpperCase()}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold text-center hover:bg-gray-50 transition"
                 >
-                  Cancelar Reserva
-                </button>
-              ) : booking.status !== 'CANCELLED' && (
-                <div className="text-center text-sm text-gray-500 py-2">
-                  {cancelCheck.reason}
-                </div>
+                  📱 Precisa cancelar? Fale conosco
+                </a>
               )}
 
-              {/* Link WhatsApp */}
+              {/* Link WhatsApp para dúvidas */}
               <a
                 href={`https://wa.me/5531984916090?text=Olá! Tenho uma dúvida sobre minha reserva ${booking.id.slice(0, 8).toUpperCase()}`}
                 target="_blank"
@@ -401,44 +341,6 @@ export default function BookingDetailsPage() {
 
         </div>
       </div>
-
-      {/* Modal de Confirmação de Cancelamento */}
-      {showCancelConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl">⚠️</span>
-            </div>
-            
-            <h2 className="text-xl font-bold text-gray-800 mb-2">
-              Cancelar Reserva?
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Esta ação não pode ser desfeita. O reembolso será processado conforme nossa política.
-            </p>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowCancelConfirm(false)}
-                disabled={cancelling}
-                className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition disabled:opacity-50"
-              >
-                Voltar
-              </button>
-              <button
-                onClick={handleCancel}
-                disabled={cancelling}
-                className="flex-1 py-3 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {cancelling && (
-                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                )}
-                {cancelling ? 'Cancelando...' : 'Confirmar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

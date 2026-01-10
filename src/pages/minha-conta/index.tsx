@@ -421,13 +421,13 @@ export default function MinhaContaPage() {
                   href="/minha-conta/reservas"
                 />
 
-                {/* Horas disponíveis */}
+                {/* Saldo em R$ */}
                 <KpiCard
                   icon={<Clock className="w-6 h-6" />}
-                  title="Horas disponíveis"
-                  value={credits?.totalHours ? formatHoursDisplay(credits.totalHours) : '0h'}
-                  subtitle={credits?.totalHours ? `≈ ${formatCurrency(credits.total)}` : 'Compre créditos'}
-                  variant={credits?.totalHours && credits.totalHours > 0 ? 'success' : 'default'}
+                  title="Saldo disponível"
+                  value={credits?.total ? formatCurrency(credits.total) : 'R$ 0,00'}
+                  subtitle={credits?.total && credits.total > 0 ? `≈ ${formatHoursDisplay(credits.totalHours)} estimadas` : 'Compre créditos'}
+                  variant={credits?.total && credits.total > 0 ? 'success' : 'default'}
                   href="/minha-conta"
                 />
 
@@ -490,7 +490,7 @@ export default function MinhaContaPage() {
               {credits && credits.byRoom.length > 0 && (
                 <section className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                   <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                    <h2 className="text-lg font-semibold text-gray-900">Horas por Consultório</h2>
+                    <h2 className="text-lg font-semibold text-gray-900">Saldo por Consultório</h2>
                   </div>
 
                   <div className="p-4 space-y-2">
@@ -502,10 +502,10 @@ export default function MinhaContaPage() {
                         <span className="font-medium text-gray-900">{room.roomName}</span>
                         <div className="text-right">
                           <span className="text-primary-600 font-semibold">
-                            {formatHoursDisplay(room.hours)}
+                            {formatCurrency(room.amount)}
                           </span>
                           <span className="text-xs text-gray-400 ml-2">
-                            ({formatCurrency(room.amount)})
+                            (≈ {formatHoursDisplay(room.hours)})
                           </span>
                         </div>
                       </div>

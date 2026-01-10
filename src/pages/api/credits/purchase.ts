@@ -17,6 +17,7 @@ import { checkApiRateLimit, getClientIp, sendRateLimitResponse } from '@/lib/api
 import { resolveOrCreateUser } from '@/lib/user-resolve';
 import { getAuthFromRequest } from '@/lib/auth';
 import { withTimeout, getSafeErrorMessage, TIMEOUTS } from '@/lib/production-safety';
+import { isValidCoupon, applyDiscount } from '@/lib/coupons';
 import { logPurchaseCreated } from '@/lib/operation-logger';
 import { generateRequestId, REQUEST_ID_HEADER } from '@/lib/request-id';
 import { recordPurchaseCreated } from '@/lib/audit-event';
@@ -47,10 +48,7 @@ const purchaseCreditsSchema = z.object({
   message: 'Deve informar productId, productType ou hours',
 });
 
-// Cupons válidos
-const VALID_COUPONS: Record<string, { discountType: 'fixed' | 'percent'; value: number }> = {
-  'TESTE50': { discountType: 'fixed', value: -1 }, // -1 = preço fixo de R$ 5,00
-};
+// Cupons válidos: centralizados em /lib/coupons.ts (P1-5)
 
 // Helper: mapear ProductType → CreditUsageType
 // Retorna o tipo de uso do crédito baseado no tipo do produto
@@ -256,21 +254,15 @@ export default async function handler(
       });
     }
 
-    // Aplicar cupom
+    // Aplicar cupom (P1-5: usando lib/coupons centralizada)
     let couponApplied: string | null = null;
 
     if (data.couponCode) {
       const couponKey = data.couponCode.toUpperCase().trim();
-      const coupon = VALID_COUPONS[couponKey];
       
-      if (coupon) {
-        if (coupon.discountType === 'fixed' && coupon.value === -1) {
-          amount = 500; // R$ 5,00
-        } else if (coupon.discountType === 'fixed') {
-          amount = Math.max(0, amount - coupon.value);
-        } else if (coupon.discountType === 'percent') {
-          amount = Math.round(amount * (1 - coupon.value / 100));
-        }
+      if (isValidCoupon(couponKey)) {
+        const discountResult = applyDiscount(amount, couponKey);
+        amount = discountResult.finalAmount;
         couponApplied = couponKey;
       }
     }

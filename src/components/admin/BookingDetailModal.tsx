@@ -34,8 +34,7 @@ interface Props {
   showToast: (message: string, type: ToastType) => void;
 }
 
-type CancelOption = 'none' | 'full' | 'partial';
-type ConfirmAction = 'reschedule' | 'change-room' | 'cancel-no-credit' | 'cancel-with-credit' | 'no-show' | 'retroactive' | null;
+type ConfirmAction = 'reschedule' | 'change-room' | 'cancel' | 'no-show' | 'retroactive' | null;
 
 const roomNames: Record<string, string> = {
   'sala-a': 'Consultório 1 | Prime',
@@ -56,11 +55,12 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
     notes: booking.notes || '',
   });
   
-  // Estado de cancelamento
+  // Estado de cancelamento - P0-4
   const [showCancelOptions, setShowCancelOptions] = useState(false);
-  const [cancelOption, setCancelOption] = useState<CancelOption>('full');
-  const [partialCreditValue, setPartialCreditValue] = useState(booking.amountPaid);
   const [cancelReason, setCancelReason] = useState('');
+  const [selectedRefundType, setSelectedRefundType] = useState<'CREDITS' | 'MONEY' | 'NONE'>('CREDITS');
+  const [pixKeyType, setPixKeyType] = useState<'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'RANDOM'>('CPF');
+  const [pixKey, setPixKey] = useState('');
   
   // Estado de confirmação
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
@@ -152,40 +152,37 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
     }
   }
 
-  // Cancelar com opções de crédito
+  // Cancelar com opção de refundType (P0-4)
   async function handleCancel() {
+    // Validar PIX se refundType=MONEY
+    if (selectedRefundType === 'MONEY' && !pixKey.trim()) {
+      showToast('Informe a chave PIX para estorno em dinheiro', 'error');
+      return;
+    }
+    
     setActionLoading('cancel');
     try {
-      if (cancelOption === 'none') {
-        // Cancelar sem crédito
-        const { error } = await fetchApi(`/api/admin/bookings/${booking.id}`, {
-          method: 'PATCH',
-          body: JSON.stringify({ 
-            status: 'CANCELLED',
-            notes: `${booking.notes || ''}\n[CANCELADO] ${cancelReason}`.trim(),
-          }),
-        });
-
-        if (error) {
-          showToast(error, 'error');
-          return;
-        }
-
-        showToast('Reserva cancelada sem crédito', 'success');
-        onUpdate();
-        onClose();
-        return;
+      // P0-4: Enviar refundType escolhido pelo admin
+      const body: {
+        bookingId: string;
+        reason?: string;
+        refundType: 'CREDITS' | 'MONEY' | 'NONE';
+        pixKeyType?: string;
+        pixKey?: string;
+      } = {
+        bookingId: booking.id,
+        reason: cancelReason,
+        refundType: selectedRefundType,
+      };
+      
+      if (selectedRefundType === 'MONEY') {
+        body.pixKeyType = pixKeyType;
+        body.pixKey = pixKey.trim();
       }
-
-      // Cancelar com crédito
-      const { error } = await fetchApi('/api/admin/bookings/cancel', {
+      
+      const { data, error } = await fetchApi<{ creditAmount?: number; refundType?: string }>('/api/admin/bookings/cancel', {
         method: 'POST',
-        body: JSON.stringify({
-          bookingId: booking.id,
-          generateCredit: true,
-          creditAmount: cancelOption === 'partial' ? partialCreditValue : undefined,
-          reason: cancelReason,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (error) {
@@ -193,8 +190,15 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
         return;
       }
 
-      const creditValue = cancelOption === 'partial' ? partialCreditValue : booking.amountPaid + (booking.creditsUsed || 0);
-      showToast(`Reserva cancelada. Crédito de ${formatCurrency(creditValue)} gerado.`, 'success');
+      // Mostrar mensagem baseada na resposta da API
+      if (data?.refundType === 'CREDITS' && data?.creditAmount && data.creditAmount > 0) {
+        showToast(`Reserva cancelada. Crédito de ${formatCurrency(data.creditAmount)} devolvido.`, 'success');
+      } else if (data?.refundType === 'MONEY' && data?.creditAmount && data.creditAmount > 0) {
+        showToast(`Reserva cancelada. Estorno de ${formatCurrency(data.creditAmount)} em processamento.`, 'success');
+      } else {
+        showToast('Reserva cancelada (sem devolução).', 'success');
+      }
+      
       onUpdate();
       onClose();
     } catch {
@@ -282,11 +286,7 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
 
   // Handler para iniciar cancelamento
   function handleRequestCancel() {
-    if (cancelOption === 'none') {
-      setConfirmAction('cancel-no-credit');
-    } else {
-      setConfirmAction('cancel-with-credit');
-    }
+    setConfirmAction('cancel');
   }
 
   // Gerar opções de hora DINÂMICAS baseadas na data de edição
@@ -310,79 +310,131 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
   // RENDER
   // =====================================================
   
+  // P0-4: Calcular se haverá devolução baseado na antecedência
+  const hoursUntilStart = Math.floor((new Date(booking.startTime).getTime() - Date.now()) / (1000 * 60 * 60));
+  const willRefundCredits = hoursUntilStart >= 48;
+  const totalValue = booking.amountPaid + (booking.creditsUsed || 0);
+  
   return (
     <>
       <Modal open={true} onClose={onClose} title="Detalhes da Reserva" size="lg">
-        {/* Cancelamento options */}
+        {/* Cancelamento options - P0-4 */}
         {showCancelOptions ? (
           <div className="space-y-4">
-            <h3 className="font-medium text-gray-800">Opções de Cancelamento</h3>
+            <h3 className="font-medium text-gray-800">Cancelar Reserva</h3>
             
-            <div className="space-y-3">
-              <label className="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-red-50 hover:border-red-300 transition-colors">
-                <input
-                  type="radio"
-                  name="cancelOption"
-                  checked={cancelOption === 'none'}
-                  onChange={() => setCancelOption('none')}
-                  className="mt-1 w-5 h-5"
-                />
-                <div>
-                  <p className="font-semibold text-gray-800 flex items-center gap-2">
-                    <span className="text-lg">❌</span> Cancelar sem gerar crédito
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">Apenas cancela a reserva. O cliente <strong>não</strong> recebe nenhum crédito de volta.</p>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-green-50 hover:border-green-300 transition-colors">
-                <input
-                  type="radio"
-                  name="cancelOption"
-                  checked={cancelOption === 'full'}
-                  onChange={() => setCancelOption('full')}
-                  className="mt-1 w-5 h-5"
-                />
-                <div>
-                  <p className="font-semibold text-gray-800 flex items-center gap-2">
-                    <span className="text-lg">💳</span> Cancelar e gerar crédito integral
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Cliente receberá <strong className="text-green-700">{formatCurrency(booking.amountPaid + (booking.creditsUsed || 0))}</strong> de crédito para usar em futuras reservas
-                  </p>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-yellow-50 hover:border-yellow-300 transition-colors">
-                <input
-                  type="radio"
-                  name="cancelOption"
-                  checked={cancelOption === 'partial'}
-                  onChange={() => setCancelOption('partial')}
-                  className="mt-1 w-5 h-5"
-                />
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-800 flex items-center gap-2">
-                    <span className="text-lg">✂️</span> Cancelar e gerar crédito parcial
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1 mb-2">Digite o valor do crédito a ser devolvido:</p>
-                  {cancelOption === 'partial' && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500">R$</span>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        max={(booking.amountPaid + (booking.creditsUsed || 0)) / 100}
-                        value={partialCreditValue / 100}
-                        onChange={(e) => setPartialCreditValue(Math.round(Number(e.target.value) * 100))}
-                        className="w-32"
-                      />
+            {/* P0-4: Escolha do tipo de devolução */}
+            {totalValue > 0 && (
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  Tipo de devolução
+                </label>
+                <div className="grid grid-cols-1 gap-2">
+                  {/* CREDITS */}
+                  <label className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition ${
+                    selectedRefundType === 'CREDITS' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="refundType"
+                      value="CREDITS"
+                      checked={selectedRefundType === 'CREDITS'}
+                      onChange={() => setSelectedRefundType('CREDITS')}
+                      className="mt-1"
+                    />
+                    <div>
+                      <p className="font-medium text-gray-800">💳 Créditos</p>
+                      <p className="text-sm text-gray-600">
+                        Cliente recebe {formatCurrency(totalValue)} em créditos para usar no sistema
+                      </p>
                     </div>
-                  )}
+                  </label>
+                  
+                  {/* MONEY */}
+                  <label className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition ${
+                    selectedRefundType === 'MONEY' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="refundType"
+                      value="MONEY"
+                      checked={selectedRefundType === 'MONEY'}
+                      onChange={() => setSelectedRefundType('MONEY')}
+                      className="mt-1"
+                    />
+                    <div>
+                      <p className="font-medium text-gray-800">💵 Dinheiro (PIX)</p>
+                      <p className="text-sm text-gray-600">
+                        Estorno de {formatCurrency(totalValue)} via PIX
+                      </p>
+                    </div>
+                  </label>
+                  
+                  {/* NONE */}
+                  <label className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition ${
+                    selectedRefundType === 'NONE' ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-gray-300'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="refundType"
+                      value="NONE"
+                      checked={selectedRefundType === 'NONE'}
+                      onChange={() => setSelectedRefundType('NONE')}
+                      className="mt-1"
+                    />
+                    <div>
+                      <p className="font-medium text-gray-800">🚫 Sem devolução</p>
+                      <p className="text-sm text-gray-600">
+                        Cancelar sem devolver valores
+                      </p>
+                    </div>
+                  </label>
                 </div>
-              </label>
-            </div>
+                
+                {/* Info sobre política */}
+                <p className="text-xs text-gray-500">
+                  Antecedência: {hoursUntilStart}h | Política automática: {willRefundCredits ? 'devolveria créditos' : 'não devolveria (< 48h)'}
+                </p>
+              </div>
+            )}
+            
+            {/* Campos PIX se MONEY selecionado */}
+            {selectedRefundType === 'MONEY' && (
+              <div className="space-y-3 p-4 bg-blue-50 rounded-lg">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tipo de chave PIX <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={pixKeyType}
+                    onChange={(e) => setPixKeyType(e.target.value as typeof pixKeyType)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  >
+                    <option value="CPF">CPF</option>
+                    <option value="CNPJ">CNPJ</option>
+                    <option value="EMAIL">E-mail</option>
+                    <option value="PHONE">Telefone</option>
+                    <option value="RANDOM">Chave aleatória</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Chave PIX <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    value={pixKey}
+                    onChange={(e) => setPixKey(e.target.value)}
+                    placeholder={
+                      pixKeyType === 'CPF' ? '000.000.000-00' :
+                      pixKeyType === 'CNPJ' ? '00.000.000/0000-00' :
+                      pixKeyType === 'EMAIL' ? 'email@exemplo.com' :
+                      pixKeyType === 'PHONE' ? '(00) 00000-0000' :
+                      'Chave aleatória'
+                    }
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Campo de motivo obrigatório */}
             <div>
@@ -405,7 +457,7 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
                 variant="danger"
                 size="lg"
                 onClick={handleRequestCancel}
-                disabled={actionLoading !== null || cancelReason.trim().length < 5}
+                disabled={actionLoading !== null || cancelReason.trim().length < 5 || (selectedRefundType === 'MONEY' && !pixKey.trim())}
                 icon="🚫"
               >
                 Confirmar Cancelamento
@@ -416,7 +468,8 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
                 onClick={() => {
                   setShowCancelOptions(false);
                   setCancelReason('');
-                  setCancelOption('full');
+                  setSelectedRefundType('CREDITS');
+                  setPixKey('');
                 }}
                 disabled={actionLoading !== null}
                 icon="←"
@@ -779,43 +832,28 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
         }
       />
 
-      {/* Confirmação: Cancelar SEM crédito */}
+      {/* Confirmação: Cancelar (cálculo automático de crédito) */}
       <ConfirmationModal
-        open={confirmAction === 'cancel-no-credit'}
+        open={confirmAction === 'cancel'}
         onClose={() => setConfirmAction(null)}
         onConfirm={handleCancel}
         loading={actionLoading === 'cancel'}
-        title="Cancelar Reserva SEM Crédito"
-        description="O cliente NÃO receberá crédito por este cancelamento."
-        booking={getBookingInfo()}
-        variant="danger"
-        confirmText="Confirmar Cancelamento"
-        impact={
-          <div>
-            <p>• Reserva será cancelada</p>
-            <p>• <strong>Nenhum crédito será gerado</strong></p>
-            <p className="mt-2 text-sm">Motivo: {cancelReason}</p>
-          </div>
+        title={willRefundCredits ? "Cancelar COM Devolução" : "Cancelar SEM Devolução"}
+        description={willRefundCredits 
+          ? "O cliente receberá crédito automaticamente (≥48h de antecedência)."
+          : "Crédito NÃO será devolvido (<48h de antecedência)."
         }
-      />
-
-      {/* Confirmação: Cancelar COM crédito */}
-      <ConfirmationModal
-        open={confirmAction === 'cancel-with-credit'}
-        onClose={() => setConfirmAction(null)}
-        onConfirm={handleCancel}
-        loading={actionLoading === 'cancel'}
-        title="Cancelar Reserva COM Crédito"
-        description="O cliente receberá crédito para usar em futuras reservas."
         booking={getBookingInfo()}
-        variant="warning"
+        variant={willRefundCredits ? "warning" : "danger"}
         confirmText="Confirmar Cancelamento"
         impact={
           <div>
             <p>• Reserva será cancelada</p>
-            <p>• <strong>Crédito gerado: {formatCurrency(
-              cancelOption === 'partial' ? partialCreditValue : booking.amountPaid + (booking.creditsUsed || 0)
-            )}</strong></p>
+            {willRefundCredits ? (
+              <p>• <strong className="text-green-700">Crédito gerado: {formatCurrency(totalValue)}</strong></p>
+            ) : (
+              <p>• <strong className="text-red-700">Nenhum crédito (antecedência: {hoursUntilStart}h)</strong></p>
+            )}
             <p className="mt-2 text-sm">Motivo: {cancelReason}</p>
           </div>
         }

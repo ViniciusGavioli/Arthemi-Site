@@ -28,14 +28,7 @@ interface PageProps {
   user: { userId: string; role: string };
 }
 
-type PixKeyType = 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'RANDOM';
-
-interface CancelModalState {
-  isOpen: boolean;
-  bookingId: string | null;
-  roomName: string;
-  totalAmount: number;
-}
+// P0-3: Types PixKeyType e CancelModalState removidos - sem modal de cancelamento
 
 export const getServerSideProps: GetServerSideProps<PageProps> = async (ctx: GetServerSidePropsContext) => {
   const result = requireAuthSSR(ctx);
@@ -55,20 +48,7 @@ export default function BookingsPage({ user: _user }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState<BookingsData | null>(null);
   const [error, setError] = useState('');
-  const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState('');
-
-  // Modal de cancelamento
-  const [cancelModal, setCancelModal] = useState<CancelModalState>({
-    isOpen: false,
-    bookingId: null,
-    roomName: '',
-    totalAmount: 0,
-  });
-  const [requestRefund, setRequestRefund] = useState(false);
-  const [pixKeyType, setPixKeyType] = useState<PixKeyType>('CPF');
-  const [pixKey, setPixKey] = useState('');
-  const [refundReason, setRefundReason] = useState('');
+  // P0-3: Removido states de cancelamento - usuário não pode cancelar diretamente
 
   async function fetchBookings() {
     try {
@@ -90,87 +70,7 @@ export default function BookingsPage({ user: _user }: PageProps) {
     fetchBookings();
   }, []);
 
-  // Abrir modal de cancelamento
-  function openCancelModal(booking: Booking) {
-    setCancelModal({
-      isOpen: true,
-      bookingId: booking.id,
-      roomName: booking.roomName,
-      totalAmount: booking.totalAmount,
-    });
-    setRequestRefund(false);
-    setPixKeyType('CPF');
-    setPixKey('');
-    setRefundReason('');
-    setError('');
-  }
-
-  // Fechar modal
-  function closeCancelModal() {
-    setCancelModal({
-      isOpen: false,
-      bookingId: null,
-      roomName: '',
-      totalAmount: 0,
-    });
-  }
-
-  // Processar cancelamento
-  async function handleCancelSubmit() {
-    if (!cancelModal.bookingId) return;
-
-    // Validar campos se pediu estorno
-    if (requestRefund) {
-      if (!pixKey.trim()) {
-        setError('Informe a chave PIX para receber o estorno');
-        return;
-      }
-    }
-
-    setCancellingId(cancelModal.bookingId);
-    setError('');
-    setSuccessMessage('');
-
-    try {
-      const body: {
-        requestRefund?: boolean;
-        pixKeyType?: PixKeyType;
-        pixKey?: string;
-        reason?: string;
-      } = {};
-
-      if (requestRefund) {
-        body.requestRefund = true;
-        body.pixKeyType = pixKeyType;
-        body.pixKey = pixKey.trim();
-        if (refundReason.trim()) {
-          body.reason = refundReason.trim();
-        }
-      }
-
-      const res = await fetch(`/api/me/bookings/${cancelModal.bookingId}/cancel`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-
-      if (data.ok) {
-        const msg = data.refundRequestId
-          ? 'Reserva cancelada! Seu pedido de estorno foi registrado e você receberá um email com a atualização.'
-          : 'Reserva cancelada com sucesso!';
-        setSuccessMessage(msg);
-        closeCancelModal();
-        await fetchBookings();
-      } else {
-        setError(data.error || 'Erro ao cancelar reserva');
-      }
-    } catch {
-      setError('Erro de conexão');
-    } finally {
-      setCancellingId(null);
-    }
-  }
+  // P0-3: Funções de cancelamento removidas - apenas ADMIN pode cancelar
 
   // Formatar data
   function formatDate(dateStr: string): string {
@@ -221,8 +121,8 @@ export default function BookingsPage({ user: _user }: PageProps) {
     );
   }
 
-  // Card de reserva
-  function BookingCard({ booking, showCancel }: { booking: Booking; showCancel: boolean }) {
+  // Card de reserva - P0-3: Sem botão de cancelar, apenas link WhatsApp
+  function BookingCard({ booking, showCancel: _showCancel }: { booking: Booking; showCancel: boolean }) {
     return (
       <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
         <div className="flex items-start justify-between mb-3">
@@ -246,26 +146,17 @@ export default function BookingsPage({ user: _user }: PageProps) {
           </div>
         </div>
 
-        {showCancel && booking.canCancel && booking.status !== 'CANCELLED' && (
+        {/* P0-3: Link WhatsApp ao invés de botão de cancelar */}
+        {booking.status !== 'CANCELLED' && (
           <div className="mt-4 pt-4 border-t border-gray-100">
-            <button
-              onClick={() => openCancelModal(booking)}
-              disabled={cancellingId === booking.id}
-              className="text-sm text-red-600 hover:text-red-700 font-medium disabled:opacity-50"
+            <a
+              href={`https://wa.me/5531984916090?text=Olá! Preciso de ajuda com minha reserva ${booking.id.slice(0, 8).toUpperCase()}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-green-600 hover:text-green-700 font-medium flex items-center gap-1"
             >
-              {cancellingId === booking.id ? 'Cancelando...' : 'Cancelar reserva'}
-            </button>
-            <p className="text-xs text-gray-400 mt-1">
-              {Math.floor(booking.hoursUntilStart)}h restantes para cancelamento
-            </p>
-          </div>
-        )}
-
-        {showCancel && !booking.canCancel && booking.status !== 'CANCELLED' && (
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <p className="text-xs text-gray-400">
-              Cancelamento não disponível (menos de 48h para início)
-            </p>
+              📱 Precisa cancelar? Fale conosco
+            </a>
           </div>
         )}
       </div>
@@ -304,12 +195,7 @@ export default function BookingsPage({ user: _user }: PageProps) {
             Gerencie suas reservas e acompanhe seu histórico
           </p>
 
-          {/* Mensagens */}
-          {successMessage && (
-            <div className="bg-green-50 text-green-700 px-4 py-3 rounded-lg mb-6">
-              {successMessage}
-            </div>
-          )}
+          {/* Mensagens - P0-3: successMessage removido */}
 
           {error && (
             <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-6">
@@ -393,135 +279,7 @@ export default function BookingsPage({ user: _user }: PageProps) {
           )}
         </main>
       </div>
-
-      {/* Modal de cancelamento */}
-      {cancelModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-2">
-                Cancelar Reserva
-              </h3>
-              <p className="text-sm text-gray-600 mb-4">
-                {cancelModal.roomName} - {formatCurrency(cancelModal.totalAmount)}
-              </p>
-
-              {error && (
-                <div className="bg-red-50 text-red-700 px-3 py-2 rounded mb-4 text-sm">
-                  {error}
-                  {/* FIX D: Fallback WhatsApp quando erro de cancelamento */}
-                  <a
-                    href={`https://wa.me/5531984916090?text=${encodeURIComponent(`Olá! Tive problema ao cancelar minha reserva. Código: ${cancelModal.bookingId?.slice(0, 8).toUpperCase()}. Podem ajudar?`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block mt-2 text-green-600 hover:text-green-700 font-medium"
-                  >
-                    📱 Falar no WhatsApp
-                  </a>
-                </div>
-              )}
-
-              {/* Checkbox de estorno (só aparece se houve pagamento) */}
-              {cancelModal.totalAmount > 0 ? (
-                <label className="flex items-start gap-3 mb-4 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={requestRefund}
-                    onChange={(e) => setRequestRefund(e.target.checked)}
-                    className="mt-1 h-4 w-4 text-amber-600 rounded border-gray-300 focus:ring-amber-500"
-                  />
-                  <div>
-                    <span className="font-medium text-gray-900">Quero solicitar estorno</span>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Você pagou {formatCurrency(cancelModal.totalAmount)}. Pode solicitar a devolução via PIX.
-                    </p>
-                  </div>
-                </label>
-              ) : (
-                <div className="bg-gray-50 text-gray-600 px-3 py-2 rounded text-sm mb-4">
-                  Esta reserva não possui pagamento registrado. O cancelamento não gera estorno.
-                </div>
-              )}
-
-              {/* Campos de PIX (aparecem se marcou estorno) */}
-              {requestRefund && (
-                <div className="space-y-4 border-t border-gray-100 pt-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tipo de chave PIX
-                    </label>
-                    <select
-                      value={pixKeyType}
-                      onChange={(e) => setPixKeyType(e.target.value as PixKeyType)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500"
-                    >
-                      <option value="CPF">CPF</option>
-                      <option value="CNPJ">CNPJ</option>
-                      <option value="EMAIL">E-mail</option>
-                      <option value="PHONE">Telefone</option>
-                      <option value="RANDOM">Chave aleatória</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Chave PIX
-                    </label>
-                    <input
-                      type="text"
-                      value={pixKey}
-                      onChange={(e) => setPixKey(e.target.value)}
-                      placeholder={
-                        pixKeyType === 'CPF' ? '000.000.000-00' :
-                        pixKeyType === 'CNPJ' ? '00.000.000/0000-00' :
-                        pixKeyType === 'EMAIL' ? 'seu@email.com' :
-                        pixKeyType === 'PHONE' ? '(00) 00000-0000' :
-                        'Chave aleatória'
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Motivo (opcional)
-                    </label>
-                    <textarea
-                      value={refundReason}
-                      onChange={(e) => setRefundReason(e.target.value)}
-                      placeholder="Informe o motivo do cancelamento..."
-                      rows={2}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500"
-                    />
-                  </div>
-
-                  <div className="bg-yellow-50 text-yellow-800 px-3 py-2 rounded text-xs">
-                    ⚠️ O estorno será analisado pela administração e você receberá um email com o resultado.
-                  </div>
-                </div>
-              )}
-
-              {/* Botões */}
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={closeCancelModal}
-                  disabled={cancellingId !== null}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Voltar
-                </button>
-                <button
-                  onClick={handleCancelSubmit}
-                  disabled={cancellingId !== null}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
-                >
-                  {cancellingId ? 'Cancelando...' : 'Confirmar Cancelamento'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* P0-3: Modal de cancelamento removido - usuário contata via WhatsApp */}
     </>
   );
 }

@@ -167,13 +167,22 @@ export default async function handler(
   }
 
   // ========================================================
-  // PATCH - Cancelar reserva (autenticado)
+  // PATCH - Cancelar reserva (APENAS ADMIN)
+  // P0-3: Usuários não podem mais cancelar diretamente
   // ========================================================
   if (req.method === 'PATCH') {
+    // P0-3: Apenas ADMINs podem usar este endpoint para cancelamento
+    if (!isAdmin) {
+      return res.status(403).json({ 
+        error: 'Cancelamento não disponível. Para cancelar sua reserva, entre em contato pelo WhatsApp: (31) 98491-6090',
+        code: 'USER_CANCEL_DISABLED'
+      });
+    }
+    
     try {
       const { action } = req.body;
 
-      // Apenas ação de cancelamento permitida publicamente
+      // Apenas ação de cancelamento permitida
       if (action !== 'cancel') {
         return res.status(400).json({ 
           error: 'Ação inválida. Use action: "cancel"' 

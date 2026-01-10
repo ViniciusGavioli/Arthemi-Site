@@ -14,20 +14,14 @@ interface ResetPasswordPageProps {
   token: string;
   email: string;
   hasParams: boolean;
+  isLoggedIn: boolean;
 }
 
 export const getServerSideProps: GetServerSideProps<ResetPasswordPageProps> = async (ctx) => {
-  // Se já logado, redireciona para account
+  // P0-2: Verificar se está logado, mas NÃO redirecionar
+  // Permitir reset de senha mesmo logado (ex: usuário clicou link do email)
   const auth = getAuthFromSSR(ctx);
-  
-  if (auth) {
-    return {
-      redirect: {
-        destination: '/minha-conta',
-        permanent: false,
-      },
-    };
-  }
+  const isLoggedIn = !!auth;
 
   const token = ctx.query.token as string || '';
   const email = ctx.query.email as string || '';
@@ -38,11 +32,12 @@ export const getServerSideProps: GetServerSideProps<ResetPasswordPageProps> = as
       token,
       email,
       hasParams,
+      isLoggedIn,
     },
   };
 };
 
-export default function ResetPasswordPage({ token, email, hasParams }: ResetPasswordPageProps) {
+export default function ResetPasswordPage({ token, email, hasParams, isLoggedIn }: ResetPasswordPageProps) {
   const router = useRouter();
 
   const [newPassword, setNewPassword] = useState('');
@@ -50,6 +45,19 @@ export default function ResetPasswordPage({ token, email, hasParams }: ResetPass
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  // P0-2: Função para fazer logout e continuar no reset
+  async function handleLogoutAndContinue() {
+    setLoggingOut(true);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      // Recarregar a página para limpar estado
+      router.reload();
+    } catch {
+      setLoggingOut(false);
+    }
+  }
 
   // Se não tem parâmetros, mostrar erro
   if (!hasParams) {
@@ -75,6 +83,45 @@ export default function ResetPasswordPage({ token, email, hasParams }: ResetPass
             >
               Solicitar novo link
             </Link>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // P0-2: Se está logado, mostrar aviso com opções
+  if (isLoggedIn) {
+    return (
+      <>
+        <Head>
+          <title>Redefinir Senha | Espaço Arthemi</title>
+        </Head>
+        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-warm-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+            <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <span className="text-3xl">⚠️</span>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">
+              Você está logado
+            </h1>
+            <p className="text-gray-600 mb-6">
+              Para redefinir sua senha, você precisa sair da conta atual primeiro.
+            </p>
+            <div className="space-y-3">
+              <button
+                onClick={handleLogoutAndContinue}
+                disabled={loggingOut}
+                className="w-full bg-primary-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-primary-700 transition-colors disabled:opacity-50"
+              >
+                {loggingOut ? 'Saindo...' : 'Sair e redefinir senha'}
+              </button>
+              <Link
+                href="/minha-conta"
+                className="block w-full bg-gray-100 text-gray-700 py-3 px-6 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+              >
+                Voltar para minha conta
+              </Link>
+            </div>
           </div>
         </div>
       </>

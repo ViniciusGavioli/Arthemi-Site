@@ -818,7 +818,7 @@ export default async function handler(
       if (!updatedPackageBooking.emailSentAt) {
         try {
           const emailSuccess = await withTimeout(
-            sendBookingConfirmationNotification(bookingId),
+            sendBookingConfirmationNotification(actualBookingId),
             10000,
             'envio de email de confirmação - pacote'
           );
@@ -971,7 +971,7 @@ export default async function handler(
     if (!updatedBooking.emailSentAt) {
       try {
         const emailSuccess = await withTimeout(
-          sendBookingConfirmationNotification(bookingId),
+          sendBookingConfirmationNotification(actualBookingId),
           10000,
           'envio de email de confirmação'
         );

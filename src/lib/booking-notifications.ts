@@ -24,16 +24,23 @@ export async function sendBookingConfirmationNotification(
   skipEmailSentAtCheck: boolean = false
 ): Promise<boolean> {
   try {
+    // DEFESA EM PROFUNDIDADE: Normalizar bookingId removendo prefixo "booking:" se presente
+    // Isso evita bug onde webhook passa ID com prefixo e findUnique não encontra
+    const normalizedBookingId = bookingId.replace(/^booking:/, '');
+    if (normalizedBookingId !== bookingId) {
+      console.warn(`⚠️ [Booking Notification] ID normalizado: "${bookingId}" → "${normalizedBookingId}"`);
+    }
+
     // 1. Verificar flag de contingência DISABLE_EMAILS
     const emailsDisabled = await isContingencyActive('DISABLE_EMAILS');
     if (emailsDisabled) {
-      console.log(`📧 [Booking Notification] Email desativado por contingência - booking ${bookingId}`);
+      console.log(`📧 [Booking Notification] Email desativado por contingência - booking ${normalizedBookingId}`);
       return false;
     }
 
     // 2. Buscar booking com todas as relações necessárias
     const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
+      where: { id: normalizedBookingId },
       include: { 
         user: true,
         room: true,
@@ -42,13 +49,13 @@ export async function sendBookingConfirmationNotification(
     });
 
     if (!booking) {
-      console.error(`❌ [Booking Notification] Booking não encontrado: ${bookingId}`);
+      console.error(`❌ [Booking Notification] Booking não encontrado: ${normalizedBookingId}`);
       return false;
     }
 
     // 3. Verificar emailSentAt para evitar duplicidade
     if (!skipEmailSentAtCheck && booking.emailSentAt) {
-      console.log(`⏭️ [Booking Notification] Email já enviado em ${booking.emailSentAt.toISOString()} - booking ${bookingId}`);
+      console.log(`⏭️ [Booking Notification] Email já enviado em ${booking.emailSentAt.toISOString()} - booking ${normalizedBookingId}`);
       return true; // Retorna true pois email já foi enviado
     }
 
@@ -101,10 +108,10 @@ export async function sendBookingConfirmationNotification(
     if (emailResult.success) {
       // Atualizar emailSentAt para evitar duplicidade
       await prisma.booking.update({
-        where: { id: bookingId },
+        where: { id: normalizedBookingId },
         data: { emailSentAt: new Date() },
       });
-      console.log(`📧 [Booking Notification] Email enviado com sucesso: ${booking.user.email} - booking ${bookingId}`);
+      console.log(`📧 [Booking Notification] Email enviado com sucesso: ${booking.user.email} - booking ${normalizedBookingId}`);
       return true;
     } else {
       console.error(`❌ [Booking Notification] Falha ao enviar email para ${booking.user.email}: ${emailResult.error}`);

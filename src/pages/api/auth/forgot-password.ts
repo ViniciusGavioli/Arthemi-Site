@@ -98,10 +98,14 @@ export default async function handler(
         },
       });
 
-      // Enviar email (async, não bloqueia resposta)
-      sendResetPasswordEmail(email, user.name, rawToken).catch((err) => {
-        console.error('❌ [FORGOT-PASSWORD] Erro ao enviar email:', err);
-      });
+      // Enviar email - agora com log detalhado
+      const emailResult = await sendResetPasswordEmail(email, user.name, rawToken);
+      
+      if (emailResult.success) {
+        console.log(`✅ [FORGOT-PASSWORD] Email de reset enviado para: ${email}, messageId: ${emailResult.messageId}`);
+      } else {
+        console.error(`❌ [FORGOT-PASSWORD] Falha ao enviar email para: ${email}, erro: ${emailResult.error}`);
+      }
 
       // Log de auditoria
       await logAudit({

@@ -39,9 +39,13 @@ interface ApiResponse {
   success: boolean;
   summary?: {
     total: number;
-    byRoom: { roomId: string | null; roomName: string; amount: number; tier: number | null }[];
+    totalHours: number;
+    byRoom: { roomId: string | null; roomName: string; amount: number; hours: number; tier: number | null }[];
   };
   credits?: CreditItem[];
+  // FIX E: Informação sobre créditos pendentes
+  hasPendingCredits?: boolean;
+  pendingCreditsCount?: number;
   availableForRoom?: {
     roomId: string;
     roomName: string;
@@ -133,9 +137,22 @@ export default async function handler(
       orderBy: [{ expiresAt: 'asc' }, { createdAt: 'asc' }],
     }) as ExtendedCredit[];
 
+    // FIX E: Contar créditos pendentes (últimas 24h)
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const pendingCredits = await (prisma.credit as any).count({
+      where: {
+        userId,
+        status: 'PENDING',
+        createdAt: { gte: oneDayAgo },
+      },
+    });
+
     return res.status(200).json({
       success: true,
       summary,
+      // FIX E: Incluir informação de pendentes
+      hasPendingCredits: pendingCredits > 0,
+      pendingCreditsCount: pendingCredits,
       credits: allCredits.map((c: ExtendedCredit) => ({
         id: c.id,
         roomId: c.roomId ?? null,

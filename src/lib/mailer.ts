@@ -223,7 +223,12 @@ export async function sendResetPasswordEmail(
   userName: string,
   token: string
 ): Promise<MailResult> {
-  const resetLink = `${APP_URL}/auth/reset-password?token=${encodeURIComponent(token)}&email=${encodeURIComponent(to)}`;
+  // IMPORTANTE: A página de reset está em /reset-password (não /auth/reset-password)
+  const resetLink = `${APP_URL}/reset-password?token=${encodeURIComponent(token)}&email=${encodeURIComponent(to)}`;
+  
+  console.log(`📧 [MAILER] Preparando email de reset para: ${to}`);
+  console.log(`📧 [MAILER] APP_URL configurado: ${APP_URL}`);
+  console.log(`📧 [MAILER] RESEND_API_KEY presente: ${!!RESEND_API_KEY}`);
   
   const client = getResendClient();
   
@@ -259,12 +264,14 @@ export async function sendResetPasswordEmail(
       html,
     });
     
+    console.log(`📧 [MAILER] Resposta do Resend:`, JSON.stringify(result, null, 2));
+    
     if (result.error) {
-      console.error('❌ [MAILER] Erro ao enviar email:', result.error);
+      console.error('❌ [MAILER] Erro retornado pelo Resend:', result.error);
       return { success: false, error: result.error.message };
     }
     
-    console.log(`✅ [MAILER] Email de reset enviado para ${to}`);
+    console.log(`✅ [MAILER] Email de reset enviado com sucesso para ${to}, ID: ${result.data?.id}`);
     return { success: true, messageId: result.data?.id };
     
   } catch (error) {

@@ -111,6 +111,9 @@ export default function BookingPendingPage() {
   const [checking, setChecking] = useState(false);
   const [paymentOpened, setPaymentOpened] = useState(false);
   
+  // FIX B: Estado para método de pagamento (PIX ou CREDIT_CARD)
+  const [paymentMethod, setPaymentMethod] = useState<'PIX' | 'CREDIT_CARD' | null>(null);
+  
   // Estados de timeout
   const [softTimeout, setSoftTimeout] = useState(false); // 90s: mostrar alternativa
   const [hardTimeout, setHardTimeout] = useState(false); // 5min: parar polling
@@ -137,6 +140,12 @@ export default function BookingPendingPage() {
       debugLog(`📍 [PENDING] Entidade da query: ${fromQuery.entityType}/${fromQuery.entityId}`);
       setEntityId(fromQuery.entityId);
       setEntityType(fromQuery.entityType);
+      
+      // FIX B: Ler método de pagamento da query
+      const methodFromQuery = router.query.paymentMethod as string | undefined;
+      if (methodFromQuery === 'PIX' || methodFromQuery === 'CREDIT_CARD') {
+        setPaymentMethod(methodFromQuery);
+      }
       return;
     }
     
@@ -163,8 +172,16 @@ export default function BookingPendingPage() {
       if (storedUrl) {
         setPaymentUrl(storedUrl);
       }
+      
+      // FIX B: Carregar método de pagamento do localStorage se não veio da query
+      if (!paymentMethod) {
+        const storedMethod = localStorage.getItem('lastPaymentMethod');
+        if (storedMethod === 'PIX' || storedMethod === 'CREDIT_CARD') {
+          setPaymentMethod(storedMethod);
+        }
+      }
     }
-  }, []);
+  }, [paymentMethod]);
 
   // ============================================================
   // FUNÇÃO: Fazer polling de status
@@ -454,7 +471,11 @@ export default function BookingPendingPage() {
           <p className="text-gray-600 mb-8">
             {paymentOpened 
               ? 'Estamos verificando seu pagamento. Isso pode levar alguns minutos.'
-              : 'Clique no botão abaixo para abrir a página de pagamento PIX.'}
+              : paymentMethod === 'CREDIT_CARD'
+                ? 'Clique no botão abaixo para finalizar o pagamento no cartão.'
+                : paymentMethod === 'PIX'
+                  ? 'Clique no botão abaixo para abrir a página de pagamento PIX.'
+                  : 'Clique no botão abaixo para realizar o pagamento.'}
           </p>
 
           {/* Botão de pagamento */}
@@ -466,7 +487,11 @@ export default function BookingPendingPage() {
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
-              Ir para Pagamento PIX
+              {paymentMethod === 'CREDIT_CARD'
+                ? 'Ir para Pagamento'
+                : paymentMethod === 'PIX'
+                  ? 'Ir para Pagamento PIX'
+                  : 'Ir para Pagamento'}
             </button>
           )}
 
@@ -505,16 +530,30 @@ export default function BookingPendingPage() {
             </div>
           )}
 
-          {/* Instruções PIX */}
+          {/* Instruções dinâmicas baseadas no método de pagamento */}
           {!softTimeout && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 text-left">
-              <h3 className="font-semibold text-blue-800 mb-2">💡 Instruções do PIX</h3>
-              <ul className="text-sm text-blue-700 space-y-1">
-                <li>• Clique em &quot;Ir para Pagamento PIX&quot;</li>
-                <li>• Escaneie o QR Code ou copie o código</li>
-                <li>• Pague no app do seu banco</li>
-                <li>• Volte aqui e aguarde a confirmação</li>
-              </ul>
+              {paymentMethod === 'CREDIT_CARD' ? (
+                <>
+                  <h3 className="font-semibold text-blue-800 mb-2">💳 Pagamento com Cartão</h3>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>• Clique em &quot;Ir para Pagamento&quot;</li>
+                    <li>• Preencha os dados do seu cartão</li>
+                    <li>• Aguarde a confirmação do pagamento</li>
+                    <li>• Você será redirecionado automaticamente</li>
+                  </ul>
+                </>
+              ) : (
+                <>
+                  <h3 className="font-semibold text-blue-800 mb-2">💡 Instruções do PIX</h3>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>• Clique em &quot;Ir para Pagamento PIX&quot;</li>
+                    <li>• Escaneie o QR Code ou copie o código</li>
+                    <li>• Pague no app do seu banco</li>
+                    <li>• Volte aqui e aguarde a confirmação</li>
+                  </ul>
+                </>
+              )}
             </div>
           )}
 

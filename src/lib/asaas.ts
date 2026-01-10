@@ -254,24 +254,34 @@ export async function findOrCreateCustomer(
     const existingCustomer = searchResult.data[0];
     console.log('✅ Cliente encontrado:', existingCustomer.id);
     
-    // Se cliente existente não tem CPF mas input tem, atualizar
-    if (!existingCustomer.cpfCnpj && input.cpfCnpj) {
-      console.log('🔄 Atualizando CPF do cliente:', existingCustomer.id);
+    // FIX C: SEMPRE atualizar customer para desabilitar notificações do Asaas
+    // Isso garante que nenhum cliente receba emails do Asaas, apenas nossos emails próprios
+    // Atualização idempotente - segura para executar múltiplas vezes
+    try {
+      const updatePayload: Record<string, unknown> = {
+        notificationDisabled: true,
+      };
+      
+      // Se cliente existente não tem CPF mas input tem, atualizar também
+      if (!existingCustomer.cpfCnpj && input.cpfCnpj) {
+        updatePayload.cpfCnpj = input.cpfCnpj;
+        console.log('🔄 Atualizando CPF do cliente:', existingCustomer.id);
+      }
+      
       const updatedCustomer = await asaasRequest<AsaasCustomer>(
         `/customers/${existingCustomer.id}`,
         {
           method: 'PUT',
-          body: JSON.stringify({
-            cpfCnpj: input.cpfCnpj,
-            notificationDisabled: true,
-          }),
+          body: JSON.stringify(updatePayload),
         }
       );
-      console.log('✅ CPF atualizado:', updatedCustomer.id);
+      console.log('✅ Cliente atualizado (notificationDisabled=true):', updatedCustomer.id);
       return updatedCustomer;
+    } catch (updateError) {
+      // Se falhar atualização, log mas retorna cliente existente (best-effort)
+      console.warn('⚠️ Falha ao atualizar notificationDisabled do cliente:', updateError);
+      return existingCustomer;
     }
-    
-    return existingCustomer;
   }
 
   // Criar novo cliente

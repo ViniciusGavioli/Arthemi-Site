@@ -409,6 +409,15 @@ export default function BookingsPage({ user: _user }: PageProps) {
               {error && (
                 <div className="bg-red-50 text-red-700 px-3 py-2 rounded mb-4 text-sm">
                   {error}
+                  {/* FIX D: Fallback WhatsApp quando erro de cancelamento */}
+                  <a
+                    href={`https://wa.me/5531984916090?text=${encodeURIComponent(`Olá! Tive problema ao cancelar minha reserva. Código: ${cancelModal.bookingId?.slice(0, 8).toUpperCase()}. Podem ajudar?`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block mt-2 text-green-600 hover:text-green-700 font-medium"
+                  >
+                    📱 Falar no WhatsApp
+                  </a>
                 </div>
               )}
 

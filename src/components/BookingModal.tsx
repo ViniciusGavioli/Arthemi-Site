@@ -17,6 +17,76 @@ import { getHourOptionsForDate, getBusinessHoursForDate, isClosedDay } from '@/l
 // Registrar locale português
 registerLocale('pt-BR', ptBR);
 
+// ===========================================================
+// UTILITIES: Seleção de bloco de horários (FIX A)
+// ===========================================================
+
+/**
+ * Computa array de slots selecionados baseado em horário inicial e duração
+ * @param startHour - Hora inicial (ex: 9)
+ * @param duration - Duração em horas (ex: 4)
+ * @returns Array de horas [9, 10, 11, 12]
+ */
+function computeSelectedSlots(startHour: number, duration: number): number[] {
+  const slots: number[] = [];
+  for (let i = 0; i < duration; i++) {
+    slots.push(startHour + i);
+  }
+  return slots;
+}
+
+/**
+ * Computa hora de término
+ * @param startHour - Hora inicial
+ * @param duration - Duração em horas
+ * @returns Hora de término (ex: 9 + 4 = 13)
+ */
+function computeEndHour(startHour: number, duration: number): number {
+  return startHour + duration;
+}
+
+/**
+ * Formata intervalo de horário para exibição
+ * @param startHour - Hora inicial
+ * @param duration - Duração em horas
+ * @returns String formatada "09:00–13:00 (4h)"
+ */
+function formatTimeRange(startHour: number, duration: number): string {
+  const endHour = computeEndHour(startHour, duration);
+  const startStr = String(startHour).padStart(2, '0') + ':00';
+  const endStr = String(endHour).padStart(2, '0') + ':00';
+  return `${startStr}–${endStr} (${duration}h)`;
+}
+
+/**
+ * Verifica se todos os slots de um bloco estão disponíveis
+ * @param startHour - Hora inicial
+ * @param duration - Duração em horas
+ * @param availabilitySlots - Array de slots com disponibilidade
+ * @returns { valid: boolean, unavailableSlots: number[] }
+ */
+function validateBlockAvailability(
+  startHour: number,
+  duration: number,
+  availabilitySlots: AvailabilitySlot[]
+): { valid: boolean; unavailableSlots: number[] } {
+  const selectedSlots = computeSelectedSlots(startHour, duration);
+  const unavailableSlots: number[] = [];
+  
+  for (const hour of selectedSlots) {
+    const slot = availabilitySlots.find(s => s.hour === hour);
+    // Se slot não existe ou não está disponível
+    if (!slot || slot.available !== true) {
+      unavailableSlots.push(hour);
+    }
+  }
+  
+  return {
+    valid: unavailableSlots.length === 0,
+    unavailableSlots,
+  };
+}
+
 // Helper para mapear nome de consultório
 const getRoomDisplayName = (roomName: string): string => {
   const mapping: Record<string, string> = {
@@ -113,6 +183,15 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
   // Estados de disponibilidade
   const [availabilitySlots, setAvailabilitySlots] = useState<AvailabilitySlot[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
+  
+  // Estado para erro de bloco indisponível (FIX A)
+  const [blockError, setBlockError] = useState<string | null>(null);
+  
+  // Compute selected slots para destacar visualmente (FIX A)
+  const selectedSlots = useMemo(() => {
+    if (formData.productType !== 'hourly' || !formData.date) return [];
+    return computeSelectedSlots(formData.startHour, formData.duration);
+  }, [formData.productType, formData.date, formData.startHour, formData.duration]);
 
   // Buscar disponibilidade quando data mudar
   const fetchAvailability = useCallback(async (date: Date) => {
@@ -158,12 +237,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
   // Obter informações de preço usando helper unificado (weekday vs saturday)
   const pricingInfo = getPricingInfoForUI(room.id, formData.date, room.slug);
 
-  // Cupons válidos (deve estar sincronizado com o backend)
-  const VALID_COUPONS: Record<string, { discountType: 'fixed' | 'percent'; value: number; description: string }> = {
-    'TESTE50': { discountType: 'fixed', value: -1, description: 'Cupom de teste - R$ 5,00' },
-  };
-
-  // Calcular valor total (com cupom aplicado)
+  // Calcular valor total (preço base - desconto aplicado no backend)
   const getTotalPrice = () => {
     let basePrice: number;
     if (formData.productType === 'package' && formData.productId) {
@@ -173,27 +247,8 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
       // Usar preço da sala conforme data (helper unificado)
       basePrice = pricingInfo.hourlyPrice * formData.duration;
     }
-
-    // Aplicar cupom se válido
-    const couponKey = formData.couponCode.toUpperCase().trim();
-    const coupon = VALID_COUPONS[couponKey];
-    if (coupon) {
-      if (coupon.discountType === 'fixed' && coupon.value === -1) {
-        return 500; // R$ 5,00 em centavos
-      } else if (coupon.discountType === 'fixed') {
-        return Math.max(0, basePrice - coupon.value);
-      } else if (coupon.discountType === 'percent') {
-        return Math.round(basePrice * (1 - coupon.value / 100));
-      }
-    }
-
+    // Cupom é validado e aplicado no backend, não no front
     return basePrice;
-  };
-
-  // Verificar se cupom é válido (para exibir feedback)
-  const isCouponValid = () => {
-    const couponKey = formData.couponCode.toUpperCase().trim();
-    return couponKey && VALID_COUPONS[couponKey];
   };
 
   // Opções de horário DINÂMICAS baseadas na data selecionada
@@ -224,6 +279,16 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
       if (formData.startHour < hours.start || formData.startHour >= hours.end) {
         setFormData(prev => ({ ...prev, startHour: hours.start }));
         return;
+      }
+      
+      // FIX A: Revalidar bloco quando duração mudar
+      if (availabilitySlots.length > 0) {
+        const validation = validateBlockAvailability(formData.startHour, formData.duration, availabilitySlots);
+        if (!validation.valid) {
+          setBlockError(`Bloco indisponível. Slots ocupados: ${validation.unavailableSlots.map(h => `${String(h).padStart(2, '0')}:00`).join(', ')}. Selecione outro horário.`);
+        } else {
+          setBlockError(null);
+        }
       }
       
       // Ajustar duração se ultrapassar fechamento
@@ -299,6 +364,15 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
         setError(`A reserva ultrapassa o horário de fechamento (${bh.end}h). Duração máxima disponível: ${bh.end - formData.startHour}h.`);
         return;
       }
+      
+      // FIX A: Validar que bloco inteiro está disponível
+      const blockValidation = validateBlockAvailability(formData.startHour, formData.duration, availabilitySlots);
+      if (!blockValidation.valid) {
+        setBlockError(`Bloco indisponível. Slots ocupados: ${blockValidation.unavailableSlots.map(h => `${String(h).padStart(2, '0')}:00`).join(', ')}`);
+        setError('Alguns horários do bloco selecionado estão ocupados. Escolha outro horário.');
+        return;
+      }
+      setBlockError(null);
     } else {
       // Pacote PRECISA de productId selecionado
       if (!formData.productId) {
@@ -348,7 +422,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
         if (data.paymentUrl) {
           localStorage.setItem('lastCreditId', data.creditId);
           localStorage.setItem('lastPaymentUrl', data.paymentUrl);
-          window.location.href = `/booking/pending?credit=${data.creditId}&type=credit`;
+          // FIX B: Salvar método de pagamento para exibir copy correta
+          localStorage.setItem('lastPaymentMethod', formData.paymentMethod === 'CARD' ? 'CREDIT_CARD' : 'PIX');
+          const paymentMethodParam = formData.paymentMethod === 'CARD' ? 'CREDIT_CARD' : 'PIX';
+          window.location.href = `/booking/pending?credit=${data.creditId}&type=credit&paymentMethod=${paymentMethodParam}`;
           return;
         } else {
           throw new Error('Erro ao gerar pagamento. Tente novamente.');
@@ -389,7 +466,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
         if (data.paymentUrl) {
           localStorage.setItem('lastBookingId', data.bookingId);
           localStorage.setItem('lastPaymentUrl', data.paymentUrl);
-          window.location.href = `/booking/pending?booking=${data.bookingId}`;
+          // FIX B: Salvar método de pagamento para exibir copy correta
+          localStorage.setItem('lastPaymentMethod', formData.paymentMethod === 'CARD' ? 'CREDIT_CARD' : 'PIX');
+          const paymentMethodParam = formData.paymentMethod === 'CARD' ? 'CREDIT_CARD' : 'PIX';
+          window.location.href = `/booking/pending?booking=${data.bookingId}&paymentMethod=${paymentMethodParam}`;
           return;
         } else {
           throw new Error('Erro ao gerar pagamento. Tente novamente.');
@@ -771,17 +851,30 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                         const slot = availabilitySlots.find(s => s.hour === hour);
                         // CORREÇÃO: Se slot não existe no payload, considerar INDISPONÍVEL (não default true)
                         const isAvailable = slot?.available === true;
-                        const isSelected = formData.startHour === hour;
+                        // FIX A: Destacar TODOS os slots do intervalo selecionado
+                        const isInSelectedRange = selectedSlots.includes(hour);
+                        const isStartHour = formData.startHour === hour;
                         
                         return (
                           <button
                             key={hour}
                             type="button"
                             disabled={!isAvailable || submitting || loadingAvailability}
-                            onClick={() => setFormData({ ...formData, startHour: hour })}
+                            onClick={() => {
+                              // FIX A: Ao clicar, validar se o bloco inteiro está disponível
+                              const validation = validateBlockAvailability(hour, formData.duration, availabilitySlots);
+                              if (!validation.valid) {
+                                setBlockError(`Horário indisponível. Slots ocupados: ${validation.unavailableSlots.map(h => `${String(h).padStart(2, '0')}:00`).join(', ')}. Selecione um horário com ${formData.duration} horas consecutivas disponíveis.`);
+                                return;
+                              }
+                              setBlockError(null);
+                              setFormData({ ...formData, startHour: hour });
+                            }}
                             className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                              isSelected
-                                ? 'bg-primary-600 text-white ring-2 ring-primary-600 ring-offset-2'
+                              isInSelectedRange
+                                ? isStartHour
+                                  ? 'bg-primary-600 text-white ring-2 ring-primary-600 ring-offset-2'
+                                  : 'bg-primary-500 text-white'
                                 : isAvailable
                                   ? 'bg-white border border-gray-300 text-gray-700 hover:border-primary-400 hover:bg-primary-50'
                                   : 'bg-gray-100 text-gray-400 cursor-not-allowed line-through'
@@ -792,6 +885,22 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                         );
                       })}
                     </div>
+                    
+                    {/* FIX A: Mostrar intervalo selecionado */}
+                    {formData.duration > 1 && formData.startHour && (
+                      <div className="bg-primary-50 border border-primary-200 rounded-lg p-3 mb-2">
+                        <p className="text-primary-800 font-medium text-sm">
+                          📅 Horário selecionado: {formatTimeRange(formData.startHour, formData.duration)}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* FIX A: Erro de bloco indisponível */}
+                    {blockError && (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-2">
+                        <p className="text-red-700 text-sm">{blockError}</p>
+                      </div>
+                    )}
                     
                     {/* Legenda */}
                     <div className="flex items-center gap-4 text-xs text-gray-500">
@@ -847,10 +956,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
             </>
           )}
 
-          {/* Cupom de Desconto */}
+          {/* Cupom de Desconto (validado no backend) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Cupom de Desconto
+              Cupom de Desconto (opcional)
             </label>
             <input
               type="text"
@@ -860,18 +969,13 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
               className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
                 submitting
                   ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
-                  : isCouponValid()
-                    ? 'border-green-500 bg-green-50'
-                    : 'border-gray-300'
+                  : 'border-gray-300'
               }`}
-              placeholder="Digite seu cupom (opcional)"
+              placeholder="Digite seu cupom (validado no pagamento)"
             />
-            {isCouponValid() && (
-              <p className="mt-1 text-sm text-green-600 flex items-center gap-1">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-                Cupom aplicado! Novo valor: {formatCurrency(getTotalPrice())}
+            {formData.couponCode.trim() && (
+              <p className="mt-1 text-xs text-gray-500">
+                Cupom será validado na finalização do pagamento
               </p>
             )}
           </div>
@@ -905,7 +1009,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
               <div className="flex justify-between items-center mb-2">
                 <span className="text-gray-600">Data/Hora</span>
                 <span className="font-medium">
-                  {format(formData.date, 'dd/MM/yyyy')} às {String(formData.startHour).padStart(2, '0')}:00
+                  {format(formData.date, 'dd/MM/yyyy')} • {formatTimeRange(formData.startHour, formData.duration)}
                 </span>
               </div>
             )}

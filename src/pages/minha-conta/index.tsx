@@ -49,6 +49,13 @@ interface CreditSummary {
   byRoom: { roomId: string | null; roomName: string; amount: number; hours: number; tier: number | null }[];
 }
 
+// FIX E: Dados de créditos com flag de pendente
+interface CreditsData {
+  summary: CreditSummary | null;
+  hasPendingCredits: boolean;
+  pendingCreditsCount: number;
+}
+
 interface Booking {
   id: string;
   roomName: string;
@@ -84,6 +91,11 @@ export default function MinhaContaPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
+
+  // FIX E: Estado para créditos pendentes
+  const [hasPendingCredits, setHasPendingCredits] = useState(false);
+  const [pendingCreditsCount, setPendingCreditsCount] = useState(0);
+  const [isPolling, setIsPolling] = useState(false);
 
   // Modal de reserva
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
@@ -156,6 +168,9 @@ export default function MinhaContaPage() {
           if (creditsData.summary) {
             setCredits(creditsData.summary);
           }
+          // FIX E: Atualizar estado de créditos pendentes
+          setHasPendingCredits(creditsData.hasPendingCredits || false);
+          setPendingCreditsCount(creditsData.pendingCreditsCount || 0);
         }
 
         if (bookingsRes.ok) {
@@ -178,6 +193,55 @@ export default function MinhaContaPage() {
       mounted = false;
     };
   }, [router]);
+
+  // FIX E: Polling leve quando há créditos pendentes
+  // NOTA: Este useEffect DEVE ficar ANTES de qualquer early return para respeitar as regras dos Hooks
+  useEffect(() => {
+    if (!hasPendingCredits) {
+      setIsPolling(false);
+      return;
+    }
+    
+    setIsPolling(true);
+    
+    // Polling a cada 15 segundos por 2 minutos
+    let pollCount = 0;
+    const maxPolls = 8; // 8 x 15s = 2 min
+    
+    const pollInterval = setInterval(async () => {
+      pollCount++;
+      
+      try {
+        const creditsRes = await fetch('/api/user/credits');
+        if (creditsRes.ok) {
+          const creditsData = await creditsRes.json();
+          if (creditsData.summary) {
+            setCredits(creditsData.summary);
+          }
+          setHasPendingCredits(creditsData.hasPendingCredits || false);
+          setPendingCreditsCount(creditsData.pendingCreditsCount || 0);
+          
+          // Se não há mais pendentes, parar polling
+          if (!creditsData.hasPendingCredits) {
+            clearInterval(pollInterval);
+            setIsPolling(false);
+            setSuccessMessage('Créditos confirmados! Agora você pode agendar.');
+            setTimeout(() => setSuccessMessage(''), 5000);
+          }
+        }
+      } catch (err) {
+        console.error('Erro no polling de créditos:', err);
+      }
+      
+      // Parar após máximo de polls
+      if (pollCount >= maxPolls) {
+        clearInterval(pollInterval);
+        setIsPolling(false);
+      }
+    }, 15000);
+    
+    return () => clearInterval(pollInterval);
+  }, [hasPendingCredits]);
 
   // Se está redirecionando, não renderiza nada (evita flash)
   if (redirecting) {
@@ -212,6 +276,9 @@ export default function MinhaContaPage() {
         if (creditsData.summary) {
           setCredits(creditsData.summary);
         }
+        // FIX E: Atualizar estado de créditos pendentes
+        setHasPendingCredits(creditsData.hasPendingCredits || false);
+        setPendingCreditsCount(creditsData.pendingCreditsCount || 0);
       }
 
       if (bookingsRes.ok) {
@@ -292,6 +359,36 @@ export default function MinhaContaPage() {
                 className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
               >
                 Tentar novamente
+              </button>
+            </div>
+          )}
+
+          {/* FIX E: Banner de créditos pendentes */}
+          {hasPendingCredits && (
+            <div className="mb-8 p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center gap-3">
+              <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
+                {isPolling ? (
+                  <div className="animate-spin h-4 w-4 border-2 border-yellow-600 border-t-transparent rounded-full" />
+                ) : (
+                  <Clock className="w-4 h-4 text-yellow-600" />
+                )}
+              </div>
+              <div className="flex-1">
+                <p className="text-yellow-800 font-medium">
+                  {pendingCreditsCount === 1 ? 'Pagamento pendente' : `${pendingCreditsCount} pagamentos pendentes`}
+                </p>
+                <p className="text-yellow-700 text-sm">
+                  {isPolling 
+                    ? 'Verificando confirmação do pagamento automaticamente...' 
+                    : 'Aguardando confirmação do pagamento. Seus créditos serão liberados em breve.'}
+                </p>
+              </div>
+              <button
+                onClick={refetchData}
+                disabled={loading}
+                className="px-4 py-2 bg-yellow-600 text-white rounded-lg text-sm font-medium hover:bg-yellow-700 transition-colors disabled:opacity-50"
+              >
+                {loading ? 'Atualizando...' : 'Atualizar'}
               </button>
             </div>
           )}

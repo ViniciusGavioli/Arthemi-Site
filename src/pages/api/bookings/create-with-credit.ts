@@ -22,11 +22,21 @@ import {
 } from '@/lib/turno-protection';
 import { requireEmailVerifiedForBooking } from '@/lib/email-verification';
 import { getBookingTotalCentsByDate } from '@/lib/pricing';
+import {
+  isValidCoupon,
+  applyDiscount,
+  checkCouponUsage,
+  recordCouponUsage,
+  createCouponSnapshot,
+} from '@/lib/coupons';
+import { CouponUsageContext } from '@prisma/client';
 
 interface ApiResponse {
   success: boolean;
   bookingId?: string;
   creditsUsed?: number;
+  amountToPay?: number; // Valor a pagar em dinheiro (após créditos e cupom)
+  paymentUrl?: string; // URL de pagamento Asaas se amountToPay > 0
   emailSent?: boolean;
   error?: string;
   code?: string; // Código de erro para tratamento no frontend
@@ -71,7 +81,7 @@ export default async function handler(
     }
 
     // Extrai dados da requisição
-    const { roomId, startTime, endTime } = req.body;
+    const { roomId, startTime, endTime, couponCode } = req.body;
 
     if (!roomId || !startTime || !endTime) {
       return res.status(400).json({
@@ -79,6 +89,9 @@ export default async function handler(
         error: 'roomId, startTime e endTime são obrigatórios',
       });
     }
+
+    // Normalizar couponCode (opcional)
+    const normalizedCouponCode = couponCode ? String(couponCode).toUpperCase().trim() : null;
 
     const start = new Date(startTime);
     const end = new Date(endTime);
@@ -158,14 +171,55 @@ export default async function handler(
       });
     }
 
+    // ========== AUDITORIA: Guardar valor bruto antes de cupom ==========
+    const grossAmount = totalAmount;
+    let discountAmount = 0;
+    let couponApplied: string | null = null;
+    let couponSnapshot: object | null = null;
+    let netAmount = grossAmount;
+
+    // ========== APLICAR CUPOM (se fornecido) ==========
+    if (normalizedCouponCode && isValidCoupon(normalizedCouponCode)) {
+      // Verificar se usuário pode usar este cupom (ex: PRIMEIRACOMPRA single-use)
+      const usageCheck = await checkCouponUsage(prisma, userId, normalizedCouponCode, CouponUsageContext.BOOKING);
+      if (!usageCheck.canUse) {
+        return res.status(400).json({
+          success: false,
+          error: usageCheck.reason || 'Cupom não pode ser utilizado',
+          code: 'COUPON_ALREADY_USED',
+        });
+      }
+      
+      const discountResult = applyDiscount(grossAmount, normalizedCouponCode);
+      discountAmount = discountResult.discountAmount;
+      netAmount = discountResult.finalAmount;
+      couponApplied = normalizedCouponCode;
+      couponSnapshot = createCouponSnapshot(normalizedCouponCode);
+    }
+
     // Verifica saldo de créditos disponíveis para este horário específico
     // Passa start/end para validar usageType dos créditos
     const availableCredits = await getCreditBalanceForRoom(userId, roomId, start, start, end);
     
-    if (availableCredits < totalAmount) {
+    // Calcular créditos a usar (sobre o netAmount - valor após cupom)
+    const creditsToUse = Math.min(availableCredits, netAmount);
+    const amountToPay = netAmount - creditsToUse;
+
+    // ========== ANTIFRAUDE: Cupom só vale se houver pagamento em dinheiro ==========
+    if (couponApplied && amountToPay === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cupons promocionais são aplicáveis apenas a reservas com pagamento via PIX ou cartão. Quando a reserva é integralmente coberta por créditos, o cupom não é elegível.',
+        code: 'COUPON_REQUIRES_CASH_PAYMENT',
+      });
+    }
+
+    // Valida se tem créditos suficientes para cobrir pelo menos parte da reserva
+    // (se não há cupom, precisa cobrir o total; se há cupom + dinheiro, OK)
+    if (creditsToUse === 0 && amountToPay === netAmount && availableCredits === 0) {
       return res.status(402).json({
         success: false,
-        error: `Saldo insuficiente. Disponível: R$ ${(availableCredits / 100).toFixed(2)}, Necessário: R$ ${(totalAmount / 100).toFixed(2)}`,
+        error: `Saldo insuficiente. Disponível: R$ ${(availableCredits / 100).toFixed(2)}, Necessário: R$ ${(netAmount / 100).toFixed(2)}`,
       });
     }
 
@@ -190,38 +244,61 @@ export default async function handler(
       });
     }
 
-    // TRANSAÇÃO: Cria reserva + consome créditos
+    // TRANSAÇÃO: Cria reserva + consome créditos + registra cupom
     const result = await prisma.$transaction(async (tx) => {
       // P-002: Consome créditos dentro da transação (passa tx)
-      const { creditIds, totalConsumed } = await consumeCreditsForBooking(
-        userId,
-        roomId,
-        totalAmount,
-        start,
-        start,
-        end,
-        tx // P-002: Passar transação
-      );
+      let creditIds: string[] = [];
+      let totalConsumed = 0;
+      
+      if (creditsToUse > 0) {
+        const consumeResult = await consumeCreditsForBooking(
+          userId,
+          roomId,
+          creditsToUse,
+          start,
+          start,
+          end,
+          tx // P-002: Passar transação
+        );
+        creditIds = consumeResult.creditIds;
+        totalConsumed = consumeResult.totalConsumed;
+      }
 
-      // Cria reserva com financialStatus = PAID
+      // Determinar status baseado em se há pagamento pendente
+      const bookingStatus = amountToPay > 0 ? 'PENDING' : 'CONFIRMED';
+      const paymentStatus = amountToPay > 0 ? 'PENDING' : 'APPROVED';
+      const financialStatus = amountToPay > 0 ? 'PENDING_PAYMENT' : 'PAID';
+
+      // Cria reserva com campos de auditoria
       const booking = await tx.booking.create({
         data: {
           roomId,
           userId,
           startTime: start,
           endTime: end,
-          status: 'CONFIRMED', // Já confirmado (pago via crédito)
-          paymentStatus: 'APPROVED',
+          status: bookingStatus,
+          paymentStatus: paymentStatus,
           bookingType: 'HOURLY',
           creditsUsed: totalConsumed,
           creditIds,
-          amountPaid: 0, // Não houve pagamento em dinheiro
+          amountPaid: amountToPay > 0 ? 0 : totalConsumed, // Se pago só com crédito, amountPaid = créditos usados
           origin: 'COMMERCIAL',
-          financialStatus: 'PAID', // Pago via crédito
+          financialStatus,
+          // ========== AUDITORIA DE DESCONTO/CUPOM ==========
+          grossAmount,
+          discountAmount,
+          netAmount,
+          couponCode: couponApplied,
+          couponSnapshot: couponSnapshot || undefined,
         },
       });
 
-      return { booking, creditIds, totalConsumed };
+      // ========== REGISTRAR USO DO CUPOM (Anti-fraude) ==========
+      if (couponApplied) {
+        await recordCouponUsage(tx, userId, couponApplied, CouponUsageContext.BOOKING, booking.id);
+      }
+
+      return { booking, creditIds, totalConsumed, amountToPay };
     });
 
     // Log de auditoria
@@ -238,45 +315,58 @@ export default async function handler(
         endTime: end.toISOString(),
         creditsUsed: result.totalConsumed,
         creditIds: result.creditIds,
+        // Auditoria de cupom
+        grossAmount,
+        discountAmount,
+        netAmount,
+        couponCode: couponApplied,
+        amountToPay: result.amountToPay,
       },
     });
 
-    await logAudit({
-      action: 'CREDIT_USED',
-      source: 'USER',
-      actorId: userId,
-      actorEmail: user.email,
-      targetType: 'Booking',
-      targetId: result.booking.id,
-      metadata: {
-        amount: result.totalConsumed,
-        creditIds: result.creditIds,
-      },
-    });
-
-    // Enviar email de confirmação para reserva paga com créditos
-    let emailSent = false;
-    try {
-      const emailSuccess = await sendBookingConfirmationNotification(result.booking.id);
-      if (emailSuccess) {
-        await prisma.booking.update({
-          where: { id: result.booking.id },
-          data: { emailSentAt: new Date() },
-        });
-        emailSent = true;
-        console.log(`📧 [BOOKING] Email de confirmação enviado para reserva com créditos ${result.booking.id}`);
-      } else {
-        console.warn(`⚠️ [BOOKING] Falha ao enviar email para reserva com créditos ${result.booking.id}`);
-      }
-    } catch (emailError) {
-      console.error('⚠️ [BOOKING] Erro no envio de email (créditos):', emailError);
-      // Não falha a requisição por erro de email
+    if (result.totalConsumed > 0) {
+      await logAudit({
+        action: 'CREDIT_USED',
+        source: 'USER',
+        actorId: userId,
+        actorEmail: user.email,
+        targetType: 'Booking',
+        targetId: result.booking.id,
+        metadata: {
+          amount: result.totalConsumed,
+          creditIds: result.creditIds,
+        },
+      });
     }
 
+    // Enviar email de confirmação apenas para reservas totalmente pagas (sem pagamento pendente)
+    let emailSent = false;
+    if (result.amountToPay === 0) {
+      try {
+        const emailSuccess = await sendBookingConfirmationNotification(result.booking.id);
+        if (emailSuccess) {
+          await prisma.booking.update({
+            where: { id: result.booking.id },
+            data: { emailSentAt: new Date() },
+          });
+          emailSent = true;
+          console.log(`📧 [BOOKING] Email de confirmação enviado para reserva com créditos ${result.booking.id}`);
+        } else {
+          console.warn(`⚠️ [BOOKING] Falha ao enviar email para reserva com créditos ${result.booking.id}`);
+        }
+      } catch (emailError) {
+        console.error('⚠️ [BOOKING] Erro no envio de email (créditos):', emailError);
+        // Não falha a requisição por erro de email
+      }
+    }
+
+    // TODO: Se amountToPay > 0, criar cobrança no Asaas e retornar paymentUrl
+    // Por ora, retornamos amountToPay para o frontend decidir
     return res.status(201).json({
       success: true,
       bookingId: result.booking.id,
       creditsUsed: result.totalConsumed,
+      amountToPay: result.amountToPay,
       emailSent,
     });
 

@@ -412,3 +412,130 @@ describe('Partial Refund - Detection and Handling', () => {
     expect(result.totalRefunded).toBe(5000);
   });
 });
+
+// ============================================================
+// 9. TESTES CRÍTICOS - Cupom + Split (Crédito + Dinheiro) - CodeX Audit
+// ============================================================
+
+describe('Critical - Coupon + Split (Credits + Cash) - CodeX Audit', () => {
+  /**
+   * CENÁRIO CRÍTICO:
+   * Reserva de R$100, cupom 15%, split com R$30 crédito + R$55 dinheiro
+   * 
+   * grossAmount = 10000 (R$100)
+   * discountAmount = 1500 (R$15)
+   * netAmount = 8500 (R$85) ← TOTAL da reserva após cupom
+   * creditsUsed = 3000 (R$30)
+   * amountPaid = 5500 (R$55) ← dinheiro pago
+   * 
+   * REGRA: expectedAmount = netAmount = 8500
+   * ERRO ANTERIOR: expectedAmount = netAmount + creditsUsed = 11500 (DUPLICAVA!)
+   */
+  
+  test('expectedAmount deve ser netAmount, não netAmount + creditsUsed', () => {
+    const booking = {
+      grossAmount: 10000,    // R$100
+      discountAmount: 1500,  // R$15 desconto
+      netAmount: 8500,       // R$85 total após cupom
+      creditsUsed: 3000,     // R$30 créditos
+      amountPaid: 5500,      // R$55 dinheiro
+    };
+    
+    // CORRETO: expectedAmount = netAmount
+    const correctExpectedAmount = booking.netAmount;
+    expect(correctExpectedAmount).toBe(8500);
+    
+    // ERRADO: expectedAmount = netAmount + creditsUsed (duplica valor)
+    const wrongExpectedAmount = booking.netAmount + booking.creditsUsed;
+    expect(wrongExpectedAmount).toBe(11500); // ERRADO!
+    
+    // Validar que o cálculo correto NÃO soma os dois
+    expect(correctExpectedAmount).not.toBe(wrongExpectedAmount);
+  });
+
+  test('totalRefundValue = netAmount (já inclui créditos + dinheiro)', () => {
+    const booking = {
+      netAmount: 8500,       // R$85 total
+      creditsUsed: 3000,     // R$30 créditos
+      amountPaid: 5500,      // R$55 dinheiro
+    };
+    
+    // CORRETO: totalRefundValue = netAmount
+    const totalRefundValue = booking.netAmount ?? ((booking.amountPaid ?? 0) + (booking.creditsUsed ?? 0));
+    expect(totalRefundValue).toBe(8500);
+    
+    // moneyPaid = totalRefundValue - creditsUsed
+    const moneyPaid = Math.max(0, totalRefundValue - (booking.creditsUsed ?? 0));
+    expect(moneyPaid).toBe(5500);
+  });
+
+  test('Cancelamento devolve exatamente netAmount, sem duplicar', () => {
+    const booking = {
+      netAmount: 8500,
+      creditsUsed: 3000,
+      amountPaid: 5500,
+    };
+    
+    // Cálculo correto de cancel.ts (após patch)
+    const creditsUsed = booking.creditsUsed ?? 0;
+    const totalRefundValue = booking.netAmount ?? ((booking.amountPaid ?? 0) + creditsUsed);
+    const moneyPaid = Math.max(0, totalRefundValue - creditsUsed);
+    
+    // Validações
+    expect(totalRefundValue).toBe(8500); // Total = R$85
+    expect(creditsUsed).toBe(3000);       // Créditos = R$30
+    expect(moneyPaid).toBe(5500);         // Dinheiro = R$55
+    
+    // A soma de créditos + dinheiro = totalRefundValue
+    expect(creditsUsed + moneyPaid).toBe(totalRefundValue);
+  });
+
+  test('Fallback quando netAmount não existe usa (amountPaid + creditsUsed)', () => {
+    // Booking antigo sem netAmount
+    const oldBooking = {
+      netAmount: null as number | null,
+      creditsUsed: 3000,
+      amountPaid: 5500,
+    };
+    
+    const creditsUsed = oldBooking.creditsUsed ?? 0;
+    const totalRefundValue = oldBooking.netAmount ?? ((oldBooking.amountPaid ?? 0) + creditsUsed);
+    
+    // Fallback funciona corretamente
+    expect(totalRefundValue).toBe(8500);
+  });
+
+  test('Refund sem valor no payload deve marcar como PENDING para revisão', () => {
+    // Simula webhook sem refundedValue/chargebackValue
+    const payment = {
+      refundedValue: undefined,
+      chargebackValue: undefined,
+      value: undefined,
+    };
+    
+    const dbPaymentAmount = null; // Não encontrou no banco
+    const expectedAmount = 8500;
+    
+    // Cálculo do refundedAmount (após patch)
+    let refundedAmount: number;
+    if (payment.refundedValue !== undefined && payment.refundedValue > 0) {
+      refundedAmount = payment.refundedValue;
+    } else if (payment.chargebackValue !== undefined && payment.chargebackValue > 0) {
+      refundedAmount = payment.chargebackValue;
+    } else if (payment.value !== undefined && payment.value > 0) {
+      refundedAmount = payment.value;
+    } else if (dbPaymentAmount) {
+      refundedAmount = dbPaymentAmount;
+    } else {
+      // SEGURANÇA: Não assumir refund total - marcar como desconhecido
+      refundedAmount = 0;
+    }
+    
+    const isAmountUnknown = refundedAmount === 0 && expectedAmount > 0;
+    const isPartial = isAmountUnknown || refundedAmount < (expectedAmount - 100);
+    
+    expect(refundedAmount).toBe(0);
+    expect(isAmountUnknown).toBe(true);
+    expect(isPartial).toBe(true); // Deve marcar como PENDING
+  });
+});

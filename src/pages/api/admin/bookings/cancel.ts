@@ -153,17 +153,19 @@ export default async function handler(
     const hoursUntilStart = differenceInHours(booking.startTime, now);
     const canRefundByPolicy = hoursUntilStart >= MIN_CANCELLATION_HOURS;
 
-    // AUDITORIA: Usar netAmount se disponível, senão fallback para amountPaid
-    // creditsUsed já é o valor líquido (créditos consumidos)
-    const creditsUsed = booking.creditsUsed || 0;
-    
-    // netAmount = valor líquido pago (após desconto de cupom)
-    // amountPaid = fallback para bookings antigos sem netAmount
+    // AUDITORIA: Usar netAmount se disponível, senão fallback para (amountPaid + creditsUsed)
+    // netAmount = valor total da reserva após desconto de cupom (JÁ INCLUI créditos + dinheiro)
     // NUNCA usar grossAmount para reembolso!
-    const moneyPaid = booking.netAmount ?? booking.amountPaid ?? 0;
+    // NUNCA somar netAmount + creditsUsed (duplicaria o valor)
+    const creditsUsed = booking.creditsUsed ?? 0;
     
-    // Total a devolver = créditos usados + valor pago (NET)
-    const totalRefundValue = creditsUsed + moneyPaid;
+    // totalRefundValue = valor total a devolver (NET ou fallback)
+    // Se netAmount existe, usar diretamente (já é o total)
+    // Se não, calcular como: amountPaid (dinheiro) + creditsUsed
+    const totalRefundValue = booking.netAmount ?? ((booking.amountPaid ?? 0) + creditsUsed);
+    
+    // moneyPaid = parte paga em dinheiro (totalRefundValue - créditos)
+    const moneyPaid = Math.max(0, totalRefundValue - creditsUsed);
 
     // ================================================================
     // 5. DETERMINAR REFUND TYPE

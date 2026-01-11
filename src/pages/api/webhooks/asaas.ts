@@ -430,10 +430,11 @@ export default async function handler(
           // Nenhum Refund interno - criar idempotente (gateway iniciou refund)
           // ===============================================================
           
-          // Calcular valor esperado (NET + créditos usados)
-          const creditsUsedAmount = booking.creditsUsed || 0;
-          const moneyPaidAmount = booking.netAmount || booking.amountPaid || 0;
-          const expectedAmount = creditsUsedAmount + moneyPaidAmount;
+          // Calcular valor esperado = netAmount (valor total da reserva após cupom)
+          // IMPORTANTE: netAmount JÁ INCLUI créditos + dinheiro, NÃO somar com creditsUsed
+          const creditsUsedAmount = booking.creditsUsed ?? 0;
+          // expectedAmount = total da reserva (NET), NÃO netAmount + creditsUsed
+          const expectedAmount = booking.netAmount ?? ((booking.amountPaid ?? 0) + creditsUsedAmount);
           
           // Obter valor efetivamente estornado do payload
           // Prioridade: refundedValue > chargebackValue > value > fallback para esperado
@@ -456,14 +457,25 @@ export default async function handler(
               },
               select: { amount: true },
             });
-            refundedAmount = dbPayment?.amount || expectedAmount;
+            
+            if (dbPayment?.amount) {
+              refundedAmount = dbPayment.amount;
+            } else {
+              // SEGURANÇA: Payload não trouxe valor e não encontramos no banco
+              // NÃO assumir refund total automaticamente - marcar como UNKNOWN para revisão
+              console.warn(`⚠️ [Asaas Webhook] Refund sem valor no payload e sem Payment no banco - bookingId=${actualBookingId}, paymentId=${payment.id}`);
+              refundedAmount = 0; // Valor desconhecido
+            }
           }
+          
+          // Flag para indicar que o valor é desconhecido (precisa revisão manual)
+          const isAmountUnknown = refundedAmount === 0 && expectedAmount > 0;
           
           // Determinar se é refund parcial (tolerância de 1% para arredondamentos)
           const tolerance = Math.max(100, expectedAmount * 0.01); // mínimo R$1 ou 1%
-          const isPartial = refundedAmount < (expectedAmount - tolerance);
+          const isPartial = isAmountUnknown || refundedAmount < (expectedAmount - tolerance);
           
-          console.log(`📊 [Asaas Webhook] Refund analysis: expected=${expectedAmount}, refunded=${refundedAmount}, isPartial=${isPartial}`);
+          console.log(`📊 [Asaas Webhook] Refund analysis: expected=${expectedAmount}, refunded=${refundedAmount}, isPartial=${isPartial}, isAmountUnknown=${isAmountUnknown}`);
           
           // Calcular distribuição: créditos vs dinheiro
           // Prioridade: primeiro restaura créditos, depois dinheiro
@@ -483,15 +495,17 @@ export default async function handler(
               isPartial,
               gateway: 'ASAAS',
               externalRefundId: payment.id,
-              // IMPORTANTE: Se parcial, manter PENDING para revisão manual
+              // IMPORTANTE: Se parcial OU valor desconhecido, manter PENDING para revisão manual
               status: isPartial ? 'PENDING' : 'COMPLETED',
-              reason: isPartial 
-                ? `Gateway ${event}: Refund PARCIAL (${refundedAmount}/${expectedAmount} centavos)` 
-                : `Gateway ${event}: ${payment.id}`,
+              reason: isAmountUnknown
+                ? `Gateway ${event}: Valor DESCONHECIDO - payload sem refundedValue/chargebackValue - REVISÃO MANUAL`
+                : isPartial 
+                  ? `Gateway ${event}: Refund PARCIAL (${refundedAmount}/${expectedAmount} centavos)` 
+                  : `Gateway ${event}: ${payment.id}`,
               processedAt: isPartial ? null : new Date(),
             },
           });
-          console.log(`📝 [Asaas Webhook] Refund criado via gateway: ${newRefund.id} (isPartial=${isPartial})`);
+          console.log(`📝 [Asaas Webhook] Refund criado via gateway: ${newRefund.id} (isPartial=${isPartial}, isAmountUnknown=${isAmountUnknown})`);
 
           // P-013: Atualizar para REFUNDED (agora existe no enum)
           // Se parcial, marcar como PARTIAL_REFUND no financialStatus

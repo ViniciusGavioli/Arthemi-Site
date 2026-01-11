@@ -184,9 +184,20 @@ Cupons promocionais não são restaurados.`,
       `Cupom ${code} aplicado! Desconto de ${discount}.`,
     couponError: 'Cupom inválido ou não disponível para uso.',
     couponAlreadyUsed: 'Este cupom já foi utilizado em sua conta.',
+    couponNotRecognized: 'Cupom não identificado.',
     
     termsNotice: `Ao confirmar, você concorda com nossa Política de Cancelamento, 
 Reembolso e Cupons.`,
+  },
+
+  // F) Fluxo de Crédito (Minha Conta)
+  creditBooking: {
+    couponLabel: 'Cupom de desconto (opcional)',
+    couponPlaceholder: 'Digite seu cupom',
+    couponHint: 'Cupom será validado na finalização. Cupons só são aplicáveis se houver pagamento em dinheiro.',
+    couponNotRecognized: 'Cupom não identificado.',
+    couponRequiresCashPayment: `Cupons promocionais são aplicáveis apenas a reservas com pagamento via PIX ou cartão. Quando a reserva é integralmente coberta por créditos, o cupom não é elegível.`,
+    couponAlreadyUsed: 'Este cupom já foi utilizado e não pode ser usado novamente.',
   },
 };
 

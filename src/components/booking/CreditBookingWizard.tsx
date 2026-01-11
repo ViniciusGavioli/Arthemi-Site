@@ -18,6 +18,8 @@ import {
   type ShiftBlock 
 } from '@/lib/business-hours';
 import { getPricingInfoForUI } from '@/lib/pricing';
+import { MICROCOPY } from '@/lib/policies';
+import { isValidCoupon } from '@/lib/coupons';
 
 // ===========================================================
 // TIPOS
@@ -96,6 +98,10 @@ export function CreditBookingWizard({
   const [selectedShiftBlock, setSelectedShiftBlock] = useState<ShiftBlock | null>(null); // Para créditos SHIFT
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+
+  // Cupom de desconto (opcional)
+  const [couponCode, setCouponCode] = useState('');
+  const [couponWarning, setCouponWarning] = useState(''); // Aviso discreto (não bloqueia)
 
   // Janela de reserva (30 dias para horas/pacotes)
   const [maxBookingDate, setMaxBookingDate] = useState<Date | null>(null);
@@ -276,18 +282,25 @@ export function CreditBookingWizard({
           roomId: selectedRoom.id,
           startTime: startTime.toISOString(),
           endTime: endTime.toISOString(),
+          couponCode: couponCode.trim() || undefined,
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        // Tratamento especial para erro de proteção de turno
-        if (data.code === TURNO_PROTECTION_ERROR_CODE) {
-          setError(TURNO_PROTECTION_ERROR_MESSAGE);
-        } else {
-          setError(data.error || 'Erro ao criar reserva');
-        }
+        // Renderizar mensagem por code (fallback para error)
+        const errorMessages: Record<string, string> = {
+          [TURNO_PROTECTION_ERROR_CODE]: TURNO_PROTECTION_ERROR_MESSAGE,
+          'COUPON_REQUIRES_CASH_PAYMENT': MICROCOPY.creditBooking.couponRequiresCashPayment,
+          'COUPON_ALREADY_USED': MICROCOPY.creditBooking.couponAlreadyUsed,
+        };
+        
+        const message = data.code && errorMessages[data.code] 
+          ? errorMessages[data.code] 
+          : data.error || 'Erro ao criar reserva';
+        
+        setError(message);
         return;
       }
 
@@ -721,6 +734,48 @@ export function CreditBookingWizard({
         </div>
       )}
 
+      {/* Cupom de Desconto (opcional) - só aparece se houver horários selecionados */}
+      {selectedRoom && (selectedHours.length > 0 || selectedShiftBlock) && (
+        <div className="bg-gray-50 rounded-xl p-5">
+          <label className="block text-base font-semibold text-gray-900 mb-2">
+            {MICROCOPY.creditBooking.couponLabel}
+          </label>
+          <input
+            type="text"
+            value={couponCode}
+            onChange={(e) => {
+              const value = e.target.value.toUpperCase();
+              setCouponCode(value);
+              // Validação discreta: mostrar aviso se cupom digitado não é reconhecido
+              if (value.trim() && !isValidCoupon(value)) {
+                setCouponWarning(MICROCOPY.creditBooking.couponNotRecognized);
+              } else {
+                setCouponWarning('');
+              }
+            }}
+            disabled={submitting}
+            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
+              submitting
+                ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                : couponWarning
+                  ? 'border-amber-300 bg-white'
+                  : 'border-gray-300 bg-white'
+            }`}
+            placeholder={MICROCOPY.creditBooking.couponPlaceholder}
+          />
+          {couponWarning && (
+            <p className="mt-1 text-xs text-amber-600">
+              {couponWarning}
+            </p>
+          )}
+          {couponCode.trim() && !couponWarning && (
+            <p className="mt-1 text-xs text-gray-500">
+              {MICROCOPY.creditBooking.couponHint}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Resumo */}
       {selectedRoom && (selectedHours.length > 0 || selectedShiftBlock) && (
         <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -756,7 +811,7 @@ export function CreditBookingWizard({
               </span>
             </div>
             <div className="flex justify-between pt-3 border-t border-gray-100">
-              <span className="text-gray-900 font-semibold">Total</span>
+              <span className="text-gray-900 font-semibold">Total (créditos)</span>
               <span className="text-primary-600 font-bold text-xl">
                 {formatCurrency(total)}
               </span>

@@ -73,6 +73,16 @@ export default async function handler(
       }
 
       // ================================================================
+      // P0-Alt: BLOQUEAR CANCELAMENTO VIA PATCH STATUS
+      // ================================================================
+      if (status === 'CANCELLED') {
+        return res.status(400).json({ 
+          error: 'Cancelamento de reserva deve ser feito via POST /api/admin/bookings/cancel para garantir trilha de auditoria e tratamento financeiro adequado.',
+          code: 'USE_CANCEL_ENDPOINT',
+        });
+      }
+
+      // ================================================================
       // 3. SE APENAS STATUS, PROCESSAR SIMPLES
       // ================================================================
       if (status && !startTime && !endTime) {
@@ -81,18 +91,6 @@ export default async function handler(
           data: { status },
           include: { room: true, user: true },
         });
-
-        // Se cancelado via status, atualizar paymentStatus também
-        if (status === 'CANCELLED' && booking.paymentId) {
-          try {
-            await prisma.payment.update({
-              where: { id: booking.paymentId },
-              data: { status: 'REJECTED' },
-            });
-          } catch {
-            // Ignora erro se payment não existir
-          }
-        }
 
         await logAdminAction(
           'ADMIN_BOOKING_UPDATE',
@@ -380,19 +378,12 @@ export default async function handler(
     }
   }
 
+  // P0-Alt: DELETE bloqueado - usar POST /api/admin/bookings/cancel
   if (req.method === 'DELETE') {
-    try {
-      // Soft delete - apenas marca como cancelado
-      const booking = await prisma.booking.update({
-        where: { id },
-        data: { status: 'CANCELLED' },
-      });
-
-      return res.status(200).json(booking);
-    } catch (error) {
-      console.error('Delete booking error:', error);
-      return res.status(500).json({ error: 'Erro ao deletar reserva' });
-    }
+    return res.status(400).json({ 
+      error: 'Exclusão de reserva não é permitida. Use POST /api/admin/bookings/cancel para cancelar com trilha de auditoria.',
+      code: 'USE_CANCEL_ENDPOINT',
+    });
   }
 
   return res.status(405).json({ error: 'Method not allowed' });

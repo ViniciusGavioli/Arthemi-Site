@@ -30,6 +30,11 @@ import {
   createCouponSnapshot,
 } from '@/lib/coupons';
 import { CouponUsageContext } from '@prisma/client';
+import {
+  checkBookingHasActivePayment,
+  generateBookingIdempotencyKey,
+} from '@/lib/payment-idempotency';
+import { createBookingPayment } from '@/lib/asaas';
 
 interface ApiResponse {
   success: boolean;
@@ -37,6 +42,7 @@ interface ApiResponse {
   creditsUsed?: number;
   amountToPay?: number; // Valor a pagar em dinheiro (após créditos e cupom)
   paymentUrl?: string; // URL de pagamento Asaas se amountToPay > 0
+  paymentId?: string | null; // ID externo do pagamento (para debug)
   emailSent?: boolean;
   error?: string;
   code?: string; // Código de erro para tratamento no frontend
@@ -70,10 +76,10 @@ export default async function handler(
       });
     }
 
-    // Busca usuário
+    // Busca usuário (incluindo cpf e phone para pagamento híbrido)
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, email: true, cpf: true, phone: true },
     });
 
     if (!user) {
@@ -211,6 +217,15 @@ export default async function handler(
         success: false,
         error: 'Cupons promocionais são aplicáveis apenas a reservas com pagamento via PIX ou cartão. Quando a reserva é integralmente coberta por créditos, o cupom não é elegível.',
         code: 'COUPON_REQUIRES_CASH_PAYMENT',
+      });
+    }
+
+    // ========== P0-4: Validar CPF ANTES de criar booking se há pagamento pendente ==========
+    if (amountToPay > 0 && !user.cpf) {
+      return res.status(400).json({
+        success: false,
+        error: 'CPF é obrigatório para reservas com pagamento. Atualize seu perfil antes de continuar.',
+        code: 'CPF_REQUIRED_FOR_PAYMENT',
       });
     }
 
@@ -360,13 +375,114 @@ export default async function handler(
       }
     }
 
-    // TODO: Se amountToPay > 0, criar cobrança no Asaas e retornar paymentUrl
-    // Por ora, retornamos amountToPay para o frontend decidir
+    // ========== P0-4: Se amountToPay > 0, criar cobrança no Asaas (PIX) ==========
+    let paymentUrl: string | undefined;
+    if (result.amountToPay > 0) {
+      try {
+        // Idempotência: verificar se já existe pagamento ativo
+        const existingPayment = await checkBookingHasActivePayment(result.booking.id);
+        if (existingPayment.exists && existingPayment.existingPayment?.externalUrl) {
+          console.log(`⚠️ [BOOKING] Pagamento híbrido já existe para ${result.booking.id}, retornando URL existente`);
+          return res.status(201).json({
+            success: true,
+            bookingId: result.booking.id,
+            creditsUsed: result.totalConsumed,
+            amountToPay: result.amountToPay,
+            paymentUrl: existingPayment.existingPayment.externalUrl,
+            paymentId: existingPayment.existingPayment.externalId, // P0-4: Para debug
+          });
+        }
+
+        // Criar cobrança PIX no Asaas
+        const paymentResult = await createBookingPayment({
+          bookingId: result.booking.id,
+          customerName: user.name || 'Cliente',
+          customerEmail: user.email,
+          customerPhone: user.phone || '',
+          customerCpf: user.cpf!,
+          value: result.amountToPay,
+          description: `Reserva ${room.name} - ${hours}h (R$ ${(result.totalConsumed / 100).toFixed(2)} em créditos)`,
+        });
+
+        paymentUrl = paymentResult.invoiceUrl;
+
+        // Atualizar booking com paymentId
+        await prisma.booking.update({
+          where: { id: result.booking.id },
+          data: {
+            paymentId: paymentResult.paymentId,
+            paymentMethod: 'PIX',
+          },
+        });
+
+        // Criar Payment local com idempotencyKey
+        await prisma.payment.create({
+          data: {
+            bookingId: result.booking.id,
+            userId,
+            amount: result.amountToPay,
+            status: 'PENDING',
+            externalId: paymentResult.paymentId,
+            externalUrl: paymentResult.invoiceUrl,
+            idempotencyKey: generateBookingIdempotencyKey(result.booking.id, 'PIX'),
+          },
+        });
+
+        console.log(`🔲 [BOOKING] Pagamento híbrido PIX criado: ${paymentResult.paymentId} para booking ${result.booking.id}`);
+      } catch (paymentError) {
+        console.error('❌ [BOOKING] Erro ao criar cobrança híbrida:', paymentError);
+        
+        // ROLLBACK: Cancelar booking E restaurar créditos consumidos
+        // Isso é necessário porque a criação de pagamento falhou FORA da transaction
+        await prisma.$transaction(async (tx) => {
+          // 1. Cancelar booking
+          await tx.booking.update({
+            where: { id: result.booking.id },
+            data: { status: 'CANCELLED' },
+          });
+          
+          // 2. Restaurar créditos consumidos
+          if (result.creditIds && result.creditIds.length > 0) {
+            const amountPerCredit = Math.floor(result.totalConsumed / result.creditIds.length);
+            let remaining = result.totalConsumed - (amountPerCredit * result.creditIds.length);
+            
+            for (const creditId of result.creditIds) {
+              const restoreAmount = amountPerCredit + (remaining > 0 ? 1 : 0);
+              if (remaining > 0) remaining--;
+              
+              const credit = await tx.credit.findUnique({
+                where: { id: creditId },
+                select: { remainingAmount: true, amount: true },
+              });
+              
+              if (credit) {
+                await tx.credit.update({
+                  where: { id: creditId },
+                  data: {
+                    remainingAmount: Math.min(credit.amount, credit.remainingAmount + restoreAmount),
+                    status: 'CONFIRMED',
+                  },
+                });
+              }
+            }
+            console.log(`🔄 [BOOKING] Créditos restaurados após falha no pagamento: ${result.creditIds.length} créditos`);
+          }
+        });
+        
+        return res.status(500).json({
+          success: false,
+          error: 'Erro ao gerar pagamento. Reserva cancelada e créditos restaurados. Tente novamente.',
+          code: 'PAYMENT_CREATION_FAILED',
+        });
+      }
+    }
+
     return res.status(201).json({
       success: true,
       bookingId: result.booking.id,
       creditsUsed: result.totalConsumed,
       amountToPay: result.amountToPay,
+      paymentUrl,
       emailSent,
     });
 

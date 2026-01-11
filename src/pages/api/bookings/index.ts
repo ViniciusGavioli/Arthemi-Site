@@ -32,6 +32,10 @@ import { sendPixPendingEmail, BookingEmailData } from '@/lib/email';
 import { logBookingCreated } from '@/lib/operation-logger';
 import { generateRequestId, REQUEST_ID_HEADER } from '@/lib/request-id';
 import { recordBookingCreated } from '@/lib/audit-event';
+import {
+  checkBookingHasActivePayment,
+  generateBookingIdempotencyKey,
+} from '@/lib/payment-idempotency';
 import { triggerAccountActivation } from '@/lib/account-activation';
 import { requireEmailVerifiedForBooking } from '@/lib/email-verification';
 import { getBookingTotalByDate } from '@/lib/pricing';
@@ -65,6 +69,7 @@ interface ApiResponse {
   success: boolean;
   bookingId?: string;
   paymentUrl?: string;
+  paymentId?: string | null; // ID externo do pagamento (para debug)
   paymentMethod?: 'PIX' | 'CREDIT_CARD';
   installmentCount?: number;
   installmentValue?: number;
@@ -470,6 +475,19 @@ export default async function handler(
 
     if (data.payNow && result.amountToPay > 0) {
       try {
+        // P0-1: Verificar se já existe pagamento ativo para este booking (idempotência)
+        const existingPayment = await checkBookingHasActivePayment(result.booking.id);
+        if (existingPayment.exists && existingPayment.existingPayment?.externalUrl) {
+          console.log(`\u26a0\ufe0f [BOOKING] Pagamento já existe para booking ${result.booking.id}, retornando URL existente`);
+          return res.status(201).json({
+            success: true,
+            bookingId: result.booking.id,
+            paymentUrl: existingPayment.existingPayment.externalUrl,            paymentId: existingPayment.existingPayment.externalId, // P0-1: Para debug            paymentMethod: data.paymentMethod === 'CARD' ? 'CREDIT_CARD' : 'PIX',
+            creditsUsed: result.creditsUsed,
+            amountToPay: result.amountToPay,
+          });
+        }
+
         const basePaymentInput = {
           bookingId: result.booking.id,
           customerName: data.userName,
@@ -525,6 +543,7 @@ export default async function handler(
             status: 'PENDING',
             externalId: paymentResult.paymentId,
             externalUrl: paymentResult.invoiceUrl,
+            idempotencyKey: generateBookingIdempotencyKey(result.booking.id, data.paymentMethod),
           },
         });
 

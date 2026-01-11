@@ -543,29 +543,41 @@ export default async function handler(
                 select: { id: true, status: true, remainingAmount: true, amount: true },
               });
               
-              if (credit && credit.status === 'USED') {
-                // Restaurar crédito: status volta para CONFIRMED, remainingAmount aumenta
-                await prisma.credit.update({
-                  where: { id: creditId },
-                  data: {
-                    status: 'CONFIRMED',
-                    remainingAmount: Math.min(credit.amount, credit.remainingAmount + restoreAmount),
-                  },
-                });
-                console.log(`✅ [Asaas Webhook] Crédito ${creditId} restaurado: +${restoreAmount} centavos`);
+              // P0-3: Restaurar crédito se USED OU parcialmente consumido (remainingAmount < amount)
+              const isUsed = credit?.status === 'USED';
+              const isPartiallyConsumed = credit && credit.remainingAmount < credit.amount;
+              
+              if (credit && (isUsed || isPartiallyConsumed)) {
+                // Calcular quanto foi realmente usado deste crédito
+                const usedAmount = credit.amount - credit.remainingAmount;
+                // Não restaurar mais do que foi usado
+                const actualRestore = Math.min(restoreAmount, usedAmount);
                 
-                await logAudit({
-                  action: 'CREDIT_REFUNDED',
-                  source: 'SYSTEM',
-                  targetType: 'Credit',
-                  targetId: creditId,
-                  metadata: { 
-                    event, 
-                    bookingId: actualBookingId,
-                    restoredAmount: restoreAmount,
-                    reason: 'booking_refunded',
-                  },
-                });
+                if (actualRestore > 0) {
+                  // Restaurar crédito: status volta para CONFIRMED, remainingAmount aumenta
+                  await prisma.credit.update({
+                    where: { id: creditId },
+                    data: {
+                      status: 'CONFIRMED',
+                      remainingAmount: Math.min(credit.amount, credit.remainingAmount + actualRestore),
+                    },
+                  });
+                  console.log(`✅ [Asaas Webhook] Crédito ${creditId} restaurado: +${actualRestore} centavos (usedAmount=${usedAmount}, wasPartial=${isPartiallyConsumed})`);
+                  
+                  await logAudit({
+                    action: 'CREDIT_REFUNDED',
+                    source: 'SYSTEM',
+                    targetType: 'Credit',
+                    targetId: creditId,
+                    metadata: { 
+                      event, 
+                      bookingId: actualBookingId,
+                      restoredAmount: actualRestore,
+                      reason: 'booking_refunded',
+                      wasPartiallyConsumed: isPartiallyConsumed,
+                    },
+                  });
+                }
               }
             }
           }

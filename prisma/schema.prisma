@@ -37,6 +37,8 @@ model User {
   emailActivationTokens EmailActivationToken[]
   refundRequests  RefundRequest[]  @relation("UserRefundRequests")
   reviewedRefunds RefundRequest[]  @relation("AdminReviewedRefunds")
+  couponUsages    CouponUsage[]
+  refunds         Refund[]
 
   @@map("users")
 }
@@ -99,6 +101,12 @@ model Booking {
   refundType      RefundType?    // Tipo de devolução: CREDITS ou MONEY
   cancelledAt     DateTime?      // Data/hora do cancelamento
   cancelReason    String?        // Motivo do cancelamento
+  // ========== AUDITORIA DE DESCONTO/CUPOM ==========
+  grossAmount     Int?           // Valor bruto antes de desconto (centavos)
+  discountAmount  Int?           // Valor do desconto aplicado (centavos)
+  netAmount       Int?           // Valor líquido após desconto (centavos)
+  couponCode      String?        // Código do cupom aplicado
+  couponSnapshot  Json?          // Snapshot do cupom {discountType, value, description}
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   product         Product?       @relation(fields: [productId], references: [id])
@@ -106,6 +114,7 @@ model Booking {
   subletRequest   SubletRequest? @relation(fields: [subletRequestId], references: [id])
   user            User           @relation(fields: [userId], references: [id])
   refundRequest   RefundRequest?
+  refund          Refund?
 
   @@index([roomId, startTime, endTime])
   @@index([userId])
@@ -152,6 +161,12 @@ model Credit {
   referenceYear   Int
   expiresAt       DateTime?
   usedAt          DateTime?
+  // ========== AUDITORIA DE DESCONTO/CUPOM ==========
+  grossAmount     Int?           // Valor bruto antes de desconto (centavos)
+  discountAmount  Int?           // Valor do desconto aplicado (centavos)
+  netAmount       Int?           // Valor líquido após desconto (centavos)
+  couponCode      String?        // Código do cupom aplicado
+  couponSnapshot  Json?          // Snapshot do cupom {discountType, value, description}
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   subletRequest   SubletRequest? @relation(fields: [subletRequestId], references: [id])
@@ -446,7 +461,8 @@ enum FinancialStatus {
   PENDING_PAYMENT
   PAID
   COURTESY
-  REFUNDED  // P-007: Estornado via gateway ou chargeback
+  REFUNDED        // P-007: Estornado via gateway ou chargeback
+  PARTIAL_REFUND  // Refund parcial - aguarda revisão manual
 }
 
 enum AuditSource {
@@ -573,4 +589,93 @@ model AuditEvent {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("audit_events")
+}
+
+// ===========================================================
+// CouponUsage - Rastreamento de Uso de Cupons (Anti-Fraude)
+// ===========================================================
+// Registra cada uso de cupom para impedir reutilização indevida
+// Especialmente importante para PRIMEIRACOMPRA (única por usuário)
+
+model CouponUsage {
+  id         String            @id @default(cuid())
+  userId     String
+  couponCode String            // Código do cupom (ex: PRIMEIRACOMPRA)
+  context    CouponUsageContext
+  bookingId  String?
+  creditId   String?
+  status     CouponUsageStatus @default(USED)
+  createdAt  DateTime          @default(now())
+  restoredAt DateTime?         // Data de restauração (quando aplicável)
+  
+  user       User              @relation(fields: [userId], references: [id])
+
+  @@unique([userId, couponCode, context]) // Impede cupom duplicado no mesmo contexto
+  @@index([couponCode])
+  @@index([userId])
+  @@map("coupon_usages")
+}
+
+enum CouponUsageContext {
+  BOOKING
+  CREDIT_PURCHASE
+}
+
+enum CouponUsageStatus {
+  USED
+  RESTORED // Restaurado (para cupons reutilizáveis - não inclui PRIMEIRACOMPRA)
+}
+
+// ===========================================================
+// Refund - Registro de Reembolso para Idempotência
+// ===========================================================
+// Garante que um booking só pode ter UM reembolso
+// Registra valores corretos (NET + créditos usados, NUNCA gross)
+
+model Refund {
+  id                 String            @id @default(cuid())
+  bookingId          String            @unique // UNIQUE = um refund por booking
+  userId             String
+  
+  // Valores para auditoria
+  creditsReturned    Int               // Valor em centavos devolvido como crédito
+  moneyReturned      Int               // Valor em centavos devolvido como dinheiro
+  totalRefunded      Int               // creditsReturned + moneyReturned
+  
+  // Campos para refund parcial
+  expectedAmount     Int?              // Valor total esperado (NET + créditos)
+  refundedAmount     Int?              // Valor efetivamente estornado pelo gateway
+  isPartial          Boolean           @default(false) // true = refund parcial
+  
+  // Gateway/Método de devolução
+  gateway            RefundGateway     @default(MANUAL)
+  externalRefundId   String?           // ID do refund no Asaas (quando via API)
+  
+  // Status do reembolso
+  status             RefundRecordStatus @default(PENDING)
+  
+  // Metadados
+  reason             String?           // Motivo do reembolso
+  processedBy        String?           // ID do admin que processou
+  processedAt        DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  
+  booking            Booking           @relation(fields: [bookingId], references: [id])
+  user               User              @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("refunds")
+}
+
+enum RefundGateway {
+  MANUAL  // Créditos gerados manualmente no sistema
+  ASAAS   // Devolução via API do Asaas
+}
+
+enum RefundRecordStatus {
+  PENDING   // Aguardando processamento
+  COMPLETED // Reembolso concluído com sucesso
+  FAILED    // Falha no processamento
 }

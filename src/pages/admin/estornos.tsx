@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { requireAdminSSR, AuthUser } from '@/lib/auth';
+import { ADMIN_COPY } from '@/lib/policies';
 
 interface RefundItem {
   id: string;
@@ -28,6 +29,28 @@ interface RefundItem {
   reviewedBy: string | null;
   reviewedAt: string | null;
   paidAt: string | null;
+  createdAt: string;
+}
+
+// Tipo para refunds parciais/pendentes (vindos do gateway)
+interface PendingRefund {
+  id: string;
+  bookingId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  roomName: string;
+  bookingDate: string;
+  expectedAmount: number;
+  refundedAmount: number;
+  creditsReturned: number;
+  moneyReturned: number;
+  totalRefunded: number;
+  isPartial: boolean;
+  status: string;
+  gateway: string;
+  externalRefundId: string | null;
+  reason: string | null;
   createdAt: string;
 }
 
@@ -58,6 +81,10 @@ export default function AdminEstornosPage({ user: _user }: PageProps) {
   const [successMessage, setSuccessMessage] = useState('');
   const [filter, setFilter] = useState<string>('');
   const [processingId, setProcessingId] = useState<string | null>(null);
+
+  // Estado para refunds parciais/pendentes (do gateway)
+  const [pendingRefunds, setPendingRefunds] = useState<PendingRefund[]>([]);
+  const [loadingPending, setLoadingPending] = useState(true);
 
   // Modal state
   const [actionModal, setActionModal] = useState<{
@@ -92,9 +119,26 @@ export default function AdminEstornosPage({ user: _user }: PageProps) {
     }
   }, [filter]);
 
+  // Fetch refunds parciais/pendentes do gateway
+  const fetchPendingRefunds = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/refunds/pending');
+      const data = await res.json();
+      if (data.ok) {
+        setPendingRefunds(data.refunds || []);
+      }
+    } catch {
+      // Silenciar erro - seção é opcional
+      console.error('Erro ao buscar refunds pendentes');
+    } finally {
+      setLoadingPending(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchRefunds();
-  }, [fetchRefunds]);
+    fetchPendingRefunds();
+  }, [fetchRefunds, fetchPendingRefunds]);
 
   // Formatar data
   function formatDate(dateStr: string): string {
@@ -289,6 +333,61 @@ export default function AdminEstornosPage({ user: _user }: PageProps) {
               <option value="REJECTED">Rejeitados</option>
             </select>
           </div>
+
+          {/* ================================================================ */}
+          {/* SEÇÃO: Refunds Parciais/Pendentes (do Gateway) */}
+          {/* ================================================================ */}
+          {!loadingPending && pendingRefunds.length > 0 && (
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-orange-600 text-xl">⚠️</span>
+                <h2 className="text-lg font-semibold text-orange-800">
+                  {ADMIN_COPY.partialRefunds.sectionTitle} ({pendingRefunds.length})
+                </h2>
+              </div>
+              <p className="text-sm text-orange-700 mb-4">
+                {ADMIN_COPY.partialRefunds.description}
+              </p>
+              <div className="space-y-2">
+                {pendingRefunds.map((refund) => (
+                  <div 
+                    key={refund.id} 
+                    className="bg-white rounded-lg p-3 border border-orange-200 flex items-center justify-between"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-900">{refund.userName}</span>
+                        <span className="text-gray-400">•</span>
+                        <span className="text-sm text-gray-600">{refund.roomName}</span>
+                        {refund.isPartial && (
+                          <span className="px-2 py-0.5 text-xs bg-orange-100 text-orange-700 rounded-full">
+                            Parcial
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-500 mt-1">
+                        Esperado: {formatCurrency(refund.expectedAmount)} → 
+                        Estornado: <span className="text-orange-600 font-medium">{formatCurrency(refund.refundedAmount)}</span>
+                        <span className="text-gray-400 ml-2">
+                          (Diferença: {formatCurrency(refund.expectedAmount - refund.refundedAmount)})
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        {refund.gateway} • {new Date(refund.createdAt).toLocaleDateString('pt-BR')}
+                        {refund.externalRefundId && ` • ID: ${refund.externalRefundId}`}
+                      </div>
+                    </div>
+                    <Link
+                      href={`/admin?booking=${refund.bookingId}`}
+                      className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+                    >
+                      Ver Booking
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Mensagens */}
           {successMessage && (

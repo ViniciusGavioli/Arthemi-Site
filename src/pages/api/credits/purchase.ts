@@ -17,7 +17,7 @@ import { checkApiRateLimit, getClientIp, sendRateLimitResponse } from '@/lib/api
 import { resolveOrCreateUser } from '@/lib/user-resolve';
 import { getAuthFromRequest } from '@/lib/auth';
 import { withTimeout, getSafeErrorMessage, TIMEOUTS } from '@/lib/production-safety';
-import { isValidCoupon, applyDiscount } from '@/lib/coupons';
+import { isValidCoupon, applyDiscount, checkCouponUsage, recordCouponUsage, createCouponSnapshot } from '@/lib/coupons';
 import { logPurchaseCreated } from '@/lib/operation-logger';
 import { generateRequestId, REQUEST_ID_HEADER } from '@/lib/request-id';
 import { recordPurchaseCreated } from '@/lib/audit-event';
@@ -254,18 +254,28 @@ export default async function handler(
       });
     }
 
-    // Aplicar cupom (P1-5: usando lib/coupons centralizada)
+    // ========== AUDITORIA: Guardar valor bruto antes de cupom ==========
+    const grossAmount = amount;
+    let discountAmount = 0;
     let couponApplied: string | null = null;
+    let couponSnapshot: object | null = null;
 
+    // Aplicar cupom (P1-5: usando lib/coupons centralizada)
     if (data.couponCode) {
       const couponKey = data.couponCode.toUpperCase().trim();
       
       if (isValidCoupon(couponKey)) {
+        // Validação de uso será feita dentro da transação
         const discountResult = applyDiscount(amount, couponKey);
+        discountAmount = discountResult.discountAmount;
         amount = discountResult.finalAmount;
         couponApplied = couponKey;
+        couponSnapshot = createCouponSnapshot(couponKey);
       }
     }
+    
+    // netAmount é o valor após desconto
+    const netAmount = amount;
 
     // Transação atômica
     const result = await prisma.$transaction(async (tx) => {
@@ -288,6 +298,14 @@ export default async function handler(
         });
         userId = user.id;
         isAnonymousCheckout = true; // Flag para disparo de email de ativação
+      }
+
+      // P1-5: Verificar se usuário pode usar este cupom (ex: PRIMEIRACOMPRA single-use)
+      if (couponApplied) {
+        const usageCheck = await checkCouponUsage(tx, userId, couponApplied, 'CREDIT_PURCHASE');
+        if (!usageCheck.canUse) {
+          throw new Error(`CUPOM_INVALIDO: ${usageCheck.reason}`);
+        }
       }
 
       // Criar crédito PENDENTE (será ativado após pagamento)
@@ -323,8 +341,19 @@ export default async function handler(
           referenceMonth: now.getMonth() + 1,
           referenceYear: now.getFullYear(),
           expiresAt,
+          // ========== AUDITORIA DE DESCONTO/CUPOM ==========
+          grossAmount,
+          discountAmount,
+          netAmount,
+          couponCode: couponApplied,
+          couponSnapshot: couponSnapshot || undefined,
         },
       });
+
+      // ========== REGISTRAR USO DO CUPOM (Anti-fraude) ==========
+      if (couponApplied) {
+        await recordCouponUsage(tx, userId, couponApplied, 'CREDIT_PURCHASE', undefined, credit.id);
+      }
 
       return { userId, credit, isAnonymousCheckout };
     });

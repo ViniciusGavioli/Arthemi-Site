@@ -6,6 +6,12 @@
 // - < 48h: NONE (sem devolução) ou admin pode forçar
 // - Persiste cancelSource=ADMIN, refundType, cancelledAt
 // - MONEY cria RefundRequest para processamento manual
+// 
+// REGRAS IMPORTANTES (AUDITORIA):
+// - Reembolso SEMPRE = NET (valor pago após desconto) + créditos usados
+// - NUNCA devolver GROSS (valor cheio antes do desconto)
+// - Cupom NÃO volta após cancelamento (fica "burned")
+// - $transaction garante atomicidade e idempotência via Refund record
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
@@ -91,6 +97,17 @@ export default async function handler(
       });
     }
 
+    // Proteção 2: Verificar se já existe Refund (idempotência)
+    const existingRefund = await prisma.refund.findUnique({
+      where: { bookingId },
+    });
+    if (existingRefund) {
+      return res.status(400).json({
+        success: false,
+        error: 'Já existe um reembolso processado para esta reserva',
+      });
+    }
+
     // ================================================================
     // 3. CASO ESPECIAL: COURTESY
     // ================================================================
@@ -130,15 +147,23 @@ export default async function handler(
     }
 
     // ================================================================
-    // 4. CALCULAR ANTECEDÊNCIA E VALOR
+    // 4. CALCULAR ANTECEDÊNCIA E VALOR (REGRA: sempre NET, nunca GROSS)
     // ================================================================
     const now = new Date();
     const hoursUntilStart = differenceInHours(booking.startTime, now);
     const canRefundByPolicy = hoursUntilStart >= MIN_CANCELLATION_HOURS;
 
+    // AUDITORIA: Usar netAmount se disponível, senão fallback para amountPaid
+    // creditsUsed já é o valor líquido (créditos consumidos)
     const creditsUsed = booking.creditsUsed || 0;
-    const amountPaid = booking.amountPaid || 0;
-    const totalValue = creditsUsed + amountPaid;
+    
+    // netAmount = valor líquido pago (após desconto de cupom)
+    // amountPaid = fallback para bookings antigos sem netAmount
+    // NUNCA usar grossAmount para reembolso!
+    const moneyPaid = booking.netAmount ?? booking.amountPaid ?? 0;
+    
+    // Total a devolver = créditos usados + valor pago (NET)
+    const totalRefundValue = creditsUsed + moneyPaid;
 
     // ================================================================
     // 5. DETERMINAR REFUND TYPE
@@ -158,112 +183,111 @@ export default async function handler(
       }
     } else {
       // Comportamento automático: >= 48h = CREDITS, < 48h = NONE
-      finalRefundType = (canRefundByPolicy && totalValue > 0) ? 'CREDITS' : 'NONE';
+      finalRefundType = (canRefundByPolicy && totalRefundValue > 0) ? 'CREDITS' : 'NONE';
     }
 
     // ================================================================
-    // 6. PROCESSAR DEVOLUÇÃO
+    // 6. PROCESSAR DEVOLUÇÃO COM $transaction (ATÔMICO + IDEMPOTENTE)
     // ================================================================
-    let creditId: string | null = null;
-    let refundRequestId: string | null = null;
-    let creditAmount = 0;
-    let refundPercentage = 0;
+    // Tudo dentro de uma transação para garantir consistência
+    // O registro Refund garante idempotência (UNIQUE bookingId)
 
-    if (finalRefundType === 'CREDITS' && totalValue > 0) {
-      // DEVOLUÇÃO EM CRÉDITOS
-      refundPercentage = 100;
-      creditAmount = totalValue;
+    const result = await prisma.$transaction(async (tx) => {
+      let creditId: string | null = null;
+      let refundRequestId: string | null = null;
+      let creditsReturned = 0;
+      let moneyReturned = 0;
 
-      const expiresAt = addMonths(now, CREDIT_VALIDITY_MONTHS);
+      if (finalRefundType === 'CREDITS' && totalRefundValue > 0) {
+        // DEVOLUÇÃO EM CRÉDITOS
+        creditsReturned = totalRefundValue;
 
-      const credit = await prisma.credit.create({
+        const expiresAt = addMonths(now, CREDIT_VALIDITY_MONTHS);
+
+        const credit = await tx.credit.create({
+          data: {
+            userId: booking.userId,
+            roomId: booking.roomId,
+            amount: creditsReturned,
+            remainingAmount: creditsReturned,
+            type: 'CANCELLATION',
+            status: 'CONFIRMED',
+            sourceBookingId: bookingId,
+            referenceMonth: now.getMonth() + 1,
+            referenceYear: now.getFullYear(),
+            expiresAt,
+          },
+        });
+
+        creditId = credit.id;
+
+      } else if (finalRefundType === 'MONEY' && totalRefundValue > 0) {
+        // DEVOLUÇÃO EM DINHEIRO - CRIAR REFUND REQUEST
+        moneyReturned = totalRefundValue;
+
+        const refundRequest = await tx.refundRequest.create({
+          data: {
+            bookingId,
+            userId: booking.userId,
+            amount: totalRefundValue,
+            pixKeyType: pixKeyType!,
+            pixKey: pixKey!,
+            status: 'APPROVED', // Já aprovado pelo admin
+            reason: reason || 'Cancelamento administrativo',
+          },
+        });
+
+        refundRequestId = refundRequest.id;
+      }
+
+      // ================================================================
+      // 6.1. CRIAR REFUND RECORD (IDEMPOTÊNCIA)
+      // ================================================================
+      // UNIQUE(bookingId) garante que não pode haver duplicatas
+      await tx.refund.create({
         data: {
-          userId: booking.userId,
-          roomId: booking.roomId,
-          amount: creditAmount,
-          remainingAmount: creditAmount,
-          type: 'CANCELLATION',
-          status: 'CONFIRMED',
-          sourceBookingId: bookingId,
-          referenceMonth: now.getMonth() + 1,
-          referenceYear: now.getFullYear(),
-          expiresAt,
-        },
-      });
-
-      creditId = credit.id;
-
-      await logAdminAction(
-        'CREDIT_REFUNDED',
-        'Credit',
-        credit.id,
-        {
           bookingId,
           userId: booking.userId,
-          amount: creditAmount,
-          refundType: 'CREDITS',
-        },
-        req
-      );
-    } else if (finalRefundType === 'MONEY' && totalValue > 0) {
-      // DEVOLUÇÃO EM DINHEIRO - CRIAR REFUND REQUEST
-      refundPercentage = 100;
-      creditAmount = totalValue;
-
-      const refundRequest = await prisma.refundRequest.create({
-        data: {
-          bookingId,
-          userId: booking.userId,
-          amount: totalValue,
-          pixKeyType: pixKeyType!,
-          pixKey: pixKey!,
-          status: 'APPROVED', // Já aprovado pelo admin
+          creditsReturned,
+          moneyReturned,
+          totalRefunded: creditsReturned + moneyReturned,
+          gateway: finalRefundType === 'MONEY' ? 'MANUAL' : 'MANUAL',
+          status: 'COMPLETED',
           reason: reason || 'Cancelamento administrativo',
+          processedAt: now,
         },
       });
 
-      refundRequestId = refundRequest.id;
+      // ================================================================
+      // 7. CANCELAR BOOKING COM CAMPOS P0-4
+      // ================================================================
+      const cancelNote = finalRefundType === 'CREDITS'
+        ? `[CANCELADO - CRÉDITO: R$ ${(creditsReturned / 100).toFixed(2)}] ${reason || ''}`
+        : finalRefundType === 'MONEY'
+          ? `[CANCELADO - ESTORNO PIX: R$ ${(moneyReturned / 100).toFixed(2)}] ${reason || ''}`
+          : `[CANCELADO - SEM DEVOLUÇÃO] ${reason || ''}`;
 
-      await logAdminAction(
-        'REFUND_REQUESTED',
-        'RefundRequest',
-        refundRequest.id,
-        {
-          bookingId,
-          userId: booking.userId,
-          amount: totalValue,
-          refundType: 'MONEY',
-          pixKeyType,
+      await tx.booking.update({
+        where: { id: bookingId },
+        data: { 
+          status: 'CANCELLED',
+          cancelSource: 'ADMIN', // P0-4
+          refundType: finalRefundType, // P0-4
+          cancelledAt: now, // P0-4
+          cancelReason: reason || null, // P0-4
+          notes: booking.notes 
+            ? `${booking.notes}\n${cancelNote}`
+            : cancelNote,
         },
-        req
-      );
-    }
+      });
 
-    // ================================================================
-    // 7. CANCELAR BOOKING COM CAMPOS P0-4
-    // ================================================================
-    const cancelNote = finalRefundType === 'CREDITS'
-      ? `[CANCELADO - CRÉDITO: R$ ${(creditAmount / 100).toFixed(2)}] ${reason || ''}`
-      : finalRefundType === 'MONEY'
-        ? `[CANCELADO - ESTORNO PIX: R$ ${(creditAmount / 100).toFixed(2)}] ${reason || ''}`
-        : `[CANCELADO - SEM DEVOLUÇÃO] ${reason || ''}`;
-
-    await prisma.booking.update({
-      where: { id: bookingId },
-      data: { 
-        status: 'CANCELLED',
-        cancelSource: 'ADMIN', // P0-4
-        refundType: finalRefundType, // P0-4
-        cancelledAt: now, // P0-4
-        cancelReason: reason || null, // P0-4
-        notes: booking.notes 
-          ? `${booking.notes}\n${cancelNote}`
-          : cancelNote,
-      },
+      return { creditId, refundRequestId, creditsReturned, moneyReturned };
     });
 
+    const totalRefunded = result.creditsReturned + result.moneyReturned;
+
     // ================================================================
-    // 8. LOG DE AUDITORIA
+    // 8. LOG DE AUDITORIA (fora da transação - best effort)
     // ================================================================
     await logAdminAction(
       'BOOKING_CANCELLED',
@@ -276,10 +300,18 @@ export default async function handler(
         hoursUntilStart,
         canRefundByPolicy,
         refundType: finalRefundType,
-        creditId,
-        refundRequestId,
-        creditAmount,
+        creditId: result.creditId,
+        refundRequestId: result.refundRequestId,
+        creditsReturned: result.creditsReturned,
+        moneyReturned: result.moneyReturned,
+        totalRefunded,
         reason,
+        // AUDITORIA: Registrar valores originais para investigação
+        bookingGrossAmount: booking.grossAmount,
+        bookingDiscountAmount: booking.discountAmount,
+        bookingNetAmount: booking.netAmount,
+        bookingCreditsUsed: creditsUsed,
+        bookingCouponCode: booking.couponCode,
       },
       req
     );
@@ -288,20 +320,20 @@ export default async function handler(
     // 9. RESPOSTA
     // ================================================================
     let message: string;
-    if (finalRefundType === 'CREDITS' && creditAmount > 0) {
-      message = `Reserva cancelada. Crédito de R$ ${(creditAmount / 100).toFixed(2)} devolvido.`;
-    } else if (finalRefundType === 'MONEY' && creditAmount > 0) {
-      message = `Reserva cancelada. Estorno de R$ ${(creditAmount / 100).toFixed(2)} em processamento (PIX).`;
+    if (finalRefundType === 'CREDITS' && result.creditsReturned > 0) {
+      message = `Reserva cancelada. Crédito de R$ ${(result.creditsReturned / 100).toFixed(2)} devolvido.`;
+    } else if (finalRefundType === 'MONEY' && result.moneyReturned > 0) {
+      message = `Reserva cancelada. Estorno de R$ ${(result.moneyReturned / 100).toFixed(2)} em processamento (PIX).`;
     } else {
       message = 'Reserva cancelada (sem devolução).';
     }
 
     return res.status(200).json({
       success: true,
-      creditId,
-      refundRequestId,
-      creditAmount,
-      refundPercentage,
+      creditId: result.creditId,
+      refundRequestId: result.refundRequestId,
+      creditAmount: totalRefunded,
+      refundPercentage: totalRefunded > 0 ? 100 : 0,
       refundType: finalRefundType,
       message,
     });

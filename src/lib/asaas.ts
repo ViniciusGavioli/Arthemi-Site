@@ -104,6 +104,9 @@ export interface AsaasPayment {
   externalReference: string;
   confirmedDate?: string;
   paymentDate?: string;
+  // Campos de refund (preenchidos em eventos de estorno)
+  refundedValue?: number;        // Valor efetivamente estornado (pode ser parcial)
+  chargebackValue?: number;      // Valor do chargeback (quando aplicável)
 }
 
 export type AsaasPaymentStatus =

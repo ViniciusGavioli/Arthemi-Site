@@ -90,6 +90,16 @@ export default async function handler(
         return res.status(403).json({ error: 'Acesso não autorizado' });
       }
 
+      // Incluir campos de cupom/desconto na resposta (HARDENING UX)
+      const responseWithCoupon = {
+        ...booking,
+        // Campos de auditoria de desconto
+        grossAmount: booking.grossAmount,
+        discountAmount: booking.discountAmount,
+        netAmount: booking.netAmount,
+        couponCode: booking.couponCode,
+      };
+
       // Verificar no asaas se o pagamento foi realizado e atualizar status da reserva se necessário
       try {
       const payment = await getPaymentByExternalReference(booking.id);
@@ -159,7 +169,8 @@ export default async function handler(
     } catch (error) {
       console.error(`❌ [BOOKING] Erro ao processar pagamento da reserva ${booking.id}:`, error);
     }
-      return res.status(200).json(booking);
+      // Retornar booking com campos de cupom/desconto
+      return res.status(200).json(responseWithCoupon);
     } catch (error) {
       console.error('Get booking error:', error);
       return res.status(500).json({ error: 'Erro ao buscar reserva' });

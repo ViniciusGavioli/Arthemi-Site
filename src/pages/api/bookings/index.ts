@@ -18,7 +18,7 @@ import {
   TIMEOUTS,
   cpfInUseByOther,
 } from '@/lib/production-safety';
-import { isValidCoupon, applyDiscount } from '@/lib/coupons';
+import { isValidCoupon, applyDiscount, checkCouponUsage, recordCouponUsage, createCouponSnapshot, getCouponInfo } from '@/lib/coupons';
 import { 
   getAvailableCreditsForRoom, 
   consumeCreditsForBooking,
@@ -276,17 +276,33 @@ export default async function handler(
         }
       }
 
-      // 6.0.1 Aplicar cupom de desconto se fornecido (P1-5: lib/coupons centralizada)
+      // ========== AUDITORIA: Guardar valor bruto antes de cupom ==========
+      const grossAmount = amount;
+      let discountAmount = 0;
       let couponApplied: string | null = null;
+      let couponSnapshot: object | null = null;
+
+      // 6.0.1 Aplicar cupom de desconto se fornecido (P1-5: lib/coupons centralizada)
       if (data.couponCode) {
         const couponKey = data.couponCode.toUpperCase().trim();
         
         if (isValidCoupon(couponKey)) {
+          // P1-5: Verificar se usuário pode usar este cupom (ex: PRIMEIRACOMPRA single-use)
+          const usageCheck = await checkCouponUsage(tx, userId, couponKey, 'BOOKING');
+          if (!usageCheck.canUse) {
+            throw new Error(`CUPOM_INVALIDO: ${usageCheck.reason}`);
+          }
+          
           const discountResult = applyDiscount(amount, couponKey);
+          discountAmount = discountResult.discountAmount;
           amount = discountResult.finalAmount;
           couponApplied = couponKey;
+          couponSnapshot = createCouponSnapshot(couponKey);
         }
       }
+      
+      // netAmount é o valor após desconto
+      const netAmount = amount;
 
       // 6.1 Verificar e aplicar créditos se solicitado
       let creditsUsed = 0;
@@ -348,10 +364,21 @@ export default async function handler(
           creditIds,
           origin: 'COMMERCIAL',
           financialStatus,
+          // ========== AUDITORIA DE DESCONTO/CUPOM ==========
+          grossAmount,
+          discountAmount,
+          netAmount,
+          couponCode: couponApplied,
+          couponSnapshot: couponSnapshot || undefined,
         },
       });
 
-      return { booking, userId, amount, amountToPay, creditsUsed, hours, isAnonymousCheckout };
+      // ========== REGISTRAR USO DO CUPOM (Anti-fraude) ==========
+      if (couponApplied) {
+        await recordCouponUsage(tx, userId, couponApplied, 'BOOKING', booking.id);
+      }
+
+      return { booking, userId, amount, amountToPay, creditsUsed, hours, isAnonymousCheckout, grossAmount, discountAmount, couponApplied };
     });
 
     // ATIVAÇÃO DE CONTA (best-effort) - Apenas checkout anônimo

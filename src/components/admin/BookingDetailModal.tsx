@@ -395,6 +395,14 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
                 <p className="text-xs text-gray-500">
                   Antecedência: {hoursUntilStart}h | Política automática: {willRefundCredits ? 'devolveria créditos' : 'não devolveria (< 48h)'}
                 </p>
+                
+                {/* HARDENING: Aviso sobre cupons */}
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 mt-3">
+                  <p className="font-medium">⚠️ Importante</p>
+                  <p className="mt-1 text-amber-700">
+                    Reembolso é do valor efetivamente pago. Cupons promocionais não são restaurados.
+                  </p>
+                </div>
               </div>
             )}
             

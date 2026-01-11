@@ -319,6 +319,7 @@ export default async function handler(
     }
 
     // 4.1 Tratar REFUND/CHARGEBACK - Atualizar status financeiro SEM cancelar booking
+    // HARDENING: Idempotência via Refund record + não duplicar créditos
     if (isPaymentRefundedOrChargeback(event)) {
       console.log(`⚠️ [Asaas Webhook] Evento de estorno/chargeback: ${event}`, {
         paymentId: payment.id,
@@ -365,30 +366,158 @@ export default async function handler(
         
         const booking = await prisma.booking.findUnique({
           where: { id: actualBookingId },
-          select: { id: true, status: true, creditIds: true, creditsUsed: true },
+          select: { 
+            id: true, 
+            userId: true,
+            status: true, 
+            creditIds: true, 
+            creditsUsed: true,
+            netAmount: true,
+            amountPaid: true,
+          },
         });
 
         if (booking) {
+          // ===============================================================
+          // HARDENING IDEMPOTÊNCIA: Verificar se já existe Refund para booking
+          // ===============================================================
+          const existingRefund = await prisma.refund.findUnique({
+            where: { bookingId: actualBookingId },
+          });
+
+          if (existingRefund) {
+            // Refund já existe - apenas atualizar status se necessário
+            if (existingRefund.status === 'PENDING') {
+              await prisma.refund.update({
+                where: { id: existingRefund.id },
+                data: {
+                  status: 'COMPLETED',
+                  gateway: 'ASAAS',
+                  externalRefundId: payment.id,
+                  processedAt: new Date(),
+                },
+              });
+              console.log(`✅ [Asaas Webhook] Refund ${existingRefund.id} marcado COMPLETED (gateway confirmou)`);
+            } else {
+              console.log(`⏭️ [Asaas Webhook] Refund já existe para booking ${actualBookingId} (status: ${existingRefund.status}) - ignorando duplicata`);
+            }
+            
+            // Atualizar booking para REFUNDED se ainda não estiver
+            if (booking.status !== 'CANCELLED' || !['REFUNDED'].includes(booking.status)) {
+              await prisma.booking.update({
+                where: { id: actualBookingId },
+                data: {
+                  financialStatus: 'REFUNDED',
+                  paymentStatus: 'REFUNDED',
+                },
+              });
+            }
+
+            await prisma.webhookEvent.update({
+              where: { eventId },
+              data: { status: 'PROCESSED' },
+            });
+
+            return res.status(200).json({ 
+              received: true, 
+              event,
+              action: 'refund_already_exists',
+              refundId: existingRefund.id,
+            });
+          }
+
+          // ===============================================================
+          // Nenhum Refund interno - criar idempotente (gateway iniciou refund)
+          // ===============================================================
+          
+          // Calcular valor esperado (NET + créditos usados)
+          const creditsUsedAmount = booking.creditsUsed || 0;
+          const moneyPaidAmount = booking.netAmount || booking.amountPaid || 0;
+          const expectedAmount = creditsUsedAmount + moneyPaidAmount;
+          
+          // Obter valor efetivamente estornado do payload
+          // Prioridade: refundedValue > chargebackValue > value > fallback para esperado
+          let refundedAmount: number;
+          if (payment.refundedValue !== undefined && payment.refundedValue > 0) {
+            refundedAmount = realToCents(payment.refundedValue);
+          } else if (payment.chargebackValue !== undefined && payment.chargebackValue > 0) {
+            refundedAmount = realToCents(payment.chargebackValue);
+          } else if (payment.value !== undefined && payment.value > 0) {
+            // Fallback: usar value do payment (buscar do Payment table se necessário)
+            refundedAmount = realToCents(payment.value);
+          } else {
+            // Último fallback: buscar do Payment table no banco
+            const dbPayment = await prisma.payment.findFirst({
+              where: { 
+                OR: [
+                  { externalId: payment.id },
+                  { purchaseId: actualBookingId },
+                ],
+              },
+              select: { amount: true },
+            });
+            refundedAmount = dbPayment?.amount || expectedAmount;
+          }
+          
+          // Determinar se é refund parcial (tolerância de 1% para arredondamentos)
+          const tolerance = Math.max(100, expectedAmount * 0.01); // mínimo R$1 ou 1%
+          const isPartial = refundedAmount < (expectedAmount - tolerance);
+          
+          console.log(`📊 [Asaas Webhook] Refund analysis: expected=${expectedAmount}, refunded=${refundedAmount}, isPartial=${isPartial}`);
+          
+          // Calcular distribuição: créditos vs dinheiro
+          // Prioridade: primeiro restaura créditos, depois dinheiro
+          const creditsRestored = Math.min(creditsUsedAmount, refundedAmount);
+          const moneyReturned = Math.max(0, refundedAmount - creditsRestored);
+
+          const newRefund = await prisma.refund.create({
+            data: {
+              bookingId: actualBookingId,
+              userId: booking.userId,
+              creditsReturned: creditsRestored,
+              moneyReturned: moneyReturned,
+              totalRefunded: creditsRestored + moneyReturned,
+              // Campos de refund parcial
+              expectedAmount,
+              refundedAmount,
+              isPartial,
+              gateway: 'ASAAS',
+              externalRefundId: payment.id,
+              // IMPORTANTE: Se parcial, manter PENDING para revisão manual
+              status: isPartial ? 'PENDING' : 'COMPLETED',
+              reason: isPartial 
+                ? `Gateway ${event}: Refund PARCIAL (${refundedAmount}/${expectedAmount} centavos)` 
+                : `Gateway ${event}: ${payment.id}`,
+              processedAt: isPartial ? null : new Date(),
+            },
+          });
+          console.log(`📝 [Asaas Webhook] Refund criado via gateway: ${newRefund.id} (isPartial=${isPartial})`);
+
           // P-013: Atualizar para REFUNDED (agora existe no enum)
+          // Se parcial, marcar como PARTIAL_REFUND no financialStatus
           await prisma.booking.update({
             where: { id: actualBookingId },
             data: {
               // status: mantém o valor atual (CONFIRMED, etc) para histórico
-              financialStatus: 'REFUNDED', // P-007: Estado final de estorno
+              financialStatus: isPartial ? 'PARTIAL_REFUND' : 'REFUNDED', // P-007: Estado final de estorno
               paymentStatus: 'REFUNDED',
-              notes: `⚠️ Estorno/Chargeback em ${new Date().toISOString()} - Evento: ${event}`,
+              notes: isPartial 
+                ? `⚠️ Estorno PARCIAL em ${new Date().toISOString()} - Evento: ${event} - Valor: ${refundedAmount}/${expectedAmount} centavos`
+                : `⚠️ Estorno/Chargeback em ${new Date().toISOString()} - Evento: ${event}`,
             },
           });
-          console.log(`💸 [Asaas Webhook] Booking financialStatus=REFUNDED: ${actualBookingId}`);
+          console.log(`💸 [Asaas Webhook] Booking financialStatus=${isPartial ? 'PARTIAL_REFUND' : 'REFUNDED'}: ${actualBookingId}`);
 
           // P-013: Se booking usou créditos, restaurar os créditos consumidos
-          if (booking.creditIds && booking.creditIds.length > 0 && booking.creditsUsed > 0) {
-            console.log(`🔄 [Asaas Webhook] Restaurando créditos para booking ${actualBookingId}...`);
+          // NOTA: Só restaura se Refund é novo (evita duplicação)
+          // IMPORTANTE: Se refund parcial, restaurar proporcionalmente ao valor estornado
+          if (booking.creditIds && booking.creditIds.length > 0 && creditsRestored > 0) {
+            console.log(`🔄 [Asaas Webhook] Restaurando créditos para booking ${actualBookingId} (${creditsRestored} centavos)...`);
             
             // Calcular valor a restaurar por crédito (proporcionalmente)
-            // Nota: simplificação - restaura valor total dividido igualmente
-            const amountPerCredit = Math.floor(booking.creditsUsed / booking.creditIds.length);
-            let remaining = booking.creditsUsed - (amountPerCredit * booking.creditIds.length);
+            // Usa creditsRestored (calculado baseado no refundedAmount, não booking.creditsUsed)
+            const amountPerCredit = Math.floor(creditsRestored / booking.creditIds.length);
+            let remaining = creditsRestored - (amountPerCredit * booking.creditIds.length);
             
             for (const creditId of booking.creditIds) {
               // Valor a restaurar para este crédito (último recebe o restante)
@@ -438,6 +567,7 @@ export default async function handler(
               reason: 'chargeback_or_refund',
               originalBookingStatus: booking.status,
               creditsRestored: booking.creditIds?.length || 0,
+              refundId: newRefund.id,
             },
           });
         }

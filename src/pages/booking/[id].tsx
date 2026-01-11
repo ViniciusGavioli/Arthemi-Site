@@ -8,6 +8,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import { analytics } from '@/lib/analytics';
+import { MICROCOPY, POLICY_CONSTANTS } from '@/lib/policies';
 
 // ============================================================
 // TIPOS
@@ -23,6 +24,11 @@ interface Booking {
   paymentMethod: string | null;
   notes: string | null;
   createdAt: string;
+  // Campos de auditoria de cupom/desconto
+  grossAmount: number | null;
+  discountAmount: number | null;
+  netAmount: number | null;
+  couponCode: string | null;
   room: {
     id: string;
     name: string;
@@ -254,18 +260,40 @@ export default function BookingDetailsPage() {
                 </div>
               </div>
 
-              {/* Valor */}
+              {/* Valor - Resumo com Cupom/Desconto */}
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
                   <span className="text-2xl">💰</span>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500">Valor Pago</p>
-                  <p className="text-lg font-semibold text-green-600">
-                    {formatCurrency(booking.amountPaid)}
-                  </p>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-500">Resumo do Pagamento</p>
+                  
+                  {/* Se houver desconto, mostrar detalhamento */}
+                  {booking.discountAmount && booking.discountAmount > 0 ? (
+                    <div className="space-y-1 mt-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Subtotal</span>
+                        <span className="text-gray-700">{formatCurrency(booking.grossAmount || 0)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-green-600">
+                          Desconto {booking.couponCode ? `(${booking.couponCode})` : ''}
+                        </span>
+                        <span className="text-green-600">-{formatCurrency(booking.discountAmount)}</span>
+                      </div>
+                      <div className="flex justify-between pt-1 border-t border-gray-100">
+                        <span className="font-semibold text-gray-800">Total Pago</span>
+                        <span className="font-bold text-green-600">{formatCurrency(booking.netAmount || booking.amountPaid)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-lg font-semibold text-green-600">
+                      {formatCurrency(booking.amountPaid)}
+                    </p>
+                  )}
+                  
                   {booking.paymentMethod && (
-                    <p className="text-sm text-gray-400">via {booking.paymentMethod}</p>
+                    <p className="text-sm text-gray-400 mt-1">via {booking.paymentMethod}</p>
                   )}
                 </div>
               </div>
@@ -308,6 +336,16 @@ export default function BookingDetailsPage() {
 
             {/* Ações - P0-3: Apenas WhatsApp, sem cancelamento direto */}
             <div className="px-6 pb-6 space-y-3">
+              
+              {/* Aviso sobre reembolso - aparece apenas se não está cancelado */}
+              {booking.status !== 'CANCELLED' && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                  <p className="font-medium">ℹ️ {MICROCOPY.bookingDetails.refundPolicyTitle}</p>
+                  <p className="mt-1 text-amber-700">
+                    {MICROCOPY.bookingDetails.refundPolicyText}
+                  </p>
+                </div>
+              )}
               
               {/* Link WhatsApp para cancelamento */}
               {booking.status !== 'CANCELLED' && (

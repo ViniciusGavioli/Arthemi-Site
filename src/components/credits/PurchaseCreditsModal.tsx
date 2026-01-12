@@ -248,18 +248,19 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
       const data = await res.json();
 
       if (!res.ok) {
-        // Verificar se é erro de cupom
+        // Verificar se é erro de cupom pelo código estruturado
+        if (data.code === 'COUPON_INVALID' && trimmedCoupon) {
+          setCouponError(data.error || 'Cupom inválido ou não aplicável.');
+          return;
+        }
+        
+        // Fallback: detecção por texto (compatibilidade)
         const errorMsg = (data.error || '').toLowerCase();
         const isCouponError = 
           errorMsg.includes('coupon') || 
           errorMsg.includes('cupom') || 
-          errorMsg.includes('invalid') || 
           errorMsg.includes('inválido') ||
-          errorMsg.includes('expirado') ||
-          errorMsg.includes('not applicable') ||
-          errorMsg.includes('não aplicável') ||
-          data.code === 'COUPON_ALREADY_USED' ||
-          data.code === 'INVALID_COUPON';
+          errorMsg.includes('expirado');
         
         if (isCouponError && trimmedCoupon) {
           setCouponError('Cupom inválido ou não aplicável.');

@@ -5,10 +5,12 @@
 // Fluxo: User + Payment + Credit (após confirmação)
 // Suporta PIX e Cartão de Crédito
 // P-003: Idempotência - não cria cobrança duplicada
+// HOTFIX: Fallback defensivo para DB sem grossAmount
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { createBookingPayment, createBookingCardPayment } from '@/lib/asaas';
 import { brazilianPhone, validateCPF } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
@@ -75,7 +77,17 @@ interface ApiResponse {
   paymentUrl?: string;
   amount?: number;
   error?: string;
+  code?: string; // Código de erro para frontend
   details?: unknown;
+}
+
+// ========== HELPER: Verificar se erro é "coluna não existe" ==========
+function isColumnMissingError(error: unknown, columnName: string): boolean {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    const msg = error.message.toLowerCase();
+    return msg.includes(columnName.toLowerCase()) && msg.includes('does not exist');
+  }
+  return false;
 }
 
 export default async function handler(
@@ -264,14 +276,21 @@ export default async function handler(
     if (data.couponCode) {
       const couponKey = data.couponCode.toUpperCase().trim();
       
-      if (isValidCoupon(couponKey)) {
-        // Validação de uso será feita dentro da transação
-        const discountResult = applyDiscount(amount, couponKey);
-        discountAmount = discountResult.discountAmount;
-        amount = discountResult.finalAmount;
-        couponApplied = couponKey;
-        couponSnapshot = createCouponSnapshot(couponKey);
+      // Validar cupom ANTES de aplicar - retornar erro claro se inválido
+      if (!isValidCoupon(couponKey)) {
+        return res.status(400).json({
+          success: false,
+          code: 'COUPON_INVALID',
+          error: 'Cupom inválido ou não aplicável.',
+        });
       }
+      
+      // Cupom válido - aplicar desconto
+      const discountResult = applyDiscount(amount, couponKey);
+      discountAmount = discountResult.discountAmount;
+      amount = discountResult.finalAmount;
+      couponApplied = couponKey;
+      couponSnapshot = createCouponSnapshot(couponKey);
     }
     
     // netAmount é o valor após desconto
@@ -329,26 +348,50 @@ export default async function handler(
       // Determinar usageType baseado no tipo do produto
       const usageType = getUsageTypeFromProduct(productType);
 
-      const credit = await tx.credit.create({
-        data: {
-          userId: userId,
-          roomId: realRoomId,
-          amount: creditAmount,
-          remainingAmount: 0, // Será atualizado para creditAmount após pagamento
-          type: 'MANUAL', // Usando MANUAL para compras - TODO: adicionar PACKAGE
-          usageType, // Regra de uso: HOURLY, SHIFT, SATURDAY_HOURLY, etc
-          status: 'PENDING', // Pendente até pagamento confirmado
-          referenceMonth: now.getMonth() + 1,
-          referenceYear: now.getFullYear(),
-          expiresAt,
-          // ========== AUDITORIA DE DESCONTO/CUPOM ==========
-          grossAmount,
-          discountAmount,
-          netAmount,
-          couponCode: couponApplied,
-          couponSnapshot: couponSnapshot || undefined,
-        },
-      });
+      // ========== CRIAR CRÉDITO COM FALLBACK DEFENSIVO ==========
+      // Se DB não tiver colunas de auditoria (grossAmount, etc), retentar sem elas
+      let credit;
+      const baseData = {
+        userId: userId,
+        roomId: realRoomId,
+        amount: creditAmount,
+        remainingAmount: 0, // Será atualizado para creditAmount após pagamento
+        type: 'MANUAL' as const, // Usando MANUAL para compras
+        usageType, // Regra de uso: HOURLY, SHIFT, SATURDAY_HOURLY, etc
+        status: 'PENDING' as const, // Pendente até pagamento confirmado
+        referenceMonth: now.getMonth() + 1,
+        referenceYear: now.getFullYear(),
+        expiresAt,
+      };
+
+      const auditData = {
+        grossAmount,
+        discountAmount,
+        netAmount,
+        couponCode: couponApplied,
+        couponSnapshot: couponSnapshot || undefined,
+      };
+
+      try {
+        // Tentar criar com campos de auditoria
+        credit = await tx.credit.create({
+          data: { ...baseData, ...auditData },
+        });
+      } catch (createError) {
+        // FALLBACK: Se falhar por coluna inexistente, retentar sem auditoria
+        if (isColumnMissingError(createError, 'grossAmount') || 
+            isColumnMissingError(createError, 'discountAmount') ||
+            isColumnMissingError(createError, 'netAmount') ||
+            isColumnMissingError(createError, 'couponCode') ||
+            isColumnMissingError(createError, 'couponSnapshot')) {
+          console.warn('[credits/purchase] FALLBACK: Audit columns missing in DB, retrying without them');
+          credit = await tx.credit.create({
+            data: baseData,
+          });
+        } else {
+          throw createError; // Re-throw se não for erro de coluna
+        }
+      }
 
       // ========== REGISTRAR USO DO CUPOM (Anti-fraude) ==========
       if (couponApplied) {
@@ -504,11 +547,23 @@ export default async function handler(
 
   } catch (error) {
     const duration = Date.now() - startTime;
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
     console.error('[CREDIT] Erro na compra:', {
       requestId,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessage,
       duration,
     });
+
+    // Tratar erro de cupom inválido (da transação - checkCouponUsage)
+    if (errorMessage.startsWith('CUPOM_INVALIDO:')) {
+      return res.status(400).json({
+        success: false,
+        code: 'COUPON_INVALID',
+        error: errorMessage.replace('CUPOM_INVALIDO: ', ''),
+      });
+    }
+
     return res.status(500).json({
       success: false,
       error: getSafeErrorMessage(error, 'credits/purchase'),

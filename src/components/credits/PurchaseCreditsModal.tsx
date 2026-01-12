@@ -74,6 +74,10 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
     cpf: user.cpf || '',
   });
 
+  // Cupom de desconto
+  const [couponCode, setCouponCode] = useState('');
+  const [couponError, setCouponError] = useState<string | null>(null);
+
   // Gera produtos dinamicamente baseado na sala selecionada
   // USA PRICES_V3 como fonte única de verdade
   // Catálogo: Horas avulsas e Pacotes apenas
@@ -135,6 +139,10 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
       document.addEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'hidden';
       fetchRooms();
+    } else {
+      // Reset cupom quando modal fecha
+      setCouponCode('');
+      setCouponError(null);
     }
     
     return () => {
@@ -209,10 +217,14 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
 
     setSubmitting(true);
     setError('');
+    setCouponError(null);
 
     try {
       // Determinar se é hora avulsa ou produto específico
       const isAvulsa = selectedProduct.type === 'avulsa';
+      
+      // Preparar cupom (trim, enviar undefined se vazio)
+      const trimmedCoupon = couponCode.trim();
       
       const res = await fetch('/api/credits/purchase', {
         method: 'POST',
@@ -228,13 +240,32 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
           productType: !isAvulsa ? selectedProduct.productType : undefined,
           // Método de pagamento: PIX ou CARD
           paymentMethod,
+          // Cupom de desconto (opcional)
+          couponCode: trimmedCoupon || undefined,
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || 'Erro ao processar compra');
+        // Verificar se é erro de cupom
+        const errorMsg = (data.error || '').toLowerCase();
+        const isCouponError = 
+          errorMsg.includes('coupon') || 
+          errorMsg.includes('cupom') || 
+          errorMsg.includes('invalid') || 
+          errorMsg.includes('inválido') ||
+          errorMsg.includes('expirado') ||
+          errorMsg.includes('not applicable') ||
+          errorMsg.includes('não aplicável') ||
+          data.code === 'COUPON_ALREADY_USED' ||
+          data.code === 'INVALID_COUPON';
+        
+        if (isCouponError && trimmedCoupon) {
+          setCouponError('Cupom inválido ou não aplicável.');
+        } else {
+          setError(data.error || 'Erro ao processar compra');
+        }
         return;
       }
 
@@ -432,6 +463,44 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     placeholder="000.000.000-00"
                   />
+                </div>
+
+                {/* Cupom de Desconto */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cupom de desconto (opcional)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponCode}
+                      onChange={(e) => {
+                        setCouponCode(e.target.value.toUpperCase());
+                        setCouponError(null);
+                      }}
+                      className={`flex-1 px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                        couponError ? 'border-red-400' : 'border-gray-300'
+                      }`}
+                      placeholder="Ex: ARTHEMI10"
+                      disabled={submitting}
+                    />
+                    {couponCode && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCouponCode('');
+                          setCouponError(null);
+                        }}
+                        className="px-4 py-3 text-sm text-gray-600 hover:text-red-600 border border-gray-300 rounded-xl hover:border-red-300 transition-colors"
+                        disabled={submitting}
+                      >
+                        Remover
+                      </button>
+                    )}
+                  </div>
+                  {couponError && (
+                    <p className="mt-1 text-sm text-red-600">{couponError}</p>
+                  )}
                 </div>
               </div>
 

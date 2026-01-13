@@ -11,6 +11,8 @@
     "lint": "next lint",
     "migrate": "prisma migrate dev",
     "migrate:prod": "prisma migrate deploy",
+    "migrate:deploy": "node -e \"if(!process.env.DIRECT_URL){console.error('❌ DIRECT_URL não definida. Use conexão direta (porta 5432).'); process.exit(1)}\" && prisma migrate deploy",
+    "migrate:status": "prisma migrate status",
     "seed": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",

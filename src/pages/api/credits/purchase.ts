@@ -5,12 +5,10 @@
 // Fluxo: User + Payment + Credit (após confirmação)
 // Suporta PIX e Cartão de Crédito
 // P-003: Idempotência - não cria cobrança duplicada
-// HOTFIX: Fallback defensivo para DB sem grossAmount
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
 import { createBookingPayment, createBookingCardPayment } from '@/lib/asaas';
 import { brazilianPhone, validateCPF } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
@@ -79,15 +77,6 @@ interface ApiResponse {
   error?: string;
   code?: string; // Código de erro para frontend
   details?: unknown;
-}
-
-// ========== HELPER: Verificar se erro é "coluna não existe" ==========
-function isColumnMissingError(error: unknown, columnName: string): boolean {
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    const msg = error.message.toLowerCase();
-    return msg.includes(columnName.toLowerCase()) && msg.includes('does not exist');
-  }
-  return false;
 }
 
 export default async function handler(
@@ -348,50 +337,28 @@ export default async function handler(
       // Determinar usageType baseado no tipo do produto
       const usageType = getUsageTypeFromProduct(productType);
 
-      // ========== CRIAR CRÉDITO COM FALLBACK DEFENSIVO ==========
-      // Se DB não tiver colunas de auditoria (grossAmount, etc), retentar sem elas
-      let credit;
-      const baseData = {
-        userId: userId,
-        roomId: realRoomId,
-        amount: creditAmount,
-        remainingAmount: 0, // Será atualizado para creditAmount após pagamento
-        type: 'MANUAL' as const, // Usando MANUAL para compras
-        usageType, // Regra de uso: HOURLY, SHIFT, SATURDAY_HOURLY, etc
-        status: 'PENDING' as const, // Pendente até pagamento confirmado
-        referenceMonth: now.getMonth() + 1,
-        referenceYear: now.getFullYear(),
-        expiresAt,
-      };
-
-      const auditData = {
-        grossAmount,
-        discountAmount,
-        netAmount,
-        couponCode: couponApplied,
-        couponSnapshot: couponSnapshot || undefined,
-      };
-
-      try {
-        // Tentar criar com campos de auditoria
-        credit = await tx.credit.create({
-          data: { ...baseData, ...auditData },
-        });
-      } catch (createError) {
-        // FALLBACK: Se falhar por coluna inexistente, retentar sem auditoria
-        if (isColumnMissingError(createError, 'grossAmount') || 
-            isColumnMissingError(createError, 'discountAmount') ||
-            isColumnMissingError(createError, 'netAmount') ||
-            isColumnMissingError(createError, 'couponCode') ||
-            isColumnMissingError(createError, 'couponSnapshot')) {
-          console.warn('[credits/purchase] FALLBACK: Audit columns missing in DB, retrying without them');
-          credit = await tx.credit.create({
-            data: baseData,
-          });
-        } else {
-          throw createError; // Re-throw se não for erro de coluna
-        }
-      }
+      // ========== CRIAR CRÉDITO ==========
+      // Campos de auditoria requerem migração 20260110220000_coupon_audit_refund
+      const credit = await tx.credit.create({
+        data: {
+          userId: userId,
+          roomId: realRoomId,
+          amount: creditAmount,
+          remainingAmount: 0, // Será atualizado para creditAmount após pagamento
+          type: 'MANUAL' as const, // Usando MANUAL para compras
+          usageType, // Regra de uso: HOURLY, SHIFT, SATURDAY_HOURLY, etc
+          status: 'PENDING' as const, // Pendente até pagamento confirmado
+          referenceMonth: now.getMonth() + 1,
+          referenceYear: now.getFullYear(),
+          expiresAt,
+          // Campos de auditoria de desconto/cupom
+          grossAmount,
+          discountAmount,
+          netAmount,
+          couponCode: couponApplied,
+          couponSnapshot: couponSnapshot || undefined,
+        },
+      });
 
       // ========== REGISTRAR USO DO CUPOM (Anti-fraude) ==========
       if (couponApplied) {

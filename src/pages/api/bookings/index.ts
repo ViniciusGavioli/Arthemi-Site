@@ -77,6 +77,7 @@ interface ApiResponse {
   amountToPay?: number;
   emailSent?: boolean;
   error?: string;
+  message?: string; // Mensagem amigável para erros
   details?: unknown;
 }
 

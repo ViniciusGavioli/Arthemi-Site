@@ -76,6 +76,7 @@ interface ApiResponse {
   amount?: number;
   error?: string;
   code?: string; // Código de erro para frontend
+  message?: string; // Mensagem amigável para erros
   details?: unknown;
 }
 
@@ -548,12 +549,12 @@ export default async function handler(
 
     // CUPOM: Já usado (P2002 tratado como idempotência)
     if (errorMessage.startsWith('COUPON_ALREADY_USED:')) {
-      const [, code] = errorMessage.split(':');
-      console.log(`[CREDIT] Cupom já usado`, JSON.stringify({ requestId, couponCode: code }));
+      const [, couponCode] = errorMessage.split(':');
+      console.log(`[CREDIT] Cupom já usado`, JSON.stringify({ requestId, couponCode }));
       return res.status(400).json({
         success: false,
-        code: 'COUPON_ALREADY_USED',
-        error: 'Este cupom já foi utilizado.',
+        error: 'COUPON_ALREADY_USED',
+        message: 'Este cupom já foi utilizado.',
       });
     }
 

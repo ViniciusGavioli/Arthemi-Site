@@ -20,23 +20,29 @@ function createMockResponse(): NextApiResponse & {
   _statusCode: number; 
   _json: Record<string, unknown>;
 } {
-  const res = {
+  const res: { 
+    _statusCode: number; 
+    _json: Record<string, unknown>; 
+    status: (code: number) => typeof res;
+    json: (data: Record<string, unknown>) => typeof res;
+    setHeader: () => typeof res;
+  } = {
     _statusCode: 200,
     _json: {},
     status(code: number) {
-      this._statusCode = code;
-      return this;
+      res._statusCode = code;
+      return res;
     },
     json(data: Record<string, unknown>) {
-      this._json = data;
-      return this;
+      res._json = data;
+      return res;
     },
     setHeader() {
-      return this;
+      return res;
     },
-  } as unknown as NextApiResponse & { _statusCode: number; _json: Record<string, unknown> };
+  };
   
-  return res;
+  return res as unknown as NextApiResponse & { _statusCode: number; _json: Record<string, unknown> };
 }
 
 describe('API /api/coupons/validate', () => {

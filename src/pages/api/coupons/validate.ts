@@ -33,11 +33,11 @@ function checkRateLimit(ip: string): boolean {
 // Limpar entradas antigas periodicamente
 setInterval(() => {
   const now = Date.now();
-  for (const [ip, entry] of rateLimitMap.entries()) {
+  rateLimitMap.forEach((entry, ip) => {
     if (now > entry.resetAt) {
       rateLimitMap.delete(ip);
     }
-  }
+  });
 }, 60 * 1000);
 
 // Schema de validação

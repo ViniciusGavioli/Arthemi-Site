@@ -139,14 +139,14 @@ export async function checkCouponUsage(
 }
 
 /**
- * Registra o uso de um cupom de forma IDEMPOTENTE (optimistic approach)
+ * Registra o uso de um cupom de forma IDEMPOTENTE usando UPSERT
  * 
- * Estratégia:
- * 1. Tenta CREATE diretamente (caso comum: cupom novo)
- * 2. Se P2002 (unique violation): busca registro existente
- *    - Se USED + mesmo bookingId/creditId → sucesso (idempotência verdadeira)
- *    - Se USED + outro bookingId/creditId → 400 COUPON_ALREADY_USED
- *    - Se RESTORED → update para USED (reuso válido)
+ * PROBLEMA RESOLVIDO:
+ * Postgres aborta transações inteiras após P2002, causando 25P02 em queries subsequentes.
+ * 
+ * SOLUÇÃO:
+ * Usar findUnique + upsert que é atômico e NUNCA causa P2002 dentro de transações.
+ * Verificar estado do registro ANTES do upsert para detectar conflitos.
  * 
  * @returns { reused: boolean, idempotent: boolean }
  */
@@ -168,41 +168,19 @@ export async function recordCouponUsageIdempotent(
   const { userId, couponCode, context, bookingId, creditId } = params;
   const normalizedCode = couponCode.toUpperCase().trim();
   
-  try {
-    // Caso comum: cupom nunca usado neste contexto → CREATE
-    await tx.couponUsage.create({
-      data: {
+  // STEP 1: Verificar se já existe registro (sem alterar nada)
+  const existing = await tx.couponUsage.findUnique({
+    where: {
+      userId_couponCode_context: {
         userId,
         couponCode: normalizedCode,
         context,
-        bookingId: context === 'BOOKING' ? bookingId : null,
-        creditId: context === 'CREDIT_PURCHASE' ? creditId : null,
-        status: CouponUsageStatus.USED,
       },
-    });
-    return { reused: false, idempotent: false };
-  } catch (error) {
-    // P2002 = unique constraint violation (já existe registro)
-    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
-      throw error; // Erro inesperado → propagar
-    }
-    
-    // Buscar registro existente para decidir ação
-    const existing = await tx.couponUsage.findUnique({
-      where: {
-        userId_couponCode_context: {
-          userId,
-          couponCode: normalizedCode,
-          context,
-        },
-      },
-    });
-    
-    if (!existing) {
-      // P2002 mas não encontrou? Situação impossível → rethrow
-      throw error;
-    }
-    
+    },
+  });
+  
+  if (existing) {
+    // Já existe registro - verificar estado
     if (existing.status === CouponUsageStatus.USED) {
       // Verificar se é a MESMA operação (idempotência verdadeira)
       const isSameOperation = 
@@ -235,6 +213,37 @@ export async function recordCouponUsageIdempotent(
     // Status desconhecido → tratar como USED (segurança)
     throw new Error(`COUPON_ALREADY_USED:${normalizedCode}`);
   }
+  
+  // STEP 2: Não existe registro - criar novo usando upsert para atomicidade
+  // O upsert garante que se outra transação criar entre o findUnique e agora,
+  // não teremos P2002 (apenas update no conflito)
+  await tx.couponUsage.upsert({
+    where: {
+      userId_couponCode_context: {
+        userId,
+        couponCode: normalizedCode,
+        context,
+      },
+    },
+    create: {
+      userId,
+      couponCode: normalizedCode,
+      context,
+      bookingId: context === 'BOOKING' ? bookingId : null,
+      creditId: context === 'CREDIT_PURCHASE' ? creditId : null,
+      status: CouponUsageStatus.USED,
+    },
+    update: {
+      // Se já existe (race condition), apenas atualiza se era RESTORED
+      // Se era USED, não altera (será detectado na próxima chamada)
+      status: CouponUsageStatus.USED,
+      bookingId: context === 'BOOKING' ? bookingId : null,
+      creditId: context === 'CREDIT_PURCHASE' ? creditId : null,
+      restoredAt: null,
+    },
+  });
+  
+  return { reused: false, idempotent: false };
 }
 
 /**

@@ -114,17 +114,7 @@ export function CreditBookingWizard({
   const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [resendMessage, setResendMessage] = useState('');
 
-  useEffect(() => {
-    fetchInitialData();
-  }, [userId]);
-
-  useEffect(() => {
-    if (selectedRoom && selectedDate) {
-      fetchAvailability();
-    }
-  }, [selectedRoom, selectedDate]);
-
-  async function fetchInitialData() {
+  const fetchInitialData = useCallback(async () => {
     try {
       // Busca créditos
       const creditsRes = await fetch('/api/user/credits');
@@ -161,9 +151,9 @@ export function CreditBookingWizard({
     } finally {
       setLoading(false);
     }
-  }
+  }, [userId]);
 
-  async function fetchAvailability() {
+  const fetchAvailability = useCallback(async () => {
     if (!selectedRoom || !selectedDate) return;
 
     setLoadingSlots(true);
@@ -182,7 +172,17 @@ export function CreditBookingWizard({
     } finally {
       setLoadingSlots(false);
     }
-  }
+  }, [selectedRoom, selectedDate]);
+
+  useEffect(() => {
+    fetchInitialData();
+  }, [fetchInitialData]);
+
+  useEffect(() => {
+    if (selectedRoom && selectedDate) {
+      fetchAvailability();
+    }
+  }, [selectedRoom, selectedDate, fetchAvailability]);
 
   function formatCurrency(cents: number): string {
     return (cents / 100).toLocaleString('pt-BR', {

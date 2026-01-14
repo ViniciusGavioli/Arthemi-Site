@@ -297,7 +297,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
         setFormData(prev => ({ ...prev, duration: Math.max(1, maxDuration) }));
       }
     }
-  }, [formData.startHour, formData.date, formData.productType, formData.duration]);
+  }, [formData.startHour, formData.date, formData.productType, formData.duration, availabilitySlots]);
 
   // Produtos filtrados para esta sala - apenas pacotes de horas
   // Turnos (SHIFT_FIXED, SATURDAY_SHIFT) são tratados manualmente via WhatsApp/Admin

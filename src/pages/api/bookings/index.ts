@@ -590,8 +590,7 @@ export default async function handler(
         
         return res.status(502).json({
           success: false,
-          error: 'ASAAS_CREATE_FAILED',
-          message: 'Erro ao gerar pagamento. Tente novamente em alguns segundos.',
+          error: 'Erro ao gerar pagamento. Tente novamente em alguns segundos.',
         });
       }
     }

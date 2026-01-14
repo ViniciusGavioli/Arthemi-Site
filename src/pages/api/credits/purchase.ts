@@ -17,7 +17,7 @@ import { checkApiRateLimit, getClientIp, sendRateLimitResponse } from '@/lib/api
 import { resolveOrCreateUser } from '@/lib/user-resolve';
 import { getAuthFromRequest } from '@/lib/auth';
 import { withTimeout, getSafeErrorMessage, TIMEOUTS } from '@/lib/production-safety';
-import { isValidCoupon, applyDiscount, checkCouponUsage, recordCouponUsage, createCouponSnapshot } from '@/lib/coupons';
+import { isValidCoupon, applyDiscount, checkCouponUsage, recordCouponUsageIdempotent, createCouponSnapshot } from '@/lib/coupons';
 import { logPurchaseCreated } from '@/lib/operation-logger';
 import { generateRequestId, REQUEST_ID_HEADER } from '@/lib/request-id';
 import { recordPurchaseCreated } from '@/lib/audit-event';
@@ -285,6 +285,16 @@ export default async function handler(
     // netAmount é o valor após desconto
     const netAmount = amount;
 
+    // ========== VALIDAÇÃO PIX MÍNIMO R$1,00 ==========
+    // Asaas exige mínimo de R$1,00 para cobranças PIX
+    if (data.paymentMethod === 'PIX' && netAmount < 100) {
+      return res.status(400).json({
+        success: false,
+        code: 'PIX_MIN_AMOUNT',
+        error: 'Pagamento via PIX exige mínimo de R$ 1,00. Escolha cartão ou ajuste o valor.',
+      });
+    }
+
     // Transação atômica
     const result = await prisma.$transaction(async (tx) => {
       // Determinar userId: sessão (logado) ou resolveOrCreateUser (checkout anônimo)
@@ -360,9 +370,14 @@ export default async function handler(
         },
       });
 
-      // ========== REGISTRAR USO DO CUPOM (Anti-fraude) ==========
+      // ========== REGISTRAR USO DO CUPOM (Idempotente - Anti-fraude) ==========
       if (couponApplied) {
-        await recordCouponUsage(tx, userId, couponApplied, 'CREDIT_PURCHASE', undefined, credit.id);
+        await recordCouponUsageIdempotent(tx, {
+          userId,
+          couponCode: couponApplied,
+          context: 'CREDIT_PURCHASE',
+          creditId: credit.id,
+        });
       }
 
       return { userId, credit, isAnonymousCheckout };
@@ -528,6 +543,17 @@ export default async function handler(
         success: false,
         code: 'COUPON_INVALID',
         error: errorMessage.replace('CUPOM_INVALIDO: ', ''),
+      });
+    }
+
+    // CUPOM: Já usado (P2002 tratado como idempotência)
+    if (errorMessage.startsWith('COUPON_ALREADY_USED:')) {
+      const [, code] = errorMessage.split(':');
+      console.log(`[CREDIT] Cupom já usado`, JSON.stringify({ requestId, couponCode: code }));
+      return res.status(400).json({
+        success: false,
+        code: 'COUPON_ALREADY_USED',
+        error: 'Este cupom já foi utilizado.',
       });
     }
 

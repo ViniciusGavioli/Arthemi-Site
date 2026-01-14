@@ -77,6 +77,13 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
   // Cupom de desconto
   const [couponCode, setCouponCode] = useState('');
   const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponValidating, setCouponValidating] = useState(false);
+  const [couponApplied, setCouponApplied] = useState<{
+    code: string;
+    discountAmount: number;
+    netAmount: number;
+    message: string;
+  } | null>(null);
 
   // Gera produtos dinamicamente baseado na sala selecionada
   // USA PRICES_V3 como fonte única de verdade
@@ -122,9 +129,12 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
     return [...avulsas, ...pacotes];
   }, [selectedRoom]);
 
-  // Limpa seleção de produto quando muda sala
+  // Limpa seleção de produto E cupom quando muda sala
   useEffect(() => {
     setSelectedProduct(null);
+    // Invalidar cupom - preço diferente por sala
+    setCouponApplied(null);
+    setCouponError(null);
   }, [selectedRoom]);
 
   // Fecha com ESC
@@ -143,6 +153,7 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
       // Reset cupom quando modal fecha
       setCouponCode('');
       setCouponError(null);
+      setCouponApplied(null);
     }
     
     return () => {
@@ -150,6 +161,12 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
       document.body.style.overflow = '';
     };
   }, [isOpen, handleKeyDown]);
+
+  // Limpa cupom aplicado quando muda produto (preço diferente)
+  useEffect(() => {
+    setCouponApplied(null);
+    setCouponError(null);
+  }, [selectedProduct]);
 
   async function fetchRooms() {
     try {
@@ -191,6 +208,55 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
     return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
   }
 
+  // Validar cupom via API (preview de desconto)
+  async function handleApplyCoupon() {
+    if (!selectedProduct || !couponCode.trim()) {
+      setCouponError('Digite um cupom');
+      return;
+    }
+
+    setCouponValidating(true);
+    setCouponError(null);
+    setCouponApplied(null);
+
+    try {
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: couponCode.trim(),
+          grossAmount: selectedProduct.price,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.valid) {
+        setCouponError(data.message || 'Cupom inválido');
+        return;
+      }
+
+      // Cupom válido - mostrar preview
+      setCouponApplied({
+        code: data.code,
+        discountAmount: data.discountAmount,
+        netAmount: data.netAmount,
+        message: data.message,
+      });
+    } catch (err) {
+      setCouponError('Erro ao validar cupom');
+    } finally {
+      setCouponValidating(false);
+    }
+  }
+
+  // Remover cupom aplicado
+  function handleRemoveCoupon() {
+    setCouponCode('');
+    setCouponApplied(null);
+    setCouponError(null);
+  }
+
   async function handleSubmit() {
     if (!selectedRoom || !selectedProduct) {
       setError('Selecione sala e produto');
@@ -223,8 +289,9 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
       // Determinar se é hora avulsa ou produto específico
       const isAvulsa = selectedProduct.type === 'avulsa';
       
-      // Preparar cupom (trim, enviar undefined se vazio)
-      const trimmedCoupon = couponCode.trim();
+      // BLINDAGEM: Só enviar cupom se foi APLICADO com sucesso
+      // Não confiar no input - exigir validação prévia
+      const couponToSend = couponApplied ? couponApplied.code : undefined;
       
       const res = await fetch('/api/credits/purchase', {
         method: 'POST',
@@ -240,8 +307,8 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
           productType: !isAvulsa ? selectedProduct.productType : undefined,
           // Método de pagamento: PIX ou CARD
           paymentMethod,
-          // Cupom de desconto (opcional)
-          couponCode: trimmedCoupon || undefined,
+          // Cupom de desconto - APENAS se validado previamente
+          couponCode: couponToSend,
         }),
       });
 
@@ -249,7 +316,7 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
 
       if (!res.ok) {
         // Verificar se é erro de cupom pelo código estruturado
-        if (data.code === 'COUPON_INVALID' && trimmedCoupon) {
+        if (data.code === 'COUPON_INVALID' && couponToSend) {
           setCouponError(data.error || 'Cupom inválido ou não aplicável.');
           return;
         }
@@ -262,7 +329,7 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
           errorMsg.includes('inválido') ||
           errorMsg.includes('expirado');
         
-        if (isCouponError && trimmedCoupon) {
+        if (isCouponError && couponToSend) {
           setCouponError('Cupom inválido ou não aplicável.');
         } else {
           setError(data.error || 'Erro ao processar compra');
@@ -478,20 +545,32 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                       onChange={(e) => {
                         setCouponCode(e.target.value.toUpperCase());
                         setCouponError(null);
+                        if (couponApplied) setCouponApplied(null);
                       }}
                       className={`flex-1 px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
-                        couponError ? 'border-red-400' : 'border-gray-300'
+                        couponError ? 'border-red-400' : couponApplied ? 'border-green-400 bg-green-50' : 'border-gray-300'
                       }`}
                       placeholder="Ex: ARTHEMI10"
-                      disabled={submitting}
+                      disabled={submitting || couponValidating || !!couponApplied}
                     />
-                    {couponCode && (
+                    {!couponApplied && couponCode.trim() && (
                       <button
                         type="button"
-                        onClick={() => {
-                          setCouponCode('');
-                          setCouponError(null);
-                        }}
+                        onClick={handleApplyCoupon}
+                        className="px-4 py-3 text-sm font-medium text-white bg-primary-600 rounded-xl hover:bg-primary-700 transition-colors disabled:opacity-50"
+                        disabled={submitting || couponValidating || !selectedProduct}
+                      >
+                        {couponValidating ? (
+                          <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                        ) : (
+                          'Aplicar'
+                        )}
+                      </button>
+                    )}
+                    {couponApplied && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveCoupon}
                         className="px-4 py-3 text-sm text-gray-600 hover:text-red-600 border border-gray-300 rounded-xl hover:border-red-300 transition-colors"
                         disabled={submitting}
                       >
@@ -501,6 +580,12 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                   </div>
                   {couponError && (
                     <p className="mt-1 text-sm text-red-600">{couponError}</p>
+                  )}
+                  {couponApplied && (
+                    <p className="mt-1 text-sm text-green-600 flex items-center gap-1">
+                      <Check className="w-4 h-4" />
+                      {couponApplied.message}
+                    </p>
                   )}
                 </div>
               </div>
@@ -529,12 +614,38 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                     <span className="text-gray-600">Consultório</span>
                     <span className="font-medium">{selectedRoom.name}</span>
                   </div>
+                  {/* Subtotal (se tem cupom aplicado) */}
+                  {couponApplied && (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Subtotal</span>
+                        <span className="font-medium text-gray-500">
+                          {formatCurrency(selectedProduct.price)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-green-600">Desconto ({couponApplied.code})</span>
+                        <span className="font-medium text-green-600">
+                          -{formatCurrency(couponApplied.discountAmount)}
+                        </span>
+                      </div>
+                    </>
+                  )}
                   <div className="flex justify-between pt-2 border-t border-gray-200">
                     <span className="font-semibold text-gray-900">Total</span>
                     <span className="font-bold text-primary-600 text-lg">
-                      {formatCurrency(selectedProduct.price)}
+                      {formatCurrency(couponApplied ? couponApplied.netAmount : selectedProduct.price)}
                     </span>
                   </div>
+                  {/* Aviso PIX mínimo R$1,00 */}
+                  {paymentMethod === 'PIX' && 
+                   (couponApplied ? couponApplied.netAmount : selectedProduct.price) < 100 && (
+                    <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <p className="text-sm text-amber-800">
+                        ⚠️ PIX exige mínimo de R$ 1,00. Escolha cartão ou aumente o valor.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </>
@@ -545,7 +656,13 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
         <div className="p-6 border-t border-gray-200 space-y-3">
           <button
             onClick={handleSubmit}
-            disabled={!selectedRoom || !selectedProduct || submitting || loading}
+            disabled={
+              !selectedRoom || 
+              !selectedProduct || 
+              submitting || 
+              loading ||
+              (paymentMethod === 'PIX' && (couponApplied ? couponApplied.netAmount : selectedProduct?.price ?? 0) < 100)
+            }
             className="w-full bg-primary-600 text-white py-4 rounded-xl font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {submitting ? (

@@ -18,7 +18,7 @@ import {
   TIMEOUTS,
   cpfInUseByOther,
 } from '@/lib/production-safety';
-import { isValidCoupon, applyDiscount, checkCouponUsage, recordCouponUsage, createCouponSnapshot, getCouponInfo } from '@/lib/coupons';
+import { isValidCoupon, applyDiscount, checkCouponUsage, recordCouponUsageIdempotent, createCouponSnapshot, getCouponInfo } from '@/lib/coupons';
 import { 
   getAvailableCreditsForRoom, 
   consumeCreditsForBooking,
@@ -378,9 +378,14 @@ export default async function handler(
         },
       });
 
-      // ========== REGISTRAR USO DO CUPOM (Anti-fraude) ==========
+      // ========== REGISTRAR USO DO CUPOM (Idempotente - Anti-fraude) ==========
       if (couponApplied) {
-        await recordCouponUsage(tx, userId, couponApplied, 'BOOKING', booking.id);
+        await recordCouponUsageIdempotent(tx, {
+          userId,
+          couponCode: couponApplied,
+          context: 'BOOKING',
+          bookingId: booking.id,
+        });
       }
 
       return { booking, userId, amount, amountToPay, creditsUsed, hours, isAnonymousCheckout, grossAmount, discountAmount, couponApplied };
@@ -571,16 +576,22 @@ export default async function handler(
         }
         // TODO: Implementar email para pagamento com cartão pendente
       } catch (paymentError) {
-        console.error('❌ Erro ao criar cobrança Asaas');
+        // ASAAS_CREATE_FAILED - 502 Bad Gateway (falha em serviço externo)
+        console.error('❌ [BOOKING] Erro ao criar cobrança Asaas:', {
+          requestId,
+          bookingId: result.booking.id,
+          error: paymentError instanceof Error ? paymentError.message : 'Unknown',
+        });
         
         await prisma.booking.update({
           where: { id: result.booking.id },
           data: { status: 'CANCELLED' },
         });
         
-        return res.status(500).json({
+        return res.status(502).json({
           success: false,
-          error: 'Erro ao gerar pagamento. Tente novamente.',
+          error: 'ASAAS_CREATE_FAILED',
+          message: 'Erro ao gerar pagamento. Tente novamente em alguns segundos.',
         });
       }
     }
@@ -656,6 +667,17 @@ export default async function handler(
       return res.status(403).json({
         success: false,
         error: 'Você precisa verificar seu e-mail para agendar.',
+      });
+    }
+
+    // CUPOM: Já usado (P2002 tratado como idempotência)
+    if (error instanceof Error && error.message.startsWith('COUPON_ALREADY_USED:')) {
+      const [, code] = error.message.split(':');
+      console.log(`[API] POST /api/bookings END (COUPON_ALREADY_USED)`, JSON.stringify({ requestId, statusCode: 400, duration, couponCode: code }));
+      return res.status(400).json({
+        success: false,
+        error: 'COUPON_ALREADY_USED',
+        message: 'Este cupom já foi utilizado.',
       });
     }
 

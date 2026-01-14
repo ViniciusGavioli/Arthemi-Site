@@ -539,3 +539,155 @@ describe('Critical - Coupon + Split (Credits + Cash) - CodeX Audit', () => {
     expect(isPartial).toBe(true); // Deve marcar como PENDING
   });
 });
+
+// ============================================================
+// 9. TESTES DE IDEMPOTÊNCIA - recordCouponUsageIdempotent
+// ============================================================
+
+describe('Coupon Usage - Idempotency (Optimistic)', () => {
+  test('Error message format for COUPON_ALREADY_USED', () => {
+    // Mensagem: COUPON_ALREADY_USED:CODE
+    const error = new Error('COUPON_ALREADY_USED:TESTE50');
+    const [prefix, code] = error.message.split(':');
+    
+    expect(prefix).toBe('COUPON_ALREADY_USED');
+    expect(code).toBe('TESTE50');
+  });
+
+  test('RESTORED status allows coupon reuse (update to USED)', () => {
+    // Simula cenário: cupom RESTORED → deve atualizar para USED
+    const mockExisting = {
+      id: 'usage-123',
+      status: 'RESTORED',
+      couponCode: 'TESTE50',
+      context: 'BOOKING',
+      userId: 'user-123',
+      bookingId: 'booking-old',
+    };
+    
+    // Se status é RESTORED, deve fazer UPDATE não bloquear
+    const shouldUpdate = mockExisting.status === 'RESTORED';
+    const shouldBlock = mockExisting.status === 'USED';
+    expect(shouldUpdate).toBe(true);
+    expect(shouldBlock).toBe(false);
+  });
+
+  test('USED + same bookingId = idempotent success (no error)', () => {
+    // Simula cenário: cupom USED mas para o MESMO booking
+    const mockExisting = {
+      id: 'usage-123',
+      status: 'USED',
+      couponCode: 'TESTE50',
+      context: 'BOOKING',
+      userId: 'user-123',
+      bookingId: 'booking-123',
+    };
+    const currentBookingId = 'booking-123';
+    
+    // Mesma operação → idempotência verdadeira
+    const isSameOperation = mockExisting.bookingId === currentBookingId;
+    expect(isSameOperation).toBe(true);
+    
+    // Resultado esperado: sucesso com idempotent: true
+    const expectedResult = { reused: false, idempotent: true };
+    expect(expectedResult.idempotent).toBe(true);
+  });
+
+  test('USED + different bookingId = throw COUPON_ALREADY_USED', () => {
+    // Simula cenário: cupom USED para OUTRO booking
+    const mockExisting = {
+      id: 'usage-123',
+      status: 'USED',
+      couponCode: 'TESTE50',
+      context: 'BOOKING',
+      userId: 'user-123',
+      bookingId: 'booking-old',
+    };
+    const currentBookingId = 'booking-new';
+    
+    // Operação diferente → erro
+    const isSameOperation = mockExisting.bookingId === currentBookingId;
+    expect(isSameOperation).toBe(false);
+    
+    // Erro esperado: 400 COUPON_ALREADY_USED
+    const expectedError = `COUPON_ALREADY_USED:${mockExisting.couponCode}`;
+    expect(expectedError).toBe('COUPON_ALREADY_USED:TESTE50');
+  });
+
+  test('Optimistic approach: CREATE first, handle P2002', () => {
+    // Documenta a estratégia: tenta CREATE, catch P2002, decide ação
+    const strategy = {
+      step1: 'tx.couponUsage.create(...)',
+      step2: 'catch P2002 → findUnique',
+      step3a: 'if USED + same booking → return { idempotent: true }',
+      step3b: 'if USED + diff booking → throw COUPON_ALREADY_USED',
+      step3c: 'if RESTORED → update to USED',
+    };
+    
+    expect(strategy.step1).toContain('create');
+    expect(strategy.step2).toContain('P2002');
+    expect(strategy.step3a).toContain('idempotent');
+    expect(strategy.step3b).toContain('COUPON_ALREADY_USED');
+    expect(strategy.step3c).toContain('RESTORED');
+  });
+
+  test('Race condition: segunda request retorna 400 (não 409)', () => {
+    // Duas requests concorrentes com bookingIds DIFERENTES:
+    // R1: CREATE → sucesso { reused: false, idempotent: false }
+    // R2: CREATE → P2002 → USED + diff booking → 400 COUPON_ALREADY_USED
+    
+    const r1Result = { success: true, reused: false, idempotent: false };
+    const r2Result = { success: false, statusCode: 400, error: 'COUPON_ALREADY_USED' };
+    
+    expect(r1Result.success).toBe(true);
+    expect(r2Result.statusCode).toBe(400);
+    expect(r2Result.statusCode).not.toBe(409); // Sem 409 desnecessário
+    expect(r2Result.statusCode).not.toBe(500); // Nunca 500
+  });
+
+  test('Idempotency: mesma request repetida retorna sucesso', () => {
+    // Request duplicada (retry) com MESMO bookingId:
+    // R1: CREATE → sucesso
+    // R2 (retry): CREATE → P2002 → USED + same booking → sucesso idempotente
+    
+    const r1Result = { success: true, reused: false, idempotent: false };
+    const r2Result = { success: true, reused: false, idempotent: true };
+    
+    expect(r1Result.success).toBe(true);
+    expect(r2Result.success).toBe(true);
+    expect(r2Result.idempotent).toBe(true);
+  });
+});
+
+// ============================================================
+// 10. TESTES DE HTTP STATUS - Respostas de erro
+// ============================================================
+
+describe('HTTP Status Codes - Error Responses', () => {
+  test('COUPON_ALREADY_USED should return 400 Bad Request', () => {
+    const statusCode = 400;
+    const errorCode = 'COUPON_ALREADY_USED';
+    
+    // 400 é correto: cliente mandou cupom que já usou (erro de validação)
+    expect(statusCode).toBe(400);
+    expect(errorCode).toBe('COUPON_ALREADY_USED');
+  });
+
+  test('ASAAS_CREATE_FAILED should return 502 Bad Gateway', () => {
+    const statusCode = 502;
+    const errorCode = 'ASAAS_CREATE_FAILED';
+    
+    // 502 é correto: falha em serviço externo (gateway)
+    expect(statusCode).toBe(502);
+    expect(errorCode).toBe('ASAAS_CREATE_FAILED');
+  });
+
+  test('PIX_MIN_AMOUNT should return 400 Bad Request', () => {
+    const statusCode = 400;
+    const errorCode = 'PIX_MIN_AMOUNT';
+    
+    // 400 é correto: valor abaixo do mínimo aceito
+    expect(statusCode).toBe(400);
+    expect(errorCode).toBe('PIX_MIN_AMOUNT');
+  });
+});

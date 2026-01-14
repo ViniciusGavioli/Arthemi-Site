@@ -40,7 +40,16 @@ export function getCouponInfo(code: string): CouponConfig | null {
  * Aplica desconto do cupom em um valor
  * @param amount Valor original em centavos
  * @param couponCode Código do cupom
- * @returns Valor com desconto aplicado (mínimo 100 centavos = R$1)
+ * @returns Valor com desconto aplicado
+ * 
+ * REGRA DE PISO (Asaas exige mínimo R$1,00 para PIX):
+ * - Se amount >= 100: piso = 100 centavos
+ * - Se amount < 100: sem piso (valor original já é menor que R$1)
+ * 
+ * INVARIANTES:
+ * - finalAmount >= 0
+ * - discountAmount >= 0
+ * - finalAmount + discountAmount = amount (sempre)
  */
 export function applyDiscount(amount: number, couponCode: string): { 
   finalAmount: number; 
@@ -53,21 +62,29 @@ export function applyDiscount(amount: number, couponCode: string): {
     return { finalAmount: amount, discountAmount: 0, couponApplied: false };
   }
   
-  let discountAmount = 0;
+  // Calcular desconto bruto
+  let calculatedDiscount = 0;
   
   if (coupon.discountType === 'fixed') {
-    discountAmount = coupon.value;
+    calculatedDiscount = coupon.value;
   } else if (coupon.discountType === 'percent') {
-    discountAmount = Math.round(amount * (coupon.value / 100));
+    calculatedDiscount = Math.round(amount * (coupon.value / 100));
   }
   
-  // Garantir valor mínimo de R$1,00
-  const finalAmount = Math.max(100, amount - discountAmount);
-  const actualDiscount = amount - finalAmount;
+  // Aplicar piso de R$1,00 APENAS se amount >= 100
+  // Se amount < 100, usuário já está pagando menos que R$1, não faz sentido forçar piso
+  const minAmount = amount >= 100 ? 100 : 0;
+  
+  // Calcular valor final respeitando piso
+  const finalAmount = Math.max(minAmount, amount - calculatedDiscount);
+  
+  // Desconto efetivo = diferença entre original e final
+  // INVARIANTE: amount = finalAmount + discountAmount
+  const discountAmount = amount - finalAmount;
   
   return { 
     finalAmount, 
-    discountAmount: actualDiscount, 
+    discountAmount, 
     couponApplied: true 
   };
 }
@@ -122,13 +139,106 @@ export async function checkCouponUsage(
 }
 
 /**
- * Registra o uso de um cupom (DEVE ser chamado dentro de $transaction)
- * @param tx Transação Prisma
- * @param userId ID do usuário
- * @param couponCode Código do cupom
- * @param context Contexto de uso
- * @param bookingId ID do booking (se contexto = BOOKING)
- * @param creditId ID do crédito (se contexto = CREDIT_PURCHASE)
+ * Registra o uso de um cupom de forma IDEMPOTENTE (optimistic approach)
+ * 
+ * Estratégia:
+ * 1. Tenta CREATE diretamente (caso comum: cupom novo)
+ * 2. Se P2002 (unique violation): busca registro existente
+ *    - Se USED + mesmo bookingId/creditId → sucesso (idempotência verdadeira)
+ *    - Se USED + outro bookingId/creditId → 400 COUPON_ALREADY_USED
+ *    - Se RESTORED → update para USED (reuso válido)
+ * 
+ * @returns { reused: boolean, idempotent: boolean }
+ */
+export interface RecordCouponUsageResult {
+  reused: boolean;      // true se reativou registro RESTORED
+  idempotent: boolean;  // true se era chamada duplicada (mesmo booking/credit)
+}
+
+export async function recordCouponUsageIdempotent(
+  tx: Prisma.TransactionClient,
+  params: {
+    userId: string;
+    couponCode: string;
+    context: CouponUsageContext;
+    bookingId?: string;
+    creditId?: string;
+  }
+): Promise<RecordCouponUsageResult> {
+  const { userId, couponCode, context, bookingId, creditId } = params;
+  const normalizedCode = couponCode.toUpperCase().trim();
+  
+  try {
+    // Caso comum: cupom nunca usado neste contexto → CREATE
+    await tx.couponUsage.create({
+      data: {
+        userId,
+        couponCode: normalizedCode,
+        context,
+        bookingId: context === 'BOOKING' ? bookingId : null,
+        creditId: context === 'CREDIT_PURCHASE' ? creditId : null,
+        status: CouponUsageStatus.USED,
+      },
+    });
+    return { reused: false, idempotent: false };
+  } catch (error) {
+    // P2002 = unique constraint violation (já existe registro)
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+      throw error; // Erro inesperado → propagar
+    }
+    
+    // Buscar registro existente para decidir ação
+    const existing = await tx.couponUsage.findUnique({
+      where: {
+        userId_couponCode_context: {
+          userId,
+          couponCode: normalizedCode,
+          context,
+        },
+      },
+    });
+    
+    if (!existing) {
+      // P2002 mas não encontrou? Situação impossível → rethrow
+      throw error;
+    }
+    
+    if (existing.status === CouponUsageStatus.USED) {
+      // Verificar se é a MESMA operação (idempotência verdadeira)
+      const isSameOperation = 
+        (context === 'BOOKING' && existing.bookingId === bookingId) ||
+        (context === 'CREDIT_PURCHASE' && existing.creditId === creditId);
+      
+      if (isSameOperation) {
+        // Chamada duplicada para o mesmo booking/credit → sucesso (idempotente)
+        return { reused: false, idempotent: true };
+      }
+      
+      // Cupom já usado por OUTRA operação → erro controlado 400
+      throw new Error(`COUPON_ALREADY_USED:${normalizedCode}`);
+    }
+    
+    if (existing.status === CouponUsageStatus.RESTORED) {
+      // Cupom restaurado → reativar para USED
+      await tx.couponUsage.update({
+        where: { id: existing.id },
+        data: {
+          status: CouponUsageStatus.USED,
+          bookingId: context === 'BOOKING' ? bookingId : null,
+          creditId: context === 'CREDIT_PURCHASE' ? creditId : null,
+          restoredAt: null,
+        },
+      });
+      return { reused: true, idempotent: false };
+    }
+    
+    // Status desconhecido → tratar como USED (segurança)
+    throw new Error(`COUPON_ALREADY_USED:${normalizedCode}`);
+  }
+}
+
+/**
+ * @deprecated Use recordCouponUsageIdempotent para garantir idempotência
  */
 export async function recordCouponUsage(
   tx: Prisma.TransactionClient,
@@ -138,18 +248,7 @@ export async function recordCouponUsage(
   bookingId?: string,
   creditId?: string
 ): Promise<void> {
-  const normalizedCode = couponCode.toUpperCase().trim();
-  
-  await tx.couponUsage.create({
-    data: {
-      userId,
-      couponCode: normalizedCode,
-      context,
-      bookingId: context === 'BOOKING' ? bookingId : null,
-      creditId: context === 'CREDIT_PURCHASE' ? creditId : null,
-      status: CouponUsageStatus.USED,
-    },
-  });
+  await recordCouponUsageIdempotent(tx, { userId, couponCode, context, bookingId, creditId });
 }
 
 /**

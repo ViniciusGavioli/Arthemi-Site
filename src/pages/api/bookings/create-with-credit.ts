@@ -26,7 +26,7 @@ import {
   isValidCoupon,
   applyDiscount,
   checkCouponUsage,
-  recordCouponUsage,
+  recordCouponUsageIdempotent,
   createCouponSnapshot,
 } from '@/lib/coupons';
 import { CouponUsageContext } from '@prisma/client';
@@ -310,7 +310,12 @@ export default async function handler(
 
       // ========== REGISTRAR USO DO CUPOM (Anti-fraude) ==========
       if (couponApplied) {
-        await recordCouponUsage(tx, userId, couponApplied, CouponUsageContext.BOOKING, booking.id);
+        await recordCouponUsageIdempotent(tx, {
+          userId,
+          couponCode: couponApplied,
+          context: CouponUsageContext.BOOKING,
+          bookingId: booking.id,
+        });
       }
 
       return { booking, creditIds, totalConsumed, amountToPay };

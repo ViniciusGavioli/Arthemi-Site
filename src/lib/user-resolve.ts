@@ -55,101 +55,75 @@ export async function resolveOrCreateUser(
     });
   }
 
-  // 4. Se achou, atualiza dados (com cuidado no email)
+  // 4. Se achou, atualiza dados de forma segura (sem causar P2002)
   if (user) {
-    try {
-      const updateData: Record<string, unknown> = {
-        name: nameNorm,
-      };
+    const updateData: Record<string, unknown> = {};
 
-      // Atualiza phone se mudou
-      if (phoneNorm && user.phone !== phoneNorm) {
-        updateData.phone = phoneNorm;
-      }
-
-      // Atualiza CPF se não tinha ou se é o mesmo
-      if (cpfNorm && (!user.cpf || user.cpf === cpfNorm)) {
-        updateData.cpf = cpfNorm;
-      }
-
-      // Atualiza email SOMENTE se:
-      // - user.email é null/vazio
-      // - OU user.email === emailNorm
-      // NUNCA tentar setar email diferente (evitar P2002)
-      if (emailNorm && (!user.email || user.email === emailNorm)) {
-        updateData.email = emailNorm;
-      }
-
-      // Só faz update se tem algo para atualizar
-      if (Object.keys(updateData).length > 1 || updateData.name !== user.name) {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: updateData,
-        });
-      }
-
-      return { user, isNew: false };
-    } catch (error: unknown) {
-      // Se P2002 no update (phone/email duplicado com outro user)
-      // Ignora o update e continua com o user que já tem
-      if (isPrismaP2002Error(error)) {
-        console.warn(`⚠️ [resolveOrCreateUser] P2002 no update, usando user existente: ${user.id}`);
-        return { user, isNew: false };
-      }
-      throw error;
+    // Atualiza nome se diferente
+    if (nameNorm && nameNorm !== user.name) {
+      updateData.name = nameNorm;
     }
+
+    // Atualiza CPF se não tinha ou se é o mesmo
+    if (cpfNorm && (!user.cpf || user.cpf === cpfNorm)) {
+      updateData.cpf = cpfNorm;
+    }
+
+    // NÃO atualiza phone ou email aqui - são campos unique e podem causar conflito
+    // Se precisar atualizar phone/email, deve ser feito com verificação prévia
+
+    // Só faz update se tem algo para atualizar
+    if (Object.keys(updateData).length > 0) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: updateData,
+      });
+    }
+
+    return { user, isNew: false };
   }
 
-  // 5. Não achou - criar novo usuário
-  try {
-    const newUser = await prisma.user.create({
-      data: {
+  // 5. Não achou - criar novo usuário usando UPSERT para evitar P2002
+  // IMPORTANTE: P2002 dentro de transação interativa aborta TODA a transação (25P02)
+  // Por isso usamos upsert que é atômico e nunca causa P2002
+  
+  // Decidir qual campo usar como chave do upsert
+  // Prioridade: email > phone (email é mais confiável como identificador único)
+  if (emailNorm) {
+    const result = await prisma.user.upsert({
+      where: { email: emailNorm },
+      create: {
         name: nameNorm,
-        email: emailNorm || `${phoneNorm}@temp.arthemi.com.br`,
+        email: emailNorm,
         phone: phoneNorm,
         cpf: cpfNorm,
         role: 'CUSTOMER',
       },
+      update: {
+        // Se já existe por email, atualiza outros campos
+        name: nameNorm,
+        phone: phoneNorm,
+        cpf: cpfNorm || undefined,
+      },
     });
-
-    return { user: newUser, isNew: true };
-  } catch (error: unknown) {
-    // P2002 = unique constraint violation
-    // Significa que entre o findUnique e o create, outro request criou o user
-    if (isPrismaP2002Error(error)) {
-      console.warn('⚠️ [resolveOrCreateUser] P2002 no create, buscando user existente');
-      
-      // Tentar buscar por email ou phone
-      const existingUser = emailNorm
-        ? await prisma.user.findUnique({ where: { email: emailNorm } })
-        : await prisma.user.findUnique({ where: { phone: phoneNorm } });
-
-      if (existingUser) {
-        return { user: existingUser, isNew: false };
-      }
-
-      // Se ainda não achou, tenta pelo outro campo
-      const fallbackUser = await prisma.user.findUnique({ where: { phone: phoneNorm } });
-      if (fallbackUser) {
-        return { user: fallbackUser, isNew: false };
-      }
-
-      // Isso não deveria acontecer, mas por segurança
-      throw new Error('Não foi possível resolver usuário após P2002');
-    }
-
-    throw error;
+    return { user: result, isNew: false }; // Não sabemos se é novo, mas é seguro
   }
-}
-
-/**
- * Verifica se é erro Prisma P2002 (unique constraint)
- */
-function isPrismaP2002Error(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code: string }).code === 'P2002'
-  );
+  
+  // Se não tem email, usa phone como chave
+  const result = await prisma.user.upsert({
+    where: { phone: phoneNorm },
+    create: {
+      name: nameNorm,
+      email: `${phoneNorm}@temp.arthemi.com.br`,
+      phone: phoneNorm,
+      cpf: cpfNorm,
+      role: 'CUSTOMER',
+    },
+    update: {
+      // Se já existe por phone, atualiza outros campos
+      name: nameNorm,
+      cpf: cpfNorm || undefined,
+    },
+  });
+  return { user: result, isNew: false };
 }

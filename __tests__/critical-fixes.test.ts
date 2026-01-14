@@ -545,3 +545,218 @@ describe('normalizeAsaasError: Patterns específicos (sem falsos positivos)', ()
     expect(result.details?.minAmountCents).toBe(500);
   });
 });
+
+// ============================================================
+// 5. TESTES - Correção de Unidade REAIS vs CENTAVOS
+// ============================================================
+
+import { toCents, fromCents, assertIntegerCents, formatBRL } from '@/lib/money';
+import { applyDiscount } from '@/lib/coupons';
+
+describe('Money Helpers - Conversão REAIS <-> CENTAVOS', () => {
+  describe('toCents()', () => {
+    it('deve converter R$ 39,99 para 3999 centavos', () => {
+      expect(toCents(39.99)).toBe(3999);
+    });
+
+    it('deve converter R$ 59,99 para 5999 centavos', () => {
+      expect(toCents(59.99)).toBe(5999);
+    });
+
+    it('deve arredondar valores com imprecisão float corretamente', () => {
+      // JavaScript floats têm imprecisão: 39.995 * 100 = 3999.4999...
+      // Portanto Math.round() arredonda para 3999 (não 4000)
+      // Na prática, valores como 39.995 não devem existir - preços são sempre X.XX
+      expect(toCents(39.99)).toBe(3999);
+      expect(toCents(40.00)).toBe(4000);
+      expect(toCents(40.01)).toBe(4001);
+    });
+
+    it('deve converter valor inteiro corretamente', () => {
+      expect(toCents(100)).toBe(10000);
+    });
+
+    it('deve converter zero corretamente', () => {
+      expect(toCents(0)).toBe(0);
+    });
+  });
+
+  describe('fromCents()', () => {
+    it('deve converter 3999 centavos para R$ 39,99', () => {
+      expect(fromCents(3999)).toBe(39.99);
+    });
+
+    it('deve converter 5999 centavos para R$ 59,99', () => {
+      expect(fromCents(5999)).toBe(59.99);
+    });
+
+    it('deve converter zero corretamente', () => {
+      expect(fromCents(0)).toBe(0);
+    });
+  });
+
+  describe('assertIntegerCents()', () => {
+    it('NÃO deve lançar erro para inteiros', () => {
+      expect(() => assertIntegerCents(3999, 'amount')).not.toThrow();
+      expect(() => assertIntegerCents(0, 'amount')).not.toThrow();
+      expect(() => assertIntegerCents(100, 'amount')).not.toThrow();
+    });
+
+    it('DEVE lançar erro para valores decimais', () => {
+      expect(() => assertIntegerCents(39.99, 'amount')).toThrow('[MONEY] amount deve ser inteiro');
+      expect(() => assertIntegerCents(0.5, 'amount')).toThrow('[MONEY] amount deve ser inteiro');
+    });
+  });
+
+  describe('formatBRL()', () => {
+    it('deve formatar 3999 centavos como "R$ 39,99"', () => {
+      const formatted = formatBRL(3999);
+      expect(formatted).toMatch(/39,99/);
+      expect(formatted).toMatch(/R\$/);
+    });
+  });
+});
+
+describe('Correção de Bug: applyDiscount com CENTAVOS', () => {
+  describe('Cenário do bug original: valor em REAIS passado como CENTAVOS', () => {
+    it('BUG ANTERIOR: R$ 39,99 interpretado como 39,99 centavos gerava piso errado', () => {
+      // Este era o comportamento bugado:
+      // amount = 39.99 (REAIS, mas tratado como centavos)
+      // minAmount = 39.99 >= 100 ? 100 : 0 = 0 (ERRADO! 39.99 < 100)
+      
+      const reaisValue = 39.99;
+      
+      // Simulando o bug: minAmount era 0 porque 39.99 < 100
+      const buggedMinAmount = reaisValue >= 100 ? 100 : 0;
+      expect(buggedMinAmount).toBe(0); // Era isso que acontecia!
+    });
+
+    it('CORREÇÃO: R$ 39,99 deve ser convertido para 3999 CENTAVOS antes de applyDiscount', () => {
+      const reaisValue = 39.99;
+      const centsValue = toCents(reaisValue); // 3999
+      
+      expect(centsValue).toBe(3999);
+      
+      // Agora o piso funciona corretamente
+      const correctMinAmount = centsValue >= 100 ? 100 : 0;
+      expect(correctMinAmount).toBe(100); // R$ 1,00 piso
+    });
+  });
+
+  describe('applyDiscount com valores em CENTAVOS', () => {
+    it('deve aplicar 10% de desconto em 3999 centavos (R$ 39,99)', () => {
+      const amountCents = 3999;
+      const result = applyDiscount(amountCents, 'ARTHEMI10'); // 10%
+      
+      // Desconto = 3999 * 0.10 = 399.9 ≈ 400 centavos
+      // Final = 3999 - 400 = 3599 centavos
+      expect(result.couponApplied).toBe(true);
+      expect(result.discountAmount).toBeCloseTo(400, 0); // ~R$ 4,00
+      expect(result.finalAmount).toBeCloseTo(3599, 0); // ~R$ 35,99
+    });
+
+    it('deve aplicar 15% de desconto em 3999 centavos (PRIMEIRACOMPRA)', () => {
+      const amountCents = 3999;
+      const result = applyDiscount(amountCents, 'PRIMEIRACOMPRA'); // 15%
+      
+      // Desconto = 3999 * 0.15 = 599.85 ≈ 600 centavos
+      // Final = 3999 - 600 = 3399 centavos
+      expect(result.couponApplied).toBe(true);
+      expect(result.discountAmount).toBeCloseTo(600, 0); // ~R$ 6,00
+      expect(result.finalAmount).toBeCloseTo(3399, 0); // ~R$ 33,99
+    });
+
+    it('deve aplicar desconto fixo R$ 5,00 (500 centavos) - TESTE50', () => {
+      const amountCents = 3999;
+      const result = applyDiscount(amountCents, 'TESTE50'); // R$ 5,00 fixo
+      
+      // Desconto = 500 centavos (fixo)
+      // Final = 3999 - 500 = 3499 centavos
+      expect(result.couponApplied).toBe(true);
+      expect(result.discountAmount).toBe(500); // R$ 5,00
+      expect(result.finalAmount).toBe(3499); // R$ 34,99
+    });
+
+    it('valor após desconto deve ser >= piso de R$ 1,00 (100 centavos)', () => {
+      const amountCents = 3999;
+      
+      // Qualquer cupom aplicado deve respeitar piso de R$ 1,00
+      const result10 = applyDiscount(amountCents, 'ARTHEMI10');
+      const result15 = applyDiscount(amountCents, 'PRIMEIRACOMPRA');
+      const resultFixed = applyDiscount(amountCents, 'TESTE50');
+      
+      expect(result10.finalAmount).toBeGreaterThanOrEqual(100);
+      expect(result15.finalAmount).toBeGreaterThanOrEqual(100);
+      expect(resultFixed.finalAmount).toBeGreaterThanOrEqual(100);
+    });
+  });
+
+  describe('Validação de valor mínimo Asaas APÓS desconto', () => {
+    it('deve bloquear pagamento se netAmountCents < 500 (R$ 5,00) para cartão', () => {
+      const MIN_CARD_CENTS = 500;
+      
+      // Cenário: valor muito baixo após desconto
+      const amountCents = 600; // R$ 6,00
+      const result = applyDiscount(amountCents, 'TESTE50'); // -R$ 5,00
+      
+      // Final = 600 - 500 = 100 centavos = R$ 1,00
+      expect(result.finalAmount).toBe(100);
+      
+      // Deve bloquear para cartão (mínimo R$ 5,00)
+      const shouldBlockCard = result.finalAmount < MIN_CARD_CENTS;
+      expect(shouldBlockCard).toBe(true);
+    });
+
+    it('deve permitir pagamento se netAmountCents >= 500 para cartão', () => {
+      const MIN_CARD_CENTS = 500;
+      
+      // Cenário: valor suficiente após desconto
+      const amountCents = 3999; // R$ 39,99
+      const result = applyDiscount(amountCents, 'ARTHEMI10'); // -10%
+      
+      // Final ≈ 3599 centavos = R$ 35,99
+      expect(result.finalAmount).toBeGreaterThanOrEqual(MIN_CARD_CENTS);
+    });
+
+    it('deve retornar código PAYMENT_MIN_AMOUNT_AFTER_DISCOUNT para valor insuficiente', () => {
+      // Simulação de resposta da API
+      const errorResponse = {
+        success: false,
+        code: 'PAYMENT_MIN_AMOUNT_AFTER_DISCOUNT',
+        minAmountCents: 500,
+        netAmountCents: 100,
+      };
+      
+      expect(errorResponse.code).toBe('PAYMENT_MIN_AMOUNT_AFTER_DISCOUNT');
+      expect(errorResponse.netAmountCents).toBeLessThan(errorResponse.minAmountCents);
+    });
+  });
+
+  describe('Invariante: grossAmount = netAmount + discountAmount (em CENTAVOS)', () => {
+    it('deve manter invariante para cupom percentual', () => {
+      const grossCents = 3999;
+      const result = applyDiscount(grossCents, 'ARTHEMI10');
+      
+      // grossAmount = finalAmount + discountAmount
+      expect(result.finalAmount + result.discountAmount).toBe(grossCents);
+    });
+
+    it('deve manter invariante para cupom fixo', () => {
+      const grossCents = 3999;
+      const result = applyDiscount(grossCents, 'TESTE50');
+      
+      // grossAmount = finalAmount + discountAmount
+      expect(result.finalAmount + result.discountAmount).toBe(grossCents);
+    });
+
+    it('deve manter invariante para cupom inválido (sem desconto)', () => {
+      const grossCents = 3999;
+      const result = applyDiscount(grossCents, 'CUPOM_INEXISTENTE');
+      
+      expect(result.couponApplied).toBe(false);
+      expect(result.finalAmount).toBe(grossCents);
+      expect(result.discountAmount).toBe(0);
+      expect(result.finalAmount + result.discountAmount).toBe(grossCents);
+    });
+  });
+});

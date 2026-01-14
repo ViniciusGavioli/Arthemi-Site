@@ -41,6 +41,7 @@ import {
 import { triggerAccountActivation } from '@/lib/account-activation';
 import { requireEmailVerifiedForBooking } from '@/lib/email-verification';
 import { getBookingTotalByDate } from '@/lib/pricing';
+import { toCents, assertIntegerCents } from '@/lib/money';
 
 // Schema de validação com Zod
 const createBookingSchema = z.object({
@@ -256,21 +257,23 @@ export default async function handler(
       }
 
       // 6. Calcular valor usando helper unificado de preço (weekday vs saturday)
+      // IMPORTANTE: Todos os valores financeiros são em CENTAVOS (inteiros)
       const hours = Math.ceil((endAt.getTime() - startAt.getTime()) / (1000 * 60 * 60));
       
-      let amount: number;
+      let amountCents: number;
       
-      // Se tem productId, busca preço do produto
+      // Se tem productId, busca preço do produto (já em CENTAVOS no banco)
       if (data.productId) {
         const product = await tx.product.findUnique({
           where: { id: data.productId },
         });
         if (product) {
-          amount = product.price;
+          amountCents = product.price; // Já em CENTAVOS
         } else {
           // Fallback: usar preço por hora baseado na data
           try {
-            amount = getBookingTotalByDate(realRoomId, startAt, hours, room.slug);
+            const amountReais = getBookingTotalByDate(realRoomId, startAt, hours, room.slug);
+            amountCents = toCents(amountReais); // Converter REAIS → CENTAVOS
           } catch (err) {
             throw new Error(`PRICING_ERROR: ${err instanceof Error ? err.message : 'Erro ao calcular preço'}`);
           }
@@ -278,15 +281,19 @@ export default async function handler(
       } else {
         // Sem produto específico: usar preço por hora conforme data (weekday/saturday)
         try {
-          amount = getBookingTotalByDate(realRoomId, startAt, hours, room.slug);
+          const amountReais = getBookingTotalByDate(realRoomId, startAt, hours, room.slug);
+          amountCents = toCents(amountReais); // Converter REAIS → CENTAVOS
         } catch (err) {
           throw new Error(`PRICING_ERROR: ${err instanceof Error ? err.message : 'Erro ao calcular preço'}`);
         }
       }
+      
+      // Validar que amount é inteiro (CENTAVOS)
+      assertIntegerCents(amountCents, 'booking.amountCents');
 
       // ========== AUDITORIA: Guardar valor bruto antes de cupom ==========
-      const grossAmount = amount;
-      let discountAmount = 0;
+      const grossAmountCents = amountCents;
+      let discountAmountCents = 0;
       let couponApplied: string | null = null;
       let couponSnapshot: object | null = null;
 
@@ -301,50 +308,51 @@ export default async function handler(
             throw new Error(`CUPOM_INVALIDO: ${usageCheck.reason}`);
           }
           
-          const discountResult = applyDiscount(amount, couponKey);
-          discountAmount = discountResult.discountAmount;
-          amount = discountResult.finalAmount;
+          // applyDiscount espera e retorna CENTAVOS
+          const discountResult = applyDiscount(amountCents, couponKey);
+          discountAmountCents = discountResult.discountAmount;
+          amountCents = discountResult.finalAmount;
           couponApplied = couponKey;
           couponSnapshot = createCouponSnapshot(couponKey);
         }
       }
       
-      // netAmount é o valor após desconto
-      const netAmount = amount;
+      // netAmountCents é o valor após desconto (em CENTAVOS)
+      const netAmountCents = amountCents;
 
       // 6.1 Verificar e aplicar créditos se solicitado
-      let creditsUsed = 0;
+      let creditsUsedCents = 0;
       let creditIds: string[] = [];
-      let amountToPay = amount;
+      let amountToPayCents = amountCents;
 
       if (data.useCredits) {
         // P-008/P-011: Passar startAt/endAt para validar usageType
-        const availableCredits = await getCreditBalanceForRoom(userId, realRoomId, startAt, startAt, endAt);
+        const availableCreditsCents = await getCreditBalanceForRoom(userId, realRoomId, startAt, startAt, endAt);
         
-        if (availableCredits > 0) {
-          const creditsToUse = Math.min(availableCredits, amount);
-          amountToPay = amount - creditsToUse;
+        if (availableCreditsCents > 0) {
+          const creditsToUseCents = Math.min(availableCreditsCents, amountCents);
+          amountToPayCents = amountCents - creditsToUseCents;
           
           // P-002: Passa tx para consumo atômico dentro da transação
           // P-008/P-011: Passar startAt/endAt para validar usageType
           const consumeResult = await consumeCreditsForBooking(
             userId,
             realRoomId,
-            creditsToUse,
+            creditsToUseCents,
             startAt,
             startAt, // startTime - validação de usageType
             endAt,   // endTime - validação de usageType
             tx // Transação Prisma
           );
           
-          creditsUsed = consumeResult.totalConsumed;
+          creditsUsedCents = consumeResult.totalConsumed;
           creditIds = consumeResult.creditIds;
         }
       }
 
       // 6.2 Validar prazo mínimo para reservas que precisam de pagamento
       // Reservas com pagamento pendente precisam ter início > 30 minutos
-      if (amountToPay > 0) {
+      if (amountToPayCents > 0) {
         const now = new Date();
         const minutesUntilStart = (startAt.getTime() - now.getTime()) / (1000 * 60);
         
@@ -355,10 +363,10 @@ export default async function handler(
 
       // 7. Criar booking
       // Determinar financialStatus baseado no pagamento/créditos
-      const financialStatus = amountToPay <= 0 ? 'PAID' : 'PENDING_PAYMENT';
+      const financialStatus = amountToPayCents <= 0 ? 'PAID' : 'PENDING_PAYMENT';
       
       // Calcular expiresAt para bookings PENDING (cleanup automático)
-      const isPendingBooking = amountToPay > 0;
+      const isPendingBooking = amountToPayCents > 0;
       const expiresAt = isPendingBooking 
         ? new Date(Date.now() + PENDING_BOOKING_EXPIRATION_HOURS * 60 * 60 * 1000)
         : null;
@@ -369,20 +377,20 @@ export default async function handler(
           roomId: realRoomId,
           startTime: startAt,
           endTime: endAt,
-          status: amountToPay > 0 ? 'PENDING' : 'CONFIRMED',
-          paymentStatus: amountToPay > 0 ? 'PENDING' : 'APPROVED',
-          amountPaid: creditsUsed,
+          status: amountToPayCents > 0 ? 'PENDING' : 'CONFIRMED',
+          paymentStatus: amountToPayCents > 0 ? 'PENDING' : 'APPROVED',
+          amountPaid: creditsUsedCents,
           bookingType: 'HOURLY',
           notes: data.notes || null,
-          creditsUsed,
+          creditsUsed: creditsUsedCents,
           creditIds,
           origin: 'COMMERCIAL',
           financialStatus,
           expiresAt,
-          // ========== AUDITORIA DE DESCONTO/CUPOM ==========
-          grossAmount,
-          discountAmount,
-          netAmount,
+          // ========== AUDITORIA DE DESCONTO/CUPOM (em CENTAVOS) ==========
+          grossAmount: grossAmountCents,
+          discountAmount: discountAmountCents,
+          netAmount: netAmountCents,
           couponCode: couponApplied,
           couponSnapshot: couponSnapshot || undefined,
         },
@@ -402,7 +410,7 @@ export default async function handler(
         }
       }
 
-      return { booking, userId, amount, amountToPay, creditsUsed, hours, isAnonymousCheckout, grossAmount, discountAmount, couponApplied };
+      return { booking, userId, amountCents, amountToPayCents, creditsUsedCents, hours, isAnonymousCheckout, grossAmountCents, discountAmountCents, couponApplied };
     });
 
     // ATIVAÇÃO DE CONTA (best-effort) - Apenas checkout anônimo
@@ -422,7 +430,7 @@ export default async function handler(
       userId: result.userId,
       email: data.userEmail,
       ip: clientIp,
-      amount: result.amountToPay,
+      amount: result.amountToPayCents,
       paymentMethod: data.paymentMethod,
       roomId: realRoomId,
     });
@@ -433,7 +441,7 @@ export default async function handler(
       userId: result.userId,
       bookingId: result.booking.id,
       roomId: realRoomId,
-      amount: result.amountToPay,
+      amount: result.amountToPayCents,
       paymentMethod: data.paymentMethod,
     });
 
@@ -447,9 +455,9 @@ export default async function handler(
         roomName: room.name,
         startAt: data.startAt,
         endAt: data.endAt,
-        amount: result.amount,
-        amountToPay: result.amountToPay,
-        creditsUsed: result.creditsUsed,
+        amountCents: result.amountCents,
+        amountToPayCents: result.amountToPayCents,
+        creditsUsedCents: result.creditsUsedCents,
         hours: result.hours,
         // ❌ NÃO incluir dados sensíveis (CPF, telefone completo)
       },
@@ -457,7 +465,7 @@ export default async function handler(
     );
 
     // Se pagou 100% com créditos
-    if (result.amountToPay <= 0) {
+    if (result.amountToPayCents <= 0) {
       // Enviar email de confirmação para reserva paga com créditos
       let emailSent = false;
       try {
@@ -480,7 +488,7 @@ export default async function handler(
       return res.status(201).json({
         success: true,
         bookingId: result.booking.id,
-        creditsUsed: result.creditsUsed,
+        creditsUsed: result.creditsUsedCents,
         amountToPay: 0,
         emailSent,
       });
@@ -492,24 +500,25 @@ export default async function handler(
     let installmentCount: number | undefined;
     let installmentValue: number | undefined;
 
-    if (data.payNow && result.amountToPay > 0) {
-      // Validação preventiva de valor mínimo
+    if (data.payNow && result.amountToPayCents > 0) {
+      // Validação preventiva de valor mínimo (APÓS desconto)
       const paymentMethodType = data.paymentMethod === 'CARD' ? 'CREDIT_CARD' : 'PIX';
-      const minAmount = getMinPaymentAmountCents(paymentMethodType);
+      const minAmountCents = getMinPaymentAmountCents(paymentMethodType);
       
-      if (result.amountToPay < minAmount) {
+      if (result.amountToPayCents < minAmountCents) {
         // Cancelar booking criado pois pagamento não pode ser processado
         await prisma.booking.update({
           where: { id: result.booking.id },
-          data: { status: 'CANCELLED', cancelReason: 'Valor abaixo do mínimo para pagamento' },
+          data: { status: 'CANCELLED', cancelReason: 'Valor abaixo do mínimo para pagamento após desconto' },
         });
         
         return res.status(400).json({
           success: false,
-          error: `Valor abaixo do mínimo permitido para ${paymentMethodType === 'PIX' ? 'PIX' : 'cartão'}.`,
-          code: 'PAYMENT_MIN_AMOUNT',
+          error: `Valor após desconto (R$ ${(result.amountToPayCents / 100).toFixed(2)}) abaixo do mínimo permitido para ${paymentMethodType === 'PIX' ? 'PIX' : 'cartão'} (R$ ${(minAmountCents / 100).toFixed(2)}).`,
+          code: 'PAYMENT_MIN_AMOUNT_AFTER_DISCOUNT',
           details: {
-            minAmountCents: minAmount,
+            minAmountCents,
+            netAmountCents: result.amountToPayCents,
             paymentMethod: paymentMethodType,
           },
         } as ApiResponse);
@@ -524,19 +533,20 @@ export default async function handler(
             success: true,
             bookingId: result.booking.id,
             paymentUrl: existingPayment.existingPayment.externalUrl,            paymentId: existingPayment.existingPayment.externalId, // P0-1: Para debug            paymentMethod: data.paymentMethod === 'CARD' ? 'CREDIT_CARD' : 'PIX',
-            creditsUsed: result.creditsUsed,
-            amountToPay: result.amountToPay,
+            creditsUsed: result.creditsUsedCents,
+            amountToPay: result.amountToPayCents,
           });
         }
 
+        // createBookingPayment espera value em CENTAVOS
         const basePaymentInput = {
           bookingId: result.booking.id,
           customerName: data.userName,
           customerEmail: data.userEmail || `${data.userPhone}@placeholder.com`,
           customerPhone: data.userPhone,
           customerCpf: data.userCpf,
-          value: result.amountToPay,
-          description: `Reserva ${room.name} - ${result.hours}h${result.creditsUsed > 0 ? ` (R$ ${(result.creditsUsed/100).toFixed(2)} em créditos)` : ''}`,
+          value: result.amountToPayCents, // CENTAVOS
+          description: `Reserva ${room.name} - ${result.hours}h${result.creditsUsedCents > 0 ? ` (R$ ${(result.creditsUsedCents/100).toFixed(2)} em créditos)` : ''}`,
         };
 
         let paymentResult;
@@ -580,7 +590,7 @@ export default async function handler(
           data: {
             bookingId: result.booking.id,
             userId: result.userId,
-            amount: result.amountToPay,
+            amount: result.amountToPayCents,
             status: 'PENDING',
             externalId: paymentResult.paymentId,
             externalUrl: paymentResult.invoiceUrl,
@@ -600,7 +610,7 @@ export default async function handler(
             startTime: startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
             endTime: endDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
             duration: `${result.hours}h`,
-            amountPaid: result.amountToPay,
+            amountPaid: result.amountToPayCents,
             bookingId: result.booking.id,
             paymentMethod: 'PIX',
             pixPaymentUrl: paymentUrl,
@@ -655,8 +665,8 @@ export default async function handler(
       paymentMethod,
       installmentCount,
       installmentValue: installmentValue ? Math.round(installmentValue * 100) : undefined,
-      creditsUsed: result.creditsUsed,
-      amountToPay: result.amountToPay,
+      creditsUsed: result.creditsUsedCents,
+      amountToPay: result.amountToPayCents,
     });
 
   } catch (error) {

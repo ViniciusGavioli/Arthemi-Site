@@ -9,7 +9,7 @@
     },
     {
       "path": "/api/cron/cleanup-pending-bookings",
-      "schedule": "0 */1 * * *"
+      "schedule": "0 3 * * *"
     }
   ],
   "headers": [

@@ -199,7 +199,6 @@ export async function recordCouponUsageIdempotent(
       status: CouponUsageStatus.USED,
       bookingId: context === 'BOOKING' ? bookingId : null,
       creditId: context === 'CREDIT_PURCHASE' ? creditId : null,
-      usedAt: new Date(),
       restoredAt: null,
     },
   });
@@ -221,7 +220,6 @@ export async function recordCouponUsageIdempotent(
         bookingId: context === 'BOOKING' ? bookingId : null,
         creditId: context === 'CREDIT_PURCHASE' ? creditId : null,
         status: CouponUsageStatus.USED,
-        usedAt: new Date(),
       },
     });
     return { ok: true, reused: false, idempotent: false, mode: 'CREATED' };
@@ -277,7 +275,6 @@ export async function recordCouponUsageIdempotent(
             status: CouponUsageStatus.USED,
             bookingId: context === 'BOOKING' ? bookingId : null,
             creditId: context === 'CREDIT_PURCHASE' ? creditId : null,
-            usedAt: new Date(),
             restoredAt: null,
           },
         });

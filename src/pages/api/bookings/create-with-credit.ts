@@ -12,6 +12,7 @@ import {
   getCreditBalanceForRoom,
   isBookingWithinBusinessHours,
   validateUniversalBookingWindow,
+  PENDING_BOOKING_EXPIRATION_HOURS,
 } from '@/lib/business-rules';
 import { logAudit } from '@/lib/audit';
 import { differenceInHours, isBefore } from 'date-fns';
@@ -284,6 +285,12 @@ export default async function handler(
       const paymentStatus = amountToPay > 0 ? 'PENDING' : 'APPROVED';
       const financialStatus = amountToPay > 0 ? 'PENDING_PAYMENT' : 'PAID';
 
+      // Calcular expiresAt para bookings PENDING (cleanup automático)
+      const isPendingBooking = amountToPay > 0;
+      const expiresAt = isPendingBooking 
+        ? new Date(Date.now() + PENDING_BOOKING_EXPIRATION_HOURS * 60 * 60 * 1000)
+        : null;
+
       // Cria reserva com campos de auditoria
       const booking = await tx.booking.create({
         data: {
@@ -299,6 +306,7 @@ export default async function handler(
           amountPaid: amountToPay > 0 ? 0 : totalConsumed, // Se pago só com crédito, amountPaid = créditos usados
           origin: 'COMMERCIAL',
           financialStatus,
+          expiresAt,
           // ========== AUDITORIA DE DESCONTO/CUPOM ==========
           grossAmount,
           discountAmount,
@@ -310,12 +318,16 @@ export default async function handler(
 
       // ========== REGISTRAR USO DO CUPOM (Anti-fraude) ==========
       if (couponApplied) {
-        await recordCouponUsageIdempotent(tx, {
+        const couponResult = await recordCouponUsageIdempotent(tx, {
           userId,
           couponCode: couponApplied,
           context: CouponUsageContext.BOOKING,
           bookingId: booking.id,
         });
+        
+        if (!couponResult.ok) {
+          throw new Error(`COUPON_ALREADY_USED:${couponApplied}`);
+        }
       }
 
       return { booking, creditIds, totalConsumed, amountToPay };

@@ -14,6 +14,7 @@ MVP funcional para o site do Espaço Arthemi, um coworking especializado em prof
 - [API Endpoints](#-api-endpoints)
 - [Testes](#-testes)
 - [Regras de Negócio](#-regras-de-negócio)
+- [Documentação Operacional](#-documentação-operacional)
 
 ---
 
@@ -364,6 +365,18 @@ npm run test:e2e     # Testes E2E
 
 ---
 
-## 📄 Licença
+## � Documentação Operacional
+
+| Documento | Descrição |
+|-----------|-----------|
+| [CRITICAL-FIXES-OPERATIONS.md](docs/CRITICAL-FIXES-OPERATIONS.md) | **⚠️ Leitura obrigatória** — Regras de cupons, bookings PENDING, pagamentos Asaas |
+| [README-OPERATIONS.md](docs/README-OPERATIONS.md) | Operações gerais e runbooks |
+| [INCIDENT-PLAN.md](docs/INCIDENT-PLAN.md) | Plano de resposta a incidentes |
+
+> **Importante:** Antes de alterar código relacionado a cupons, bookings ou pagamentos, leia o documento `CRITICAL-FIXES-OPERATIONS.md`.
+
+---
+
+## �📄 Licença
 
 Projeto privado - Espaço Arthemi © 2025

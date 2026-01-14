@@ -5,7 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import prisma, { isOverbookingError, OVERBOOKING_ERROR_MESSAGE } from '@/lib/prisma';
-import { createBookingPayment, createBookingCardPayment } from '@/lib/asaas';
+import { createBookingPayment, createBookingCardPayment, normalizeAsaasError } from '@/lib/asaas';
 import { brazilianPhone, validateCPF } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -26,6 +26,8 @@ import {
   validateBookingWindow,
   isBookingWithinBusinessHours,
   validateUniversalBookingWindow,
+  PENDING_BOOKING_EXPIRATION_HOURS,
+  getMinPaymentAmountCents,
 } from '@/lib/business-rules';
 import { sendBookingConfirmationNotification } from '@/lib/booking-notifications';
 import { sendPixPendingEmail, BookingEmailData } from '@/lib/email';
@@ -126,7 +128,7 @@ export default async function handler(
 
     const ipRateLimit = await checkRateLimit(clientIp, 'create-booking', {
       windowMinutes: 60,
-      maxRequests: 20, // 20 tentativas por hora por IP
+      maxRequests: 30, // 30 tentativas por hora por IP
     });
 
     if (!ipRateLimit.allowed) {
@@ -138,7 +140,7 @@ export default async function handler(
 
     const phoneRateLimit = await checkRateLimit(data.userPhone, 'create-booking', {
       windowMinutes: 60,
-      maxRequests: 5, // 5 reservas por hora por telefone
+      maxRequests: 10, // 10 reservas por hora por telefone
     });
 
     if (!phoneRateLimit.allowed) {
@@ -355,6 +357,12 @@ export default async function handler(
       // Determinar financialStatus baseado no pagamento/créditos
       const financialStatus = amountToPay <= 0 ? 'PAID' : 'PENDING_PAYMENT';
       
+      // Calcular expiresAt para bookings PENDING (cleanup automático)
+      const isPendingBooking = amountToPay > 0;
+      const expiresAt = isPendingBooking 
+        ? new Date(Date.now() + PENDING_BOOKING_EXPIRATION_HOURS * 60 * 60 * 1000)
+        : null;
+      
       const booking = await tx.booking.create({
         data: {
           userId: userId,
@@ -370,6 +378,7 @@ export default async function handler(
           creditIds,
           origin: 'COMMERCIAL',
           financialStatus,
+          expiresAt,
           // ========== AUDITORIA DE DESCONTO/CUPOM ==========
           grossAmount,
           discountAmount,
@@ -381,12 +390,16 @@ export default async function handler(
 
       // ========== REGISTRAR USO DO CUPOM (Idempotente - Anti-fraude) ==========
       if (couponApplied) {
-        await recordCouponUsageIdempotent(tx, {
+        const couponResult = await recordCouponUsageIdempotent(tx, {
           userId,
           couponCode: couponApplied,
           context: 'BOOKING',
           bookingId: booking.id,
         });
+        
+        if (!couponResult.ok) {
+          throw new Error(`COUPON_ALREADY_USED:${couponApplied}`);
+        }
       }
 
       return { booking, userId, amount, amountToPay, creditsUsed, hours, isAnonymousCheckout, grossAmount, discountAmount, couponApplied };
@@ -480,6 +493,28 @@ export default async function handler(
     let installmentValue: number | undefined;
 
     if (data.payNow && result.amountToPay > 0) {
+      // Validação preventiva de valor mínimo
+      const paymentMethodType = data.paymentMethod === 'CARD' ? 'CREDIT_CARD' : 'PIX';
+      const minAmount = getMinPaymentAmountCents(paymentMethodType);
+      
+      if (result.amountToPay < minAmount) {
+        // Cancelar booking criado pois pagamento não pode ser processado
+        await prisma.booking.update({
+          where: { id: result.booking.id },
+          data: { status: 'CANCELLED', cancelReason: 'Valor abaixo do mínimo para pagamento' },
+        });
+        
+        return res.status(400).json({
+          success: false,
+          error: `Valor abaixo do mínimo permitido para ${paymentMethodType === 'PIX' ? 'PIX' : 'cartão'}.`,
+          code: 'PAYMENT_MIN_AMOUNT',
+          details: {
+            minAmountCents: minAmount,
+            paymentMethod: paymentMethodType,
+          },
+        } as ApiResponse);
+      }
+      
       try {
         // P0-1: Verificar se já existe pagamento ativo para este booking (idempotência)
         const existingPayment = await checkBookingHasActivePayment(result.booking.id);
@@ -577,22 +612,33 @@ export default async function handler(
         }
         // TODO: Implementar email para pagamento com cartão pendente
       } catch (paymentError) {
-        // ASAAS_CREATE_FAILED - 502 Bad Gateway (falha em serviço externo)
+        // Normalizar erro do Asaas para código padronizado
+        const normalizedError = normalizeAsaasError(
+          paymentError, 
+          data.paymentMethod === 'CARD' ? 'CREDIT_CARD' : 'PIX'
+        );
+        
         console.error('❌ [BOOKING] Erro ao criar cobrança Asaas:', {
           requestId,
           bookingId: result.booking.id,
-          error: paymentError instanceof Error ? paymentError.message : 'Unknown',
+          code: normalizedError.code,
+          message: normalizedError.message,
+          details: normalizedError.details,
         });
         
         await prisma.booking.update({
           where: { id: result.booking.id },
-          data: { status: 'CANCELLED' },
+          data: { status: 'CANCELLED', cancelReason: `Erro pagamento: ${normalizedError.code}` },
         });
         
-        return res.status(502).json({
+        // Retornar erro normalizado com código padronizado
+        const statusCode = normalizedError.code === 'PAYMENT_MIN_AMOUNT' ? 400 : 502;
+        return res.status(statusCode).json({
           success: false,
-          error: 'Erro ao gerar pagamento. Tente novamente em alguns segundos.',
-        });
+          error: normalizedError.message,
+          code: normalizedError.code,
+          details: normalizedError.details,
+        } as ApiResponse);
       }
     }
 

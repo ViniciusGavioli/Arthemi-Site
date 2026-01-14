@@ -211,9 +211,15 @@ async function asaasRequest<T>(
       });
       
       // Se for erro de validação, propagar mensagem específica
-      const asaasError = errorBody as { errors?: Array<{ description?: string }> };
+      const asaasError = errorBody as { errors?: Array<{ description?: string; code?: string }> };
       const errorMessage = asaasError?.errors?.[0]?.description || 'Erro na integração com gateway de pagamento';
-      throw new Error(errorMessage);
+      const errorCode = asaasError?.errors?.[0]?.code;
+      
+      // Criar erro com metadados para normalização
+      const err = new Error(errorMessage) as Error & { asaasErrorBody?: unknown; asaasErrorCode?: string };
+      err.asaasErrorBody = errorBody;
+      err.asaasErrorCode = errorCode;
+      throw err;
     }
 
     return response.json();
@@ -226,6 +232,113 @@ async function asaasRequest<T>(
     
     throw error;
   }
+}
+
+// ============================================================
+// NORMALIZAÇÃO DE ERROS ASAAS
+// ============================================================
+
+export interface NormalizedAsaasError {
+  code: string;
+  message: string;
+  details?: {
+    minAmountCents?: number;
+    paymentMethod?: string;
+    originalError?: string;
+  };
+}
+
+/**
+ * Normaliza erros do Asaas para códigos padronizados
+ * Detecta erros de valor mínimo e outros erros comuns
+ */
+export function normalizeAsaasError(
+  error: unknown,
+  paymentMethod?: 'PIX' | 'CARD' | 'CREDIT_CARD' | 'BOLETO'
+): NormalizedAsaasError {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorLower = errorMessage.toLowerCase();
+  
+  // Detectar erro de valor mínimo
+  // Asaas retorna mensagens específicas como:
+  // - "O valor mínimo para cobrança via PIX é de R$ 1,00"
+  // - "Minimum value for PIX is R$ 1.00"
+  // Patterns ESPECÍFICOS para evitar falsos positivos
+  const minAmountPatterns = [
+    /valor\s*m[íi]nimo\s*(para|de|é)/i,           // "valor mínimo para/de/é"
+    /minimum\s*value\s*(for|is)/i,                // "minimum value for/is"
+    /value\s*must\s*be\s*at\s*least\s*\d/i,       // "value must be at least X" (com número)
+    /valor.*abaixo\s*do\s*m[íi]nimo\s*permitido/i, // "valor abaixo do mínimo permitido"
+  ];
+  
+  const isMinAmountError = minAmountPatterns.some(pattern => pattern.test(errorMessage));
+  
+  if (isMinAmountError) {
+    // Extrair valor mínimo da mensagem se possível
+    const valueMatch = errorMessage.match(/R\$\s*([\d,.]+)/);
+    let minAmountCents = 100; // Default PIX
+    
+    if (valueMatch) {
+      const valueStr = valueMatch[1].replace('.', '').replace(',', '.');
+      minAmountCents = Math.round(parseFloat(valueStr) * 100);
+    } else if (paymentMethod === 'CARD' || paymentMethod === 'CREDIT_CARD') {
+      minAmountCents = 500; // R$ 5,00 para cartão
+    } else if (paymentMethod === 'BOLETO') {
+      minAmountCents = 500; // R$ 5,00 para boleto
+    }
+    
+    return {
+      code: 'PAYMENT_MIN_AMOUNT',
+      message: 'Valor abaixo do mínimo permitido para este método de pagamento.',
+      details: {
+        minAmountCents,
+        paymentMethod: paymentMethod || 'UNKNOWN',
+        originalError: errorMessage,
+      },
+    };
+  }
+  
+  // Detectar timeout
+  if (errorLower.includes('timeout') || errorLower.includes('15s')) {
+    return {
+      code: 'PAYMENT_TIMEOUT',
+      message: 'Tempo limite excedido ao processar pagamento. Tente novamente.',
+      details: { originalError: errorMessage },
+    };
+  }
+  
+  // Detectar erro de cartão recusado
+  if (errorLower.includes('recusad') || errorLower.includes('declined') || errorLower.includes('refused')) {
+    return {
+      code: 'PAYMENT_DECLINED',
+      message: 'Pagamento recusado. Verifique os dados do cartão ou tente outro método.',
+      details: { originalError: errorMessage },
+    };
+  }
+  
+  // Detectar erro de cliente inválido - patterns específicos
+  // Evitar falsos positivos com "customer" ou "cliente" em contextos genéricos
+  const customerErrorPatterns = [
+    /customer\s*(not\s*found|invalid|inválido)/i,
+    /cliente\s*(não\s*encontrado|inválido)/i,
+    /cpf\s*(inválido|invalid)/i,
+    /invalid\s*cpf/i,
+  ];
+  
+  if (customerErrorPatterns.some(pattern => pattern.test(errorMessage))) {
+    return {
+      code: 'PAYMENT_CUSTOMER_ERROR',
+      message: 'Erro nos dados do cliente. Verifique CPF e email.',
+      details: { originalError: errorMessage },
+    };
+  }
+  
+  // Erro genérico
+  return {
+    code: 'PAYMENT_ERROR',
+    message: 'Erro ao processar pagamento. Tente novamente.',
+    details: { originalError: errorMessage },
+  };
 }
 
 // ============================================================

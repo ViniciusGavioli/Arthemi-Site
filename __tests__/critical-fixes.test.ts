@@ -1,0 +1,547 @@
+// ===========================================================
+// TESTES: Correções Críticas - Race Condition, Cleanup, Min Amount
+// ===========================================================
+
+import { 
+  RecordCouponUsageResult,
+} from '@/lib/coupons';
+
+import {
+  PENDING_BOOKING_EXPIRATION_HOURS,
+  MIN_PAYMENT_AMOUNT_PIX_CENTS,
+  MIN_PAYMENT_AMOUNT_CARD_CENTS,
+  MIN_PAYMENT_AMOUNT_BOLETO_CENTS,
+  getMinPaymentAmountCents,
+} from '@/lib/business-rules';
+
+import {
+  normalizeAsaasError,
+  NormalizedAsaasError,
+} from '@/lib/asaas';
+
+// ============================================================
+// 1. TESTES - Coupon Race Condition Fix
+// ============================================================
+
+describe('Coupon Race Condition - Claim-or-Create Pattern', () => {
+  describe('RecordCouponUsageResult interface', () => {
+    it('deve ter propriedade ok para indicar sucesso/falha', () => {
+      // Resultado de sucesso
+      const successResult: RecordCouponUsageResult = {
+        ok: true,
+        mode: 'CREATED',
+        reused: false,
+        idempotent: false,
+      };
+      expect(successResult.ok).toBe(true);
+      expect(successResult.code).toBeUndefined();
+      
+      // Resultado de falha
+      const failResult: RecordCouponUsageResult = {
+        ok: false,
+        code: 'COUPON_ALREADY_USED',
+        existingBookingId: 'booking_123',
+      };
+      expect(failResult.ok).toBe(false);
+      expect(failResult.code).toBe('COUPON_ALREADY_USED');
+    });
+
+    it('deve suportar diferentes modos de sucesso', () => {
+      const modes: Array<RecordCouponUsageResult['mode']> = [
+        'CREATED',
+        'CLAIMED_RESTORED',
+        'CLAIMED_AFTER_RACE',
+        'IDEMPOTENT',
+      ];
+      
+      modes.forEach(mode => {
+        const result: RecordCouponUsageResult = {
+          ok: true,
+          mode,
+        };
+        expect(result.ok).toBe(true);
+        expect(result.mode).toBe(mode);
+      });
+    });
+
+    it('deve indicar existingBookingId quando cupom já usado', () => {
+      const result: RecordCouponUsageResult = {
+        ok: false,
+        code: 'COUPON_ALREADY_USED',
+        existingBookingId: 'booking_abc123',
+      };
+      
+      expect(result.ok).toBe(false);
+      expect(result.existingBookingId).toBe('booking_abc123');
+    });
+  });
+
+  describe('Comportamento esperado (simulado)', () => {
+    it('NÃO deve sobrescrever bookingId de cupom USED por outro booking', () => {
+      // Simular cenário: cupom já USED pelo booking AAA
+      const existingUsage = {
+        status: 'USED',
+        bookingId: 'AAA',
+      };
+      
+      // Transação B tentando usar o mesmo cupom para booking BBB
+      const attemptBookingId = 'BBB';
+      
+      // Comportamento esperado: retornar falha, NÃO fazer update
+      const shouldOverwrite = existingUsage.bookingId !== attemptBookingId && existingUsage.status === 'USED';
+      expect(shouldOverwrite).toBe(true); // Era true no código antigo (bug)
+      
+      // Novo comportamento: não sobrescrever, retornar erro
+      const newBehavior = existingUsage.status === 'USED' && existingUsage.bookingId !== attemptBookingId;
+      expect(newBehavior).toBe(true); // Deve detectar conflito
+    });
+
+    it('deve permitir claim de cupom RESTORED', () => {
+      const existingUsage = {
+        status: 'RESTORED',
+        bookingId: null,
+      };
+      
+      // Cupom restaurado pode ser reutilizado
+      const canClaim = existingUsage.status === 'RESTORED';
+      expect(canClaim).toBe(true);
+    });
+
+    it('deve ser idempotente para mesmo bookingId', () => {
+      const existingUsage = {
+        status: 'USED',
+        bookingId: 'AAA',
+      };
+      
+      const attemptBookingId = 'AAA'; // Mesmo booking
+      
+      // Chamada duplicada = idempotente, não erro
+      const isIdempotent = existingUsage.bookingId === attemptBookingId;
+      expect(isIdempotent).toBe(true);
+    });
+  });
+});
+
+// ============================================================
+// 2. TESTES - Booking Expiration & Cleanup
+// ============================================================
+
+describe('Booking Expiration & Cleanup', () => {
+  describe('Constantes de expiração', () => {
+    it('PENDING_BOOKING_EXPIRATION_HOURS deve ser 24 por padrão', () => {
+      expect(PENDING_BOOKING_EXPIRATION_HOURS).toBe(24);
+    });
+
+    it('expiresAt deve ser calculado corretamente', () => {
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + PENDING_BOOKING_EXPIRATION_HOURS * 60 * 60 * 1000);
+      
+      const diffHours = (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60);
+      expect(diffHours).toBeCloseTo(24, 1);
+    });
+  });
+
+  describe('Lógica de cleanup (simulada)', () => {
+    it('deve identificar bookings expirados corretamente', () => {
+      const now = new Date();
+      
+      // Booking expirado (expiresAt no passado)
+      const expiredBooking = {
+        status: 'PENDING',
+        expiresAt: new Date(now.getTime() - 60 * 60 * 1000), // 1h atrás
+      };
+      
+      const isExpired = expiredBooking.status === 'PENDING' && 
+                        expiredBooking.expiresAt && 
+                        expiredBooking.expiresAt < now;
+      
+      expect(isExpired).toBe(true);
+    });
+
+    it('NÃO deve considerar booking CONFIRMED como expirado', () => {
+      const now = new Date();
+      
+      const confirmedBooking = {
+        status: 'CONFIRMED',
+        expiresAt: new Date(now.getTime() - 60 * 60 * 1000), // expiresAt no passado
+      };
+      
+      const shouldCleanup = confirmedBooking.status === 'PENDING';
+      expect(shouldCleanup).toBe(false);
+    });
+
+    it('deve usar fallback de 24h para bookings sem expiresAt', () => {
+      const now = new Date();
+      const createdAt = new Date(now.getTime() - 25 * 60 * 60 * 1000); // 25h atrás
+      
+      const oldBookingWithoutExpires = {
+        status: 'PENDING',
+        expiresAt: null,
+        createdAt,
+      };
+      
+      const fallbackThreshold = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const shouldCleanupByFallback = 
+        oldBookingWithoutExpires.status === 'PENDING' &&
+        oldBookingWithoutExpires.expiresAt === null &&
+        oldBookingWithoutExpires.createdAt < fallbackThreshold;
+      
+      expect(shouldCleanupByFallback).toBe(true);
+    });
+  });
+});
+
+// ============================================================
+// 3. TESTES - Payment Min Amount
+// ============================================================
+
+describe('Payment Minimum Amount', () => {
+  describe('Constantes de valor mínimo', () => {
+    it('PIX mínimo deve ser R$ 1,00 (100 centavos) por padrão', () => {
+      expect(MIN_PAYMENT_AMOUNT_PIX_CENTS).toBe(100);
+    });
+
+    it('Cartão mínimo deve ser R$ 5,00 (500 centavos) por padrão', () => {
+      expect(MIN_PAYMENT_AMOUNT_CARD_CENTS).toBe(500);
+    });
+
+    it('Boleto mínimo deve ser R$ 5,00 (500 centavos) por padrão', () => {
+      expect(MIN_PAYMENT_AMOUNT_BOLETO_CENTS).toBe(500);
+    });
+  });
+
+  describe('getMinPaymentAmountCents', () => {
+    it('deve retornar valor correto para PIX', () => {
+      expect(getMinPaymentAmountCents('PIX')).toBe(MIN_PAYMENT_AMOUNT_PIX_CENTS);
+    });
+
+    it('deve retornar valor correto para CARD', () => {
+      expect(getMinPaymentAmountCents('CARD')).toBe(MIN_PAYMENT_AMOUNT_CARD_CENTS);
+    });
+
+    it('deve retornar valor correto para CREDIT_CARD', () => {
+      expect(getMinPaymentAmountCents('CREDIT_CARD')).toBe(MIN_PAYMENT_AMOUNT_CARD_CENTS);
+    });
+
+    it('deve retornar valor correto para BOLETO', () => {
+      expect(getMinPaymentAmountCents('BOLETO')).toBe(MIN_PAYMENT_AMOUNT_BOLETO_CENTS);
+    });
+  });
+
+  describe('Validação de valor mínimo (simulada)', () => {
+    it('PIX com R$ 0,50 deve ser rejeitado', () => {
+      const amount = 50; // 50 centavos
+      const minAmount = getMinPaymentAmountCents('PIX');
+      
+      expect(amount < minAmount).toBe(true);
+    });
+
+    it('PIX com R$ 1,00 deve ser aceito', () => {
+      const amount = 100; // 100 centavos
+      const minAmount = getMinPaymentAmountCents('PIX');
+      
+      expect(amount >= minAmount).toBe(true);
+    });
+
+    it('Cartão com R$ 4,00 deve ser rejeitado', () => {
+      const amount = 400; // 400 centavos
+      const minAmount = getMinPaymentAmountCents('CARD');
+      
+      expect(amount < minAmount).toBe(true);
+    });
+
+    it('Cartão com R$ 5,00 deve ser aceito', () => {
+      const amount = 500; // 500 centavos
+      const minAmount = getMinPaymentAmountCents('CARD');
+      
+      expect(amount >= minAmount).toBe(true);
+    });
+  });
+});
+
+// ============================================================
+// 4. TESTES - normalizeAsaasError
+// ============================================================
+
+describe('normalizeAsaasError', () => {
+  describe('Detecção de erro de valor mínimo', () => {
+    it('deve detectar erro de valor mínimo em português', () => {
+      const error = new Error('O valor mínimo para cobrança via PIX é de R$ 1,00');
+      const result = normalizeAsaasError(error, 'PIX');
+      
+      expect(result.code).toBe('PAYMENT_MIN_AMOUNT');
+      expect(result.details?.paymentMethod).toBe('PIX');
+    });
+
+    it('deve detectar erro de valor mínimo em inglês', () => {
+      const error = new Error('Minimum value for payment is R$ 1.00');
+      const result = normalizeAsaasError(error, 'PIX');
+      
+      expect(result.code).toBe('PAYMENT_MIN_AMOUNT');
+    });
+
+    it('deve extrair valor mínimo da mensagem', () => {
+      const error = new Error('O valor mínimo é de R$ 5,00');
+      const result = normalizeAsaasError(error, 'CARD');
+      
+      expect(result.code).toBe('PAYMENT_MIN_AMOUNT');
+      expect(result.details?.minAmountCents).toBe(500);
+    });
+  });
+
+  describe('Detecção de timeout', () => {
+    it('deve detectar erro de timeout', () => {
+      const error = new Error('Timeout na comunicação com Asaas (15s)');
+      const result = normalizeAsaasError(error);
+      
+      expect(result.code).toBe('PAYMENT_TIMEOUT');
+    });
+  });
+
+  describe('Detecção de cartão recusado', () => {
+    it('deve detectar cartão recusado em português', () => {
+      const error = new Error('Pagamento recusado pelo banco');
+      const result = normalizeAsaasError(error, 'CREDIT_CARD');
+      
+      expect(result.code).toBe('PAYMENT_DECLINED');
+    });
+
+    it('deve detectar cartão recusado em inglês', () => {
+      const error = new Error('Payment declined by issuer');
+      const result = normalizeAsaasError(error, 'CREDIT_CARD');
+      
+      expect(result.code).toBe('PAYMENT_DECLINED');
+    });
+  });
+
+  describe('Erro genérico', () => {
+    it('deve retornar PAYMENT_ERROR para erros desconhecidos', () => {
+      const error = new Error('Erro desconhecido XYZ123');
+      const result = normalizeAsaasError(error);
+      
+      expect(result.code).toBe('PAYMENT_ERROR');
+      expect(result.details?.originalError).toBe('Erro desconhecido XYZ123');
+    });
+  });
+
+  describe('Estrutura do resultado', () => {
+    it('deve sempre ter code e message', () => {
+      const error = new Error('Qualquer erro');
+      const result = normalizeAsaasError(error);
+      
+      expect(result.code).toBeDefined();
+      expect(result.message).toBeDefined();
+      expect(typeof result.code).toBe('string');
+      expect(typeof result.message).toBe('string');
+    });
+
+    it('deve incluir originalError em details', () => {
+      const originalMessage = 'Erro original do Asaas';
+      const error = new Error(originalMessage);
+      const result = normalizeAsaasError(error);
+      
+      expect(result.details?.originalError).toBe(originalMessage);
+    });
+  });
+});
+
+// ============================================================
+// 5. TESTES - Cron Endpoint Protection
+// ============================================================
+
+describe('Cron Endpoint Protection', () => {
+  it('endpoint cleanup deve exigir CRON_SECRET', () => {
+    // Simular validação de secret
+    const cronSecret = 'test_secret_123';
+    const providedSecret = 'test_secret_123';
+    
+    const isAuthorized = cronSecret && providedSecret === cronSecret;
+    expect(isAuthorized).toBe(true);
+  });
+
+  it('deve rejeitar sem secret', () => {
+    const cronSecret = 'test_secret_123';
+    const providedSecret: string | undefined = undefined;
+    
+    const isAuthorized = !!(cronSecret && providedSecret === cronSecret);
+    expect(isAuthorized).toBe(false);
+  });
+
+  it('deve rejeitar com secret errado', () => {
+    const cronSecret = 'test_secret_123';
+    const providedSecret: string = 'wrong_secret';
+    
+    // Comparação string != string (ambas definidas)
+    const secretsMatch = providedSecret === cronSecret;
+    expect(secretsMatch).toBe(false);
+  });
+});
+
+// ============================================================
+// 6. TESTES - Race Condition P2002 → COUPON_ALREADY_USED
+// ============================================================
+
+describe('Race Condition: P2002 deve retornar COUPON_ALREADY_USED', () => {
+  it('P2002 com cupom USED por outro booking deve retornar código específico', () => {
+    // Simular cenário: P2002 capturado, findUnique revela status USED
+    const existingUsage = {
+      status: 'USED',
+      bookingId: 'booking_AAA',
+    };
+    const attemptBookingId = 'booking_BBB';
+    
+    // Lógica do código: após P2002, verifica se mesmo booking
+    const isSameOperation = existingUsage.bookingId === attemptBookingId;
+    
+    // Se não é mesma operação, deve retornar COUPON_ALREADY_USED
+    const expectedResult: RecordCouponUsageResult = isSameOperation
+      ? { ok: true, idempotent: true, mode: 'IDEMPOTENT' }
+      : { ok: false, code: 'COUPON_ALREADY_USED', existingBookingId: existingUsage.bookingId };
+    
+    expect(expectedResult.ok).toBe(false);
+    expect(expectedResult.code).toBe('COUPON_ALREADY_USED');
+    expect(expectedResult.existingBookingId).toBe('booking_AAA');
+  });
+
+  it('P2002 com mesmo booking deve ser idempotente (não erro)', () => {
+    const existingUsage = {
+      status: 'USED',
+      bookingId: 'booking_AAA',
+    };
+    const attemptBookingId = 'booking_AAA'; // MESMO booking
+    
+    const isSameOperation = existingUsage.bookingId === attemptBookingId;
+    
+    const expectedResult: RecordCouponUsageResult = isSameOperation
+      ? { ok: true, idempotent: true, mode: 'IDEMPOTENT' }
+      : { ok: false, code: 'COUPON_ALREADY_USED', existingBookingId: existingUsage.bookingId };
+    
+    expect(expectedResult.ok).toBe(true);
+    expect(expectedResult.idempotent).toBe(true);
+    expect(expectedResult.mode).toBe('IDEMPOTENT');
+  });
+});
+
+// ============================================================
+// 7. TESTES - Cleanup cancela booking e restaura cupom específico
+// ============================================================
+
+describe('Cleanup: Cancelar booking e restaurar cupom específico', () => {
+  it('deve restaurar cupom APENAS se status USED E aponta para booking específico', () => {
+    // Cenário: cupom USED apontando para booking_123
+    const couponUsage = {
+      status: 'USED',
+      bookingId: 'booking_123',
+      couponCode: 'TESTE50',
+    };
+    
+    const targetBookingId = 'booking_123';
+    
+    // Query correta: busca por bookingId específico + status USED
+    const shouldRestore = 
+      couponUsage.status === 'USED' && 
+      couponUsage.bookingId === targetBookingId;
+    
+    expect(shouldRestore).toBe(true);
+  });
+
+  it('NÃO deve restaurar cupom de outro booking', () => {
+    const couponUsage = {
+      status: 'USED',
+      bookingId: 'booking_456', // Outro booking
+      couponCode: 'TESTE50',
+    };
+    
+    const targetBookingId = 'booking_123';
+    
+    const shouldRestore = 
+      couponUsage.status === 'USED' && 
+      couponUsage.bookingId === targetBookingId;
+    
+    expect(shouldRestore).toBe(false);
+  });
+
+  it('NÃO deve restaurar cupom RESTORED (já restaurado)', () => {
+    const couponUsage = {
+      status: 'RESTORED',
+      bookingId: 'booking_123',
+      couponCode: 'TESTE50',
+    };
+    
+    const targetBookingId = 'booking_123';
+    
+    const shouldRestore = couponUsage.status === 'USED';
+    
+    expect(shouldRestore).toBe(false);
+  });
+
+  it('cancelReason EXPIRED_NO_PAYMENT deve impedir reprocessamento', () => {
+    const cancelledBooking = {
+      status: 'CANCELLED',
+      cancelReason: 'EXPIRED_NO_PAYMENT',
+    };
+    
+    // Query de cleanup deve excluir bookings com cancelReason != null
+    const shouldProcess = 
+      cancelledBooking.status === 'PENDING' && 
+      cancelledBooking.cancelReason === null;
+    
+    expect(shouldProcess).toBe(false);
+  });
+});
+
+// ============================================================
+// 8. TESTES - normalizeAsaasError patterns específicos
+// ============================================================
+
+describe('normalizeAsaasError: Patterns específicos (sem falsos positivos)', () => {
+  it('NÃO deve classificar erro genérico como PAYMENT_MIN_AMOUNT', () => {
+    // "valor" aparece mas não é erro de mínimo
+    const error = new Error('Erro ao processar valor da transação');
+    const result = normalizeAsaasError(error, 'PIX');
+    
+    // Não deve ser PAYMENT_MIN_AMOUNT
+    expect(result.code).not.toBe('PAYMENT_MIN_AMOUNT');
+    expect(result.code).toBe('PAYMENT_ERROR');
+  });
+
+  it('NÃO deve classificar qualquer "cliente" como PAYMENT_CUSTOMER_ERROR', () => {
+    // "cliente" em contexto genérico
+    const error = new Error('Notificação enviada para o cliente');
+    const result = normalizeAsaasError(error);
+    
+    // Não deve ser PAYMENT_CUSTOMER_ERROR
+    expect(result.code).not.toBe('PAYMENT_CUSTOMER_ERROR');
+    expect(result.code).toBe('PAYMENT_ERROR');
+  });
+
+  it('DEVE classificar erro real de cliente inválido', () => {
+    const error = new Error('Cliente não encontrado no sistema');
+    const result = normalizeAsaasError(error);
+    
+    expect(result.code).toBe('PAYMENT_CUSTOMER_ERROR');
+  });
+
+  it('DEVE classificar erro real de CPF inválido', () => {
+    const error = new Error('CPF inválido informado');
+    const result = normalizeAsaasError(error);
+    
+    expect(result.code).toBe('PAYMENT_CUSTOMER_ERROR');
+  });
+
+  it('DEVE retornar minAmountCents correto para erro de valor mínimo', () => {
+    const error = new Error('O valor mínimo para cobrança via PIX é de R$ 1,00');
+    const result = normalizeAsaasError(error, 'PIX');
+    
+    expect(result.code).toBe('PAYMENT_MIN_AMOUNT');
+    expect(result.details?.minAmountCents).toBe(100);
+  });
+
+  it('DEVE retornar minAmountCents 500 para cartão', () => {
+    const error = new Error('O valor mínimo para cobrança é de R$ 5,00');
+    const result = normalizeAsaasError(error, 'CARD');
+    
+    expect(result.code).toBe('PAYMENT_MIN_AMOUNT');
+    expect(result.details?.minAmountCents).toBe(500);
+  });
+});

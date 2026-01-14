@@ -42,9 +42,9 @@ export default async function handler(
     });
   }
 
-  // Rate limit (10 req/min por IP)
+  // Rate limit (20 req/min por IP)
   const clientIp = getClientIp(req);
-  const rateLimit = checkApiRateLimit('verify-email', clientIp, { maxRequests: 10, windowMs: 60000 });
+  const rateLimit = checkApiRateLimit('verify-email', clientIp, { maxRequests: 20, windowMs: 60000 });
   
   if (!rateLimit.allowed) {
     res.setHeader('Retry-After', rateLimit.retryAfterSeconds || 60);

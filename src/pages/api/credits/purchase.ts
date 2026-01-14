@@ -9,7 +9,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
-import { createBookingPayment, createBookingCardPayment } from '@/lib/asaas';
+import { createBookingPayment, createBookingCardPayment, normalizeAsaasError } from '@/lib/asaas';
 import { brazilianPhone, validateCPF } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -25,6 +25,7 @@ import { triggerAccountActivation } from '@/lib/account-activation';
 import { addDays } from 'date-fns';
 import { computeCreditAmountCents } from '@/lib/credits';
 import { getBookingTotalByDate } from '@/lib/pricing';
+import { getMinPaymentAmountCents } from '@/lib/business-rules';
 import { 
   generatePurchaseIdempotencyKey, 
   checkPurchaseHasPayment,
@@ -124,7 +125,7 @@ export default async function handler(
 
     const ipRateLimit = await checkRateLimit(clientIp, 'purchase-credits', {
       windowMinutes: 60,
-      maxRequests: 10,
+      maxRequests: 20,
     });
 
     if (!ipRateLimit.allowed) {
@@ -373,12 +374,16 @@ export default async function handler(
 
       // ========== REGISTRAR USO DO CUPOM (Idempotente - Anti-fraude) ==========
       if (couponApplied) {
-        await recordCouponUsageIdempotent(tx, {
+        const couponResult = await recordCouponUsageIdempotent(tx, {
           userId,
           couponCode: couponApplied,
           context: 'CREDIT_PURCHASE',
           creditId: credit.id,
         });
+        
+        if (!couponResult.ok) {
+          throw new Error(`COUPON_ALREADY_USED:${couponApplied}`);
+        }
       }
 
       return { userId, credit, isAnonymousCheckout };
@@ -430,6 +435,27 @@ export default async function handler(
         creditId: result.credit.id,
         paymentUrl: existingPayment.existingPayment.externalUrl || undefined,
         amount,
+      });
+    }
+
+    // Validação preventiva de valor mínimo
+    const paymentMethodType = data.paymentMethod === 'CARD' ? 'CREDIT_CARD' : 'PIX';
+    const minAmount = getMinPaymentAmountCents(paymentMethodType);
+    
+    if (amount < minAmount) {
+      // Excluir crédito pendente criado
+      await prisma.credit.delete({
+        where: { id: result.credit.id },
+      });
+      
+      return res.status(400).json({
+        success: false,
+        error: `Valor abaixo do mínimo permitido para ${paymentMethodType === 'PIX' ? 'PIX' : 'cartão'}.`,
+        code: 'PAYMENT_MIN_AMOUNT',
+        details: {
+          minAmountCents: minAmount,
+          paymentMethod: paymentMethodType,
+        },
       });
     }
 

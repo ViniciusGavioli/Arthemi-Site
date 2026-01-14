@@ -4,8 +4,8 @@ import type { NextApiResponse } from 'next';
  * API Rate Limit - Em memória (Map)
  * 
  * Rate limit por IP + endpoint sem dependência externa.
- * Padrão: 5 requisições por minuto por IP por endpoint.
- * Backoff progressivo: 60s, 120s, 240s, 480s, até 900s (15min)
+ * Padrão: 15 requisições por minuto por IP por endpoint.
+ * Backoff progressivo: 10s, 20s, 40s, 80s, até 120s (2min)
  */
 
 interface RateLimitEntry {
@@ -30,9 +30,9 @@ const CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 min
 let cleanupTimer: NodeJS.Timeout | null = null;
 
 // Configurações de backoff
-const BACKOFF_BASE_SECONDS = 60;     // 1 minuto inicial
-const BACKOFF_MAX_SECONDS = 900;     // 15 minutos máximo
-const BACKOFF_RESET_AFTER_MS = 30 * 60 * 1000; // Reset contador após 30min sem bloqueios
+const BACKOFF_BASE_SECONDS = 10;     // 10 segundos inicial
+const BACKOFF_MAX_SECONDS = 120;     // 2 minutos máximo
+const BACKOFF_RESET_AFTER_MS = 10 * 60 * 1000; // Reset contador após 10min sem bloqueios
 
 function startCleanup() {
   if (cleanupTimer) return;
@@ -75,15 +75,15 @@ export interface ApiRateLimitResult {
   retryAfterSeconds?: number;  // Segundos até poder tentar novamente (quando bloqueado)
 }
 
-// Configuração padrão: 5 req / 60s (era 3)
+// Configuração padrão: 15 req / 60s
 const DEFAULT_CONFIG: ApiRateLimitConfig = {
   windowMs: 60 * 1000,   // 1 minuto
-  maxRequests: 5,        // 5 tentativas (era 3)
+  maxRequests: 15,       // 15 tentativas
 };
 
 /**
  * Calcula o tempo de bloqueio baseado no número de bloqueios anteriores.
- * Backoff exponencial: 60s, 120s, 240s, 480s, 900s (teto)
+ * Backoff exponencial: 10s, 20s, 40s, 80s, 120s (teto)
  */
 function calculateBackoffSeconds(blockCount: number): number {
   const seconds = BACKOFF_BASE_SECONDS * Math.pow(2, blockCount - 1);

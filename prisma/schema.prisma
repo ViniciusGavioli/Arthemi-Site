@@ -108,6 +108,8 @@ model Booking {
   netAmount       Int?           // Valor líquido após desconto (centavos)
   couponCode      String?        // Código do cupom aplicado
   couponSnapshot  Json?          // Snapshot do cupom {discountType, value, description}
+  // ========== EXPIRAÇÃO PARA CLEANUP AUTOMÁTICO ==========
+  expiresAt       DateTime?      // Data/hora de expiração (para bookings PENDING sem pagamento)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   product         Product?       @relation(fields: [productId], references: [id])
@@ -120,6 +122,7 @@ model Booking {
   @@index([roomId, startTime, endTime])
   @@index([userId])
   @@index([status])
+  @@index([expiresAt])
   @@map("bookings")
 }
 

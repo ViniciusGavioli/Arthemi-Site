@@ -58,10 +58,10 @@ export default async function handler(
       });
     }
 
-    // Rate limit por email (5 por hora)
+    // Rate limit por email (10 por hora)
     const emailRateLimit = await checkRateLimit(normalizedEmail, 'resend-activation', {
       windowMinutes: 60,
-      maxRequests: 5,
+      maxRequests: 10,
     });
 
     if (!emailRateLimit.allowed) {

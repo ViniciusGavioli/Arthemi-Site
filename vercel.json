@@ -6,6 +6,10 @@
     {
       "path": "/api/jobs/auto-cancel",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-pending-bookings",
+      "schedule": "0 */1 * * *"
     }
   ],
   "headers": [

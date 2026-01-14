@@ -50,6 +50,34 @@ export const HOURLY_BOOKING_WINDOW_DAYS = 30;
 // Aplica a TODAS as reservas (com ou sem crédito, com ou sem turno fixo)
 export const MAX_BOOKING_WINDOW_DAYS = 30;
 
+// ========== EXPIRAÇÃO DE BOOKING PENDING ==========
+// Tempo em horas para expirar um booking PENDING sem pagamento
+// Após esse tempo, o booking pode ser cancelado automaticamente e cupom restaurado
+export const PENDING_BOOKING_EXPIRATION_HOURS = 24;
+
+// ========== VALORES MÍNIMOS DE PAGAMENTO (CENTAVOS) ==========
+// Configuráveis via env vars opcionais
+export const MIN_PAYMENT_AMOUNT_PIX_CENTS = parseInt(process.env.MIN_PAYMENT_PIX_CENTS || '100', 10); // R$ 1,00
+export const MIN_PAYMENT_AMOUNT_CARD_CENTS = parseInt(process.env.MIN_PAYMENT_CARD_CENTS || '500', 10); // R$ 5,00
+export const MIN_PAYMENT_AMOUNT_BOLETO_CENTS = parseInt(process.env.MIN_PAYMENT_BOLETO_CENTS || '500', 10); // R$ 5,00
+
+/**
+ * Retorna o valor mínimo em centavos para um método de pagamento
+ */
+export function getMinPaymentAmountCents(paymentMethod: 'PIX' | 'CARD' | 'CREDIT_CARD' | 'BOLETO'): number {
+  switch (paymentMethod) {
+    case 'PIX':
+      return MIN_PAYMENT_AMOUNT_PIX_CENTS;
+    case 'CARD':
+    case 'CREDIT_CARD':
+      return MIN_PAYMENT_AMOUNT_CARD_CENTS;
+    case 'BOLETO':
+      return MIN_PAYMENT_AMOUNT_BOLETO_CENTS;
+    default:
+      return MIN_PAYMENT_AMOUNT_PIX_CENTS; // Fallback para PIX
+  }
+}
+
 // ===========================================================
 // VALIDAÇÃO UNIVERSAL DE JANELA DE 30 DIAS
 // ===========================================================

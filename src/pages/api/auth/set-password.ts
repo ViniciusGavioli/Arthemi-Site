@@ -53,9 +53,9 @@ export default async function handler(
     });
   }
 
-  // Rate limit (5 req/min por IP)
+  // Rate limit (10 req/min por IP)
   const clientIp = getClientIp(req);
-  const rateLimit = checkApiRateLimit('set-password', clientIp, { maxRequests: 5, windowMs: 60000 });
+  const rateLimit = checkApiRateLimit('set-password', clientIp, { maxRequests: 10, windowMs: 60000 });
   
   if (!rateLimit.allowed) {
     res.setHeader('Retry-After', rateLimit.retryAfterSeconds || 60);

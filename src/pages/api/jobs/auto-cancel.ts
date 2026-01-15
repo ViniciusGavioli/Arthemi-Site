@@ -11,6 +11,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
 import { differenceInMinutes } from 'date-fns';
+import { restoreCouponUsage } from '@/lib/coupons';
 
 const AUTO_CANCEL_THRESHOLD_MINUTES = 30;
 
@@ -90,6 +91,7 @@ export default async function handler(
         status: true,
         financialStatus: true,
         notes: true,
+        couponCode: true, // Para restaurar cupom se existir
         user: { select: { id: true, name: true, phone: true } },
         room: { select: { id: true, name: true } },
       },
@@ -122,15 +124,28 @@ export default async function handler(
         continue;
       }
 
-      // Cancelar
-      await prisma.booking.update({
-        where: { id: booking.id },
-        data: {
-          status: 'CANCELLED',
-          notes: booking.notes
-            ? `${booking.notes}\n[AUTO-CANCELADO] Pagamento não confirmado até ${minutesBefore}min antes do início`
-            : `[AUTO-CANCELADO] Pagamento não confirmado até ${minutesBefore}min antes do início`,
-        },
+      // Cancelar em transação + restaurar cupom
+      let couponRestored = false;
+      await prisma.$transaction(async (tx) => {
+        // Restaurar cupom se existir (wasPaid=false pois booking não foi pago)
+        if (booking.couponCode) {
+          const restoreResult = await restoreCouponUsage(tx, booking.id, undefined, false);
+          couponRestored = restoreResult.restored;
+          if (couponRestored) {
+            console.log(`♻️ [auto-cancel] Cupom ${booking.couponCode} restaurado para booking ${booking.id}`);
+          }
+        }
+
+        // Cancelar booking
+        await tx.booking.update({
+          where: { id: booking.id },
+          data: {
+            status: 'CANCELLED',
+            notes: booking.notes
+              ? `${booking.notes}\n[AUTO-CANCELADO] Pagamento não confirmado até ${minutesBefore}min antes do início`
+              : `[AUTO-CANCELADO] Pagamento não confirmado até ${minutesBefore}min antes do início`,
+          },
+        });
       });
 
       // Log de auditoria

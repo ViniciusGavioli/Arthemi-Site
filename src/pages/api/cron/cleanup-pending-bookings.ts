@@ -157,8 +157,9 @@ export default async function handler(
           let couponRestored = false;
 
           // Restaurar cupom se existir (antes de cancelar)
+          // wasPaid=false pois cleanup só processa bookings PENDING (não pagos)
           if (booking.couponCode) {
-            const restoreResult = await restoreCouponUsage(tx, booking.id, undefined);
+            const restoreResult = await restoreCouponUsage(tx, booking.id, undefined, false);
             couponRestored = restoreResult.restored;
             if (couponRestored) {
               console.log(`♻️ [cleanup-pending] Cupom ${booking.couponCode} restaurado para booking ${booking.id}`);

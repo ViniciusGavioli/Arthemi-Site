@@ -92,83 +92,93 @@ export function applyDiscount(amount: number, couponCode: string): {
 // ===========================================================
 // RASTREAMENTO DE USO DE CUPONS (Anti-Fraude)
 // ===========================================================
+// REGRA DE NEGÓCIO: CUPOM PERMANENTE, USO ÚNICO POR CPF
+// - Cada CPF pode usar o cupom apenas 1 vez POR CONTEXTO (BOOKING ou CREDIT_PURCHASE)
+// - Se a pessoa NÃO PAGAR (cancelamento, expiração): cupom VOLTA (status = RESTORED)
+// - Se a pessoa PAGAR: cupom CONSUMIDO PARA SEMPRE (status = USED permanece)
+// ===========================================================
 
 /**
  * Verifica se um cupom pode ser usado por um usuário
- * @param prisma Instância do Prisma (pode ser tx para transações)
+ * 
+ * REGRA: SEMPRE verifica no banco se existe registro para (userId, couponCode, context)
+ * - Se existir com status USED → bloquear (código COUPON_ALREADY_USED)
+ * - Se existir com status RESTORED → permitir (será reativado)
+ * - Se não existir → permitir (será criado novo)
+ * 
+ * @param prisma Instância do Prisma (DEVE ser tx dentro de transação)
  * @param userId ID do usuário
  * @param couponCode Código do cupom
  * @param context Contexto de uso (BOOKING ou CREDIT_PURCHASE)
- * @returns { canUse: boolean, reason?: string }
+ * @returns { canUse: boolean, reason?: string, code?: string }
  */
 export async function checkCouponUsage(
   prisma: PrismaClient | Prisma.TransactionClient,
   userId: string,
   couponCode: string,
   context: CouponUsageContext
-): Promise<{ canUse: boolean; reason?: string }> {
+): Promise<{ canUse: boolean; reason?: string; code?: string }> {
   const normalizedCode = couponCode.toUpperCase().trim();
   const coupon = getCouponInfo(normalizedCode);
   
   if (!coupon) {
-    return { canUse: false, reason: 'Cupom inválido' };
+    return { canUse: false, reason: 'Cupom inválido', code: 'COUPON_INVALID' };
   }
   
-  // Se cupom não é single-use, sempre pode usar
-  if (!coupon.singleUsePerUser) {
-    return { canUse: true };
-  }
-  
-  // Verificar se usuário já usou este cupom
-  const existingUsage = await prisma.couponUsage.findFirst({
+  // SEMPRE verificar no banco - TODOS os cupons seguem regra CPF 1x por contexto
+  const existingUsage = await prisma.couponUsage.findUnique({
     where: {
-      userId,
-      couponCode: normalizedCode,
-      status: CouponUsageStatus.USED, // Só bloqueia se status USED (não RESTORED)
+      userId_couponCode_context: {
+        userId,
+        couponCode: normalizedCode,
+        context,
+      },
     },
   });
   
-  if (existingUsage) {
+  // Se não existe registro, pode usar (será criado)
+  if (!existingUsage) {
+    return { canUse: true };
+  }
+  
+  // Se existe com status USED → bloquear
+  if (existingUsage.status === CouponUsageStatus.USED) {
     return { 
       canUse: false, 
-      reason: `Cupom ${normalizedCode} já foi utilizado. Este cupom só pode ser usado uma vez.` 
+      reason: `Cupom ${normalizedCode} já foi utilizado para este tipo de operação.`,
+      code: 'COUPON_ALREADY_USED',
     };
   }
   
+  // Se existe com status RESTORED → permitir (será reativado pelo recordCouponUsage)
+  if (existingUsage.status === CouponUsageStatus.RESTORED) {
+    return { canUse: true };
+  }
+  
+  // Qualquer outro status (ex: PENDING antigo) → permitir com cautela
   return { canUse: true };
 }
 
 /**
- * Registra o uso de um cupom de forma IDEMPOTENTE usando UPSERT
+ * Registra o uso de um cupom de forma SEGURA (sem P2002 dentro de transação)
  * 
- * PROBLEMA RESOLVIDO:
- * Postgres aborta transações inteiras após P2002, causando 25P02 em queries subsequentes.
+ * PROBLEMA ANTERIOR:
+ * try/catch de P2002 com query dentro do catch causava 25P02 (transaction aborted)
  * 
  * SOLUÇÃO:
- * Usar findUnique + upsert que é atômico e NUNCA causa P2002 dentro de transações.
- * Verificar estado do registro ANTES do upsert para detectar conflitos.
+ * 1. updateMany onde status = RESTORED → USED (claim de cupom restaurado)
+ * 2. Se count === 0 → create novo registro USED
+ * 3. Se create falhar → NÃO catch interno, deixa erro propagar (transaction aborta limpa)
  * 
- * @returns { ok: boolean, mode?: string, code?: string, existingBookingId?: string }
+ * IMPORTANTE: checkCouponUsage DEVE ser chamado ANTES desta função!
+ * Se checkCouponUsage retornou canUse:true, o create DEVE funcionar.
+ * Se falhar, há race condition - nesse caso é melhor abortar que corromper dados.
+ * 
+ * @returns { ok: boolean, mode?: string }
  */
 export interface RecordCouponUsageResult {
-  ok: boolean;          // true se registro foi criado/claimed com sucesso
-  reused?: boolean;     // true se reativou registro RESTORED
-  idempotent?: boolean; // true se era chamada duplicada (mesmo booking/credit)
-  mode?: 'CREATED' | 'CLAIMED_RESTORED' | 'CLAIMED_AFTER_RACE' | 'IDEMPOTENT';
-  code?: string;        // Código de erro (ex: COUPON_ALREADY_USED)
-  existingBookingId?: string | null; // BookingId do registro existente (para diagnóstico)
-}
-
-/**
- * Helper para detectar erro P2002 (unique constraint)
- */
-function isPrismaP2002(error: unknown): boolean {
-  return (
-    error !== null &&
-    typeof error === 'object' &&
-    'code' in error &&
-    (error as { code: string }).code === 'P2002'
-  );
+  ok: boolean;
+  mode?: 'CREATED' | 'CLAIMED_RESTORED';
 }
 
 export async function recordCouponUsageIdempotent(
@@ -186,7 +196,7 @@ export async function recordCouponUsageIdempotent(
   
   // ==================================================================
   // STEP 1: Tentar "claim" de registro RESTORED existente via updateMany
-  // updateMany com WHERE condicional é atômico - não sobrescreve USED
+  // updateMany com WHERE condicional é atômico - não causa P2002
   // ==================================================================
   const claimedRestored = await tx.couponUsage.updateMany({
     where: {
@@ -204,125 +214,26 @@ export async function recordCouponUsageIdempotent(
   });
   
   if (claimedRestored.count > 0) {
-    return { ok: true, reused: true, idempotent: false, mode: 'CLAIMED_RESTORED' };
+    return { ok: true, mode: 'CLAIMED_RESTORED' };
   }
   
   // ==================================================================
-  // STEP 2: Tentar criar novo registro USED
-  // Se der P2002 (unique), outra transação criou primeiro
+  // STEP 2: Criar novo registro USED
+  // Se falhar (P2002 por race condition), deixa propagar - transaction aborta
+  // Isso é MELHOR que ter dados corrompidos ou 25P02
   // ==================================================================
-  try {
-    await tx.couponUsage.create({
-      data: {
-        userId,
-        couponCode: normalizedCode,
-        context,
-        bookingId: context === 'BOOKING' ? bookingId : null,
-        creditId: context === 'CREDIT_PURCHASE' ? creditId : null,
-        status: CouponUsageStatus.USED,
-      },
-    });
-    return { ok: true, reused: false, idempotent: false, mode: 'CREATED' };
-  } catch (error) {
-    // ==================================================================
-    // STEP 3: P2002 - Registro já existe, verificar estado
-    // ==================================================================
-    if (isPrismaP2002(error)) {
-      const existing = await tx.couponUsage.findUnique({
-        where: {
-          userId_couponCode_context: {
-            userId,
-            couponCode: normalizedCode,
-            context,
-          },
-        },
-      });
-      
-      if (!existing) {
-        // Impossível: P2002 mas não existe? Re-throw
-        throw error;
-      }
-      
-      // Verificar se é a MESMA operação (idempotência verdadeira)
-      if (existing.status === CouponUsageStatus.USED) {
-        const isSameOperation = 
-          (context === 'BOOKING' && existing.bookingId === bookingId) ||
-          (context === 'CREDIT_PURCHASE' && existing.creditId === creditId);
-        
-        if (isSameOperation) {
-          // Chamada duplicada para o mesmo booking/credit → sucesso (idempotente)
-          return { ok: true, reused: false, idempotent: true, mode: 'IDEMPOTENT' };
-        }
-        
-        // Cupom já usado por OUTRA operação → NÃO sobrescrever, retornar erro
-        return { 
-          ok: false, 
-          code: 'COUPON_ALREADY_USED', 
-          existingBookingId: existing.bookingId ?? null 
-        };
-      }
-      
-      // Status é RESTORED - tentar claim novamente (race condition)
-      if (existing.status === CouponUsageStatus.RESTORED) {
-        const claimedAfterRace = await tx.couponUsage.updateMany({
-          where: {
-            userId,
-            couponCode: normalizedCode,
-            context,
-            status: CouponUsageStatus.RESTORED, // Condição atômica
-          },
-          data: {
-            status: CouponUsageStatus.USED,
-            bookingId: context === 'BOOKING' ? bookingId : null,
-            creditId: context === 'CREDIT_PURCHASE' ? creditId : null,
-            restoredAt: null,
-          },
-        });
-        
-        if (claimedAfterRace.count > 0) {
-          return { ok: true, reused: true, idempotent: false, mode: 'CLAIMED_AFTER_RACE' };
-        }
-        
-        // Se não conseguiu claim, alguém usou entre o findUnique e o updateMany
-        // Re-buscar para verificar estado final
-        const finalState = await tx.couponUsage.findUnique({
-          where: {
-            userId_couponCode_context: {
-              userId,
-              couponCode: normalizedCode,
-              context,
-            },
-          },
-        });
-        
-        if (finalState?.status === CouponUsageStatus.USED) {
-          // Verificar se foi a mesma operação (idempotência)
-          const isSame = 
-            (context === 'BOOKING' && finalState.bookingId === bookingId) ||
-            (context === 'CREDIT_PURCHASE' && finalState.creditId === creditId);
-          
-          if (isSame) {
-            return { ok: true, reused: false, idempotent: true, mode: 'IDEMPOTENT' };
-          }
-          
-          return { 
-            ok: false, 
-            code: 'COUPON_ALREADY_USED', 
-            existingBookingId: finalState.bookingId ?? null 
-          };
-        }
-        
-        // Estado inconsistente
-        return { ok: false, code: 'COUPON_INVALID_STATE' };
-      }
-      
-      // Status desconhecido → erro conservador
-      return { ok: false, code: 'COUPON_INVALID_STATE' };
-    }
-    
-    // Não é P2002, re-throw erro original
-    throw error;
-  }
+  await tx.couponUsage.create({
+    data: {
+      userId,
+      couponCode: normalizedCode,
+      context,
+      bookingId: context === 'BOOKING' ? bookingId : null,
+      creditId: context === 'CREDIT_PURCHASE' ? creditId : null,
+      status: CouponUsageStatus.USED,
+    },
+  });
+  
+  return { ok: true, mode: 'CREATED' };
 }
 
 /**
@@ -357,15 +268,28 @@ export function createCouponSnapshot(couponCode: string): object | null {
 }
 
 /**
- * IMPORTANTE: Cupons NÃO são restaurados após cancelamento
- * Esta função existe apenas para cupons reutilizáveis em casos especiais
- * PRIMEIRACOMPRA NUNCA deve ser restaurado (burned on use)
+ * Restaura cupom após cancelamento/expiração de booking/crédito NÃO PAGO
+ * 
+ * REGRA DE NEGÓCIO:
+ * - Se a pessoa NÃO PAGAR (cancelamento, expiração, erro): cupom VOLTA (status = RESTORED)
+ * - Se a pessoa PAGAR: cupom CONSUMIDO PARA SEMPRE (NÃO restaurar)
+ * 
+ * @param tx Transação Prisma
+ * @param bookingId ID do booking (para contexto BOOKING)
+ * @param creditId ID do crédito (para contexto CREDIT_PURCHASE)
+ * @param wasPaid Se true, NÃO restaura (cupom consumido para sempre)
  */
 export async function restoreCouponUsage(
   tx: Prisma.TransactionClient,
   bookingId?: string,
-  creditId?: string
+  creditId?: string,
+  wasPaid: boolean = false
 ): Promise<{ restored: boolean; couponCode?: string }> {
+  // Se foi pago, NUNCA restaurar cupom
+  if (wasPaid) {
+    return { restored: false };
+  }
+  
   // Buscar o uso do cupom - usa AND para garantir que é o cupom certo
   // IMPORTANTE: Só restaura se o cupom está USED E apontando para ESTE booking/credit específico
   const usage = await tx.couponUsage.findFirst({
@@ -381,19 +305,15 @@ export async function restoreCouponUsage(
     return { restored: false };
   }
   
-  // REGRA: PRIMEIRACOMPRA NUNCA é restaurado
-  const coupon = getCouponInfo(usage.couponCode);
-  if (coupon?.singleUsePerUser) {
-    // Cupom burned - não restaurar
-    return { restored: false, couponCode: usage.couponCode };
-  }
-  
-  // Para cupons reutilizáveis, marcar como restaurado
+  // Marcar como restaurado (disponível para uso novamente)
   await tx.couponUsage.update({
     where: { id: usage.id },
     data: {
       status: CouponUsageStatus.RESTORED,
       restoredAt: new Date(),
+      // Limpar referências ao booking/credit cancelado
+      bookingId: null,
+      creditId: null,
     },
   });
   

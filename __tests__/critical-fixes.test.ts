@@ -26,32 +26,21 @@ import {
 describe('Coupon Race Condition - Claim-or-Create Pattern', () => {
   describe('RecordCouponUsageResult interface', () => {
     it('deve ter propriedade ok para indicar sucesso/falha', () => {
-      // Resultado de sucesso
+      // Resultado de sucesso - interface simplificada
       const successResult: RecordCouponUsageResult = {
         ok: true,
         mode: 'CREATED',
-        reused: false,
-        idempotent: false,
       };
       expect(successResult.ok).toBe(true);
-      expect(successResult.code).toBeUndefined();
       
-      // Resultado de falha
-      const failResult: RecordCouponUsageResult = {
-        ok: false,
-        code: 'COUPON_ALREADY_USED',
-        existingBookingId: 'booking_123',
-      };
-      expect(failResult.ok).toBe(false);
-      expect(failResult.code).toBe('COUPON_ALREADY_USED');
+      // Resultado de falha não ocorre mais via interface
+      // P2002 propaga diretamente sem catch interno
     });
 
-    it('deve suportar diferentes modos de sucesso', () => {
+    it('deve suportar modos CREATED e CLAIMED_RESTORED', () => {
       const modes: Array<RecordCouponUsageResult['mode']> = [
         'CREATED',
         'CLAIMED_RESTORED',
-        'CLAIMED_AFTER_RACE',
-        'IDEMPOTENT',
       ];
       
       modes.forEach(mode => {
@@ -64,15 +53,16 @@ describe('Coupon Race Condition - Claim-or-Create Pattern', () => {
       });
     });
 
-    it('deve indicar existingBookingId quando cupom já usado', () => {
+    it('interface simplificada - sem reused, idempotent, existingBookingId', () => {
       const result: RecordCouponUsageResult = {
-        ok: false,
-        code: 'COUPON_ALREADY_USED',
-        existingBookingId: 'booking_abc123',
+        ok: true,
+        mode: 'CLAIMED_RESTORED',
       };
       
-      expect(result.ok).toBe(false);
-      expect(result.existingBookingId).toBe('booking_abc123');
+      expect(result.ok).toBe(true);
+      // Propriedades removidas da interface para simplicidade
+      expect('reused' in result).toBe(false);
+      expect('idempotent' in result).toBe(false);
     });
   });
 

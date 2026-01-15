@@ -2,7 +2,7 @@
 // Componente BookingModal - Modal de reserva com formulário
 // ===========================================================
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import DatePicker, { registerLocale } from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { ptBR } from 'date-fns/locale';
@@ -180,6 +180,13 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
   const [success, setSuccess] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   
+  // Cooldown para evitar múltiplos cliques no botão
+  const [buttonCooldown, setButtonCooldown] = useState(false);
+  
+  // Ref para scroll automático ao topo quando houver erro
+  const modalContentRef = useRef<HTMLDivElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+  
   // Estados de disponibilidade
   const [availabilitySlots, setAvailabilitySlots] = useState<AvailabilitySlot[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
@@ -307,20 +314,47 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     officialTypes.includes(p.type)
   );
 
+  // ===========================================================
+  // UX HELPER: Scroll para mensagem de erro e cooldown do botão
+  // ===========================================================
+  const scrollToError = useCallback(() => {
+    setTimeout(() => {
+      if (errorRef.current) {
+        errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (modalContentRef.current) {
+        modalContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 50);
+  }, []);
+
+  const showErrorWithScroll = useCallback((message: string) => {
+    setError(message);
+    scrollToError();
+  }, [scrollToError]);
+
+  // Ativar cooldown temporário no botão após clique
+  const activateButtonCooldown = useCallback(() => {
+    setButtonCooldown(true);
+    setTimeout(() => setButtonCooldown(false), 2000); // 2 segundos de cooldown
+  }, []);
+
   // Handler de submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    // Ativar cooldown para evitar múltiplos cliques
+    activateButtonCooldown();
 
     // Validações comuns (nome, telefone, termos)
     if (!formData.userName || !formData.userPhone) {
-      setError('Por favor, preencha nome e telefone.');
+      showErrorWithScroll('Por favor, preencha nome e telefone.');
       return;
     }
 
     // Validar aceite dos termos
     if (!acceptedTerms) {
-      setError('Você precisa aceitar os Termos de Uso e Política de Privacidade.');
+      showErrorWithScroll('Você precisa aceitar os Termos de Uso e Política de Privacidade.');
       return;
     }
 
@@ -328,14 +362,14 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     const phoneValidationError = getPhoneError(formData.userPhone);
     if (phoneValidationError) {
       setPhoneError(phoneValidationError);
-      setError(phoneValidationError);
+      showErrorWithScroll(phoneValidationError);
       return;
     }
 
     // Validar CPF antes de enviar
     if (!isValidCpf(formData.userCpf)) {
       setCpfError('CPF inválido (11 dígitos)');
-      setError('CPF inválido.');
+      showErrorWithScroll('CPF inválido.');
       return;
     }
     setCpfError(null);
@@ -344,24 +378,24 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     if (formData.productType === 'hourly') {
       // Hora avulsa PRECISA de data e horário
       if (!formData.date) {
-        setError('Por favor, selecione uma data.');
+        showErrorWithScroll('Por favor, selecione uma data.');
         return;
       }
       
       // Verificar se é dia fechado
       const bh = getBusinessHoursForDate(formData.date);
       if (!bh) {
-        setError('Fechado neste dia. Por favor, selecione outra data.');
+        showErrorWithScroll('Fechado neste dia. Por favor, selecione outra data.');
         return;
       }
       
       if (!formData.startHour) {
-        setError('Por favor, selecione um horário.');
+        showErrorWithScroll('Por favor, selecione um horário.');
         return;
       }
       // E1: Validar que horário não ultrapassa fechamento (usa businessHours.end dinâmico)
       if (formData.startHour + formData.duration > bh.end) {
-        setError(`A reserva ultrapassa o horário de fechamento (${bh.end}h). Duração máxima disponível: ${bh.end - formData.startHour}h.`);
+        showErrorWithScroll(`A reserva ultrapassa o horário de fechamento (${bh.end}h). Duração máxima disponível: ${bh.end - formData.startHour}h.`);
         return;
       }
       
@@ -369,14 +403,14 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
       const blockValidation = validateBlockAvailability(formData.startHour, formData.duration, availabilitySlots);
       if (!blockValidation.valid) {
         setBlockError(`Bloco indisponível. Slots ocupados: ${blockValidation.unavailableSlots.map(h => `${String(h).padStart(2, '0')}:00`).join(', ')}`);
-        setError('Alguns horários do bloco selecionado estão ocupados. Escolha outro horário.');
+        showErrorWithScroll('Alguns horários do bloco selecionado estão ocupados. Escolha outro horário.');
         return;
       }
       setBlockError(null);
     } else {
       // Pacote PRECISA de productId selecionado
       if (!formData.productId) {
-        setError('Por favor, selecione um pacote.');
+        showErrorWithScroll('Por favor, selecione um pacote.');
         return;
       }
     }
@@ -479,7 +513,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
       // Sucesso SEM pagamento (100% pago com créditos)
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao processar reserva');
+      showErrorWithScroll(err instanceof Error ? err.message : 'Erro ao processar reserva');
     } finally {
       setSubmitting(false);
     }
@@ -513,7 +547,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4 modal-backdrop overflow-y-auto"
       onClick={(e) => !submitting && e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto modal-content my-2 sm:my-4">
+      <div 
+        ref={modalContentRef}
+        className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto modal-content my-2 sm:my-4"
+      >
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b">
           <div>
@@ -536,8 +573,15 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
         {/* Formulário */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-              {error}
+            <div 
+              ref={errorRef}
+              className="bg-red-50 border-2 border-red-300 text-red-700 px-4 py-3 rounded-lg text-sm shadow-sm"
+              role="alert"
+              style={{
+                animation: 'shake 0.5s ease-in-out'
+              }}
+            >
+              <span className="font-semibold">⚠️ Atenção:</span> {error}
             </div>
           )}
 
@@ -1077,17 +1121,17 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
             </button>
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || buttonCooldown}
               className={`flex-1 px-4 py-3 min-h-[48px] rounded-lg font-semibold transition flex items-center justify-center gap-2 text-base ${
-                submitting
+                submitting || buttonCooldown
                   ? 'bg-gray-400 cursor-not-allowed text-white'
                   : 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800'
               }`}
             >
-              {submitting && (
+              {(submitting || buttonCooldown) && (
                 <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               )}
-              {submitting ? 'Processando...' : 'Reservar'}
+              {submitting ? 'Processando...' : buttonCooldown ? 'Aguarde...' : 'Reservar'}
             </button>
           </div>
         </form>

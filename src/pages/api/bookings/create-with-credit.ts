@@ -181,13 +181,28 @@ export default async function handler(
 
     // ========== AUDITORIA: Guardar valor bruto antes de cupom ==========
     const grossAmount = totalAmount;
+
+    // Verifica saldo de créditos disponíveis para este horário específico
+    // Passa start/end para validar usageType dos créditos
+    // IMPORTANTE: Calcular ANTES de validar cupom para saber se haverá pagamento em dinheiro
+    const availableCredits = await getCreditBalanceForRoom(userId, roomId, start, start, end);
+    
+    // Calcular se há pagamento em dinheiro (sem cupom primeiro)
+    const creditsToUseWithoutCoupon = Math.min(availableCredits, grossAmount);
+    const amountToPayWithoutCoupon = grossAmount - creditsToUseWithoutCoupon;
+    
+    // ========== VALIDAÇÃO ANTECIPADA: Se não há pagamento em dinheiro, IGNORAR cupom ==========
+    // Cupom só é relevante quando há amountToPay > 0
+    // Isso evita validar cupom (e consumir tentativa) em agendamentos 100% com crédito
+    const shouldProcessCoupon = normalizedCouponCode && amountToPayWithoutCoupon > 0;
+    
     let discountAmount = 0;
     let couponApplied: string | null = null;
     let couponSnapshot: object | null = null;
     let netAmount = grossAmount;
 
-    // ========== APLICAR CUPOM (se fornecido) ==========
-    if (normalizedCouponCode && isValidCoupon(normalizedCouponCode)) {
+    // ========== APLICAR CUPOM (apenas se houver pagamento em dinheiro) ==========
+    if (shouldProcessCoupon && isValidCoupon(normalizedCouponCode)) {
       // Verificar se usuário pode usar este cupom (ex: PRIMEIRACOMPRA single-use)
       const usageCheck = await checkCouponUsage(prisma, userId, normalizedCouponCode, CouponUsageContext.BOOKING);
       if (!usageCheck.canUse) {
@@ -204,16 +219,13 @@ export default async function handler(
       couponApplied = normalizedCouponCode;
       couponSnapshot = createCouponSnapshot(normalizedCouponCode);
     }
-
-    // Verifica saldo de créditos disponíveis para este horário específico
-    // Passa start/end para validar usageType dos créditos
-    const availableCredits = await getCreditBalanceForRoom(userId, roomId, start, start, end);
     
-    // Calcular créditos a usar (sobre o netAmount - valor após cupom)
+    // Recalcular créditos a usar (sobre o netAmount - valor após cupom)
     const creditsToUse = Math.min(availableCredits, netAmount);
     const amountToPay = netAmount - creditsToUse;
 
     // ========== ANTIFRAUDE: Cupom só vale se houver pagamento em dinheiro ==========
+    // (Esta verificação agora é redundante mas mantemos por segurança extra)
     if (couponApplied && amountToPay === 0) {
       return res.status(400).json({
         success: false,

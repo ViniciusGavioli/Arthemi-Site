@@ -9,6 +9,8 @@ import { prisma, isOverbookingError, OVERBOOKING_ERROR_MESSAGE } from '@/lib/pri
 import { isAvailable } from '@/lib/availability';
 import { logAdminAction } from '@/lib/audit';
 import { resolveOrCreateUser } from '@/lib/user-resolve';
+import { respondError, type ErrorResponse } from '@/lib/errors';
+import { generateRequestId, REQUEST_ID_HEADER } from '@/lib/request-id';
 import { 
   SHIFT_HOURS,
   getCreditBalanceForRoom,
@@ -35,12 +37,11 @@ const createManualBookingSchema = z.object({
   courtesyReason: z.string().optional(),
 });
 
-interface ApiResponse {
-  success: boolean;
-  bookingId?: string;
-  error?: string;
-  details?: unknown;
-}
+// Tipo de resposta: sucesso OU erro padronizado
+type ApiResponse = {
+  success: true;
+  bookingId: string;
+} | ErrorResponse | { success: false; error: string; details?: unknown };
 
 export default async function handler(
   req: NextApiRequest,
@@ -56,6 +57,10 @@ export default async function handler(
 
   // P-005: Verificar autenticação admin via JWT
   if (!requireAdminAuth(req, res)) return;
+
+  // Gerar requestId no início
+  const requestId = generateRequestId();
+  res.setHeader(REQUEST_ID_HEADER, requestId);
 
   try {
     const validation = createManualBookingSchema.safeParse(req.body);
@@ -289,37 +294,10 @@ export default async function handler(
       bookingId: result.booking.id,
     });
   } catch (error) {
-    // P-001: Detectar violação de constraint de overbooking
-    if (isOverbookingError(error)) {
-      console.error('[ADMIN] Overbooking detectado pelo constraint:', error);
-      return res.status(409).json({
-        success: false,
-        error: OVERBOOKING_ERROR_MESSAGE,
-      });
-    }
-    
-    // P-002: Detectar erros de crédito insuficiente / double-spend
-    if (error instanceof Error && error.message.startsWith('INSUFFICIENT_CREDITS:')) {
-      const parts = error.message.split(':');
-      const available = parseInt(parts[1]) / 100;
-      const required = parseInt(parts[2]) / 100;
-      return res.status(400).json({
-        success: false,
-        error: `Saldo de créditos insuficiente. Disponível: R$ ${available.toFixed(2)}, Necessário: R$ ${required.toFixed(2)}.`,
-      });
-    }
-    
-    if (error instanceof Error && error.message.startsWith('CREDIT_CONSUMED_BY_ANOTHER:')) {
-      return res.status(409).json({
-        success: false,
-        error: 'Créditos foram consumidos por outra reserva. Tente novamente.',
-      });
-    }
-    
-    console.error('Erro ao criar reserva manual:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Erro interno ao criar reserva',
+    // Handler centralizado: converte QUALQUER erro em resposta padronizada
+    return respondError(res, error, requestId, {
+      endpoint: '/api/admin/bookings/create',
+      method: 'POST',
     });
   }
 }

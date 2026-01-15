@@ -1,0 +1,32 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Payload padronizado (snapshot) erro de conflito de reserva 1`] = `
+{
+  "code": "BOOKING_CONFLICT",
+  "error": "Horário não disponível. Já existe uma reserva neste período.",
+  "requestId": "req-ghi-789",
+  "success": false,
+}
+`;
+
+exports[`Payload padronizado (snapshot) erro de créditos insuficientes 1`] = `
+{
+  "code": "INSUFFICIENT_CREDITS",
+  "details": {
+    "availableCents": 5000,
+    "requiredCents": 10000,
+  },
+  "error": "Saldo de créditos insuficiente. Disponível: R$ 50.00, Necessário: R$ 100.00.",
+  "requestId": "req-def-456",
+  "success": false,
+}
+`;
+
+exports[`Payload padronizado (snapshot) erro de cupom inválido 1`] = `
+{
+  "code": "COUPON_INVALID",
+  "error": "Cupom TESTE50 já foi utilizado",
+  "requestId": "req-abc-123",
+  "success": false,
+}
+`;

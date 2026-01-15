@@ -42,6 +42,7 @@ import { triggerAccountActivation } from '@/lib/account-activation';
 import { requireEmailVerifiedForBooking } from '@/lib/email-verification';
 import { getBookingTotalByDate } from '@/lib/pricing';
 import { toCents, assertIntegerCents } from '@/lib/money';
+import { respondError, isOverbookingPrismaError, BusinessError } from '@/lib/errors';
 
 // Schema de validação com Zod
 const createBookingSchema = z.object({
@@ -671,94 +672,20 @@ export default async function handler(
     });
 
   } catch (error) {
-    const duration = Date.now() - startTime;
-    
-    // P-001: Detectar violação de constraint de overbooking
-    if (isOverbookingError(error)) {
-      console.log(`[API] POST /api/bookings END (OVERBOOKING)`, JSON.stringify({ requestId, statusCode: 409, duration }));
-      return res.status(409).json({
-        success: false,
-        error: OVERBOOKING_ERROR_MESSAGE,
-      });
-    }
-    
-    // P-002: Detectar erros de crédito insuficiente / double-spend
-    if (error instanceof Error && error.message.startsWith('INSUFFICIENT_CREDITS:')) {
-      const parts = error.message.split(':');
-      const available = parseInt(parts[1]) / 100;
-      const required = parseInt(parts[2]) / 100;
-      console.log(`[API] POST /api/bookings END (INSUFFICIENT_CREDITS)`, JSON.stringify({ requestId, statusCode: 400, duration, available, required }));
-      return res.status(400).json({
-        success: false,
-        error: `Saldo de créditos insuficiente. Disponível: R$ ${available.toFixed(2)}, Necessário: R$ ${required.toFixed(2)}.`,
-      });
-    }
-    
-    if (error instanceof Error && error.message.startsWith('CREDIT_CONSUMED_BY_ANOTHER:')) {
-      console.log(`[API] POST /api/bookings END (CREDIT_RACE)`, JSON.stringify({ requestId, statusCode: 409, duration }));
-      return res.status(409).json({
-        success: false,
-        error: 'Seus créditos foram consumidos por outra reserva. Tente novamente.',
-      });
-    }
-    
-    if (error instanceof Error && error.message === 'CONFLICT') {
-      console.log(`[API] POST /api/bookings END`, JSON.stringify({ requestId, statusCode: 409, duration }));
-      return res.status(409).json({
-        success: false,
-        error: 'Horário não disponível. Já existe uma reserva neste período.',
+    // P-001: Detectar violação de constraint de overbooking (constraint específico)
+    if (isOverbookingError(error) || isOverbookingPrismaError(error)) {
+      return respondError(res, BusinessError.bookingConflict(), requestId, {
+        endpoint: '/api/bookings',
+        method: 'POST',
+        extra: { startTime },
       });
     }
 
-    if (error instanceof Error && error.message === 'TEMPO_INSUFICIENTE') {
-      console.log(`[API] POST /api/bookings END`, JSON.stringify({ requestId, statusCode: 400, duration }));
-      return res.status(400).json({
-        success: false,
-        error: 'Reservas sem crédito precisam ser feitas com pelo menos 30 minutos de antecedência.',
-      });
-    }
-
-    // BLOQUEIO: Email não verificado
-    if (error instanceof Error && error.message === 'EMAIL_NOT_VERIFIED') {
-      console.log(`[API] POST /api/bookings END`, JSON.stringify({ requestId, statusCode: 403, duration }));
-      return res.status(403).json({
-        success: false,
-        error: 'Você precisa verificar seu e-mail para agendar.',
-      });
-    }
-
-    // CUPOM: Inválido ou já usado (checkCouponUsage)
-    if (error instanceof Error && error.message.startsWith('CUPOM_INVALIDO:')) {
-      const reason = error.message.replace('CUPOM_INVALIDO: ', '');
-      console.log(`[API] POST /api/bookings END (CUPOM_INVALIDO)`, JSON.stringify({ requestId, statusCode: 400, duration, reason }));
-      return res.status(400).json({
-        success: false,
-        code: 'COUPON_INVALID',
-        error: reason,
-      });
-    }
-
-    // CUPOM: Já usado (recordCouponUsageIdempotent - race condition)
-    if (error instanceof Error && error.message.startsWith('COUPON_ALREADY_USED:')) {
-      const [, code] = error.message.split(':');
-      console.log(`[API] POST /api/bookings END (COUPON_ALREADY_USED)`, JSON.stringify({ requestId, statusCode: 400, duration, couponCode: code }));
-      return res.status(400).json({
-        success: false,
-        code: 'COUPON_ALREADY_USED',
-        error: 'Este cupom já foi utilizado.',
-      });
-    }
-
-    console.error('❌ [/api/bookings] ERRO:', {
-      requestId,
-      message: error instanceof Error ? error.message : 'Erro desconhecido',
-      roomId: req.body.roomId,
-      duration,
-    });
-    
-    return res.status(500).json({
-      success: false,
-      error: getSafeErrorMessage(error, 'bookings'),
+    // Handler centralizado de erros (reconhece erros legados e BusinessError)
+    return respondError(res, error, requestId, {
+      endpoint: '/api/bookings',
+      method: 'POST',
+      extra: { startTime },
     });
   }
 }

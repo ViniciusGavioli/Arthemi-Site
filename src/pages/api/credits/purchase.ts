@@ -26,6 +26,7 @@ import { addDays } from 'date-fns';
 import { computeCreditAmountCents } from '@/lib/credits';
 import { getBookingTotalByDate } from '@/lib/pricing';
 import { getMinPaymentAmountCents } from '@/lib/business-rules';
+import { respondError } from '@/lib/errors';
 import { 
   generatePurchaseIdempotencyKey, 
   checkPurchaseHasPayment,
@@ -555,40 +556,11 @@ export default async function handler(
     });
 
   } catch (error) {
-    const duration = Date.now() - startTime;
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    
-    console.error('[CREDIT] Erro na compra:', {
-      requestId,
-      error: errorMessage,
-      duration,
-    });
-
-    // Tratar erro de cupom inválido (da transação - checkCouponUsage)
-    if (errorMessage.startsWith('CUPOM_INVALIDO:')) {
-      const reason = errorMessage.replace('CUPOM_INVALIDO: ', '');
-      console.log(`[CREDIT] Cupom inválido`, JSON.stringify({ requestId, reason }));
-      return res.status(400).json({
-        success: false,
-        code: 'COUPON_INVALID',
-        error: reason,
-      });
-    }
-
-    // CUPOM: Já usado (recordCouponUsageIdempotent - race condition)
-    if (errorMessage.startsWith('COUPON_ALREADY_USED:')) {
-      const [, couponCode] = errorMessage.split(':');
-      console.log(`[CREDIT] Cupom já usado`, JSON.stringify({ requestId, couponCode }));
-      return res.status(400).json({
-        success: false,
-        code: 'COUPON_ALREADY_USED',
-        error: 'Este cupom já foi utilizado.',
-      });
-    }
-
-    return res.status(500).json({
-      success: false,
-      error: getSafeErrorMessage(error, 'credits/purchase'),
+    // Handler centralizado de erros
+    return respondError(res, error, requestId, {
+      endpoint: '/api/credits/purchase',
+      method: 'POST',
+      extra: { startTime },
     });
   }
 }

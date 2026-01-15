@@ -30,7 +30,7 @@ export function DashboardHeader({ userName, onLogout }: DashboardHeaderProps) {
           <div className="flex items-center gap-4">
             <Link href="/" className="flex-shrink-0">
               <Image
-                src="/images/Logo/logo.png"
+                src="/images/Logo/logo.webp"
                 alt="Espaço Arthemi"
                 width={120}
                 height={40}

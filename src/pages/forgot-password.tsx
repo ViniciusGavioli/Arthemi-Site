@@ -97,7 +97,7 @@ export default function ForgotPasswordPage() {
           <div className="text-center mb-8">
             <Link href="/" className="inline-block">
               <Image
-                src="/images/Logo/logo.png"
+                src="/images/Logo/logo.webp"
                 alt="Espaço Arthemi"
                 width={180}
                 height={60}

@@ -64,7 +64,7 @@ export default function VerificarEmailPage() {
         {/* Logo */}
         <Link href="/" className="mb-8">
           <Image
-            src="/images/Logo/logo.png"
+            src="/images/Logo/logo.webp"
             alt="Espaço Arthemi"
             width={180}
             height={60}

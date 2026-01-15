@@ -46,7 +46,7 @@ export default function Header({ variant = 'sticky' }: HeaderProps) {
           {/* Logo */}
           <Link href="/" className="flex items-center">
             <Image 
-              src="/images/Logo/logo.png" 
+              src="/images/Logo/logo.webp" 
               alt="Espaço Arthemi" 
               width={140}
               height={56}

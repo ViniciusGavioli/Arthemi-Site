@@ -80,7 +80,7 @@ export default function CriarSenhaPage() {
         <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-warm-100 to-white px-4">
           <Link href="/" className="mb-8">
             <Image
-              src="/images/Logo/logo.png"
+              src="/images/Logo/logo.webp"
               alt="Espaço Arthemi"
               width={180}
               height={60}
@@ -119,7 +119,7 @@ export default function CriarSenhaPage() {
         {/* Logo */}
         <Link href="/" className="mb-8">
           <Image
-            src="/images/Logo/logo.png"
+            src="/images/Logo/logo.webp"
             alt="Espaço Arthemi"
             width={180}
             height={60}

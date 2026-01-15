@@ -82,7 +82,7 @@ export default function Footer({ compact = false }: FooterProps) {
           <div className="md:col-span-2">
             <div className="mb-4">
               <Image 
-                src="/images/Logo/logo.png" 
+                src="/images/Logo/logo.webp" 
                 alt="Espaço Arthemi" 
                 width={160}
                 height={64}

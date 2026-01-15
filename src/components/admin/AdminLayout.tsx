@@ -65,7 +65,7 @@ export default function AdminLayout({ children, title = 'Admin' }: AdminLayoutPr
           <div className="h-20 flex items-center justify-center border-b border-primary-800/50">
             <Link href="/admin/dashboard" className="flex items-center gap-3">
               <Image 
-                src="/images/Logo/logo.png" 
+                src="/images/Logo/logo.webp" 
                 alt="Espaço Arthemi" 
                 width={140}
                 height={50}

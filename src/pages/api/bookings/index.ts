@@ -80,6 +80,7 @@ interface ApiResponse {
   amountToPay?: number;
   emailSent?: boolean;
   error?: string;
+  code?: string; // Código de erro padronizado (ex: COUPON_INVALID, COUPON_ALREADY_USED)
   message?: string; // Mensagem amigável para erros
   details?: unknown;
 }
@@ -726,14 +727,25 @@ export default async function handler(
       });
     }
 
-    // CUPOM: Já usado (P2002 tratado como idempotência)
+    // CUPOM: Inválido ou já usado (checkCouponUsage)
+    if (error instanceof Error && error.message.startsWith('CUPOM_INVALIDO:')) {
+      const reason = error.message.replace('CUPOM_INVALIDO: ', '');
+      console.log(`[API] POST /api/bookings END (CUPOM_INVALIDO)`, JSON.stringify({ requestId, statusCode: 400, duration, reason }));
+      return res.status(400).json({
+        success: false,
+        code: 'COUPON_INVALID',
+        error: reason,
+      });
+    }
+
+    // CUPOM: Já usado (recordCouponUsageIdempotent - race condition)
     if (error instanceof Error && error.message.startsWith('COUPON_ALREADY_USED:')) {
       const [, code] = error.message.split(':');
       console.log(`[API] POST /api/bookings END (COUPON_ALREADY_USED)`, JSON.stringify({ requestId, statusCode: 400, duration, couponCode: code }));
       return res.status(400).json({
         success: false,
-        error: 'COUPON_ALREADY_USED',
-        message: 'Este cupom já foi utilizado.',
+        code: 'COUPON_ALREADY_USED',
+        error: 'Este cupom já foi utilizado.',
       });
     }
 

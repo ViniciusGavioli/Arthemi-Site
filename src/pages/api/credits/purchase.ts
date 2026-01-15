@@ -566,21 +566,23 @@ export default async function handler(
 
     // Tratar erro de cupom inválido (da transação - checkCouponUsage)
     if (errorMessage.startsWith('CUPOM_INVALIDO:')) {
+      const reason = errorMessage.replace('CUPOM_INVALIDO: ', '');
+      console.log(`[CREDIT] Cupom inválido`, JSON.stringify({ requestId, reason }));
       return res.status(400).json({
         success: false,
         code: 'COUPON_INVALID',
-        error: errorMessage.replace('CUPOM_INVALIDO: ', ''),
+        error: reason,
       });
     }
 
-    // CUPOM: Já usado (P2002 tratado como idempotência)
+    // CUPOM: Já usado (recordCouponUsageIdempotent - race condition)
     if (errorMessage.startsWith('COUPON_ALREADY_USED:')) {
       const [, couponCode] = errorMessage.split(':');
       console.log(`[CREDIT] Cupom já usado`, JSON.stringify({ requestId, couponCode }));
       return res.status(400).json({
         success: false,
-        error: 'COUPON_ALREADY_USED',
-        message: 'Este cupom já foi utilizado.',
+        code: 'COUPON_ALREADY_USED',
+        error: 'Este cupom já foi utilizado.',
       });
     }
 
@@ -590,4 +592,3 @@ export default async function handler(
     });
   }
 }
-

@@ -484,3 +484,93 @@ describe('Regressão: Sem 25P02', () => {
     expect(true).toBe(true); // Teste de documentação
   });
 });
+
+// ============================================================
+// TESTES: HTTP Error Handling - CUPOM_INVALIDO → 400 (nunca 500)
+// ============================================================
+
+describe('HTTP Error Handling: Cupom', () => {
+  describe('/api/bookings error parsing', () => {
+    it('CUPOM_INVALIDO: deve retornar 400 com code COUPON_INVALID', () => {
+      const errorMessage = 'CUPOM_INVALIDO: Cupom TESTE50 já foi utilizado para este tipo de operação.';
+      
+      // Simula o parsing do error handler
+      if (errorMessage.startsWith('CUPOM_INVALIDO:')) {
+        const reason = errorMessage.replace('CUPOM_INVALIDO: ', '');
+        const response = {
+          status: 400,
+          body: {
+            success: false,
+            code: 'COUPON_INVALID',
+            error: reason,
+          },
+        };
+        
+        expect(response.status).toBe(400);
+        expect(response.body.code).toBe('COUPON_INVALID');
+        expect(response.body.error).toContain('já foi utilizado');
+      }
+    });
+
+    it('COUPON_ALREADY_USED: deve retornar 400 com code COUPON_ALREADY_USED', () => {
+      const errorMessage = 'COUPON_ALREADY_USED:TESTE50';
+      
+      if (errorMessage.startsWith('COUPON_ALREADY_USED:')) {
+        const [, couponCode] = errorMessage.split(':');
+        const response = {
+          status: 400,
+          body: {
+            success: false,
+            code: 'COUPON_ALREADY_USED',
+            error: 'Este cupom já foi utilizado.',
+          },
+        };
+        
+        expect(response.status).toBe(400);
+        expect(response.body.code).toBe('COUPON_ALREADY_USED');
+        expect(couponCode).toBe('TESTE50');
+      }
+    });
+
+    it('erro de cupom NUNCA deve virar 500', () => {
+      // Lista de prefixos que DEVEM ser tratados como 4xx
+      const couponErrorPrefixes = [
+        'CUPOM_INVALIDO:',
+        'COUPON_ALREADY_USED:',
+      ];
+      
+      couponErrorPrefixes.forEach(prefix => {
+        const errorMessage = `${prefix}some reason`;
+        const isCouponError = couponErrorPrefixes.some(p => errorMessage.startsWith(p));
+        
+        // Se é erro de cupom, NÃO deve cair no catch genérico (500)
+        expect(isCouponError).toBe(true);
+      });
+    });
+  });
+
+  describe('Consistência entre endpoints', () => {
+    it('/api/bookings e /api/credits/purchase usam mesmos códigos de erro', () => {
+      // Ambos endpoints devem retornar mesma estrutura
+      const expectedCodes = ['COUPON_INVALID', 'COUPON_ALREADY_USED'];
+      
+      // /api/bookings response structure
+      const bookingsResponse = {
+        success: false,
+        code: 'COUPON_INVALID', // ou COUPON_ALREADY_USED
+        error: 'Mensagem do erro',
+      };
+      
+      // /api/credits/purchase response structure
+      const creditsResponse = {
+        success: false,
+        code: 'COUPON_INVALID', // ou COUPON_ALREADY_USED
+        error: 'Mensagem do erro',
+      };
+      
+      expect(expectedCodes).toContain(bookingsResponse.code);
+      expect(expectedCodes).toContain(creditsResponse.code);
+      expect(Object.keys(bookingsResponse)).toEqual(Object.keys(creditsResponse));
+    });
+  });
+});

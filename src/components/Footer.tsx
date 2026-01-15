@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { MapPin, Phone, MessageCircle } from 'lucide-react';
 import { BUSINESS_INFO } from '@/constants/seo';
+import { analytics } from '@/lib/analytics';
 
 interface FooterProps {
   /** Usa versão compacta (menos colunas) */
@@ -16,6 +17,16 @@ export default function Footer({ compact = false }: FooterProps) {
   const currentYear = new Date().getFullYear();
   const googleMapsLink = 'https://www.google.com/maps/place/Espa%C3%A7o+Arthemi+-+Coworking+de+Sa%C3%BAde+em+BH/@-19.9245428,-43.922652,17z';
   const whatsappLink = `https://wa.me/${BUSINESS_INFO.whatsapp}`;
+
+  // Handler para tracking de clique no WhatsApp
+  const handleWhatsAppClick = () => {
+    analytics.contactClicked('whatsapp', 'footer');
+  };
+
+  // Handler para tracking de clique no telefone
+  const handlePhoneClick = () => {
+    analytics.contactClicked('phone', 'footer');
+  };
 
   if (compact) {
     return (
@@ -52,6 +63,7 @@ export default function Footer({ compact = false }: FooterProps) {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 hover:text-warm-100 transition text-green-400"
+                  onClick={handleWhatsAppClick}
                 >
                   <MessageCircle className="w-4 h-4" />
                   WhatsApp
@@ -59,6 +71,7 @@ export default function Footer({ compact = false }: FooterProps) {
                 <a 
                   href="tel:+5531984916090"
                   className="flex items-center gap-2 hover:text-warm-100 transition"
+                  onClick={handlePhoneClick}
                 >
                   <Phone className="w-4 h-4" />
                   (31) 98491-6090
@@ -122,6 +135,7 @@ export default function Footer({ compact = false }: FooterProps) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 hover:text-warm-100 transition text-green-400"
+                onClick={handleWhatsAppClick}
               >
                 <MessageCircle className="w-4 h-4" />
                 WhatsApp
@@ -129,6 +143,7 @@ export default function Footer({ compact = false }: FooterProps) {
               <a 
                 href="tel:+5531984916090" 
                 className="flex items-center gap-2 hover:text-warm-100 transition"
+                onClick={handlePhoneClick}
               >
                 <Phone className="w-4 h-4" />
                 (31) 98491-6090

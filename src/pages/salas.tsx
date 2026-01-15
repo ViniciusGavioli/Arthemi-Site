@@ -2,7 +2,7 @@
 // Página /salas - Lista de Consultórios com RoomCard
 // ===========================================================
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { GetServerSideProps } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -16,6 +16,7 @@ import { PAGE_SEO } from '@/constants/seo';
 import { formatCurrency } from '@/lib/utils';
 import { PRICES_V3, formatPrice, getAllProductsForRoom } from '@/constants/prices';
 import { Lightbulb, CheckCircle2, Eye } from 'lucide-react';
+import { analytics } from '@/lib/analytics';
 
 // Helper para calcular menor preço por hora de um consultório
 function getLowestHourlyPrice(salaKey: 'SALA_A' | 'SALA_B' | 'SALA_C'): number {
@@ -62,6 +63,9 @@ export default function SalasPage({ rooms }: SalasPageProps) {
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [galleryRoom, setGalleryRoom] = useState<{ name: string; slug: string } | null>(null);
+  
+  // Track de ViewContent: evita disparo duplicado para a mesma sala na mesma sessão
+  const viewedRoomsRef = useRef<Set<string>>(new Set());
 
   // Dados para modal de galeria e cards (com preço calculado dinamicamente)
   const roomsGalleryData = [
@@ -93,6 +97,27 @@ export default function SalasPage({ rooms }: SalasPageProps) {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedRoom(null);
+  };
+
+  // Handler para abrir galeria de fotos (dispara ViewContent)
+  const handleOpenGallery = (galleryData: { name: string; slug: string }) => {
+    setGalleryRoom(galleryData);
+    
+    // Disparar ViewContent apenas 1x por sala por sessão
+    if (!viewedRoomsRef.current.has(galleryData.slug)) {
+      viewedRoomsRef.current.add(galleryData.slug);
+      
+      // Encontrar o room para obter o ID
+      const room = rooms.find(r => r.slug === galleryData.slug);
+      if (room) {
+        // Calcular menor preço para enviar como value
+        const roomKey = galleryData.slug === 'sala-a' ? 'SALA_A' : 
+                        galleryData.slug === 'sala-b' ? 'SALA_B' : 'SALA_C';
+        const lowestPrice = getLowestHourlyPrice(roomKey);
+        
+        analytics.roomViewed(room.id, galleryData.name, lowestPrice * 100); // value em centavos
+      }
+    }
   };
 
   // Handler para reservar direto da galeria
@@ -172,7 +197,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                 >
                   <div 
                     className="relative w-full h-48 sm:h-56 cursor-pointer"
-                    onClick={() => setGalleryRoom(galleryData)}
+                    onClick={() => handleOpenGallery(galleryData)}
                   >
                     <Image 
                       src={imageUrl}

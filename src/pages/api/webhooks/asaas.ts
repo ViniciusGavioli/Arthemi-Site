@@ -22,6 +22,7 @@ import {
 } from '@/lib/asaas';
 import { sendBookingConfirmationNotification } from '@/lib/booking-notifications';
 import { triggerAccountActivation } from '@/lib/account-activation';
+import { sendCapiPurchase, isCapiEventSent } from '@/lib/meta';
 
 
 // Idempotência via banco de dados (WebhookEvent table)
@@ -634,7 +635,7 @@ export default async function handler(
         where: { id: creditId },
         include: {
           user: {
-            select: { id: true, email: true, name: true, emailVerifiedAt: true },
+            select: { id: true, email: true, name: true, phone: true, emailVerifiedAt: true },
           },
         },
       });
@@ -668,6 +669,33 @@ export default async function handler(
       });
 
       console.log(`✅ [Asaas Webhook] Crédito confirmado: ${creditId} (${credit.amount} centavos liberados)`);
+
+      // ================================================================
+      // META CAPI: Enviar evento Purchase (best-effort, non-blocking)
+      // ================================================================
+      const alreadySentCapi = await isCapiEventSent('Purchase', 'Credit', creditId);
+      if (!alreadySentCapi) {
+        sendCapiPurchase({
+          entityType: 'Credit',
+          entityId: creditId,
+          value: payment.value, // Valor em reais do pagamento
+          orderId: payment.id,
+          contentIds: [creditId],
+          contentName: `Créditos Arthemi`,
+          userEmail: credit.user?.email,
+          userPhone: credit.user?.phone || undefined,
+          userId: credit.userId,
+          requestId,
+        }).then((capiResult) => {
+          if (capiResult.ok) {
+            console.log(`📊 [CAPI] Purchase sent for credit ${creditId}`, { metaTraceId: capiResult.metaTraceId });
+          } else {
+            console.warn(`⚠️ [CAPI] Purchase failed for credit ${creditId}`, { error: capiResult.error });
+          }
+        }).catch((err) => {
+          console.error(`❌ [CAPI] Purchase error for credit ${creditId}`, { error: err.message });
+        });
+      }
 
       // ATIVAÇÃO DE CONTA (best-effort) - Enviar email se usuário não verificado
       if (credit.user && !credit.user.emailVerifiedAt) {
@@ -954,6 +982,33 @@ export default async function handler(
 
       console.log(`✅ [Asaas Webhook] Pacote confirmado: ${actualBookingId} (financialStatus=PAID)`);
 
+      // ================================================================
+      // META CAPI: Enviar evento Purchase para pacote pago (best-effort)
+      // ================================================================
+      const alreadySentCapiPackage = await isCapiEventSent('Purchase', 'Booking', actualBookingId);
+      if (!alreadySentCapiPackage) {
+        sendCapiPurchase({
+          entityType: 'Booking',
+          entityId: actualBookingId,
+          value: payment.value, // Valor em reais do pagamento
+          orderId: payment.id,
+          contentIds: [booking.roomId, booking.product?.id || ''].filter(Boolean),
+          contentName: booking.product?.name || booking.room?.name || 'Pacote Arthemi',
+          userEmail: booking.user?.email,
+          userPhone: booking.user?.phone || undefined,
+          userId: booking.userId,
+          requestId,
+        }).then((capiResult) => {
+          if (capiResult.ok) {
+            console.log(`📊 [CAPI] Purchase sent for package ${actualBookingId}`, { metaTraceId: capiResult.metaTraceId });
+          } else {
+            console.warn(`⚠️ [CAPI] Purchase failed for package ${actualBookingId}`, { error: capiResult.error });
+          }
+        }).catch((err) => {
+          console.error(`❌ [CAPI] Purchase error for package ${actualBookingId}`, { error: err.message });
+        });
+      }
+
       // ATIVAÇÃO DE CONTA (best-effort) - Enviar email se usuário não verificado
       if (booking.user && !booking.user.emailVerifiedAt) {
         triggerAccountActivation({
@@ -1043,6 +1098,33 @@ export default async function handler(
     );
 
     console.log(`✅ [Asaas Webhook] Reserva confirmada: ${actualBookingId} (financialStatus=PAID, origin=COMMERCIAL)`);
+
+    // ================================================================
+    // META CAPI: Enviar evento Purchase para booking pago (best-effort)
+    // ================================================================
+    const alreadySentCapiBooking = await isCapiEventSent('Purchase', 'Booking', actualBookingId);
+    if (!alreadySentCapiBooking) {
+      sendCapiPurchase({
+        entityType: 'Booking',
+        entityId: actualBookingId,
+        value: payment.value, // Valor em reais do pagamento
+        orderId: payment.id,
+        contentIds: [booking.roomId],
+        contentName: booking.room?.name || 'Reserva Arthemi',
+        userEmail: booking.user?.email,
+        userPhone: booking.user?.phone || undefined,
+        userId: booking.userId,
+        requestId,
+      }).then((capiResult) => {
+        if (capiResult.ok) {
+          console.log(`📊 [CAPI] Purchase sent for booking ${actualBookingId}`, { metaTraceId: capiResult.metaTraceId });
+        } else {
+          console.warn(`⚠️ [CAPI] Purchase failed for booking ${actualBookingId}`, { error: capiResult.error });
+        }
+      }).catch((err) => {
+        console.error(`❌ [CAPI] Purchase error for booking ${actualBookingId}`, { error: err.message });
+      });
+    }
 
     // ATIVAÇÃO DE CONTA (best-effort) - Enviar email se usuário não verificado
     if (booking.user && !booking.user.emailVerifiedAt) {

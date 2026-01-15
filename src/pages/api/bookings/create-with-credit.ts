@@ -36,6 +36,7 @@ import {
   generateBookingIdempotencyKey,
 } from '@/lib/payment-idempotency';
 import { createBookingPayment } from '@/lib/asaas';
+import { sendCapiSchedule } from '@/lib/meta';
 
 interface ApiResponse {
   success: boolean;
@@ -390,6 +391,28 @@ export default async function handler(
         console.error('⚠️ [BOOKING] Erro no envio de email (créditos):', emailError);
         // Não falha a requisição por erro de email
       }
+
+      // ================================================================
+      // META CAPI: Enviar Schedule para booking confirmado com créditos
+      // ================================================================
+      sendCapiSchedule({
+        entityType: 'Booking',
+        entityId: result.booking.id,
+        roomName: room.name,
+        roomId: room.id,
+        value: result.totalConsumed / 100, // Converter centavos para reais
+        userEmail: user.email,
+        userPhone: user.phone || undefined,
+        userId: user.id,
+      }).then((capiResult) => {
+        if (capiResult.ok) {
+          console.log(`📊 [CAPI] Schedule sent for booking ${result.booking.id}`, { metaTraceId: capiResult.metaTraceId });
+        } else {
+          console.warn(`⚠️ [CAPI] Schedule failed for booking ${result.booking.id}`, { error: capiResult.error });
+        }
+      }).catch((err) => {
+        console.error(`❌ [CAPI] Schedule error for booking ${result.booking.id}`, { error: err.message });
+      });
     }
 
     // ========== P0-4: Se amountToPay > 0, criar cobrança no Asaas (PIX) ==========

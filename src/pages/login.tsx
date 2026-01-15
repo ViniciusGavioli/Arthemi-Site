@@ -2,7 +2,7 @@
 // Página: /login - Login do Cliente (Email + Senha)
 // ===========================================================
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect, useRef } from 'react';
 import { GetServerSideProps } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -10,9 +10,11 @@ import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { getAuthFromSSR } from '@/lib/auth';
 import { safeNext, getSuccessMessage } from '@/lib/redirect';
+import { analytics } from '@/lib/analytics';
 
 interface LoginPageProps {
   successMessage: string | null;
+  isFromRegistration: boolean;
 }
 
 export const getServerSideProps: GetServerSideProps<LoginPageProps> = async (ctx) => {
@@ -31,15 +33,19 @@ export const getServerSideProps: GetServerSideProps<LoginPageProps> = async (ctx
 
   // Mensagem de sucesso (registro ou reset)
   const successMessage = getSuccessMessage(ctx.query as Record<string, unknown>);
+  
+  // Flag para disparar CompleteRegistration
+  const isFromRegistration = ctx.query.registered === '1';
 
   return {
     props: {
       successMessage,
+      isFromRegistration,
     },
   };
 };
 
-export default function LoginPage({ successMessage }: LoginPageProps) {
+export default function LoginPage({ successMessage, isFromRegistration }: LoginPageProps) {
   const router = useRouter();
   const { next } = router.query;
 
@@ -48,6 +54,17 @@ export default function LoginPage({ successMessage }: LoginPageProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  
+  // Ref para garantir que CompleteRegistration dispara apenas 1x
+  const registrationTrackedRef = useRef(false);
+
+  // Disparar CompleteRegistration quando vindo do registro
+  useEffect(() => {
+    if (isFromRegistration && !registrationTrackedRef.current) {
+      registrationTrackedRef.current = true;
+      analytics.registrationCompleted();
+    }
+  }, [isFromRegistration]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

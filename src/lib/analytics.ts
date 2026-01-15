@@ -9,7 +9,8 @@
  * 
  * Meta Pixel (opcional):
  * - Ativado via NEXT_PUBLIC_META_PIXEL_ID
- * - Eventos padrão: PageView, ViewContent, Lead, InitiateCheckout, Purchase
+ * - Eventos padrão: PageView, ViewContent, Lead, Contact, CompleteRegistration, InitiateCheckout, Purchase
+ * - Todos os eventos incluem event_id para deduplicação (CAPI-ready)
  * - Falhas não afetam o funcionamento do site
  * 
  * @see https://plausible.io/docs
@@ -18,6 +19,8 @@
 import {
   trackViewContent,
   trackLead,
+  trackContact,
+  trackCompleteRegistration,
   trackInitiateCheckout,
   trackPurchase,
 } from './meta-pixel';
@@ -31,7 +34,8 @@ export type AnalyticsEvent =
   | 'booking_cancelled'    // Usuário cancelou reserva
   | 'room_viewed'          // Usuário viu detalhes da sala
   | 'faq_opened'           // Usuário abriu uma pergunta FAQ
-  | 'contact_clicked';     // Usuário clicou em contato (telefone/email)
+  | 'contact_clicked'      // Usuário clicou em contato (telefone/email/whatsapp)
+  | 'registration_completed'; // Usuário criou conta com sucesso
 
 // Props opcionais para eventos
 export interface EventProps {
@@ -124,14 +128,12 @@ export const analytics = {
   },
   
   // Quando pagamento é confirmado (chamado na página de sucesso)
+  // NOTA: Purchase é enviado APENAS via CAPI (Server-Side) no webhook de pagamento
+  // para garantir deduplicação correta e atribuição de conversão precisa.
+  // NÃO dispare Purchase no Browser - isso causaria duplicação.
   bookingCompleted: (roomName: string, value: number) => {
     trackEvent('booking_completed', { room: roomName, value });
-    // Meta Pixel: Purchase
-    trackPurchase({
-      contentIds: [roomName],
-      contentName: roomName,
-      value: value,
-    });
+    // Purchase event enviado via CAPI no webhook Asaas - NÃO duplicar aqui
   },
   
   // Quando usuário cancela reserva
@@ -140,11 +142,11 @@ export const analytics = {
   },
   
   // Quando usuário visualiza detalhes de um consultório
-  roomViewed: (roomName: string, value?: number) => {
+  roomViewed: (roomId: string, roomName: string, value?: number) => {
     trackEvent('room_viewed', { room: roomName });
     // Meta Pixel: ViewContent
     trackViewContent({
-      contentId: roomName,
+      contentId: roomId,
       contentName: roomName,
       contentCategory: 'Consultório',
       value: value,
@@ -156,8 +158,17 @@ export const analytics = {
     trackEvent('faq_opened', { question: question.substring(0, 50) });
   },
   
-  // Quando usuário clica em contato
-  contactClicked: (method: 'phone' | 'email' | 'whatsapp') => {
-    trackEvent('contact_clicked', { method });
+  // Quando usuário clica em contato (WhatsApp, telefone, email)
+  contactClicked: (channel: 'phone' | 'email' | 'whatsapp', location?: string) => {
+    trackEvent('contact_clicked', { method: channel, location });
+    // Meta Pixel: Contact
+    trackContact({ channel, location });
+  },
+  
+  // Quando usuário cria conta com sucesso
+  registrationCompleted: () => {
+    trackEvent('registration_completed', {});
+    // Meta Pixel: CompleteRegistration
+    trackCompleteRegistration();
   },
 };

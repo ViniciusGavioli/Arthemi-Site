@@ -683,3 +683,31 @@ enum RefundRecordStatus {
   COMPLETED // Reembolso concluído com sucesso
   FAILED    // Falha no processamento
 }
+
+// ===========================================================
+// MetaEventContext - Contexto para Meta CAPI (deduplicação)
+// ===========================================================
+// Persiste event_id e dados do cliente para correlacionar
+// eventos Pixel (client-side) com CAPI (server-side)
+// Garante deduplicação obrigatória pelo Meta
+
+model MetaEventContext {
+  id          String    @id @default(cuid())
+  eventId     String    // UUID gerado no client ou server (dedup key)
+  eventName   String    // Purchase, Schedule, Lead, etc
+  entityType  String    // Booking, Credit
+  entityId    String    // ID da entidade relacionada
+  fbp         String?   // _fbp cookie do cliente
+  fbc         String?   // _fbc cookie do cliente (click ID)
+  clientIp    String?   // IP do cliente (para CAPI match)
+  userAgent   String?   // User-Agent do cliente
+  sourceUrl   String?   // URL de origem do evento
+  capiSentAt  DateTime? // Quando o CAPI foi enviado
+  capiStatus  String?   // SENT, FAILED, SKIPPED
+  createdAt   DateTime  @default(now())
+
+  @@unique([eventName, entityType, entityId]) // Um contexto por evento+entidade
+  @@index([entityType, entityId])
+  @@index([eventId])
+  @@map("meta_event_contexts")
+}

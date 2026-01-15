@@ -10,6 +10,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { Menu, X, MessageCircle, User } from 'lucide-react';
 import { BUSINESS_INFO } from '@/constants/seo';
+import { analytics } from '@/lib/analytics';
 
 interface NavLink {
   href: string;
@@ -38,6 +39,11 @@ export default function Header({ variant = 'sticky' }: HeaderProps) {
     : 'sticky top-0';
 
   const whatsappLink = `https://wa.me/${BUSINESS_INFO.whatsapp}?text=Olá! Gostaria de saber mais sobre o Espaço Arthemi.`;
+
+  // Handler para tracking de clique no WhatsApp
+  const handleWhatsAppClick = (location: 'header' | 'header-mobile') => {
+    analytics.contactClicked('whatsapp', location);
+  };
 
   return (
     <header className={`${positionClass} z-50 bg-warm-50/90 backdrop-blur-lg border-b border-warm-200`}>
@@ -75,6 +81,7 @@ export default function Header({ variant = 'sticky' }: HeaderProps) {
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-primary-700 hover:text-accent-600 transition font-medium"
+              onClick={() => handleWhatsAppClick('header')}
             >
               <MessageCircle className="w-4 h-4" />
               Fale conosco
@@ -143,7 +150,10 @@ export default function Header({ variant = 'sticky' }: HeaderProps) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 text-primary-700 font-medium py-2"
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={() => {
+                  handleWhatsAppClick('header-mobile');
+                  setMobileMenuOpen(false);
+                }}
               >
                 <MessageCircle className="w-5 h-5" />
                 Fale conosco

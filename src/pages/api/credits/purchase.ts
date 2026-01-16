@@ -17,7 +17,7 @@ import { checkApiRateLimit, getClientIp, sendRateLimitResponse } from '@/lib/api
 import { resolveOrCreateUser } from '@/lib/user-resolve';
 import { getAuthFromRequest } from '@/lib/auth';
 import { withTimeout, getSafeErrorMessage, TIMEOUTS } from '@/lib/production-safety';
-import { isValidCoupon, applyDiscount, checkCouponUsage, recordCouponUsageIdempotent, createCouponSnapshot } from '@/lib/coupons';
+import { isValidCoupon, applyDiscount, checkCouponUsage, recordCouponUsageIdempotent, createCouponSnapshot, getCouponInfo, validateDevCouponAccess } from '@/lib/coupons';
 import { logPurchaseCreated } from '@/lib/operation-logger';
 import { generateRequestId, REQUEST_ID_HEADER } from '@/lib/request-id';
 import { recordPurchaseCreated } from '@/lib/audit-event';
@@ -264,6 +264,28 @@ export default async function handler(
     let couponApplied: string | null = null;
     let couponSnapshot: object | null = null;
 
+    // ========== VALIDAÇÃO DE DEV COUPON (ANTES de aplicar) ==========
+    // DEV coupon em produção REQUER sessão autenticada com email na whitelist
+    // NUNCA confiar em email do body para autorizar DEV coupon
+    const auth = getAuthFromRequest(req);
+    const sessionEmail = auth?.userId ? null : null; // Buscaremos no banco dentro da transação
+    
+    // Pré-validação: se é DEV coupon e NÃO tem sessão, bloqueia imediatamente
+    if (data.couponCode) {
+      const couponKey = data.couponCode.toUpperCase().trim();
+      const couponConfig = getCouponInfo(couponKey);
+      
+      if (couponConfig?.isDevCoupon && !auth?.userId) {
+        // DEV coupon sem sessão: bloqueia
+        console.log(`[DEV_COUPON] ${requestId} | isDevCoupon=true | hasSession=false | BLOCKED`);
+        return res.status(403).json({
+          success: false,
+          code: 'DEV_COUPON_NO_SESSION',
+          error: 'Cupom de teste requer login.',
+        });
+      }
+    }
+
     // Aplicar cupom (P1-5: usando lib/coupons centralizada)
     if (data.couponCode) {
       const couponKey = data.couponCode.toUpperCase().trim();
@@ -301,9 +323,9 @@ export default async function handler(
     // Transação atômica
     const result = await prisma.$transaction(async (tx) => {
       // Determinar userId: sessão (logado) ou resolveOrCreateUser (checkout anônimo)
-      const auth = getAuthFromRequest(req);
+      // NOTA: 'auth' já foi obtido antes para pré-validação de DEV coupon
       let userId: string;
-      let userEmail: string | null = null;
+      let sessionEmail: string | null = null; // Email da SESSÃO (não do body)
       let isAnonymousCheckout = false;
       
       if (auth?.userId) {
@@ -312,7 +334,7 @@ export default async function handler(
         userId = auth.userId;
         // Buscar email do usuário logado para validação de cupom DEV
         const loggedUser = await tx.user.findUnique({ where: { id: userId }, select: { email: true } });
-        userEmail = loggedUser?.email || null;
+        sessionEmail = loggedUser?.email || null;
       } else {
         // NÃO LOGADO: resolver por email > phone
         const { user } = await resolveOrCreateUser(tx, {
@@ -322,15 +344,23 @@ export default async function handler(
           cpf: data.userCpf,
         });
         userId = user.id;
-        userEmail = data.userEmail || null;
+        // SEGURANÇA: NÃO usar email do body para validar DEV coupon
+        // sessionEmail permanece null para checkout anônimo
         isAnonymousCheckout = true; // Flag para disparo de email de ativação
       }
 
       // P1-5: Verificar se usuário pode usar este cupom (ex: PRIMEIRACOMPRA single-use)
-      // Passa userEmail para validar acesso a cupons DEV em produção
+      // DEV coupon: sessionEmail vem da SESSÃO, não do body
       let isDevCoupon = false;
       if (couponApplied) {
-        const usageCheck = await checkCouponUsage(tx, userId, couponApplied, 'CREDIT_PURCHASE', userEmail);
+        // Validar acesso ao DEV coupon usando email da SESSÃO
+        const devCheck = validateDevCouponAccess(couponApplied, sessionEmail, requestId);
+        if (!devCheck.allowed) {
+          throw new Error(`DEV_COUPON_BLOCKED: ${devCheck.reason}`);
+        }
+        
+        // Validar uso do cupom (PRIMEIRACOMPRA, etc)
+        const usageCheck = await checkCouponUsage(tx, userId, couponApplied, 'CREDIT_PURCHASE', sessionEmail);
         if (!usageCheck.canUse) {
           throw new Error(`CUPOM_INVALIDO: ${usageCheck.reason}`);
         }

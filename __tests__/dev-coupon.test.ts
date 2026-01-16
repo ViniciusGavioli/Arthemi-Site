@@ -6,12 +6,15 @@
 // 2. Em produção: bloqueado para usuário comum
 // 3. Em produção: permitido para admin (whitelist)
 // 4. Cupom normal continua funcionando igual
+// 5. validateDevCouponAccess: segurança com sessão
 
 import {
   isValidCoupon,
   getCouponInfo,
   canUseDevCoupon,
   isDevCouponAdmin,
+  validateDevCouponAccess,
+  DEV_COUPON_ADMIN_EMAILS,
   VALID_COUPONS,
 } from '@/lib/coupons';
 
@@ -182,5 +185,74 @@ describe('Dev Coupon - No Regression on Normal Coupons', () => {
   test('Cupom inválido continua inválido', () => {
     expect(isValidCoupon('NAOVALIDO')).toBe(false);
     expect(getCouponInfo('NAOVALIDO')).toBeNull();
+  });
+});
+
+// ============================================================
+// 6. TESTES: validateDevCouponAccess (segurança com sessão)
+// ============================================================
+
+describe('Dev Coupon - validateDevCouponAccess (Session Security)', () => {
+  const originalEnv = process.env.NODE_ENV;
+  
+  afterEach(() => {
+    process.env.NODE_ENV = originalEnv;
+  });
+
+  test('Cupom normal sempre passa (sem checagem de sessão)', () => {
+    process.env.NODE_ENV = 'production';
+    const result = validateDevCouponAccess('ARTHEMI10', null, 'test-req-1');
+    expect(result.allowed).toBe(true);
+  });
+
+  test('DEV coupon com sessionEmail whitelist: OK', () => {
+    process.env.NODE_ENV = 'production';
+    const result = validateDevCouponAccess('TESTE50', 'admin@arthemisaude.com', 'test-req-2');
+    expect(result.allowed).toBe(true);
+  });
+
+  test('DEV coupon sem sessão: BLOQUEIA com código correto', () => {
+    process.env.NODE_ENV = 'production';
+    const result = validateDevCouponAccess('TESTE50', null, 'test-req-3');
+    expect(result.allowed).toBe(false);
+    expect(result.code).toBe('DEV_COUPON_NO_SESSION');
+    expect(result.reason).toContain('login');
+  });
+
+  test('DEV coupon com sessão não-whitelist: BLOQUEIA', () => {
+    process.env.NODE_ENV = 'production';
+    const result = validateDevCouponAccess('TESTE50', 'usuario@gmail.com', 'test-req-4');
+    expect(result.allowed).toBe(false);
+    expect(result.code).toBe('DEV_COUPON_NOT_ALLOWED');
+    expect(result.reason).toContain('não disponível');
+  });
+
+  test('DEV coupon em desenvolvimento: sempre OK (sem checagem)', () => {
+    process.env.NODE_ENV = 'development';
+    
+    // Sem sessão
+    const result1 = validateDevCouponAccess('TESTE50', null, 'test-req-5');
+    expect(result1.allowed).toBe(true);
+    
+    // Com usuário comum
+    const result2 = validateDevCouponAccess('TESTE50', 'usuario@gmail.com', 'test-req-6');
+    expect(result2.allowed).toBe(true);
+  });
+
+  test('Whitelist é parseada com trim/lowercase', () => {
+    // Verificar que whitelist foi parseada corretamente
+    expect(DEV_COUPON_ADMIN_EMAILS).toContain('admin@arthemisaude.com');
+    expect(DEV_COUPON_ADMIN_EMAILS).toContain('vinicius@arthemisaude.com');
+    
+    // Todos emails devem estar em lowercase
+    for (const email of DEV_COUPON_ADMIN_EMAILS) {
+      expect(email).toBe(email.toLowerCase().trim());
+    }
+  });
+
+  test('isDevCouponAdmin normaliza email para lowercase', () => {
+    expect(isDevCouponAdmin('ADMIN@ARTHEMISAUDE.COM')).toBe(true);
+    expect(isDevCouponAdmin(' admin@arthemisaude.com ')).toBe(true);
+    expect(isDevCouponAdmin('Admin@ArthemiSaude.com')).toBe(true);
   });
 });

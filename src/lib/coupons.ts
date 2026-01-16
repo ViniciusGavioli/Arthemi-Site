@@ -25,12 +25,14 @@ export interface CouponConfig {
 // ===========================================================
 
 // Lista de emails de admin que podem usar cupons DEV em produção
-const DEV_COUPON_ADMIN_EMAILS = [
-  'admin@arthemisaude.com',
-  'administrativo@arthemisaude.com',
-  'dev@arthemisaude.com',
-  'vinicius@arthemisaude.com',
-];
+// Parse: trim + lowercase para cada email
+const DEV_COUPON_ADMIN_EMAILS_RAW = (
+  process.env.DEV_COUPON_ADMIN_EMAILS ||
+  'admin@arthemisaude.com,administrativo@arthemisaude.com,dev@arthemisaude.com,vinicius@arthemisaude.com'
+).split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+
+// Export para testes
+export const DEV_COUPON_ADMIN_EMAILS = DEV_COUPON_ADMIN_EMAILS_RAW;
 
 /**
  * Verifica se é ambiente de produção
@@ -41,6 +43,7 @@ function isProductionEnv(): boolean {
 
 /**
  * Verifica se um email está na whitelist de admin para cupons DEV
+ * @param email Email a verificar (será normalizado para lowercase)
  */
 export function isDevCouponAdmin(email?: string | null): boolean {
   if (!email) return false;
@@ -76,6 +79,59 @@ export function canUseDevCoupon(
     allowed: false, 
     reason: 'Cupom de desenvolvimento não disponível.' 
   };
+}
+
+/**
+ * Validação segura de DEV coupon para APIs
+ * REGRA: DEV coupon em produção REQUER sessão autenticada com email na whitelist
+ * 
+ * @param couponCode Código do cupom
+ * @param sessionEmail Email da SESSÃO (NextAuth) - nunca do body
+ * @param requestId ID da request para logs
+ * @returns { allowed: boolean, reason?: string, code?: string }
+ */
+export function validateDevCouponAccess(
+  couponCode: string,
+  sessionEmail: string | null | undefined,
+  requestId: string
+): { allowed: boolean; reason?: string; code?: string } {
+  const coupon = getCouponInfo(couponCode);
+  
+  // Não é cupom DEV: sempre passa
+  if (!coupon?.isDevCoupon) {
+    return { allowed: true };
+  }
+  
+  // Ambiente não-produção: sempre permite
+  if (!isProductionEnv()) {
+    console.log(`[DEV_COUPON] ${requestId} | isDevCoupon=true | env=development | allowed=true`);
+    return { allowed: true };
+  }
+  
+  // Produção: REQUER sessão com email
+  const hasSessionEmail = !!sessionEmail;
+  const isAllowed = hasSessionEmail && isDevCouponAdmin(sessionEmail);
+  
+  // Log seguro (sem PII - não loga o email)
+  console.log(`[DEV_COUPON] ${requestId} | isDevCoupon=true | env=production | hasSessionEmail=${hasSessionEmail} | whitelistCount=${DEV_COUPON_ADMIN_EMAILS.length} | isAllowed=${isAllowed}`);
+  
+  if (!hasSessionEmail) {
+    return {
+      allowed: false,
+      reason: 'Cupom de teste requer login.',
+      code: 'DEV_COUPON_NO_SESSION',
+    };
+  }
+  
+  if (!isAllowed) {
+    return {
+      allowed: false,
+      reason: 'Cupom de desenvolvimento não disponível para esta conta.',
+      code: 'DEV_COUPON_NOT_ALLOWED',
+    };
+  }
+  
+  return { allowed: true };
 }
 
 // Cupons válidos - ÚNICA FONTE DE VERDADE

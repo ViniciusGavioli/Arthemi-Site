@@ -18,7 +18,7 @@ import {
   TIMEOUTS,
   cpfInUseByOther,
 } from '@/lib/production-safety';
-import { isValidCoupon, applyDiscount, checkCouponUsage, recordCouponUsageIdempotent, createCouponSnapshot, getCouponInfo } from '@/lib/coupons';
+import { isValidCoupon, applyDiscount, checkCouponUsage, recordCouponUsageIdempotent, createCouponSnapshot, getCouponInfo, validateDevCouponAccess } from '@/lib/coupons';
 import { 
   getAvailableCreditsForRoom, 
   consumeCreditsForBooking,
@@ -212,6 +212,26 @@ export default async function handler(
     // Usar o ID real da sala para as queries subsequentes
     const realRoomId = room.id;
 
+    // ========== PRÉ-VALIDAÇÃO DE DEV COUPON (ANTES da transação) ==========
+    // DEV coupon em produção REQUER sessão autenticada com email na whitelist
+    // NUNCA confiar em email do body para autorizar DEV coupon
+    const auth = getAuthFromRequest(req);
+    
+    if (data.couponCode) {
+      const couponKey = data.couponCode.toUpperCase().trim();
+      const couponConfig = getCouponInfo(couponKey);
+      
+      if (couponConfig?.isDevCoupon && !auth?.userId) {
+        // DEV coupon sem sessão: bloqueia
+        console.log(`[DEV_COUPON] ${requestId} | isDevCoupon=true | hasSession=false | BLOCKED`);
+        return res.status(403).json({
+          success: false,
+          code: 'DEV_COUPON_NO_SESSION',
+          error: 'Cupom de teste requer login.',
+        });
+      }
+    }
+
     // TRANSACTION ATÔMICA - Previne race condition
     const result = await prisma.$transaction(async (tx) => {
       // 4. Verificar disponibilidade com lock (FOR UPDATE)
@@ -232,9 +252,9 @@ export default async function handler(
       }
 
       // 5. Determinar userId: sessão (logado) ou resolveOrCreateUser (checkout anônimo)
-      const auth = getAuthFromRequest(req);
+      // NOTA: 'auth' já foi obtido antes para pré-validação de DEV coupon
       let userId: string;
-      let userEmail: string | null = null;
+      let sessionEmail: string | null = null; // Email da SESSÃO (não do body)
       let isAnonymousCheckout = false;
       
       if (auth?.userId) {
@@ -248,9 +268,9 @@ export default async function handler(
           throw new Error('EMAIL_NOT_VERIFIED');
         }
         
-        // Buscar email para validação de cupom DEV
+        // Buscar email da SESSÃO para validação de cupom DEV
         const loggedUser = await tx.user.findUnique({ where: { id: userId }, select: { email: true } });
-        userEmail = loggedUser?.email || null;
+        sessionEmail = loggedUser?.email || null;
       } else {
         // NÃO LOGADO: resolver por email > phone
         const { user } = await resolveOrCreateUser(tx, {
@@ -260,7 +280,8 @@ export default async function handler(
           cpf: data.userCpf,
         });
         userId = user.id;
-        userEmail = data.userEmail || null;
+        // SEGURANÇA: NÃO usar email do body para validar DEV coupon
+        // sessionEmail permanece null para checkout anônimo
         isAnonymousCheckout = true; // Flag para disparo de email de ativação
       }
 
@@ -343,9 +364,15 @@ export default async function handler(
         const couponKey = data.couponCode.toUpperCase().trim();
         
         if (isValidCoupon(couponKey)) {
+          // Validar acesso ao DEV coupon usando email da SESSÃO
+          const devCheck = validateDevCouponAccess(couponKey, sessionEmail, requestId);
+          if (!devCheck.allowed) {
+            throw new Error(`DEV_COUPON_BLOCKED: ${devCheck.reason}`);
+          }
+          
           // P1-5: Verificar se usuário pode usar este cupom (ex: PRIMEIRACOMPRA single-use)
-          // Passa userEmail para validar acesso a cupons DEV em produção
-          const usageCheck = await checkCouponUsage(tx, userId, couponKey, 'BOOKING', userEmail);
+          // DEV coupon: sessionEmail vem da SESSÃO, não do body
+          const usageCheck = await checkCouponUsage(tx, userId, couponKey, 'BOOKING', sessionEmail);
           if (!usageCheck.canUse) {
             throw new Error(`CUPOM_INVALIDO: ${usageCheck.reason}`);
           }

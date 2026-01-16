@@ -87,20 +87,21 @@ describe('Coupon in Credit-Only Booking Flow', () => {
 
 describe('Coupon Validation - When Required', () => {
   test('isValidCoupon funciona para cupons reconhecidos', () => {
-    expect(isValidCoupon('TESTE50')).toBe(true);
-    expect(isValidCoupon('PRIMEIRACOMPRA')).toBe(true);
     expect(isValidCoupon('ARTHEMI10')).toBe(true);
+    expect(isValidCoupon('PRIMEIRACOMPRA')).toBe(true);
+    expect(isValidCoupon('PRIMEIRACOMPRA10')).toBe(true);
   });
 
   test('isValidCoupon retorna false para cupons desconhecidos', () => {
     expect(isValidCoupon('NAOVALIDO')).toBe(false);
     expect(isValidCoupon('')).toBe(false);
+    expect(isValidCoupon('TESTE50')).toBe(false); // Removido
   });
 
   test('applyDiscount aplica desconto corretamente', () => {
-    const result = applyDiscount(10000, 'TESTE50');
-    expect(result.discountAmount).toBe(500);
-    expect(result.finalAmount).toBe(9500);
+    const result = applyDiscount(10000, 'ARTHEMI10'); // 10%
+    expect(result.discountAmount).toBe(1000);
+    expect(result.finalAmount).toBe(9000);
   });
 });
 
@@ -110,7 +111,7 @@ describe('Coupon Validation - When Required', () => {
 
 describe('Complete Booking Flow - Coupon Handling', () => {
   test('Fluxo agendamento 100% crédito: cupom ignorado, sem erro', () => {
-    const couponCode = 'TESTE50';
+    const couponCode = 'ARTHEMI10';
     const grossAmount = 10000;
     const availableCredits = 10000; // Exatamente o suficiente
     
@@ -160,7 +161,7 @@ describe('Complete Booking Flow - Coupon Handling', () => {
   });
 
   test('Fluxo compra com cupom válido: aplica desconto', () => {
-    const couponCode = 'TESTE50';
+    const couponCode = 'ARTHEMI10';
     const grossAmount = 10000;
     const availableCredits = 0;
     
@@ -173,8 +174,8 @@ describe('Complete Booking Flow - Coupon Handling', () => {
     // Aplicar desconto
     const discountResult = applyDiscount(grossAmount, couponCode);
     
-    expect(discountResult.discountAmount).toBe(500);
-    expect(discountResult.finalAmount).toBe(9500);
+    expect(discountResult.discountAmount).toBe(1000); // 10% de R$100
+    expect(discountResult.finalAmount).toBe(9000);
   });
 });
 
@@ -189,7 +190,7 @@ describe('Regression Tests - No Coupon Errors in Credit Bookings', () => {
       roomId: 'room-1',
       startTime: '2025-02-01T09:00:00Z',
       endTime: '2025-02-01T10:00:00Z',
-      couponCode: 'TESTE50', // Frontend envia mesmo sem necessidade
+      couponCode: 'ARTHEMI10', // Frontend envia mesmo sem necessidade
     };
     
     // Backend calcula
@@ -226,8 +227,8 @@ describe('Regression Tests - No Coupon Errors in Credit Bookings', () => {
 // ============================================================
 
 describe('Coupon Discount Calculation - Final Amount', () => {
-  test('Booking com pagamento integral + TESTE50 => total = gross - 5', () => {
-    // Cenário: R$100 sem créditos, cupom TESTE50 (R$5 fixo)
+  test('Booking com pagamento integral + ARTHEMI10 => total = gross - 10%', () => {
+    // Cenário: R$100 sem créditos, cupom ARTHEMI10 (10%)
     const grossAmountCents = 10000; // R$100
     const creditsUsedCents = 0;
     const amountToPayWithoutCoupon = grossAmountCents - creditsUsedCents; // R$100
@@ -236,22 +237,22 @@ describe('Coupon Discount Calculation - Final Amount', () => {
     expect(amountToPayWithoutCoupon).toBeGreaterThan(0);
     
     // Aplicar desconto
-    const discountResult = applyDiscount(amountToPayWithoutCoupon, 'TESTE50');
+    const discountResult = applyDiscount(amountToPayWithoutCoupon, 'ARTHEMI10');
     const discountAmountCents = discountResult.discountAmount;
     
     // CÁLCULO CORRETO (sem duplicar créditos):
-    // netAmount = gross - discount = 10000 - 500 = 9500
-    // amountToPay = netAmount - credits = 9500 - 0 = 9500
+    // netAmount = gross - discount = 10000 - 1000 = 9000
+    // amountToPay = netAmount - credits = 9000 - 0 = 9000
     const netAmountCents = grossAmountCents - discountAmountCents;
     const amountToPayCents = Math.max(0, netAmountCents - creditsUsedCents);
     
-    expect(discountAmountCents).toBe(500);
-    expect(netAmountCents).toBe(9500);
-    expect(amountToPayCents).toBe(9500); // R$95 vai para o Asaas
+    expect(discountAmountCents).toBe(1000); // 10%
+    expect(netAmountCents).toBe(9000);
+    expect(amountToPayCents).toBe(9000); // R$90 vai para o Asaas
   });
 
-  test('Booking parcial com créditos + TESTE50 => desconto aplicado sobre amountToPay', () => {
-    // Cenário: R$100 com R$50 em créditos, cupom TESTE50 (R$5 fixo)
+  test('Booking parcial com créditos + ARTHEMI10 => desconto aplicado sobre amountToPay', () => {
+    // Cenário: R$100 com R$50 em créditos, cupom ARTHEMI10 (10%)
     const grossAmountCents = 10000; // R$100
     const creditsUsedCents = 5000;  // R$50
     const amountToPayWithoutCoupon = grossAmountCents - creditsUsedCents; // R$50
@@ -260,18 +261,18 @@ describe('Coupon Discount Calculation - Final Amount', () => {
     expect(amountToPayWithoutCoupon).toBeGreaterThan(0);
     
     // Aplicar desconto SOBRE o valor a pagar (não sobre gross)
-    const discountResult = applyDiscount(amountToPayWithoutCoupon, 'TESTE50');
+    const discountResult = applyDiscount(amountToPayWithoutCoupon, 'ARTHEMI10');
     const discountAmountCents = discountResult.discountAmount;
     
     // CÁLCULO CORRETO:
     // O desconto é aplicado sobre amountToPayWithoutCoupon = R$50
-    // discountAmount = R$5 (piso não se aplica pois R$50 > R$1)
+    // discountAmount = 10% de R$50 = R$5 = 500 centavos
     // netAmount = gross - discount = 10000 - 500 = 9500
     // amountToPay = netAmount - credits = 9500 - 5000 = 4500
     const netAmountCents = grossAmountCents - discountAmountCents;
     const amountToPayCents = Math.max(0, netAmountCents - creditsUsedCents);
     
-    expect(discountAmountCents).toBe(500);
+    expect(discountAmountCents).toBe(500); // 10% de R$50
     expect(netAmountCents).toBe(9500);
     expect(amountToPayCents).toBe(4500); // R$45 vai para o Asaas
   });
@@ -280,7 +281,7 @@ describe('Coupon Discount Calculation - Final Amount', () => {
     // Cenário: R$100 com R$100+ em créditos
     const grossAmountCents = 10000; // R$100
     const creditsUsedCents = 10000; // R$100 (cobre tudo)
-    const couponCode = 'TESTE50';
+    const couponCode = 'ARTHEMI10';
     
     const amountToPayWithoutCoupon = grossAmountCents - creditsUsedCents;
     
@@ -309,14 +310,12 @@ describe('Coupon Discount Calculation - Final Amount', () => {
     const creditsUsedCents = 0;
     const amountToPayWithoutCoupon = grossAmountCents - creditsUsedCents;
     
-    // TESTE50 = R$5 fixo, mas só temos R$3 a pagar
-    const discountResult = applyDiscount(amountToPayWithoutCoupon, 'TESTE50');
+    // PRIMEIRACOMPRA = 15%, 15% de R$3 = R$0,45
+    const discountResult = applyDiscount(amountToPayWithoutCoupon, 'PRIMEIRACOMPRA');
     
-    // Piso de R$1,00 = 100 centavos
-    // Se gross = 300 e desconto = 500, final seria -200
-    // Mas applyDiscount tem piso: finalAmount = max(100, 300-500) = 100
-    // Logo discountAmount = 300 - 100 = 200
-    expect(discountResult.finalAmount).toBeGreaterThanOrEqual(100); // Piso R$1
+    // Desconto = 15% de 300 = 45 centavos
+    // Final = 300 - 45 = 255 centavos
+    expect(discountResult.finalAmount).toBeGreaterThanOrEqual(100); // Piso R$1 se necessário
     expect(discountResult.discountAmount).toBeLessThanOrEqual(amountToPayWithoutCoupon);
   });
 

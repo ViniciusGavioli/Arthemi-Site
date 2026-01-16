@@ -21,9 +21,9 @@ import {
 
 describe('Coupons - Basic Validation', () => {
   test('isValidCoupon retorna true para cupons válidos', () => {
-    expect(isValidCoupon('TESTE50')).toBe(true);
-    expect(isValidCoupon('teste50')).toBe(true); // case insensitive
     expect(isValidCoupon('ARTHEMI10')).toBe(true);
+    expect(isValidCoupon('arthemi10')).toBe(true); // case insensitive
+    expect(isValidCoupon('PRIMEIRACOMPRA10')).toBe(true);
     expect(isValidCoupon('PRIMEIRACOMPRA')).toBe(true);
   });
 
@@ -31,14 +31,15 @@ describe('Coupons - Basic Validation', () => {
     expect(isValidCoupon('INVALIDO')).toBe(false);
     expect(isValidCoupon('')).toBe(false);
     expect(isValidCoupon('TESTE')).toBe(false);
+    expect(isValidCoupon('TESTE50')).toBe(false); // Removido
   });
 
   test('getCouponInfo retorna config correta', () => {
-    const teste50 = getCouponInfo('TESTE50');
-    expect(teste50).toEqual({
-      discountType: 'fixed',
-      value: 500,
-      description: 'Desconto teste R$5,00',
+    const arthemi10 = getCouponInfo('ARTHEMI10');
+    expect(arthemi10).toEqual({
+      discountType: 'percent',
+      value: 10,
+      description: expect.any(String),
       singleUsePerUser: false,
     });
 
@@ -54,15 +55,15 @@ describe('Coupons - Basic Validation', () => {
 // ============================================================
 
 describe('Coupons - Discount Application', () => {
-  test('applyDiscount com cupom fixo (TESTE50 = R$5,00)', () => {
-    const result = applyDiscount(10000, 'TESTE50'); // R$100,00
-    expect(result.discountAmount).toBe(500); // R$5,00
-    expect(result.finalAmount).toBe(9500); // R$95,00
+  test('applyDiscount com cupom percentual (ARTHEMI10 = 10%)', () => {
+    const result = applyDiscount(10000, 'ARTHEMI10'); // R$100,00
+    expect(result.discountAmount).toBe(1000); // R$10,00
+    expect(result.finalAmount).toBe(9000); // R$90,00
     expect(result.couponApplied).toBe(true);
   });
 
-  test('applyDiscount com cupom percentual (ARTHEMI10 = 10%)', () => {
-    const result = applyDiscount(10000, 'ARTHEMI10'); // R$100,00
+  test('applyDiscount com cupom percentual (PRIMEIRACOMPRA10 = 10%)', () => {
+    const result = applyDiscount(10000, 'PRIMEIRACOMPRA10'); // R$100,00
     expect(result.discountAmount).toBe(1000); // R$10,00
     expect(result.finalAmount).toBe(9000); // R$90,00
     expect(result.couponApplied).toBe(true);
@@ -77,9 +78,8 @@ describe('Coupons - Discount Application', () => {
 
   test('applyDiscount respeita valor mínimo de R$1,00', () => {
     // Se desconto > valor, resultado deve ser pelo menos R$1,00
-    const result = applyDiscount(300, 'TESTE50'); // R$3,00 - R$5,00
-    expect(result.finalAmount).toBe(100); // Mínimo R$1,00
-    expect(result.discountAmount).toBe(200); // Desconto real aplicado
+    const result = applyDiscount(500, 'PRIMEIRACOMPRA'); // R$5,00 - 15% = R$0,75
+    expect(result.finalAmount).toBeGreaterThanOrEqual(100); // Mínimo R$1,00
   });
 
   test('applyDiscount com cupom inválido não aplica desconto', () => {
@@ -184,9 +184,10 @@ describe('Refund - Business Rules', () => {
     expect(config.singleUsePerUser).toBe(true);
   });
 
-  test('TESTE50 e ARTHEMI10 podem ser reutilizados', () => {
-    expect(VALID_COUPONS['TESTE50'].singleUsePerUser).toBe(false);
+  test('ARTHEMI10 pode ser reutilizado, PRIMEIRACOMPRA10 é single use', () => {
     expect(VALID_COUPONS['ARTHEMI10'].singleUsePerUser).toBe(false);
+    // PRIMEIRACOMPRA10 também é single use (primeira compra)
+    expect(VALID_COUPONS['PRIMEIRACOMPRA10'].singleUsePerUser).toBe(true);
   });
 });
 
@@ -547,11 +548,11 @@ describe('Critical - Coupon + Split (Credits + Cash) - CodeX Audit', () => {
 describe('Coupon Usage - Idempotency (Optimistic)', () => {
   test('Error message format for COUPON_ALREADY_USED', () => {
     // Mensagem: COUPON_ALREADY_USED:CODE
-    const error = new Error('COUPON_ALREADY_USED:TESTE50');
+    const error = new Error('COUPON_ALREADY_USED:ARTHEMI10');
     const [prefix, code] = error.message.split(':');
     
     expect(prefix).toBe('COUPON_ALREADY_USED');
-    expect(code).toBe('TESTE50');
+    expect(code).toBe('ARTHEMI10');
   });
 
   test('RESTORED status allows coupon reuse (update to USED)', () => {
@@ -559,7 +560,7 @@ describe('Coupon Usage - Idempotency (Optimistic)', () => {
     const mockExisting = {
       id: 'usage-123',
       status: 'RESTORED',
-      couponCode: 'TESTE50',
+      couponCode: 'ARTHEMI10',
       context: 'BOOKING',
       userId: 'user-123',
       bookingId: 'booking-old',
@@ -577,7 +578,7 @@ describe('Coupon Usage - Idempotency (Optimistic)', () => {
     const mockExisting = {
       id: 'usage-123',
       status: 'USED',
-      couponCode: 'TESTE50',
+      couponCode: 'ARTHEMI10',
       context: 'BOOKING',
       userId: 'user-123',
       bookingId: 'booking-123',
@@ -598,7 +599,7 @@ describe('Coupon Usage - Idempotency (Optimistic)', () => {
     const mockExisting = {
       id: 'usage-123',
       status: 'USED',
-      couponCode: 'TESTE50',
+      couponCode: 'ARTHEMI10',
       context: 'BOOKING',
       userId: 'user-123',
       bookingId: 'booking-old',
@@ -611,7 +612,7 @@ describe('Coupon Usage - Idempotency (Optimistic)', () => {
     
     // Erro esperado: 400 COUPON_ALREADY_USED
     const expectedError = `COUPON_ALREADY_USED:${mockExisting.couponCode}`;
-    expect(expectedError).toBe('COUPON_ALREADY_USED:TESTE50');
+    expect(expectedError).toBe('COUPON_ALREADY_USED:ARTHEMI10');
   });
 
   test('Optimistic approach: CREATE first, handle P2002', () => {

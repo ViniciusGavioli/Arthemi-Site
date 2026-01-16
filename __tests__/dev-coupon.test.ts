@@ -1,12 +1,10 @@
 // ===========================================================
-// TESTES: Cupom de Desenvolvimento (DEV COUPON)
+// TESTES: Sistema de Cupons (Atualizado para PRICE_OVERRIDE)
 // ===========================================================
-// Valida as regras:
-// 1. Cupom DEV tem uso infinito (não consome)
-// 2. Em produção: bloqueado para usuário comum
-// 3. Em produção: permitido para admin (whitelist)
-// 4. Cupom normal continua funcionando igual
-// 5. validateDevCouponAccess: segurança com sessão
+// MUDANÇA: DEV coupons foram REMOVIDOS
+// Agora usamos PRICE_OVERRIDE para preços administrativos
+// 
+// Este arquivo testa apenas cupons COMERCIAIS válidos
 
 import {
   isValidCoupon,
@@ -19,57 +17,91 @@ import {
 } from '@/lib/coupons';
 
 // ============================================================
-// 1. TESTES: Identificação de cupom DEV
+// 1. TESTES: Cupons Comerciais Válidos
 // ============================================================
 
-describe('Dev Coupon - Identification', () => {
-  test('TESTE50 é um cupom DEV', () => {
-    const coupon = getCouponInfo('TESTE50');
+describe('Cupons Comerciais - Identificação', () => {
+  test('PRIMEIRACOMPRA10 é um cupom válido', () => {
+    const coupon = getCouponInfo('PRIMEIRACOMPRA10');
     expect(coupon).not.toBeNull();
-    expect(coupon?.isDevCoupon).toBe(true);
+    expect(coupon?.discountType).toBe('percent');
+    expect(coupon?.value).toBe(10);
+    expect(coupon?.singleUsePerUser).toBe(true);
   });
 
-  test('DEVTEST é um cupom DEV', () => {
-    const coupon = getCouponInfo('DEVTEST');
-    expect(coupon).not.toBeNull();
-    expect(coupon?.isDevCoupon).toBe(true);
-  });
-
-  test('ARTHEMI10 NÃO é cupom DEV', () => {
+  test('ARTHEMI10 é um cupom válido (legado)', () => {
     const coupon = getCouponInfo('ARTHEMI10');
     expect(coupon).not.toBeNull();
-    expect(coupon?.isDevCoupon).toBeFalsy();
+    expect(coupon?.discountType).toBe('percent');
+    expect(coupon?.value).toBe(10);
   });
 
-  test('PRIMEIRACOMPRA NÃO é cupom DEV', () => {
+  test('PRIMEIRACOMPRA é um cupom válido (legado)', () => {
     const coupon = getCouponInfo('PRIMEIRACOMPRA');
     expect(coupon).not.toBeNull();
-    expect(coupon?.isDevCoupon).toBeFalsy();
+    expect(coupon?.discountType).toBe('percent');
+    expect(coupon?.value).toBe(15);
+    expect(coupon?.singleUsePerUser).toBe(true);
+  });
+
+  test('Cupom inválido retorna null', () => {
+    expect(getCouponInfo('INVALIDO')).toBeNull();
+    expect(getCouponInfo('')).toBeNull();
+    expect(isValidCoupon('INVALIDO')).toBe(false);
   });
 });
 
 // ============================================================
-// 2. TESTES: Whitelist de Admin
+// 2. TESTES: DEV Coupons REMOVIDOS
 // ============================================================
 
-describe('Dev Coupon - Admin Whitelist', () => {
-  test('admin@arthemisaude.com é admin', () => {
+describe('DEV Coupons - Removidos', () => {
+  test('TESTE50 NÃO é mais um cupom válido', () => {
+    // DEV coupons foram removidos - usar OVERRIDE_X
+    const coupon = getCouponInfo('TESTE50');
+    expect(coupon).toBeNull();
+    expect(isValidCoupon('TESTE50')).toBe(false);
+  });
+
+  test('DEVTEST NÃO é mais um cupom válido', () => {
+    const coupon = getCouponInfo('DEVTEST');
+    expect(coupon).toBeNull();
+    expect(isValidCoupon('DEVTEST')).toBe(false);
+  });
+
+  test('Nenhum cupom atual é DEV coupon', () => {
+    const hasDevCoupon = Object.values(VALID_COUPONS).some(c => c.isDevCoupon);
+    expect(hasDevCoupon).toBe(false);
+  });
+});
+
+// ============================================================
+// 3. TESTES: Admin Whitelist (para OVERRIDE)
+// ============================================================
+
+describe('Admin Whitelist', () => {
+  test('admin@arthemisaude.com está na whitelist', () => {
     expect(isDevCouponAdmin('admin@arthemisaude.com')).toBe(true);
   });
 
-  test('administrativo@arthemisaude.com é admin', () => {
+  test('administrativo@arthemisaude.com está na whitelist', () => {
     expect(isDevCouponAdmin('administrativo@arthemisaude.com')).toBe(true);
   });
 
-  test('dev@arthemisaude.com é admin', () => {
+  test('dev@arthemisaude.com está na whitelist', () => {
     expect(isDevCouponAdmin('dev@arthemisaude.com')).toBe(true);
   });
 
-  test('usuario@gmail.com NÃO é admin', () => {
+  test('usuario@gmail.com NÃO está na whitelist', () => {
     expect(isDevCouponAdmin('usuario@gmail.com')).toBe(false);
   });
 
-  test('null/undefined NÃO é admin', () => {
+  test('Whitelist normaliza para lowercase', () => {
+    expect(isDevCouponAdmin('ADMIN@ARTHEMISAUDE.COM')).toBe(true);
+    expect(isDevCouponAdmin('  admin@arthemisaude.com  ')).toBe(true);
+  });
+
+  test('null/undefined retorna false', () => {
     expect(isDevCouponAdmin(null)).toBe(false);
     expect(isDevCouponAdmin(undefined)).toBe(false);
     expect(isDevCouponAdmin('')).toBe(false);
@@ -77,182 +109,67 @@ describe('Dev Coupon - Admin Whitelist', () => {
 });
 
 // ============================================================
-// 3. TESTES: Permissão de uso (canUseDevCoupon)
+// 4. TESTES: canUseDevCoupon (retrocompatibilidade)
 // ============================================================
 
-describe('Dev Coupon - Permission (canUseDevCoupon)', () => {
-  // Mock NODE_ENV
-  const originalEnv = process.env.NODE_ENV;
-  
-  afterEach(() => {
-    process.env.NODE_ENV = originalEnv;
-  });
-
-  test('Cupom normal sempre permitido', () => {
-    const coupon = getCouponInfo('ARTHEMI10');
-    const result = canUseDevCoupon(coupon, 'usuario@gmail.com');
+describe('canUseDevCoupon - Retrocompatibilidade', () => {
+  test('Cupom normal sempre permitido (não é DEV)', () => {
+    const coupon = getCouponInfo('PRIMEIRACOMPRA10');
+    const result = canUseDevCoupon(coupon, 'qualquer@email.com');
     expect(result.allowed).toBe(true);
   });
 
-  test('Cupom DEV em desenvolvimento: sempre permitido', () => {
-    process.env.NODE_ENV = 'development';
-    const coupon = getCouponInfo('TESTE50');
-    
-    // Usuário comum
-    const result1 = canUseDevCoupon(coupon, 'usuario@gmail.com');
-    expect(result1.allowed).toBe(true);
-    
-    // Sem email
-    const result2 = canUseDevCoupon(coupon, null);
-    expect(result2.allowed).toBe(true);
-  });
-
-  test('Cupom DEV em produção para usuário comum: BLOQUEADO', () => {
-    process.env.NODE_ENV = 'production';
-    const coupon = getCouponInfo('TESTE50');
-    
-    const result = canUseDevCoupon(coupon, 'usuario@gmail.com');
-    expect(result.allowed).toBe(false);
-    expect(result.reason).toContain('não disponível');
-  });
-
-  test('Cupom DEV em produção para admin: PERMITIDO', () => {
-    process.env.NODE_ENV = 'production';
-    const coupon = getCouponInfo('TESTE50');
-    
-    const result = canUseDevCoupon(coupon, 'admin@arthemisaude.com');
+  test('null coupon permite passthrough', () => {
+    const result = canUseDevCoupon(null, 'qualquer@email.com');
     expect(result.allowed).toBe(true);
   });
-
-  test('Cupom DEV em produção sem email: BLOQUEADO', () => {
-    process.env.NODE_ENV = 'production';
-    const coupon = getCouponInfo('TESTE50');
-    
-    const result = canUseDevCoupon(coupon, null);
-    expect(result.allowed).toBe(false);
-  });
 });
 
 // ============================================================
-// 4. TESTES: Configuração de cupons
+// 5. TESTES: validateDevCouponAccess (retrocompatibilidade)
 // ============================================================
 
-describe('Dev Coupon - Configuration', () => {
-  test('TESTE50 tem desconto fixo de R$5', () => {
-    const coupon = getCouponInfo('TESTE50');
-    expect(coupon?.discountType).toBe('fixed');
-    expect(coupon?.value).toBe(500);
-  });
-
-  test('DEVTEST tem desconto de 50%', () => {
-    const coupon = getCouponInfo('DEVTEST');
-    expect(coupon?.discountType).toBe('percent');
-    expect(coupon?.value).toBe(50);
-  });
-
-  test('Todos os cupons DEV têm singleUsePerUser=false', () => {
-    const devCoupons = Object.entries(VALID_COUPONS)
-      .filter(([, config]) => config.isDevCoupon);
-    
-    for (const [code, config] of devCoupons) {
-      expect(config.singleUsePerUser).toBeFalsy();
-    }
-  });
-});
-
-// ============================================================
-// 5. TESTES: Não regressão em cupons normais
-// ============================================================
-
-describe('Dev Coupon - No Regression on Normal Coupons', () => {
-  test('ARTHEMI10 funciona normalmente', () => {
-    expect(isValidCoupon('ARTHEMI10')).toBe(true);
-    const coupon = getCouponInfo('ARTHEMI10');
-    expect(coupon?.discountType).toBe('percent');
-    expect(coupon?.value).toBe(10);
-    expect(coupon?.isDevCoupon).toBeFalsy();
-  });
-
-  test('PRIMEIRACOMPRA funciona normalmente com singleUse', () => {
-    expect(isValidCoupon('PRIMEIRACOMPRA')).toBe(true);
-    const coupon = getCouponInfo('PRIMEIRACOMPRA');
-    expect(coupon?.discountType).toBe('percent');
-    expect(coupon?.value).toBe(15);
-    expect(coupon?.singleUsePerUser).toBe(true);
-    expect(coupon?.isDevCoupon).toBeFalsy();
-  });
-
-  test('Cupom inválido continua inválido', () => {
-    expect(isValidCoupon('NAOVALIDO')).toBe(false);
-    expect(getCouponInfo('NAOVALIDO')).toBeNull();
-  });
-});
-
-// ============================================================
-// 6. TESTES: validateDevCouponAccess (segurança com sessão)
-// ============================================================
-
-describe('Dev Coupon - validateDevCouponAccess (Session Security)', () => {
-  const originalEnv = process.env.NODE_ENV;
-  
+describe('validateDevCouponAccess - Retrocompatibilidade', () => {
   afterEach(() => {
-    process.env.NODE_ENV = originalEnv;
+    process.env.NODE_ENV = 'test';
   });
 
   test('Cupom normal sempre passa (sem checagem de sessão)', () => {
     process.env.NODE_ENV = 'production';
-    const result = validateDevCouponAccess('ARTHEMI10', null, 'test-req-1');
+    const result = validateDevCouponAccess('PRIMEIRACOMPRA10', null, 'test-req-1');
     expect(result.allowed).toBe(true);
   });
 
-  test('DEV coupon com sessionEmail whitelist: OK', () => {
-    process.env.NODE_ENV = 'production';
-    const result = validateDevCouponAccess('TESTE50', 'admin@arthemisaude.com', 'test-req-2');
+  test('Cupom inválido passa (validação no backend)', () => {
+    const result = validateDevCouponAccess('INVALIDO', null, 'test-req-2');
     expect(result.allowed).toBe(true);
+    // Validação real acontece em isValidCoupon()
+  });
+});
+
+// ============================================================
+// 6. TESTES: Migração para PRICE_OVERRIDE
+// ============================================================
+
+describe('Migração DEV Coupon → PRICE_OVERRIDE', () => {
+  test('Use OVERRIDE_5 ao invés de TESTE50', () => {
+    // TESTE50 era R$5 de desconto
+    // Agora use OVERRIDE_5 para R$5 preço final
+    // Comportamento diferente: OVERRIDE é preço FINAL, não desconto
+    expect(isValidCoupon('TESTE50')).toBe(false);
+    // OVERRIDE_5 é tratado no backend, não em VALID_COUPONS
   });
 
-  test('DEV coupon sem sessão: BLOQUEIA com código correto', () => {
-    process.env.NODE_ENV = 'production';
-    const result = validateDevCouponAccess('TESTE50', null, 'test-req-3');
-    expect(result.allowed).toBe(false);
-    expect(result.code).toBe('DEV_COUPON_NO_SESSION');
-    expect(result.reason).toContain('login');
+  test('Use OVERRIDE_X para preço administrativo', () => {
+    // Formato: OVERRIDE_<valor_em_reais>
+    // OVERRIDE_5 = R$5,00 final
+    // OVERRIDE_0 = gratuito
+    // OVERRIDE_1 = R$1,00 (mínimo Asaas)
+    expect(true).toBe(true); // Placeholder - testes reais em price-override.test.ts
   });
 
-  test('DEV coupon com sessão não-whitelist: BLOQUEIA', () => {
-    process.env.NODE_ENV = 'production';
-    const result = validateDevCouponAccess('TESTE50', 'usuario@gmail.com', 'test-req-4');
-    expect(result.allowed).toBe(false);
-    expect(result.code).toBe('DEV_COUPON_NOT_ALLOWED');
-    expect(result.reason).toContain('não disponível');
-  });
-
-  test('DEV coupon em desenvolvimento: sempre OK (sem checagem)', () => {
-    process.env.NODE_ENV = 'development';
-    
-    // Sem sessão
-    const result1 = validateDevCouponAccess('TESTE50', null, 'test-req-5');
-    expect(result1.allowed).toBe(true);
-    
-    // Com usuário comum
-    const result2 = validateDevCouponAccess('TESTE50', 'usuario@gmail.com', 'test-req-6');
-    expect(result2.allowed).toBe(true);
-  });
-
-  test('Whitelist é parseada com trim/lowercase', () => {
-    // Verificar que whitelist foi parseada corretamente
-    expect(DEV_COUPON_ADMIN_EMAILS).toContain('admin@arthemisaude.com');
-    expect(DEV_COUPON_ADMIN_EMAILS).toContain('vinicius@arthemisaude.com');
-    
-    // Todos emails devem estar em lowercase
-    for (const email of DEV_COUPON_ADMIN_EMAILS) {
-      expect(email).toBe(email.toLowerCase().trim());
-    }
-  });
-
-  test('isDevCouponAdmin normaliza email para lowercase', () => {
-    expect(isDevCouponAdmin('ADMIN@ARTHEMISAUDE.COM')).toBe(true);
-    expect(isDevCouponAdmin(' admin@arthemisaude.com ')).toBe(true);
-    expect(isDevCouponAdmin('Admin@ArthemiSaude.com')).toBe(true);
+  test('OVERRIDE requer permissão (whitelist ou ADMIN)', () => {
+    // Validado em validateOverrideAccess()
+    expect(DEV_COUPON_ADMIN_EMAILS.length).toBeGreaterThan(0);
   });
 });

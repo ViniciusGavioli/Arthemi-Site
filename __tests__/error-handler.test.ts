@@ -28,10 +28,10 @@ describe('BusinessError', () => {
     });
 
     it('cria erro com mensagem customizada', () => {
-      const error = new BusinessError('COUPON_INVALID', 'Cupom TESTE50 expirou');
+      const error = new BusinessError('COUPON_INVALID', 'Cupom ARTHEMI10 expirou');
       
       expect(error.code).toBe('COUPON_INVALID');
-      expect(error.message).toBe('Cupom TESTE50 expirou');
+      expect(error.message).toBe('Cupom ARTHEMI10 expirou');
     });
 
     it('cria erro com details', () => {
@@ -57,11 +57,11 @@ describe('BusinessError', () => {
     });
 
     it('couponAlreadyUsed()', () => {
-      const error = BusinessError.couponAlreadyUsed('TESTE50');
+      const error = BusinessError.couponAlreadyUsed('ARTHEMI10');
       
       expect(error.code).toBe('COUPON_ALREADY_USED');
       expect(error.status).toBe(400);
-      expect(error.details?.couponCode).toBe('TESTE50');
+      expect(error.details?.couponCode).toBe('ARTHEMI10');
     });
 
     it('insufficientCredits()', () => {
@@ -180,35 +180,35 @@ describe('BusinessError', () => {
 describe('errorToHttpResponse', () => {
   describe('BusinessError (classe nova)', () => {
     it('converte BusinessError corretamente', () => {
-      const error = BusinessError.couponAlreadyUsed('TESTE50');
+      const error = BusinessError.couponAlreadyUsed('ARTHEMI10');
       const parsed = errorToHttpResponse(error);
       
       expect(parsed).toEqual({
         status: 400,
         code: 'COUPON_ALREADY_USED',
         message: 'Este cupom já foi utilizado.',
-        details: { couponCode: 'TESTE50' },
+        details: { couponCode: 'ARTHEMI10' },
       });
     });
   });
 
   describe('Erros legados (compatibilidade)', () => {
     it('parseia CUPOM_INVALIDO: ...', () => {
-      const error = new Error('CUPOM_INVALIDO: Cupom TESTE50 já foi utilizado para este tipo de operação.');
+      const error = new Error('CUPOM_INVALIDO: Cupom ARTHEMI10 já foi utilizado para este tipo de operação.');
       const parsed = errorToHttpResponse(error);
       
       expect(parsed.status).toBe(400);
       expect(parsed.code).toBe('COUPON_INVALID');
-      expect(parsed.message).toBe('Cupom TESTE50 já foi utilizado para este tipo de operação.');
+      expect(parsed.message).toBe('Cupom ARTHEMI10 já foi utilizado para este tipo de operação.');
     });
 
     it('parseia COUPON_ALREADY_USED:CODE', () => {
-      const error = new Error('COUPON_ALREADY_USED:TESTE50');
+      const error = new Error('COUPON_ALREADY_USED:ARTHEMI10');
       const parsed = errorToHttpResponse(error);
       
       expect(parsed.status).toBe(400);
       expect(parsed.code).toBe('COUPON_ALREADY_USED');
-      expect(parsed.details?.couponCode).toBe('TESTE50');
+      expect(parsed.details?.couponCode).toBe('ARTHEMI10');
     });
 
     it('parseia INSUFFICIENT_CREDITS:available:required', () => {
@@ -402,7 +402,7 @@ describe('prismaErrorToBusinessError', () => {
 
 describe('Payload padronizado (snapshot)', () => {
   it('erro de cupom inválido', () => {
-    const error = BusinessError.couponInvalid('Cupom TESTE50 já foi utilizado');
+    const error = BusinessError.couponInvalid('Cupom ARTHEMI10 já foi utilizado');
     const json = error.toJSON('req-abc-123');
     
     expect(json).toMatchSnapshot();

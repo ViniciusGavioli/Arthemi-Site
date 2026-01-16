@@ -7,18 +7,19 @@ import { applyDiscount } from '@/lib/coupons';
 
 describe('PIX mínimo R$1,00', () => {
   describe('cenários onde PIX seria bloqueado (netAmount < 100)', () => {
-    it('amount=50, cupom=TESTE50 (R$5 fixo) → netAmount=0', () => {
-      const result = applyDiscount(50, 'TESTE50');
-      expect(result.finalAmount).toBe(0);
-      expect(result.discountAmount).toBe(50);
+    it('amount=50, cupom=PRIMEIRACOMPRA (15%) → netAmount=42', () => {
+      const result = applyDiscount(50, 'PRIMEIRACOMPRA');
+      // 15% de 50 = 7,5 arredondado = 7
+      expect(result.finalAmount).toBeLessThan(100);
       // PIX deve ser bloqueado neste caso (finalAmount < 100)
       expect(result.finalAmount < 100).toBe(true);
     });
 
-    it('amount=99, cupom=TESTE50 → netAmount=0', () => {
-      const result = applyDiscount(99, 'TESTE50');
-      expect(result.finalAmount).toBe(0);
-      expect(result.discountAmount).toBe(99);
+    it('amount=99, cupom=ARTHEMI10 (10%) → netAmount=89', () => {
+      const result = applyDiscount(99, 'ARTHEMI10');
+      // 10% de 99 = 9,9 arredondado = 10, finalAmount = 89
+      expect(result.finalAmount).toBe(89);
+      expect(result.discountAmount).toBe(10);
       expect(result.finalAmount < 100).toBe(true);
     });
 
@@ -32,17 +33,18 @@ describe('PIX mínimo R$1,00', () => {
   });
 
   describe('cenários onde PIX é permitido (netAmount >= 100)', () => {
-    it('amount=300, cupom=TESTE50 → netAmount=100 (piso ativo)', () => {
-      const result = applyDiscount(300, 'TESTE50');
-      expect(result.finalAmount).toBe(100);
-      expect(result.discountAmount).toBe(200);
+    it('amount=300, cupom=PRIMEIRACOMPRA (15%) → netAmount=255', () => {
+      const result = applyDiscount(300, 'PRIMEIRACOMPRA');
+      // 15% de 300 = 45
+      expect(result.finalAmount).toBe(255);
+      expect(result.discountAmount).toBe(45);
       expect(result.finalAmount >= 100).toBe(true);
     });
 
-    it('amount=10000, cupom=TESTE50 → netAmount=9500', () => {
-      const result = applyDiscount(10000, 'TESTE50');
-      expect(result.finalAmount).toBe(9500);
-      expect(result.discountAmount).toBe(500);
+    it('amount=10000, cupom=ARTHEMI10 (10%) → netAmount=9000', () => {
+      const result = applyDiscount(10000, 'ARTHEMI10');
+      expect(result.finalAmount).toBe(9000);
+      expect(result.discountAmount).toBe(1000);
       expect(result.finalAmount >= 100).toBe(true);
     });
 

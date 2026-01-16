@@ -43,13 +43,13 @@ describe('checkCouponUsage - Nova lógica', () => {
         },
       } as any;
       
-      await checkCouponUsage(mockPrisma, 'user1', '  teste50  ', 'BOOKING');
+      await checkCouponUsage(mockPrisma, 'user1', '  arthemi10  ', 'BOOKING');
       
       expect(mockPrisma.couponUsage.findUnique).toHaveBeenCalledWith({
         where: {
           userId_couponCode_context: {
             userId: 'user1',
-            couponCode: 'TESTE50',
+            couponCode: 'ARTHEMI10',
             context: 'BOOKING',
           },
         },
@@ -65,7 +65,7 @@ describe('checkCouponUsage - Nova lógica', () => {
         },
       } as any;
       
-      const result = await checkCouponUsage(mockPrisma, 'user1', 'TESTE50', 'BOOKING');
+      const result = await checkCouponUsage(mockPrisma, 'user1', 'ARTHEMI10', 'BOOKING');
       
       expect(result.canUse).toBe(true);
       expect(mockPrisma.couponUsage.findUnique).toHaveBeenCalled();
@@ -82,7 +82,7 @@ describe('checkCouponUsage - Nova lógica', () => {
         },
       } as any;
       
-      const result = await checkCouponUsage(mockPrisma, 'user1', 'TESTE50', 'BOOKING');
+      const result = await checkCouponUsage(mockPrisma, 'user1', 'ARTHEMI10', 'BOOKING');
       
       expect(result.canUse).toBe(false);
       expect(result.code).toBe('COUPON_ALREADY_USED');
@@ -99,7 +99,7 @@ describe('checkCouponUsage - Nova lógica', () => {
         },
       } as any;
       
-      const result = await checkCouponUsage(mockPrisma, 'user1', 'TESTE50', 'BOOKING');
+      const result = await checkCouponUsage(mockPrisma, 'user1', 'ARTHEMI10', 'BOOKING');
       
       expect(result.canUse).toBe(true);
     });
@@ -111,8 +111,8 @@ describe('checkCouponUsage - Nova lógica', () => {
         },
       } as any;
       
-      // TESTE50 não é singleUse, mas DEVE consultar banco mesmo assim
-      await checkCouponUsage(mockPrisma, 'user1', 'TESTE50', 'BOOKING');
+      // ARTHEMI10 não é singleUse, mas DEVE consultar banco mesmo assim
+      await checkCouponUsage(mockPrisma, 'user1', 'ARTHEMI10', 'BOOKING');
       expect(mockPrisma.couponUsage.findUnique).toHaveBeenCalledTimes(1);
       
       // PRIMEIRACOMPRA é singleUse, também consulta banco
@@ -131,8 +131,8 @@ describe('checkCouponUsage - Nova lógica', () => {
         },
       } as any;
       
-      const bookingResult = await checkCouponUsage(mockPrisma, 'user1', 'TESTE50', 'BOOKING');
-      const creditResult = await checkCouponUsage(mockPrisma, 'user1', 'TESTE50', 'CREDIT_PURCHASE');
+      const bookingResult = await checkCouponUsage(mockPrisma, 'user1', 'ARTHEMI10', 'BOOKING');
+      const creditResult = await checkCouponUsage(mockPrisma, 'user1', 'ARTHEMI10', 'CREDIT_PURCHASE');
       
       expect(bookingResult.canUse).toBe(false); // Já usado para BOOKING
       expect(creditResult.canUse).toBe(true);  // Disponível para CREDIT_PURCHASE
@@ -156,7 +156,7 @@ describe('recordCouponUsageIdempotent - Sem try/catch P2002', () => {
       
       const result = await recordCouponUsageIdempotent(mockTx, {
         userId: 'user1',
-        couponCode: 'TESTE50',
+        couponCode: 'ARTHEMI10',
         context: 'BOOKING',
         bookingId: 'booking1',
       });
@@ -166,7 +166,7 @@ describe('recordCouponUsageIdempotent - Sem try/catch P2002', () => {
       expect(mockTx.couponUsage.updateMany).toHaveBeenCalledWith({
         where: {
           userId: 'user1',
-          couponCode: 'TESTE50',
+          couponCode: 'ARTHEMI10',
           context: 'BOOKING',
           status: CouponUsageStatus.RESTORED,
         },
@@ -192,7 +192,7 @@ describe('recordCouponUsageIdempotent - Sem try/catch P2002', () => {
       
       const result = await recordCouponUsageIdempotent(mockTx, {
         userId: 'user1',
-        couponCode: 'TESTE50',
+        couponCode: 'ARTHEMI10',
         context: 'BOOKING',
         bookingId: 'booking1',
       });
@@ -202,7 +202,7 @@ describe('recordCouponUsageIdempotent - Sem try/catch P2002', () => {
       expect(mockTx.couponUsage.create).toHaveBeenCalledWith({
         data: {
           userId: 'user1',
-          couponCode: 'TESTE50',
+          couponCode: 'ARTHEMI10',
           context: 'BOOKING',
           bookingId: 'booking1',
           creditId: null,
@@ -226,7 +226,7 @@ describe('recordCouponUsageIdempotent - Sem try/catch P2002', () => {
       await expect(
         recordCouponUsageIdempotent(mockTx, {
           userId: 'user1',
-          couponCode: 'TESTE50',
+          couponCode: 'ARTHEMI10',
           context: 'BOOKING',
           bookingId: 'booking1',
         })
@@ -245,7 +245,7 @@ describe('recordCouponUsageIdempotent - Sem try/catch P2002', () => {
       
       await recordCouponUsageIdempotent(mockTx, {
         userId: 'user1',
-        couponCode: 'TESTE50',
+        couponCode: 'ARTHEMI10',
         context: 'CREDIT_PURCHASE',
         creditId: 'credit1',
       });
@@ -270,7 +270,7 @@ describe('restoreCouponUsage - Regra de negócio PAGO vs NÃO PAGO', () => {
     it('restaura cupom quando booking não foi pago', async () => {
       const mockUsage = {
         id: 'usage1',
-        couponCode: 'TESTE50',
+        couponCode: 'ARTHEMI10',
         status: CouponUsageStatus.USED,
       };
       
@@ -284,7 +284,7 @@ describe('restoreCouponUsage - Regra de negócio PAGO vs NÃO PAGO', () => {
       const result = await restoreCouponUsage(mockTx, 'booking1', undefined, false);
       
       expect(result.restored).toBe(true);
-      expect(result.couponCode).toBe('TESTE50');
+      expect(result.couponCode).toBe('ARTHEMI10');
       expect(mockTx.couponUsage.update).toHaveBeenCalledWith({
         where: { id: 'usage1' },
         data: {
@@ -349,7 +349,7 @@ describe('Cenários de uso completo', () => {
       const checkResult = {
         canUse: false,
         code: 'COUPON_ALREADY_USED',
-        reason: 'Cupom TESTE50 já foi utilizado para este tipo de operação.',
+        reason: 'Cupom ARTHEMI10 já foi utilizado para este tipo de operação.',
       };
       expect(checkResult.canUse).toBe(false);
       expect(checkResult.code).toBe('COUPON_ALREADY_USED');
@@ -363,7 +363,7 @@ describe('Cenários de uso completo', () => {
       expect(firstUse.ok).toBe(true);
       
       // 2. Cancelamento antes de pagamento → restaura
-      const restoreResult = { restored: true, couponCode: 'TESTE50' };
+      const restoreResult = { restored: true, couponCode: 'ARTHEMI10' };
       expect(restoreResult.restored).toBe(true);
       
       // 3. Check após restauração → pode usar
@@ -492,7 +492,7 @@ describe('Regressão: Sem 25P02', () => {
 describe('HTTP Error Handling: Cupom', () => {
   describe('/api/bookings error parsing', () => {
     it('CUPOM_INVALIDO: deve retornar 400 com code COUPON_INVALID', () => {
-      const errorMessage = 'CUPOM_INVALIDO: Cupom TESTE50 já foi utilizado para este tipo de operação.';
+      const errorMessage = 'CUPOM_INVALIDO: Cupom ARTHEMI10 já foi utilizado para este tipo de operação.';
       
       // Simula o parsing do error handler
       if (errorMessage.startsWith('CUPOM_INVALIDO:')) {
@@ -513,7 +513,7 @@ describe('HTTP Error Handling: Cupom', () => {
     });
 
     it('COUPON_ALREADY_USED: deve retornar 400 com code COUPON_ALREADY_USED', () => {
-      const errorMessage = 'COUPON_ALREADY_USED:TESTE50';
+      const errorMessage = 'COUPON_ALREADY_USED:ARTHEMI10';
       
       if (errorMessage.startsWith('COUPON_ALREADY_USED:')) {
         const [, couponCode] = errorMessage.split(':');
@@ -528,7 +528,7 @@ describe('HTTP Error Handling: Cupom', () => {
         
         expect(response.status).toBe(400);
         expect(response.body.code).toBe('COUPON_ALREADY_USED');
-        expect(couponCode).toBe('TESTE50');
+        expect(couponCode).toBe('ARTHEMI10');
       }
     });
 

@@ -1,6 +1,6 @@
 /**
  * Testes: API Rate Limit em memória
- * Atualizado para: 5 tentativas + backoff progressivo
+ * Configuração atual: 15 requisições/minuto + backoff progressivo (10s base, 120s max)
  */
 
 import { 
@@ -19,46 +19,46 @@ describe('api-rate-limit', () => {
     clearRateLimitStore();
   });
 
-  describe('checkApiRateLimit - limite básico (5 tentativas)', () => {
+  describe('checkApiRateLimit - limite básico (15 tentativas)', () => {
     it('deve permitir primeira requisição', () => {
       const result = checkApiRateLimit('bookings', '192.168.1.1');
       
       expect(result.allowed).toBe(true);
-      expect(result.remaining).toBe(4); // 5-1 = 4
+      expect(result.remaining).toBe(14); // 15-1 = 14
     });
 
-    it('deve permitir até 5 requisições na janela', () => {
+    it('deve permitir até 15 requisições na janela', () => {
       const ip = '192.168.1.2';
       
-      for (let i = 1; i <= 5; i++) {
+      for (let i = 1; i <= 15; i++) {
         const r = checkApiRateLimit('bookings', ip);
         expect(r.allowed).toBe(true);
-        expect(r.remaining).toBe(5 - i);
+        expect(r.remaining).toBe(15 - i);
       }
     });
 
-    it('deve bloquear 6ª requisição (limite = 5)', () => {
+    it('deve bloquear 16ª requisição (limite = 15)', () => {
       const ip = '192.168.1.3';
       
-      // 5 requisições permitidas
-      for (let i = 0; i < 5; i++) {
+      // 15 requisições permitidas
+      for (let i = 0; i < 15; i++) {
         checkApiRateLimit('bookings', ip);
       }
       
-      // 6ª bloqueada
-      const r6 = checkApiRateLimit('bookings', ip);
+      // 16ª bloqueada
+      const r16 = checkApiRateLimit('bookings', ip);
       
-      expect(r6.allowed).toBe(false);
-      expect(r6.remaining).toBe(0);
-      expect(r6.retryAfterSeconds).toBeDefined();
-      expect(r6.retryAfterSeconds).toBe(60); // 1º bloqueio = 60s
+      expect(r16.allowed).toBe(false);
+      expect(r16.remaining).toBe(0);
+      expect(r16.retryAfterSeconds).toBeDefined();
+      expect(r16.retryAfterSeconds).toBe(10); // 1º bloqueio = 10s (base)
     });
 
     it('deve separar rate limit por endpoint', () => {
       const ip = '192.168.1.4';
       
-      // 5 requisições em bookings
-      for (let i = 0; i < 5; i++) {
+      // 15 requisições em bookings
+      for (let i = 0; i < 15; i++) {
         checkApiRateLimit('bookings', ip);
       }
       
@@ -70,14 +70,14 @@ describe('api-rate-limit', () => {
     it('deve separar rate limit por IP', () => {
       const endpoint = 'auth/login';
       
-      // 5 requisições de IP1
-      for (let i = 0; i < 5; i++) {
+      // 15 requisições de IP1
+      for (let i = 0; i < 15; i++) {
         checkApiRateLimit(endpoint, '10.0.0.1');
       }
-      const r6 = checkApiRateLimit(endpoint, '10.0.0.1');
+      const r16 = checkApiRateLimit(endpoint, '10.0.0.1');
       
       // IP1 bloqueado
-      expect(r6.allowed).toBe(false);
+      expect(r16.allowed).toBe(false);
       
       // IP2 ainda liberado
       const r1_ip2 = checkApiRateLimit(endpoint, '10.0.0.2');
@@ -106,44 +106,44 @@ describe('api-rate-limit', () => {
   });
 
   describe('checkApiRateLimit - backoff progressivo', () => {
-    it('1º bloqueio: retryAfter = 60s', () => {
+    it('1º bloqueio: retryAfter = 10s', () => {
       const ip = '10.1.1.1';
       
-      // Esgotar 5 tentativas
-      for (let i = 0; i < 5; i++) {
+      // Esgotar 15 tentativas
+      for (let i = 0; i < 15; i++) {
         checkApiRateLimit('test', ip);
       }
       
       const blocked = checkApiRateLimit('test', ip);
       expect(blocked.allowed).toBe(false);
-      expect(blocked.retryAfterSeconds).toBe(60);
+      expect(blocked.retryAfterSeconds).toBe(10);
     });
 
-    it('2º bloqueio: retryAfter = 120s', () => {
+    it('2º bloqueio: retryAfter = 20s', () => {
       const ip = '10.1.1.2';
       
       // 1º bloqueio
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 16; i++) {
         checkApiRateLimit('test', ip);
       }
       
       // Simular que passou o tempo de bloqueio + janela
       // (na prática precisaria esperar, mas o 2º bloqueio já incrementa)
       // Vamos forçar novo bloqueio
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 16; i++) {
         checkApiRateLimit('test', ip);
       }
       
       // O 2º bloqueio deve ter retryAfter maior
       const result = checkApiRateLimit('test', ip);
       expect(result.allowed).toBe(false);
-      // O retryAfter deve ser 120s (2º bloqueio) ou ainda 60s se não passou tempo
+      // O retryAfter deve ser 20s (2º bloqueio) ou ainda 10s se não passou tempo
       expect(result.retryAfterSeconds).toBeGreaterThan(0);
     });
 
-    it('backoff não ultrapassa teto de 900s (15min)', () => {
+    it('backoff não ultrapassa teto de 120s (2min)', () => {
       // Este é um teste conceitual - o teto está definido em BACKOFF_CONFIG
-      expect(BACKOFF_CONFIG.maxSeconds).toBe(900);
+      expect(BACKOFF_CONFIG.maxSeconds).toBe(120);
     });
   });
 
@@ -228,8 +228,8 @@ describe('api-rate-limit', () => {
     it('deve limpar o store de bloqueios também', () => {
       const ip = '3.3.3.3';
       
-      // Esgotar limite para criar bloqueio
-      for (let i = 0; i < 6; i++) {
+      // Esgotar limite para criar bloqueio (16 requisições)
+      for (let i = 0; i < 16; i++) {
         checkApiRateLimit('test', ip);
       }
       
@@ -243,9 +243,9 @@ describe('api-rate-limit', () => {
 
   describe('BACKOFF_CONFIG', () => {
     it('deve ter configurações corretas', () => {
-      expect(BACKOFF_CONFIG.baseSeconds).toBe(60);
-      expect(BACKOFF_CONFIG.maxSeconds).toBe(900);
-      expect(BACKOFF_CONFIG.resetAfterMs).toBe(30 * 60 * 1000);
+      expect(BACKOFF_CONFIG.baseSeconds).toBe(10);
+      expect(BACKOFF_CONFIG.maxSeconds).toBe(120);
+      expect(BACKOFF_CONFIG.resetAfterMs).toBe(10 * 60 * 1000);
     });
   });
 });

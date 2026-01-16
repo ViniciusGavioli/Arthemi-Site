@@ -29,6 +29,9 @@ interface Booking {
   discountAmount: number | null;
   netAmount: number | null;
   couponCode: string | null;
+  // Campos de PRICE_OVERRIDE
+  pricingMode: 'STANDARD' | 'OVERRIDE';
+  overrideFinalCents: number | null;
   room: {
     id: string;
     name: string;
@@ -260,7 +263,7 @@ export default function BookingDetailsPage() {
                 </div>
               </div>
 
-              {/* Valor - Resumo com Cupom/Desconto */}
+              {/* Valor - Resumo com Cupom/Desconto ou Override */}
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
                   <span className="text-2xl">💰</span>
@@ -268,8 +271,20 @@ export default function BookingDetailsPage() {
                 <div className="flex-1">
                   <p className="text-sm text-gray-500">Resumo do Pagamento</p>
                   
-                  {/* Se houver desconto, mostrar detalhamento */}
-                  {booking.discountAmount && booking.discountAmount > 0 ? (
+                  {/* PRICE_OVERRIDE: Mostrar preço administrativo */}
+                  {booking.pricingMode === 'OVERRIDE' ? (
+                    <div className="space-y-1 mt-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Preço Original</span>
+                        <span className="text-gray-400 line-through">{formatCurrency(booking.grossAmount || 0)}</span>
+                      </div>
+                      <div className="flex justify-between pt-1 border-t border-gray-100">
+                        <span className="font-semibold text-amber-700">Preço Administrativo</span>
+                        <span className="font-bold text-amber-600">{formatCurrency(booking.overrideFinalCents || booking.amountPaid)}</span>
+                      </div>
+                    </div>
+                  ) : booking.discountAmount && booking.discountAmount > 0 ? (
+                    /* Se houver desconto (cupom), mostrar detalhamento */
                     <div className="space-y-1 mt-1">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500">Subtotal</span>

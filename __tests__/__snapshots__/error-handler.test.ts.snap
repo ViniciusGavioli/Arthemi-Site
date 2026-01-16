@@ -25,7 +25,7 @@ exports[`Payload padronizado (snapshot) erro de créditos insuficientes 1`] = `
 exports[`Payload padronizado (snapshot) erro de cupom inválido 1`] = `
 {
   "code": "COUPON_INVALID",
-  "error": "Cupom TESTE50 já foi utilizado",
+  "error": "Cupom ARTHEMI10 já foi utilizado",
   "requestId": "req-abc-123",
   "success": false,
 }

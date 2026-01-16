@@ -122,8 +122,8 @@ describe('/api/bookings - Regra de Identidade', () => {
     id: 'booking-123',
     userId: 'session-user-id',
     roomId: 'room-1',
-    startTime: new Date('2026-01-10T10:00:00Z'),
-    endTime: new Date('2026-01-10T11:00:00Z'),
+    startTime: new Date('2026-03-10T10:00:00Z'),
+    endTime: new Date('2026-03-10T11:00:00Z'),
     status: 'PENDING',
     paymentStatus: 'PENDING',
   };
@@ -134,8 +134,8 @@ describe('/api/bookings - Regra de Identidade', () => {
     userEmail: 'joao@email.com',
     userCpf: '12345678909', // CPF válido fake
     roomId: 'room-1',
-    startAt: '2026-01-10T10:00:00.000Z',
-    endAt: '2026-01-10T11:00:00.000Z',
+    startAt: '2026-03-10T10:00:00.000Z',
+    endAt: '2026-03-10T11:00:00.000Z',
     paymentMethod: 'PIX',
   };
 
@@ -167,6 +167,9 @@ describe('/api/bookings - Regra de Identidade', () => {
             create: jest.fn().mockResolvedValue({ ...mockBooking, userId: 'session-user-id' }),
           },
           product: { findUnique: jest.fn() },
+          user: {
+            findUnique: jest.fn().mockResolvedValue({ email: 'joao@email.com', role: 'CUSTOMER' }),
+          },
         };
         return callback(tx);
       });
@@ -214,6 +217,9 @@ describe('/api/bookings - Regra de Identidade', () => {
             }),
           },
           product: { findUnique: jest.fn() },
+          user: {
+            findUnique: jest.fn().mockResolvedValue({ email: 'joao@email.com', role: 'CUSTOMER' }),
+          },
         };
         return callback(tx);
       });

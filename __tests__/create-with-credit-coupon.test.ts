@@ -96,14 +96,14 @@ describe('Credit + Coupon Calculations', () => {
 describe('Antifraud - Coupon Requires Cash Payment', () => {
   test('Regra: Cupom + créditos totais deve retornar código específico', () => {
     const grossAmount = 10000;
-    const discountResult = applyDiscount(grossAmount, 'TESTE50');
-    const netAmount = discountResult.finalAmount; // R$95,00
+    const discountResult = applyDiscount(grossAmount, 'ARTHEMI10'); // 10%
+    const netAmount = discountResult.finalAmount; // R$90,00
     
     const availableCredits = 10000; // Crédito suficiente
     const creditsToUse = Math.min(availableCredits, netAmount);
     const amountToPay = netAmount - creditsToUse;
     
-    const couponApplied = 'TESTE50';
+    const couponApplied = 'ARTHEMI10';
     
     // Validação que o endpoint deve fazer
     const shouldReject = couponApplied && amountToPay === 0;
@@ -178,19 +178,24 @@ describe('Single-Use Coupon - PRIMEIRACOMPRA', () => {
     expect(coupon?.singleUsePerUser).toBe(true);
   });
 
-  test('Outros cupons não são single-use', () => {
-    const teste50 = getCouponInfo('TESTE50');
+  test('PRIMEIRACOMPRA10 também é single-use', () => {
+    const primeiraCompra10 = getCouponInfo('PRIMEIRACOMPRA10');
+    
+    expect(primeiraCompra10?.singleUsePerUser).toBe(true);
+  });
+
+  test('ARTHEMI10 não é single-use', () => {
     const arthemi10 = getCouponInfo('ARTHEMI10');
     
-    expect(teste50?.singleUsePerUser).toBe(false);
     expect(arthemi10?.singleUsePerUser).toBe(false);
   });
 
   test('Cupom válido retorna true em isValidCoupon', () => {
     expect(isValidCoupon('PRIMEIRACOMPRA')).toBe(true);
     expect(isValidCoupon('primeiracompra')).toBe(true); // case insensitive
-    expect(isValidCoupon('TESTE50')).toBe(true);
+    expect(isValidCoupon('PRIMEIRACOMPRA10')).toBe(true);
     expect(isValidCoupon('ARTHEMI10')).toBe(true);
+    expect(isValidCoupon('TESTE50')).toBe(false); // Removido
   });
 });
 

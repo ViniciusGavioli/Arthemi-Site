@@ -1018,9 +1018,14 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
               }`}
               placeholder="Digite seu cupom (validado no pagamento)"
             />
-            {formData.couponCode.trim() && (
+            {formData.couponCode.trim() && !formData.couponCode.toUpperCase().startsWith('OVERRIDE_') && (
               <p className="mt-1 text-xs text-gray-500">
                 Cupom será validado na finalização do pagamento
+              </p>
+            )}
+            {formData.couponCode.toUpperCase().startsWith('OVERRIDE_') && (
+              <p className="mt-1 text-xs text-amber-600 font-medium">
+                ⚠️ Preço administrativo será aplicado (requer permissão)
               </p>
             )}
           </div>

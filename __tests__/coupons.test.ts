@@ -1,6 +1,8 @@
 // ===========================================================
 // Testes: Cupons - applyDiscount, isValidCoupon, validate API
 // ===========================================================
+// NOTA: DEV coupons (TESTE50, DEVTEST) foram removidos
+// Use PRICE_OVERRIDE para preços administrativos
 
 import { applyDiscount, isValidCoupon, getCouponInfo, createCouponSnapshot } from '@/lib/coupons';
 
@@ -9,7 +11,7 @@ describe('lib/coupons', () => {
     it('retorna true para cupom válido', () => {
       expect(isValidCoupon('ARTHEMI10')).toBe(true);
       expect(isValidCoupon('PRIMEIRACOMPRA')).toBe(true);
-      expect(isValidCoupon('TESTE50')).toBe(true);
+      expect(isValidCoupon('PRIMEIRACOMPRA10')).toBe(true);
     });
 
     it('retorna true normalizado (case insensitive, trim)', () => {
@@ -22,6 +24,9 @@ describe('lib/coupons', () => {
       expect(isValidCoupon('INVALIDO')).toBe(false);
       expect(isValidCoupon('CUPOM123')).toBe(false);
       expect(isValidCoupon('')).toBe(false);
+      // DEV coupons removidos
+      expect(isValidCoupon('TESTE50')).toBe(false);
+      expect(isValidCoupon('DEVTEST')).toBe(false);
     });
   });
 
@@ -85,24 +90,14 @@ describe('lib/coupons', () => {
       });
     });
 
-    describe('cupom fixo (TESTE50 = R$5,00)', () => {
-      it('desconta R$5,00 de R$100,00', () => {
+    // NOTA: TESTE50 foi removido - cupons fixos não existem mais
+    // Use PRICE_OVERRIDE para preços administrativos fixos
+    describe('cupom removido (TESTE50)', () => {
+      it('TESTE50 não aplica desconto (cupom removido)', () => {
         const result = applyDiscount(10000, 'TESTE50');
-        expect(result.discountAmount).toBe(500);
-        expect(result.finalAmount).toBe(9500);
-      });
-
-      it('desconta R$5,00 de R$839,80', () => {
-        const result = applyDiscount(83980, 'TESTE50');
-        expect(result.discountAmount).toBe(500);
-        expect(result.finalAmount).toBe(83480);
-      });
-
-      it('valor mínimo R$1,00 quando desconto é maior que valor', () => {
-        const result = applyDiscount(300, 'TESTE50');
-        // 500 > 300, mas mínimo é 100
-        expect(result.finalAmount).toBe(100);
-        expect(result.discountAmount).toBe(200); // desconto efetivo
+        expect(result.discountAmount).toBe(0);
+        expect(result.finalAmount).toBe(10000);
+        expect(result.couponApplied).toBe(false);
       });
     });
 
@@ -142,8 +137,8 @@ describe('lib/coupons', () => {
   // TESTES DE BLINDAGEM: Consistência entre preview e backend
   // ===========================================================
   describe('consistência grossAmount → netAmount', () => {
+    // NOTA: Removido TESTE50 dos testes - cupom não existe mais
     const testCases = [
-      { grossAmount: 83980, coupon: 'TESTE50', expectedNet: 83480, desc: 'Pacote 10h + R$5 fixo' },
       { grossAmount: 16796, coupon: 'ARTHEMI10', expectedNet: 15116, desc: '2h avulsa + 10%' },
       { grossAmount: 83980, coupon: 'PRIMEIRACOMPRA', expectedNet: 71383, desc: 'Pacote 10h + 15%' },
       { grossAmount: 50000, coupon: 'ARTHEMI10', expectedNet: 45000, desc: '10% de R$500' },
@@ -160,7 +155,8 @@ describe('lib/coupons', () => {
 
     it('invariante: grossAmount = finalAmount + discountAmount (sempre)', () => {
       const values = [100, 500, 1000, 5000, 10000, 50000, 83980, 167960];
-      const coupons = ['TESTE50', 'ARTHEMI10', 'PRIMEIRACOMPRA'];
+      // Apenas cupons válidos (TESTE50 removido)
+      const coupons = ['ARTHEMI10', 'PRIMEIRACOMPRA', 'PRIMEIRACOMPRA10'];
       
       for (const gross of values) {
         for (const coupon of coupons) {
@@ -176,28 +172,30 @@ describe('lib/coupons', () => {
   // ===========================================================
   describe('regra de piso R$1,00', () => {
     describe('amount >= 100 (piso ativo)', () => {
-      it('cupom R$5 em R$1 → net=100, discount=0 (piso)', () => {
-        const result = applyDiscount(100, 'TESTE50');
+      it('cupom 10% em R$1 → net=100, discount=0 (piso)', () => {
+        const result = applyDiscount(100, 'ARTHEMI10');
+        // 10% de 100 = 10, net seria 90 mas piso 100
         expect(result.finalAmount).toBe(100);
         expect(result.discountAmount).toBe(0);
         expect(result.couponApplied).toBe(true);
       });
 
-      it('cupom R$5 em R$3 → net=100, discount=200', () => {
-        const result = applyDiscount(300, 'TESTE50');
-        expect(result.finalAmount).toBe(100);
-        expect(result.discountAmount).toBe(200);
+      it('cupom 10% em R$3 → net=270, discount=30', () => {
+        const result = applyDiscount(300, 'ARTHEMI10');
+        // 10% de 300 = 30, net = 270 (acima do piso)
+        expect(result.finalAmount).toBe(270);
+        expect(result.discountAmount).toBe(30);
       });
 
-      it('cupom R$5 em R$6 → net=100, discount=500 (desconto integral)', () => {
-        const result = applyDiscount(600, 'TESTE50');
-        expect(result.finalAmount).toBe(100);
-        expect(result.discountAmount).toBe(500);
+      it('cupom 15% em R$6 → net=510, discount=90', () => {
+        const result = applyDiscount(600, 'PRIMEIRACOMPRA');
+        // 15% de 600 = 90, net = 510 (acima do piso)
+        expect(result.finalAmount).toBe(510);
+        expect(result.discountAmount).toBe(90);
       });
 
-      it('cupom 100% em R$100 → net=100, discount=0 (piso impede zerar)', () => {
-        // Simular cupom 100% com PRIMEIRACOMPRA (15%) não zera
-        // Usar valor calculado: 100 * 0.15 = 15, net = 85? Não, piso = 100
+      it('cupom 15% em R$1 → net=100, discount=0 (piso impede zerar)', () => {
+        // 15% de 100 = 15, net seria 85 mas piso 100
         const result = applyDiscount(100, 'PRIMEIRACOMPRA');
         expect(result.finalAmount).toBe(100);
         expect(result.discountAmount).toBe(0);
@@ -205,10 +203,11 @@ describe('lib/coupons', () => {
     });
 
     describe('amount < 100 (sem piso)', () => {
-      it('cupom R$5 em R$0,50 → net=0, discount=50 (sem piso)', () => {
+      it('cupom inválido em R$0,50 → sem desconto', () => {
         const result = applyDiscount(50, 'TESTE50');
-        expect(result.finalAmount).toBe(0);
-        expect(result.discountAmount).toBe(50);
+        // TESTE50 foi removido, não aplica desconto
+        expect(result.finalAmount).toBe(50);
+        expect(result.discountAmount).toBe(0);
       });
 
       it('cupom 10% em R$0,99 → net=89, discount=10', () => {
@@ -219,7 +218,7 @@ describe('lib/coupons', () => {
       });
 
       it('invariante mantida com amount < 100', () => {
-        const result = applyDiscount(50, 'TESTE50');
+        const result = applyDiscount(50, 'ARTHEMI10');
         expect(50).toBe(result.finalAmount + result.discountAmount);
       });
     });
@@ -234,14 +233,15 @@ describe('lib/coupons', () => {
     });
 
     it('valores nunca negativos', () => {
-      const result = applyDiscount(50, 'TESTE50');
+      const result = applyDiscount(50, 'ARTHEMI10');
       expect(result.finalAmount).toBeGreaterThanOrEqual(0);
       expect(result.discountAmount).toBeGreaterThanOrEqual(0);
     });
 
     it('invariante: amount = final + discount (exaustivo)', () => {
       const amounts = [1, 50, 99, 100, 101, 500, 1000, 10000];
-      const coupons = ['TESTE50', 'ARTHEMI10', 'PRIMEIRACOMPRA'];
+      // Apenas cupons válidos
+      const coupons = ['ARTHEMI10', 'PRIMEIRACOMPRA', 'PRIMEIRACOMPRA10'];
       
       for (const amount of amounts) {
         for (const coupon of coupons) {

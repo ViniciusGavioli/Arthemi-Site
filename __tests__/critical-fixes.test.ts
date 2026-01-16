@@ -422,7 +422,7 @@ describe('Cleanup: Cancelar booking e restaurar cupom específico', () => {
     const couponUsage = {
       status: 'USED',
       bookingId: 'booking_123',
-      couponCode: 'TESTE50',
+      couponCode: 'ARTHEMI10',
     };
     
     const targetBookingId = 'booking_123';
@@ -439,7 +439,7 @@ describe('Cleanup: Cancelar booking e restaurar cupom específico', () => {
     const couponUsage = {
       status: 'USED',
       bookingId: 'booking_456', // Outro booking
-      couponCode: 'TESTE50',
+      couponCode: 'ARTHEMI10',
     };
     
     const targetBookingId = 'booking_123';
@@ -455,7 +455,7 @@ describe('Cleanup: Cancelar booking e restaurar cupom específico', () => {
     const couponUsage = {
       status: 'RESTORED',
       bookingId: 'booking_123',
-      couponCode: 'TESTE50',
+      couponCode: 'ARTHEMI10',
     };
     
     const targetBookingId = 'booking_123';
@@ -656,15 +656,15 @@ describe('Correção de Bug: applyDiscount com CENTAVOS', () => {
       expect(result.finalAmount).toBeCloseTo(3399, 0); // ~R$ 33,99
     });
 
-    it('deve aplicar desconto fixo R$ 5,00 (500 centavos) - TESTE50', () => {
+    it('deve aplicar desconto percentual 10% - ARTHEMI10', () => {
       const amountCents = 3999;
-      const result = applyDiscount(amountCents, 'TESTE50'); // R$ 5,00 fixo
+      const result = applyDiscount(amountCents, 'ARTHEMI10'); // 10%
       
-      // Desconto = 500 centavos (fixo)
-      // Final = 3999 - 500 = 3499 centavos
+      // Desconto = 3999 * 0.10 = 399.9 → Math.round → 400 centavos
+      // Final = 3999 - 400 = 3599 centavos
       expect(result.couponApplied).toBe(true);
-      expect(result.discountAmount).toBe(500); // R$ 5,00
-      expect(result.finalAmount).toBe(3499); // R$ 34,99
+      expect(result.discountAmount).toBeCloseTo(400, 0); // ~R$ 4,00
+      expect(result.finalAmount).toBeCloseTo(3599, 0); // ~R$ 35,99
     });
 
     it('valor após desconto deve ser >= piso de R$ 1,00 (100 centavos)', () => {
@@ -673,11 +673,11 @@ describe('Correção de Bug: applyDiscount com CENTAVOS', () => {
       // Qualquer cupom aplicado deve respeitar piso de R$ 1,00
       const result10 = applyDiscount(amountCents, 'ARTHEMI10');
       const result15 = applyDiscount(amountCents, 'PRIMEIRACOMPRA');
-      const resultFixed = applyDiscount(amountCents, 'TESTE50');
+      const resultP10 = applyDiscount(amountCents, 'PRIMEIRACOMPRA10');
       
       expect(result10.finalAmount).toBeGreaterThanOrEqual(100);
       expect(result15.finalAmount).toBeGreaterThanOrEqual(100);
-      expect(resultFixed.finalAmount).toBeGreaterThanOrEqual(100);
+      expect(resultP10.finalAmount).toBeGreaterThanOrEqual(100);
     });
   });
 
@@ -687,13 +687,17 @@ describe('Correção de Bug: applyDiscount com CENTAVOS', () => {
       
       // Cenário: valor muito baixo após desconto
       const amountCents = 600; // R$ 6,00
-      const result = applyDiscount(amountCents, 'TESTE50'); // -R$ 5,00
+      const result = applyDiscount(amountCents, 'PRIMEIRACOMPRA'); // -15%
       
-      // Final = 600 - 500 = 100 centavos = R$ 1,00
-      expect(result.finalAmount).toBe(100);
+      // Final = 600 - 90 = 510 centavos = R$ 5,10
+      // Com 15% de desconto, não chega abaixo do mínimo neste caso
+      // Vamos usar um valor menor para demonstrar
+      const smallAmount = 400; // R$ 4,00
+      const smallResult = applyDiscount(smallAmount, 'PRIMEIRACOMPRA');
+      // 15% de 400 = 60, final = 340
       
       // Deve bloquear para cartão (mínimo R$ 5,00)
-      const shouldBlockCard = result.finalAmount < MIN_CARD_CENTS;
+      const shouldBlockCard = smallResult.finalAmount < MIN_CARD_CENTS;
       expect(shouldBlockCard).toBe(true);
     });
 
@@ -731,9 +735,9 @@ describe('Correção de Bug: applyDiscount com CENTAVOS', () => {
       expect(result.finalAmount + result.discountAmount).toBe(grossCents);
     });
 
-    it('deve manter invariante para cupom fixo', () => {
+    it('deve manter invariante para cupom PRIMEIRACOMPRA (15%)', () => {
       const grossCents = 3999;
-      const result = applyDiscount(grossCents, 'TESTE50');
+      const result = applyDiscount(grossCents, 'PRIMEIRACOMPRA');
       
       // grossAmount = finalAmount + discountAmount
       expect(result.finalAmount + result.discountAmount).toBe(grossCents);

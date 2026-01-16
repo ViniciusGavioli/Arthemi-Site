@@ -23,15 +23,17 @@ describe('Coupons - Basic Validation', () => {
   test('isValidCoupon retorna true para cupons válidos', () => {
     expect(isValidCoupon('ARTHEMI10')).toBe(true);
     expect(isValidCoupon('arthemi10')).toBe(true); // case insensitive
-    expect(isValidCoupon('PRIMEIRACOMPRA10')).toBe(true);
     expect(isValidCoupon('PRIMEIRACOMPRA')).toBe(true);
+    // DEV coupons também são válidos
+    expect(isValidCoupon('TESTE50')).toBe(true);
+    expect(isValidCoupon('DEVTEST')).toBe(true);
   });
 
   test('isValidCoupon retorna false para cupons inválidos', () => {
     expect(isValidCoupon('INVALIDO')).toBe(false);
     expect(isValidCoupon('')).toBe(false);
     expect(isValidCoupon('TESTE')).toBe(false);
-    expect(isValidCoupon('TESTE50')).toBe(false); // Removido
+    expect(isValidCoupon('PRIMEIRACOMPRA10')).toBe(false); // Não existe mais
   });
 
   test('getCouponInfo retorna config correta', () => {
@@ -62,10 +64,11 @@ describe('Coupons - Discount Application', () => {
     expect(result.couponApplied).toBe(true);
   });
 
-  test('applyDiscount com cupom percentual (PRIMEIRACOMPRA10 = 10%)', () => {
-    const result = applyDiscount(10000, 'PRIMEIRACOMPRA10'); // R$100,00
-    expect(result.discountAmount).toBe(1000); // R$10,00
-    expect(result.finalAmount).toBe(9000); // R$90,00
+  // PRIMEIRACOMPRA10 não existe mais, testamos PRIMEIRACOMPRA (15%)
+  test('applyDiscount com TESTE50 (DEV coupon fixo R$5)', () => {
+    const result = applyDiscount(10000, 'TESTE50'); // R$100,00
+    expect(result.discountAmount).toBe(500); // R$5,00
+    expect(result.finalAmount).toBe(9500); // R$95,00
     expect(result.couponApplied).toBe(true);
   });
 
@@ -184,10 +187,10 @@ describe('Refund - Business Rules', () => {
     expect(config.singleUsePerUser).toBe(true);
   });
 
-  test('ARTHEMI10 pode ser reutilizado, PRIMEIRACOMPRA10 é single use', () => {
+  test('ARTHEMI10 pode ser reutilizado, PRIMEIRACOMPRA é single use', () => {
     expect(VALID_COUPONS['ARTHEMI10'].singleUsePerUser).toBe(false);
-    // PRIMEIRACOMPRA10 também é single use (primeira compra)
-    expect(VALID_COUPONS['PRIMEIRACOMPRA10'].singleUsePerUser).toBe(true);
+    // PRIMEIRACOMPRA é single use (primeira compra)
+    expect(VALID_COUPONS['PRIMEIRACOMPRA'].singleUsePerUser).toBe(true);
   });
 });
 

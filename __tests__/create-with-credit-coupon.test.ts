@@ -178,10 +178,11 @@ describe('Single-Use Coupon - PRIMEIRACOMPRA', () => {
     expect(coupon?.singleUsePerUser).toBe(true);
   });
 
-  test('PRIMEIRACOMPRA10 também é single-use', () => {
-    const primeiraCompra10 = getCouponInfo('PRIMEIRACOMPRA10');
+  test('DEV coupon TESTE50 não é single-use', () => {
+    const devCoupon = getCouponInfo('TESTE50');
     
-    expect(primeiraCompra10?.singleUsePerUser).toBe(true);
+    expect(devCoupon?.singleUsePerUser).toBe(false);
+    expect(devCoupon?.isDevCoupon).toBe(true);
   });
 
   test('ARTHEMI10 não é single-use', () => {
@@ -193,9 +194,12 @@ describe('Single-Use Coupon - PRIMEIRACOMPRA', () => {
   test('Cupom válido retorna true em isValidCoupon', () => {
     expect(isValidCoupon('PRIMEIRACOMPRA')).toBe(true);
     expect(isValidCoupon('primeiracompra')).toBe(true); // case insensitive
-    expect(isValidCoupon('PRIMEIRACOMPRA10')).toBe(true);
     expect(isValidCoupon('ARTHEMI10')).toBe(true);
-    expect(isValidCoupon('TESTE50')).toBe(false); // Removido
+    // DEV coupons são válidos
+    expect(isValidCoupon('TESTE50')).toBe(true);
+    expect(isValidCoupon('DEVTEST')).toBe(true);
+    // Inexistentes
+    expect(isValidCoupon('PRIMEIRACOMPRA10')).toBe(false);
   });
 });
 

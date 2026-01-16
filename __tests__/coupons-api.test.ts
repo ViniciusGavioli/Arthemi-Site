@@ -113,16 +113,16 @@ describe('API /api/coupons/validate', () => {
       expect(res._json.netAmount).toBe(9000);
     });
 
-    it('retorna sucesso para cupom PRIMEIRACOMPRA10 (10%)', async () => {
-      const req = createMockRequest({ code: 'PRIMEIRACOMPRA10', grossAmount: 10000 });
+    it('retorna sucesso para cupom TESTE50 (DEV coupon R$5)', async () => {
+      const req = createMockRequest({ code: 'TESTE50', grossAmount: 10000 });
       const res = createMockResponse();
       
       await handler(req, res);
       
       expect(res._statusCode).toBe(200);
       expect(res._json.valid).toBe(true);
-      expect(res._json.discountAmount).toBe(1000); // 10% de R$100
-      expect(res._json.netAmount).toBe(9000);
+      expect(res._json.discountAmount).toBe(500); // R$5,00 fixo
+      expect(res._json.netAmount).toBe(9500);
     });
 
     it('retorna sucesso para cupom PRIMEIRACOMPRA (15%)', async () => {

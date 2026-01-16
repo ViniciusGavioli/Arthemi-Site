@@ -11,7 +11,9 @@ describe('lib/coupons', () => {
     it('retorna true para cupom válido', () => {
       expect(isValidCoupon('ARTHEMI10')).toBe(true);
       expect(isValidCoupon('PRIMEIRACOMPRA')).toBe(true);
-      expect(isValidCoupon('PRIMEIRACOMPRA10')).toBe(true);
+      // DEV coupons são válidos (mas restritos em produção)
+      expect(isValidCoupon('TESTE50')).toBe(true);
+      expect(isValidCoupon('DEVTEST')).toBe(true);
     });
 
     it('retorna true normalizado (case insensitive, trim)', () => {
@@ -24,9 +26,9 @@ describe('lib/coupons', () => {
       expect(isValidCoupon('INVALIDO')).toBe(false);
       expect(isValidCoupon('CUPOM123')).toBe(false);
       expect(isValidCoupon('')).toBe(false);
-      // DEV coupons removidos
-      expect(isValidCoupon('TESTE50')).toBe(false);
-      expect(isValidCoupon('DEVTEST')).toBe(false);
+      // Cupons que não existem
+      expect(isValidCoupon('PRIMEIRACOMPRA10')).toBe(false);
+      expect(isValidCoupon('NAOVALIDO')).toBe(false);
     });
   });
 
@@ -90,14 +92,13 @@ describe('lib/coupons', () => {
       });
     });
 
-    // NOTA: TESTE50 foi removido - cupons fixos não existem mais
-    // Use PRICE_OVERRIDE para preços administrativos fixos
-    describe('cupom removido (TESTE50)', () => {
-      it('TESTE50 não aplica desconto (cupom removido)', () => {
+    // NOTA: TESTE50 é agora um DEV coupon válido (R$5 desconto fixo)
+    describe('DEV coupon (TESTE50)', () => {
+      it('TESTE50 aplica R$5 de desconto (DEV coupon)', () => {
         const result = applyDiscount(10000, 'TESTE50');
-        expect(result.discountAmount).toBe(0);
-        expect(result.finalAmount).toBe(10000);
-        expect(result.couponApplied).toBe(false);
+        expect(result.discountAmount).toBe(500); // R$5,00
+        expect(result.finalAmount).toBe(9500);
+        expect(result.couponApplied).toBe(true);
       });
     });
 
@@ -204,8 +205,8 @@ describe('lib/coupons', () => {
 
     describe('amount < 100 (sem piso)', () => {
       it('cupom inválido em R$0,50 → sem desconto', () => {
-        const result = applyDiscount(50, 'TESTE50');
-        // TESTE50 foi removido, não aplica desconto
+        const result = applyDiscount(50, 'INVALIDO');
+        // Cupom inválido, não aplica desconto
         expect(result.finalAmount).toBe(50);
         expect(result.discountAmount).toBe(0);
       });

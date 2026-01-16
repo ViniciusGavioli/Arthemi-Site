@@ -17,6 +17,7 @@ interface Booking {
   totalAmount: number;
   canCancel: boolean;
   hoursUntilStart: number;
+  creditsUsed?: number;
 }
 
 interface BookingsData {
@@ -27,8 +28,6 @@ interface BookingsData {
 interface PageProps {
   user: { userId: string; role: string };
 }
-
-// P0-3: Types PixKeyType e CancelModalState removidos - sem modal de cancelamento
 
 export const getServerSideProps: GetServerSideProps<PageProps> = async (ctx: GetServerSidePropsContext) => {
   const result = requireAuthSSR(ctx);
@@ -48,7 +47,9 @@ export default function BookingsPage({ user: _user }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState<BookingsData | null>(null);
   const [error, setError] = useState('');
-  // P0-3: Removido states de cancelamento - usuário não pode cancelar diretamente
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showCancelModal, setShowCancelModal] = useState<string | null>(null);
 
   async function fetchBookings() {
     try {
@@ -70,7 +71,35 @@ export default function BookingsPage({ user: _user }: PageProps) {
     fetchBookings();
   }, []);
 
-  // P0-3: Funções de cancelamento removidas - apenas ADMIN pode cancelar
+  // Cancelar reserva PENDING
+  async function handleCancelPending(bookingId: string) {
+    setCancellingId(bookingId);
+    setShowCancelModal(null);
+    setError('');
+
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}/cancel-pending`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setSuccessMessage(data.message || 'Reserva cancelada com sucesso!');
+        // Recarregar lista
+        await fetchBookings();
+        // Limpar mensagem após 5s
+        setTimeout(() => setSuccessMessage(''), 5000);
+      } else {
+        setError(data.error || 'Erro ao cancelar reserva');
+      }
+    } catch {
+      setError('Erro de conexão ao cancelar');
+    } finally {
+      setCancellingId(null);
+    }
+  }
 
   // Formatar data
   function formatDate(dateStr: string): string {
@@ -121,8 +150,11 @@ export default function BookingsPage({ user: _user }: PageProps) {
     );
   }
 
-  // Card de reserva - P0-3: Sem botão de cancelar, apenas link WhatsApp
-  function BookingCard({ booking, showCancel: _showCancel }: { booking: Booking; showCancel: boolean }) {
+  // Card de reserva - Com botão de cancelar para PENDING
+  function BookingCard({ booking, showCancel }: { booking: Booking; showCancel: boolean }) {
+    const isPending = booking.status === 'PENDING';
+    const isCancelling = cancellingId === booking.id;
+    
     return (
       <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
         <div className="flex items-start justify-between mb-3">
@@ -143,11 +175,40 @@ export default function BookingsPage({ user: _user }: PageProps) {
           </div>
           <div className="font-medium text-gray-900">
             {formatCurrency(booking.totalAmount)}
+            {booking.creditsUsed && booking.creditsUsed > 0 && (
+              <span className="text-xs text-gray-500 ml-1">
+                (+{formatCurrency(booking.creditsUsed)} créditos)
+              </span>
+            )}
           </div>
         </div>
 
-        {/* P0-3: Link WhatsApp ao invés de botão de cancelar */}
-        {booking.status !== 'CANCELLED' && (
+        {/* Botão de cancelar para reservas PENDING */}
+        {showCancel && isPending && (
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <button
+              onClick={() => setShowCancelModal(booking.id)}
+              disabled={isCancelling}
+              className="text-sm text-red-600 hover:text-red-700 font-medium flex items-center gap-1 disabled:opacity-50"
+            >
+              {isCancelling ? (
+                <>
+                  <span className="animate-spin">⏳</span> Cancelando...
+                </>
+              ) : (
+                <>
+                  ❌ Cancelar reserva pendente
+                </>
+              )}
+            </button>
+            <p className="text-xs text-gray-500 mt-1">
+              O horário será liberado imediatamente
+            </p>
+          </div>
+        )}
+
+        {/* Link WhatsApp para reservas confirmadas */}
+        {showCancel && !isPending && booking.status !== 'CANCELLED' && (
           <div className="mt-4 pt-4 border-t border-gray-100">
             <a
               href={`https://wa.me/5531984916090?text=Olá! Preciso de ajuda com minha reserva ${booking.id.slice(0, 8).toUpperCase()}`}
@@ -195,7 +256,15 @@ export default function BookingsPage({ user: _user }: PageProps) {
             Gerencie suas reservas e acompanhe seu histórico
           </p>
 
-          {/* Mensagens - P0-3: successMessage removido */}
+          {/* Mensagens de sucesso e erro */}
+          {successMessage && (
+            <div className="bg-green-50 text-green-700 px-4 py-3 rounded-lg mb-6 flex items-center justify-between">
+              <span>✅ {successMessage}</span>
+              <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800">
+                ✕
+              </button>
+            </div>
+          )}
 
           {error && (
             <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-6">
@@ -279,7 +348,47 @@ export default function BookingsPage({ user: _user }: PageProps) {
           )}
         </main>
       </div>
-      {/* P0-3: Modal de cancelamento removido - usuário contata via WhatsApp */}
+      
+      {/* Modal de confirmação de cancelamento */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Confirmar Cancelamento
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Tem certeza que deseja cancelar esta reserva pendente?
+            </p>
+            <ul className="text-sm text-gray-500 mb-6 space-y-1">
+              <li>✓ O horário será liberado imediatamente</li>
+              <li>✓ Créditos utilizados serão restaurados</li>
+              <li>✓ Cobrança pendente será cancelada</li>
+            </ul>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCancelModal(null)}
+                disabled={!!cancellingId}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Voltar
+              </button>
+              <button
+                onClick={() => handleCancelPending(showCancelModal)}
+                disabled={!!cancellingId}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {cancellingId ? (
+                  <>
+                    <span className="animate-spin">⏳</span> Cancelando...
+                  </>
+                ) : (
+                  'Confirmar Cancelamento'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

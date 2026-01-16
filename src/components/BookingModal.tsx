@@ -483,6 +483,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
           startAt: startAt.toISOString(),
           endAt: endAt.toISOString(),
           payNow: true,
+          useCredits: true, // FIX: Sempre tentar usar créditos no modo "Agendar horário"
           couponCode: formData.couponCode || undefined,
           notes: formData.notes || undefined,
           paymentMethod: formData.paymentMethod,

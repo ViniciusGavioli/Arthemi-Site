@@ -303,12 +303,16 @@ export default async function handler(
       // Determinar userId: sessão (logado) ou resolveOrCreateUser (checkout anônimo)
       const auth = getAuthFromRequest(req);
       let userId: string;
+      let userEmail: string | null = null;
       let isAnonymousCheckout = false;
       
       if (auth?.userId) {
         // LOGADO: usar userId da sessão diretamente
         // NÃO chamar resolveOrCreateUser - email/phone do body são ignorados
         userId = auth.userId;
+        // Buscar email do usuário logado para validação de cupom DEV
+        const loggedUser = await tx.user.findUnique({ where: { id: userId }, select: { email: true } });
+        userEmail = loggedUser?.email || null;
       } else {
         // NÃO LOGADO: resolver por email > phone
         const { user } = await resolveOrCreateUser(tx, {
@@ -318,15 +322,19 @@ export default async function handler(
           cpf: data.userCpf,
         });
         userId = user.id;
+        userEmail = data.userEmail || null;
         isAnonymousCheckout = true; // Flag para disparo de email de ativação
       }
 
       // P1-5: Verificar se usuário pode usar este cupom (ex: PRIMEIRACOMPRA single-use)
+      // Passa userEmail para validar acesso a cupons DEV em produção
+      let isDevCoupon = false;
       if (couponApplied) {
-        const usageCheck = await checkCouponUsage(tx, userId, couponApplied, 'CREDIT_PURCHASE');
+        const usageCheck = await checkCouponUsage(tx, userId, couponApplied, 'CREDIT_PURCHASE', userEmail);
         if (!usageCheck.canUse) {
           throw new Error(`CUPOM_INVALIDO: ${usageCheck.reason}`);
         }
+        isDevCoupon = usageCheck.isDevCoupon || false;
       }
 
       // Criar crédito PENDENTE (será ativado após pagamento)
@@ -374,12 +382,14 @@ export default async function handler(
       });
 
       // ========== REGISTRAR USO DO CUPOM (Idempotente - Anti-fraude) ==========
+      // Cupom DEV (isDevCoupon=true) → NÃO registra uso (uso infinito)
       if (couponApplied) {
         const couponResult = await recordCouponUsageIdempotent(tx, {
           userId,
           couponCode: couponApplied,
           context: 'CREDIT_PURCHASE',
           creditId: credit.id,
+          isDevCoupon, // Se true, skip registro (cupom DEV)
         });
         
         if (!couponResult.ok) {

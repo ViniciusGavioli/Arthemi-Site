@@ -234,6 +234,7 @@ export default async function handler(
       // 5. Determinar userId: sessão (logado) ou resolveOrCreateUser (checkout anônimo)
       const auth = getAuthFromRequest(req);
       let userId: string;
+      let userEmail: string | null = null;
       let isAnonymousCheckout = false;
       
       if (auth?.userId) {
@@ -246,6 +247,10 @@ export default async function handler(
         if (!emailCheck.canBook) {
           throw new Error('EMAIL_NOT_VERIFIED');
         }
+        
+        // Buscar email para validação de cupom DEV
+        const loggedUser = await tx.user.findUnique({ where: { id: userId }, select: { email: true } });
+        userEmail = loggedUser?.email || null;
       } else {
         // NÃO LOGADO: resolver por email > phone
         const { user } = await resolveOrCreateUser(tx, {
@@ -255,6 +260,7 @@ export default async function handler(
           cpf: data.userCpf,
         });
         userId = user.id;
+        userEmail = data.userEmail || null;
         isAnonymousCheckout = true; // Flag para disparo de email de ativação
       }
 
@@ -298,34 +304,13 @@ export default async function handler(
       let discountAmountCents = 0;
       let couponApplied: string | null = null;
       let couponSnapshot: object | null = null;
+      let isDevCoupon = false;
 
-      // 6.0.1 Aplicar cupom de desconto se fornecido (P1-5: lib/coupons centralizada)
-      if (data.couponCode) {
-        const couponKey = data.couponCode.toUpperCase().trim();
-        
-        if (isValidCoupon(couponKey)) {
-          // P1-5: Verificar se usuário pode usar este cupom (ex: PRIMEIRACOMPRA single-use)
-          const usageCheck = await checkCouponUsage(tx, userId, couponKey, 'BOOKING');
-          if (!usageCheck.canUse) {
-            throw new Error(`CUPOM_INVALIDO: ${usageCheck.reason}`);
-          }
-          
-          // applyDiscount espera e retorna CENTAVOS
-          const discountResult = applyDiscount(amountCents, couponKey);
-          discountAmountCents = discountResult.discountAmount;
-          amountCents = discountResult.finalAmount;
-          couponApplied = couponKey;
-          couponSnapshot = createCouponSnapshot(couponKey);
-        }
-      }
-      
-      // netAmountCents é o valor após desconto (em CENTAVOS)
-      const netAmountCents = amountCents;
-
-      // 6.1 Verificar e aplicar créditos se solicitado
+      // 6.1 PRIMEIRO: Verificar e aplicar créditos se solicitado
+      // (Reorganizado: créditos ANTES de cupom para saber se há pagamento)
       let creditsUsedCents = 0;
       let creditIds: string[] = [];
-      let amountToPayCents = amountCents;
+      let amountToPayWithoutCoupon = amountCents; // Valor antes do cupom
 
       if (data.useCredits) {
         // P-008/P-011: Passar startAt/endAt para validar usageType
@@ -333,7 +318,7 @@ export default async function handler(
         
         if (availableCreditsCents > 0) {
           const creditsToUseCents = Math.min(availableCreditsCents, amountCents);
-          amountToPayCents = amountCents - creditsToUseCents;
+          amountToPayWithoutCoupon = amountCents - creditsToUseCents;
           
           // P-002: Passa tx para consumo atômico dentro da transação
           // P-008/P-011: Passar startAt/endAt para validar usageType
@@ -351,6 +336,36 @@ export default async function handler(
           creditIds = consumeResult.creditIds;
         }
       }
+
+      // 6.0.1 DEPOIS: Aplicar cupom APENAS se houver valor a pagar após créditos
+      // Se créditos cobrem 100%, ignorar cupom (não validar)
+      if (data.couponCode && amountToPayWithoutCoupon > 0) {
+        const couponKey = data.couponCode.toUpperCase().trim();
+        
+        if (isValidCoupon(couponKey)) {
+          // P1-5: Verificar se usuário pode usar este cupom (ex: PRIMEIRACOMPRA single-use)
+          // Passa userEmail para validar acesso a cupons DEV em produção
+          const usageCheck = await checkCouponUsage(tx, userId, couponKey, 'BOOKING', userEmail);
+          if (!usageCheck.canUse) {
+            throw new Error(`CUPOM_INVALIDO: ${usageCheck.reason}`);
+          }
+          isDevCoupon = usageCheck.isDevCoupon || false;
+          
+          // applyDiscount espera e retorna CENTAVOS
+          // Aplicar desconto sobre o valor RESTANTE (após créditos)
+          const discountResult = applyDiscount(amountToPayWithoutCoupon, couponKey);
+          discountAmountCents = discountResult.discountAmount;
+          amountCents = grossAmountCents - creditsUsedCents - discountAmountCents;
+          couponApplied = couponKey;
+          couponSnapshot = createCouponSnapshot(couponKey);
+        }
+      }
+      
+      // netAmountCents é o valor após desconto (em CENTAVOS)
+      const netAmountCents = amountCents;
+
+      // Calcular valor final a pagar (após créditos e cupom)
+      const amountToPayCents = Math.max(0, amountCents - creditsUsedCents);
 
       // 6.2 Validar prazo mínimo para reservas que precisam de pagamento
       // Reservas com pagamento pendente precisam ter início > 30 minutos
@@ -399,12 +414,14 @@ export default async function handler(
       });
 
       // ========== REGISTRAR USO DO CUPOM (Idempotente - Anti-fraude) ==========
+      // Cupom DEV (isDevCoupon=true) → NÃO registra uso (uso infinito)
       if (couponApplied) {
         const couponResult = await recordCouponUsageIdempotent(tx, {
           userId,
           couponCode: couponApplied,
           context: 'BOOKING',
           bookingId: booking.id,
+          isDevCoupon, // Se true, skip registro (cupom DEV)
         });
         
         if (!couponResult.ok) {

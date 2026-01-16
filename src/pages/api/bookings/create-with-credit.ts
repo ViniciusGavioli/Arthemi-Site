@@ -200,11 +200,13 @@ export default async function handler(
     let couponApplied: string | null = null;
     let couponSnapshot: object | null = null;
     let netAmount = grossAmount;
+    let isDevCoupon = false;
 
     // ========== APLICAR CUPOM (apenas se houver pagamento em dinheiro) ==========
     if (shouldProcessCoupon && isValidCoupon(normalizedCouponCode)) {
       // Verificar se usuário pode usar este cupom (ex: PRIMEIRACOMPRA single-use)
-      const usageCheck = await checkCouponUsage(prisma, userId, normalizedCouponCode, CouponUsageContext.BOOKING);
+      // Passa user.email para validar acesso a cupons DEV em produção
+      const usageCheck = await checkCouponUsage(prisma, userId, normalizedCouponCode, CouponUsageContext.BOOKING, user.email);
       if (!usageCheck.canUse) {
         return res.status(400).json({
           success: false,
@@ -212,6 +214,7 @@ export default async function handler(
           code: 'COUPON_ALREADY_USED',
         });
       }
+      isDevCoupon = usageCheck.isDevCoupon || false;
       
       const discountResult = applyDiscount(grossAmount, normalizedCouponCode);
       discountAmount = discountResult.discountAmount;
@@ -330,12 +333,14 @@ export default async function handler(
       });
 
       // ========== REGISTRAR USO DO CUPOM (Anti-fraude) ==========
+      // Cupom DEV (isDevCoupon=true) → NÃO registra uso (uso infinito)
       if (couponApplied) {
         const couponResult = await recordCouponUsageIdempotent(tx, {
           userId,
           couponCode: couponApplied,
           context: CouponUsageContext.BOOKING,
           bookingId: booking.id,
+          isDevCoupon, // Se true, skip registro (cupom DEV)
         });
         
         if (!couponResult.ok) {

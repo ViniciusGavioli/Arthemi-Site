@@ -11,13 +11,82 @@ export interface CouponConfig {
   value: number; // Em centavos para 'fixed', em % para 'percent'
   description: string;
   singleUsePerUser?: boolean; // true = cupom só pode ser usado 1x por usuário (ex: PRIMEIRACOMPRA)
+  isDevCoupon?: boolean; // true = cupom de desenvolvimento (uso infinito, não consome)
+}
+
+// ===========================================================
+// CUPOM DE DESENVOLVIMENTO (DEV COUPON)
+// ===========================================================
+// Regras:
+// 1. Uso INFINITO - não consome, não bloqueia
+// 2. Em PRODUÇÃO: bloqueado para usuários normais
+// 3. Em DEV/STAGING: liberado para todos
+// 4. Admin (whitelist): sempre liberado
+// ===========================================================
+
+// Lista de emails de admin que podem usar cupons DEV em produção
+const DEV_COUPON_ADMIN_EMAILS = [
+  'admin@arthemisaude.com',
+  'administrativo@arthemisaude.com',
+  'dev@arthemisaude.com',
+  'vinicius@arthemisaude.com',
+];
+
+/**
+ * Verifica se é ambiente de produção
+ */
+function isProductionEnv(): boolean {
+  return process.env.NODE_ENV === 'production';
+}
+
+/**
+ * Verifica se um email está na whitelist de admin para cupons DEV
+ */
+export function isDevCouponAdmin(email?: string | null): boolean {
+  if (!email) return false;
+  return DEV_COUPON_ADMIN_EMAILS.includes(email.toLowerCase().trim());
+}
+
+/**
+ * Verifica se um cupom DEV pode ser usado
+ * @param coupon Config do cupom
+ * @param userEmail Email do usuário (opcional)
+ * @returns { allowed: boolean, reason?: string }
+ */
+export function canUseDevCoupon(
+  coupon: CouponConfig | null,
+  userEmail?: string | null
+): { allowed: boolean; reason?: string } {
+  if (!coupon?.isDevCoupon) {
+    return { allowed: true }; // Não é cupom DEV, passa direto
+  }
+  
+  // Cupom DEV em ambiente não-produção: sempre permitido
+  if (!isProductionEnv()) {
+    return { allowed: true };
+  }
+  
+  // Cupom DEV em produção: só admin
+  if (isDevCouponAdmin(userEmail)) {
+    return { allowed: true };
+  }
+  
+  // Cupom DEV em produção para usuário comum: BLOQUEADO
+  return { 
+    allowed: false, 
+    reason: 'Cupom de desenvolvimento não disponível.' 
+  };
 }
 
 // Cupons válidos - ÚNICA FONTE DE VERDADE
 export const VALID_COUPONS: Record<string, CouponConfig> = {
-  'TESTE50': { discountType: 'fixed', value: 500, description: 'Desconto teste R$5,00', singleUsePerUser: false },
+  // === CUPONS DE PRODUÇÃO ===
   'ARTHEMI10': { discountType: 'percent', value: 10, description: '10% de desconto', singleUsePerUser: false },
   'PRIMEIRACOMPRA': { discountType: 'percent', value: 15, description: '15% primeira compra', singleUsePerUser: true },
+  
+  // === CUPONS DE DESENVOLVIMENTO (uso infinito) ===
+  'TESTE50': { discountType: 'fixed', value: 500, description: 'DEV: R$5 desconto', singleUsePerUser: false, isDevCoupon: true },
+  'DEVTEST': { discountType: 'percent', value: 50, description: 'DEV: 50% desconto', singleUsePerUser: false, isDevCoupon: true },
 };
 
 /**
@@ -106,24 +175,48 @@ export function applyDiscount(amount: number, couponCode: string): {
  * - Se existir com status RESTORED → permitir (será reativado)
  * - Se não existir → permitir (será criado novo)
  * 
+ * CUPOM DEV: Ignora validação de uso (uso infinito)
+ * 
  * @param prisma Instância do Prisma (DEVE ser tx dentro de transação)
  * @param userId ID do usuário
  * @param couponCode Código do cupom
  * @param context Contexto de uso (BOOKING ou CREDIT_PURCHASE)
- * @returns { canUse: boolean, reason?: string, code?: string }
+ * @param userEmail Email do usuário (para validar acesso a cupom DEV em produção)
+ * @returns { canUse: boolean, reason?: string, code?: string, isDevCoupon?: boolean }
  */
 export async function checkCouponUsage(
   prisma: PrismaClient | Prisma.TransactionClient,
   userId: string,
   couponCode: string,
-  context: CouponUsageContext
-): Promise<{ canUse: boolean; reason?: string; code?: string }> {
+  context: CouponUsageContext,
+  userEmail?: string | null
+): Promise<{ canUse: boolean; reason?: string; code?: string; isDevCoupon?: boolean }> {
   const normalizedCode = couponCode.toUpperCase().trim();
   const coupon = getCouponInfo(normalizedCode);
   
   if (!coupon) {
     return { canUse: false, reason: 'Cupom inválido', code: 'COUPON_INVALID' };
   }
+  
+  // ===========================================================
+  // CUPOM DEV: Validação especial
+  // ===========================================================
+  if (coupon.isDevCoupon) {
+    const devCheck = canUseDevCoupon(coupon, userEmail);
+    if (!devCheck.allowed) {
+      return { 
+        canUse: false, 
+        reason: devCheck.reason || 'Cupom não disponível',
+        code: 'DEV_COUPON_BLOCKED',
+      };
+    }
+    // Cupom DEV permitido: SKIP validação de uso (uso infinito)
+    return { canUse: true, isDevCoupon: true };
+  }
+  
+  // ===========================================================
+  // CUPOM NORMAL: Validação padrão
+  // ===========================================================
   
   // SEMPRE verificar no banco - TODOS os cupons seguem regra CPF 1x por contexto
   const existingUsage = await prisma.couponUsage.findUnique({
@@ -178,7 +271,7 @@ export async function checkCouponUsage(
  */
 export interface RecordCouponUsageResult {
   ok: boolean;
-  mode?: 'CREATED' | 'CLAIMED_RESTORED';
+  mode?: 'CREATED' | 'CLAIMED_RESTORED' | 'SKIPPED_DEV';
 }
 
 export async function recordCouponUsageIdempotent(
@@ -189,10 +282,18 @@ export async function recordCouponUsageIdempotent(
     context: CouponUsageContext;
     bookingId?: string;
     creditId?: string;
+    isDevCoupon?: boolean; // Se true, não registra uso (cupom DEV)
   }
 ): Promise<RecordCouponUsageResult> {
-  const { userId, couponCode, context, bookingId, creditId } = params;
+  const { userId, couponCode, context, bookingId, creditId, isDevCoupon } = params;
   const normalizedCode = couponCode.toUpperCase().trim();
+  
+  // ==================================================================
+  // CUPOM DEV: NÃO registra uso (uso infinito)
+  // ==================================================================
+  if (isDevCoupon) {
+    return { ok: true, mode: 'SKIPPED_DEV' };
+  }
   
   // ==================================================================
   // STEP 1: Tentar "claim" de registro RESTORED existente via updateMany

@@ -382,17 +382,22 @@ export default async function handler(
           // Aplicar desconto sobre o valor RESTANTE (após créditos)
           const discountResult = applyDiscount(amountToPayWithoutCoupon, couponKey);
           discountAmountCents = discountResult.discountAmount;
-          amountCents = grossAmountCents - creditsUsedCents - discountAmountCents;
           couponApplied = couponKey;
           couponSnapshot = createCouponSnapshot(couponKey);
         }
       }
       
-      // netAmountCents é o valor após desconto (em CENTAVOS)
-      const netAmountCents = amountCents;
-
-      // Calcular valor final a pagar (após créditos e cupom)
-      const amountToPayCents = Math.max(0, amountCents - creditsUsedCents);
+      // ========== CÁLCULO FINAL (CORRIGIDO) ==========
+      // netAmountCents = valor líquido da reserva (gross - discount, SEM créditos)
+      // Usado para auditoria: quanto vale a reserva após desconto
+      const netAmountCents = grossAmountCents - discountAmountCents;
+      
+      // amountToPayCents = valor que o cliente deve PAGAR (após créditos e cupom)
+      // FÓRMULA: gross - créditos - desconto = net - créditos
+      const amountToPayCents = Math.max(0, netAmountCents - creditsUsedCents);
+      
+      // LOG ESTRUTURADO: Antes de criar booking/cobrança (sem PII)
+      console.log(`[BOOKING_CALC] ${requestId} | entityType=booking | grossAmount=${grossAmountCents} | creditsUsed=${creditsUsedCents} | amountToPayWithoutCoupon=${amountToPayWithoutCoupon} | couponCode=${couponApplied || 'none'} | isDevCoupon=${isDevCoupon} | discountAmount=${discountAmountCents} | netAmount=${netAmountCents} | amountToPayFinal=${amountToPayCents}`);
 
       // 6.2 Validar prazo mínimo para reservas que precisam de pagamento
       // Reservas com pagamento pendente precisam ter início > 30 minutos

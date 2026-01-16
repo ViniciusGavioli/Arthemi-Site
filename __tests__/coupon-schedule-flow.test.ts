@@ -220,3 +220,113 @@ describe('Regression Tests - No Coupon Errors in Credit Bookings', () => {
     expect(!!normalizedCouponCode).toBe(false);
   });
 });
+
+// ============================================================
+// 5. TESTES DE CÁLCULO: Desconto aplicado corretamente
+// ============================================================
+
+describe('Coupon Discount Calculation - Final Amount', () => {
+  test('Booking com pagamento integral + TESTE50 => total = gross - 5', () => {
+    // Cenário: R$100 sem créditos, cupom TESTE50 (R$5 fixo)
+    const grossAmountCents = 10000; // R$100
+    const creditsUsedCents = 0;
+    const amountToPayWithoutCoupon = grossAmountCents - creditsUsedCents; // R$100
+    
+    // Cupom deve ser aplicado pois há pagamento
+    expect(amountToPayWithoutCoupon).toBeGreaterThan(0);
+    
+    // Aplicar desconto
+    const discountResult = applyDiscount(amountToPayWithoutCoupon, 'TESTE50');
+    const discountAmountCents = discountResult.discountAmount;
+    
+    // CÁLCULO CORRETO (sem duplicar créditos):
+    // netAmount = gross - discount = 10000 - 500 = 9500
+    // amountToPay = netAmount - credits = 9500 - 0 = 9500
+    const netAmountCents = grossAmountCents - discountAmountCents;
+    const amountToPayCents = Math.max(0, netAmountCents - creditsUsedCents);
+    
+    expect(discountAmountCents).toBe(500);
+    expect(netAmountCents).toBe(9500);
+    expect(amountToPayCents).toBe(9500); // R$95 vai para o Asaas
+  });
+
+  test('Booking parcial com créditos + TESTE50 => desconto aplicado sobre amountToPay', () => {
+    // Cenário: R$100 com R$50 em créditos, cupom TESTE50 (R$5 fixo)
+    const grossAmountCents = 10000; // R$100
+    const creditsUsedCents = 5000;  // R$50
+    const amountToPayWithoutCoupon = grossAmountCents - creditsUsedCents; // R$50
+    
+    // Cupom deve ser aplicado pois há pagamento parcial
+    expect(amountToPayWithoutCoupon).toBeGreaterThan(0);
+    
+    // Aplicar desconto SOBRE o valor a pagar (não sobre gross)
+    const discountResult = applyDiscount(amountToPayWithoutCoupon, 'TESTE50');
+    const discountAmountCents = discountResult.discountAmount;
+    
+    // CÁLCULO CORRETO:
+    // O desconto é aplicado sobre amountToPayWithoutCoupon = R$50
+    // discountAmount = R$5 (piso não se aplica pois R$50 > R$1)
+    // netAmount = gross - discount = 10000 - 500 = 9500
+    // amountToPay = netAmount - credits = 9500 - 5000 = 4500
+    const netAmountCents = grossAmountCents - discountAmountCents;
+    const amountToPayCents = Math.max(0, netAmountCents - creditsUsedCents);
+    
+    expect(discountAmountCents).toBe(500);
+    expect(netAmountCents).toBe(9500);
+    expect(amountToPayCents).toBe(4500); // R$45 vai para o Asaas
+  });
+
+  test('Booking 100% créditos + cupom => cupom ignorado (sem erro e sem alterar)', () => {
+    // Cenário: R$100 com R$100+ em créditos
+    const grossAmountCents = 10000; // R$100
+    const creditsUsedCents = 10000; // R$100 (cobre tudo)
+    const couponCode = 'TESTE50';
+    
+    const amountToPayWithoutCoupon = grossAmountCents - creditsUsedCents;
+    
+    // Cupom NÃO deve ser aplicado pois não há pagamento
+    const shouldProcessCoupon = couponCode && amountToPayWithoutCoupon > 0;
+    expect(shouldProcessCoupon).toBe(false);
+    
+    // Se não processa cupom, desconto = 0
+    const discountAmountCents = shouldProcessCoupon 
+      ? applyDiscount(amountToPayWithoutCoupon, couponCode).discountAmount 
+      : 0;
+    
+    // CÁLCULO (sem cupom):
+    // netAmount = gross - 0 = 10000
+    // amountToPay = netAmount - credits = 10000 - 10000 = 0
+    const netAmountCents = grossAmountCents - discountAmountCents;
+    const amountToPayCents = Math.max(0, netAmountCents - creditsUsedCents);
+    
+    expect(discountAmountCents).toBe(0);
+    expect(amountToPayCents).toBe(0); // Nada vai para o Asaas
+  });
+
+  test('Desconto não pode exceder amountToPayWithoutCoupon', () => {
+    // Cenário: Desconto maior que valor a pagar
+    const grossAmountCents = 300; // R$3
+    const creditsUsedCents = 0;
+    const amountToPayWithoutCoupon = grossAmountCents - creditsUsedCents;
+    
+    // TESTE50 = R$5 fixo, mas só temos R$3 a pagar
+    const discountResult = applyDiscount(amountToPayWithoutCoupon, 'TESTE50');
+    
+    // Piso de R$1,00 = 100 centavos
+    // Se gross = 300 e desconto = 500, final seria -200
+    // Mas applyDiscount tem piso: finalAmount = max(100, 300-500) = 100
+    // Logo discountAmount = 300 - 100 = 200
+    expect(discountResult.finalAmount).toBeGreaterThanOrEqual(100); // Piso R$1
+    expect(discountResult.discountAmount).toBeLessThanOrEqual(amountToPayWithoutCoupon);
+  });
+
+  test('amountToPay mínimo é 0 (não negativo)', () => {
+    const netAmountCents = 500;
+    const creditsUsedCents = 1000; // Créditos excedem net
+    
+    const amountToPayCents = Math.max(0, netAmountCents - creditsUsedCents);
+    
+    expect(amountToPayCents).toBe(0);
+    expect(amountToPayCents).toBeGreaterThanOrEqual(0);
+  });
+});

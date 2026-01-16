@@ -427,7 +427,7 @@ export default async function handler(
         }
       }
 
-      return { userId, credit, isAnonymousCheckout };
+      return { userId, credit, isAnonymousCheckout, isDevCoupon };
     });
 
     // ATIVAÇÃO DE CONTA (best-effort) - Apenas checkout anônimo
@@ -509,6 +509,9 @@ export default async function handler(
       value: amount, // Em centavos
       description: `${productName} - ${room.name}`,
     };
+
+    // LOG ESTRUTURADO: Antes de criar cobrança (sem PII)
+    console.log(`[PURCHASE_CALC] ${requestId} | entityType=credit_purchase | grossAmount=${grossAmount} | couponCode=${couponApplied || 'none'} | isDevCoupon=${result.isDevCoupon || false} | discountAmount=${discountAmount} | amountToPayFinal=${amount}`);
 
     let paymentResult;
     

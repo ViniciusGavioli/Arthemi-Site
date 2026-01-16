@@ -6,6 +6,21 @@
 
 import { PrismaClient, Prisma, CouponUsageContext, CouponUsageStatus } from '@prisma/client';
 
+// ===========================================================
+// MVP FLAG: DESLIGAR CUPOM COMERCIAL
+// ===========================================================
+// COUPONS_ENABLED=false → Backend ignora qualquer cupom comercial
+// Mantém compatibilidade: tabelas/campos intactos, apenas skip na lógica
+// ===========================================================
+
+/**
+ * Flag global para habilitar/desabilitar cupons comerciais
+ * Default: false (desligado para MVP)
+ */
+export function areCouponsEnabled(): boolean {
+  return process.env.COUPONS_ENABLED === 'true';
+}
+
 export interface CouponConfig {
   discountType: 'fixed' | 'percent';
   value: number; // Em centavos para 'fixed', em % para 'percent'

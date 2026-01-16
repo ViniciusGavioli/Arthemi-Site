@@ -18,7 +18,7 @@ import {
   TIMEOUTS,
   cpfInUseByOther,
 } from '@/lib/production-safety';
-import { isValidCoupon, applyDiscount, checkCouponUsage, recordCouponUsageIdempotent, createCouponSnapshot, getCouponInfo, validateDevCouponAccess } from '@/lib/coupons';
+import { isValidCoupon, applyDiscount, checkCouponUsage, recordCouponUsageIdempotent, createCouponSnapshot, getCouponInfo, validateDevCouponAccess, areCouponsEnabled } from '@/lib/coupons';
 import { 
   getAvailableCreditsForRoom, 
   consumeCreditsForBooking,
@@ -43,6 +43,8 @@ import { requireEmailVerifiedForBooking } from '@/lib/email-verification';
 import { getBookingTotalByDate } from '@/lib/pricing';
 import { toCents, assertIntegerCents } from '@/lib/money';
 import { respondError, isOverbookingPrismaError, BusinessError } from '@/lib/errors';
+import { processTestOverride, TEST_OVERRIDE_CODE } from '@/lib/test-override';
+import { getAdminAuth } from '@/lib/admin-auth';
 
 // Schema de validação com Zod
 const createBookingSchema = z.object({
@@ -326,6 +328,67 @@ export default async function handler(
       let couponApplied: string | null = null;
       let couponSnapshot: object | null = null;
       let isDevCoupon = false;
+      let isTestOverride = false;
+
+      // ========== MVP: TEST OVERRIDE (R$5) ==========
+      // Verifica ANTES de créditos/cupom - se ativo, ignora tudo e usa valor fixo
+      const isAdmin = getAdminAuth(req);
+      const testOverride = processTestOverride(data.couponCode, sessionEmail, isAdmin, requestId);
+      
+      if (testOverride.enabled) {
+        // Override ativo: valor final fixo, sem créditos, sem cupom
+        isTestOverride = true;
+        couponApplied = TEST_OVERRIDE_CODE; // Para auditoria
+        couponSnapshot = { type: 'TEST_OVERRIDE', finalAmount: testOverride.finalPayableCents };
+        
+        // CÁLCULO SIMPLES: amountToPayCents = 500 (R$5)
+        const amountToPayCents = testOverride.finalPayableCents;
+        const netAmountCents = grossAmountCents; // Sem desconto real
+        const creditsUsedCents = 0;
+        const creditIds: string[] = [];
+        
+        console.log(`[BOOKING_CALC] ${requestId} | TEST_OVERRIDE=true | grossAmount=${grossAmountCents} | amountToPayFinal=${amountToPayCents}`);
+
+        // Validar prazo mínimo
+        const now = new Date();
+        const minutesUntilStart = (startAt.getTime() - now.getTime()) / (1000 * 60);
+        if (minutesUntilStart < 30) {
+          throw new Error('TEMPO_INSUFICIENTE');
+        }
+
+        // Criar booking com override
+        const financialStatus = 'PENDING_PAYMENT';
+        const expiresAt = new Date(Date.now() + PENDING_BOOKING_EXPIRATION_HOURS * 60 * 60 * 1000);
+        
+        const booking = await tx.booking.create({
+          data: {
+            userId: userId,
+            roomId: realRoomId,
+            startTime: startAt,
+            endTime: endAt,
+            status: 'PENDING',
+            paymentStatus: 'PENDING',
+            amountPaid: 0,
+            bookingType: 'HOURLY',
+            notes: data.notes ? `${data.notes}\n[TEST_OVERRIDE: R$5]` : '[TEST_OVERRIDE: R$5]',
+            creditsUsed: 0,
+            creditIds: [],
+            origin: 'COMMERCIAL',
+            financialStatus,
+            expiresAt,
+            grossAmount: grossAmountCents,
+            discountAmount: 0,
+            netAmount: netAmountCents,
+            couponCode: TEST_OVERRIDE_CODE,
+            couponSnapshot: couponSnapshot,
+          },
+        });
+
+        // NÃO registrar CouponUsage para override (não "queima" nada)
+        return { booking, userId, amountCents, amountToPayCents, creditsUsedCents, hours, isAnonymousCheckout, grossAmountCents, discountAmountCents: 0, couponApplied: TEST_OVERRIDE_CODE };
+      }
+
+      // ========== FLUXO NORMAL (sem override) ==========
 
       // 6.1 PRIMEIRO: Verificar e aplicar créditos se solicitado
       // (Reorganizado: créditos ANTES de cupom para saber se há pagamento)
@@ -358,12 +421,19 @@ export default async function handler(
         }
       }
 
-      // 6.0.1 DEPOIS: Aplicar cupom APENAS se houver valor a pagar após créditos
-      // Se créditos cobrem 100%, ignorar cupom (não validar)
-      if (data.couponCode && amountToPayWithoutCoupon > 0) {
+      // 6.0.1 DEPOIS: Aplicar cupom APENAS se:
+      // - COUPONS_ENABLED=true (flag MVP)
+      // - Houver valor a pagar após créditos
+      // - Código não for override de teste (já tratado acima)
+      const couponsEnabled = areCouponsEnabled();
+      
+      if (couponsEnabled && data.couponCode && amountToPayWithoutCoupon > 0) {
         const couponKey = data.couponCode.toUpperCase().trim();
         
-        if (isValidCoupon(couponKey)) {
+        // Ignorar código de override (já tratado acima)
+        if (couponKey === TEST_OVERRIDE_CODE) {
+          console.log(`[BOOKING] ${requestId} | coupon=${couponKey} ignored (override code without auth)`);
+        } else if (isValidCoupon(couponKey)) {
           // Validar acesso ao DEV coupon usando email da SESSÃO
           const devCheck = validateDevCouponAccess(couponKey, sessionEmail, requestId);
           if (!devCheck.allowed) {
@@ -385,6 +455,9 @@ export default async function handler(
           couponApplied = couponKey;
           couponSnapshot = createCouponSnapshot(couponKey);
         }
+      } else if (data.couponCode && !couponsEnabled) {
+        // MVP: Cupons desabilitados - ignorar silenciosamente
+        console.log(`[BOOKING] ${requestId} | coupon=${data.couponCode} ignored (COUPONS_ENABLED=false)`);
       }
       
       // ========== CÁLCULO FINAL (CORRIGIDO) ==========

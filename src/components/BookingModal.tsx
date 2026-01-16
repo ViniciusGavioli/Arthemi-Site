@@ -1001,7 +1001,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
             </>
           )}
 
-          {/* Cupom de Desconto (validado no backend) */}
+          {/* MVP: Campo de cupom OCULTO para usuários comuns
+              Cupons comerciais desabilitados. Campo mantido apenas para testes internos.
+              Para usar override de teste: ativar via ENV e digitar TESTE5 */}
+          {/* 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Cupom de Desconto (opcional)
@@ -1024,6 +1027,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
               </p>
             )}
           </div>
+          */}
 
           {/* Observações */}
           <div>

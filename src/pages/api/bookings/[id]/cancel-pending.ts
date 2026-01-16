@@ -5,6 +5,7 @@
 // - Liberação imediata do horário
 // - Cancelamento da cobrança no Asaas
 // - Reversão de créditos consumidos
+// - Restauração de cupom (se COUPONS_ENABLED e cupom comercial usado)
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import prisma from '@/lib/prisma';
@@ -12,6 +13,8 @@ import { getAuthFromRequest } from '@/lib/auth';
 import { getAdminAuth } from '@/lib/admin-auth';
 import { deletePayment } from '@/lib/asaas';
 import { restoreCreditsFromCancelledBooking } from '@/lib/credits';
+import { restoreCouponUsage, areCouponsEnabled } from '@/lib/coupons';
+import { TEST_OVERRIDE_CODE } from '@/lib/test-override';
 import { logUserAction } from '@/lib/audit';
 import { generateRequestId, REQUEST_ID_HEADER } from '@/lib/request-id';
 import { respondError } from '@/lib/errors';
@@ -21,6 +24,7 @@ interface ApiResponse {
   message?: string;
   bookingId?: string;
   creditsRestored?: number;
+  couponRestored?: boolean;
   asaasCancelled?: boolean;
   error?: string;
   code?: string;
@@ -122,6 +126,7 @@ export default async function handler(
     const result = await prisma.$transaction(async (tx) => {
       let asaasCancelled = false;
       let creditsRestored = 0;
+      let couponRestored = false;
 
       // 1. Cancelar cobrança no Asaas (se existir)
       if (booking.paymentId) {
@@ -150,7 +155,22 @@ export default async function handler(
         }
       }
 
-      // 3. Atualizar booking para CANCELLED
+      // 3. Restaurar cupom (se COUPONS_ENABLED e cupom comercial usado)
+      // NÃO restaurar override de teste (não consome nada)
+      if (booking.couponCode && areCouponsEnabled() && booking.couponCode !== TEST_OVERRIDE_CODE) {
+        try {
+          const restoreResult = await restoreCouponUsage(tx, booking.id, undefined, false);
+          couponRestored = restoreResult.restored;
+          if (couponRestored) {
+            console.log(`[CANCEL_PENDING] ${requestId} | COUPON | restored=${booking.couponCode}`);
+          }
+        } catch (couponError) {
+          // Log mas não falha - cupom pode já ter sido restaurado
+          console.warn(`[CANCEL_PENDING] ${requestId} | COUPON_WARN | error=${couponError}`);
+        }
+      }
+
+      // 4. Atualizar booking para CANCELLED
       const updatedBooking = await tx.booking.update({
         where: { id: booking.id },
         data: {
@@ -174,7 +194,7 @@ export default async function handler(
         });
       }
 
-      return { updatedBooking, asaasCancelled, creditsRestored };
+      return { updatedBooking, asaasCancelled, creditsRestored, couponRestored };
     });
 
     // Audit log (fora da transação)
@@ -187,6 +207,7 @@ export default async function handler(
         roomId: booking.roomId,
         roomName: booking.room?.name,
         creditsRestored: result.creditsRestored,
+        couponRestored: result.couponRestored,
         asaasCancelled: result.asaasCancelled,
         cancelledBy: isAdmin ? 'admin' : 'user',
         cancelType: 'pending_cancellation',
@@ -194,13 +215,14 @@ export default async function handler(
       req
     );
 
-    console.log(`[CANCEL_PENDING] ${requestId} | SUCCESS | bookingId=${id} | creditsRestored=${result.creditsRestored} | asaasCancelled=${result.asaasCancelled}`);
+    console.log(`[CANCEL_PENDING] ${requestId} | SUCCESS | bookingId=${id} | creditsRestored=${result.creditsRestored} | couponRestored=${result.couponRestored} | asaasCancelled=${result.asaasCancelled}`);
 
     return res.status(200).json({
       success: true,
       message: 'Reserva cancelada com sucesso. O horário foi liberado.',
       bookingId: booking.id,
       creditsRestored: result.creditsRestored,
+      couponRestored: result.couponRestored,
       asaasCancelled: result.asaasCancelled,
     });
 

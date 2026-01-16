@@ -533,7 +533,9 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                   />
                 </div>
 
-                {/* Cupom de Desconto */}
+                {/* MVP: Campo de cupom OCULTO para usuários comuns
+                    Cupons comerciais desabilitados no MVP. */}
+                {/* 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Cupom de desconto (opcional)
@@ -588,6 +590,7 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                     </p>
                   )}
                 </div>
+                */}
               </div>
 
               {/* Método de Pagamento */}

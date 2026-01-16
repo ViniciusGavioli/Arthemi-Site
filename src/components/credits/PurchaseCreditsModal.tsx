@@ -85,6 +85,9 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
     message: string;
   } | null>(null);
 
+  // Código de teste (override R$5) - apenas para equipe
+  const [testCode, setTestCode] = useState('');
+
   // Gera produtos dinamicamente baseado na sala selecionada
   // USA PRICES_V3 como fonte única de verdade
   // Catálogo: Horas avulsas e Pacotes apenas
@@ -291,7 +294,8 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
       
       // BLINDAGEM: Só enviar cupom se foi APLICADO com sucesso
       // Não confiar no input - exigir validação prévia
-      const couponToSend = couponApplied ? couponApplied.code : undefined;
+      // EXCEÇÃO: código de teste (testCode) é enviado direto para validação no servidor
+      const couponToSend = testCode.trim() || (couponApplied ? couponApplied.code : undefined);
       
       const res = await fetch('/api/credits/purchase', {
         method: 'POST',
@@ -591,6 +595,30 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                   )}
                 </div>
                 */}
+
+                {/* Campo de código de teste - APENAS para equipe (NEXT_PUBLIC_ENABLE_TEST_OVERRIDE=true) */}
+                {process.env.NEXT_PUBLIC_ENABLE_TEST_OVERRIDE === 'true' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Código de teste (apenas equipe)
+                    </label>
+                    <input
+                      type="text"
+                      value={testCode}
+                      onChange={(e) => setTestCode(e.target.value.toUpperCase())}
+                      disabled={submitting}
+                      className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                        submitting ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300'
+                      }`}
+                      placeholder="Ex: TESTE5"
+                    />
+                    {testCode.trim() && (
+                      <p className="mt-1 text-xs text-amber-600">
+                        ⚠️ Código de teste será validado no servidor
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Método de Pagamento */}

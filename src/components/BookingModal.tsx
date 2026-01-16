@@ -1029,6 +1029,32 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
           </div>
           */}
 
+          {/* Campo de código de teste - APENAS para equipe (NEXT_PUBLIC_ENABLE_TEST_OVERRIDE=true) */}
+          {process.env.NEXT_PUBLIC_ENABLE_TEST_OVERRIDE === 'true' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Código de teste (apenas equipe)
+              </label>
+              <input
+                type="text"
+                value={formData.couponCode}
+                onChange={(e) => setFormData({ ...formData, couponCode: e.target.value.toUpperCase() })}
+                disabled={submitting}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
+                  submitting
+                    ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                    : 'border-gray-300'
+                }`}
+                placeholder="Ex: TESTE5"
+              />
+              {formData.couponCode.trim() && (
+                <p className="mt-1 text-xs text-amber-600">
+                  ⚠️ Código de teste será validado no servidor
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Observações */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -110,12 +110,6 @@ model Booking {
   couponSnapshot  Json?          // Snapshot do cupom {discountType, value, description}
   // ========== EXPIRAÇÃO PARA CLEANUP AUTOMÁTICO ==========
   expiresAt       DateTime?      // Data/hora de expiração (para bookings PENDING sem pagamento)
-  // ========== PRICE OVERRIDE (Admin/Dev) ==========
-  pricingMode         PricingMode  @default(STANDARD)  // STANDARD ou OVERRIDE
-  overrideFinalCents  Int?         // Valor final em centavos (quando OVERRIDE)
-  overrideReason      String?      // Motivo do override (ex: "Teste interno")
-  overrideByUserId    String?      // Quem aplicou o override
-  overrideCreatedAt   DateTime?    // Quando o override foi aplicado
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   product         Product?       @relation(fields: [productId], references: [id])
@@ -343,12 +337,6 @@ model AuditLog {
 enum UserRole {
   CUSTOMER
   ADMIN
-}
-
-// Modo de precificação da reserva
-enum PricingMode {
-  STANDARD    // Preço normal (com ou sem cupom/créditos)
-  OVERRIDE    // Preço fixo definido por admin/dev
 }
 
 enum BookingStatus {

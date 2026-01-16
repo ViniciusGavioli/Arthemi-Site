@@ -20,12 +20,6 @@ import {
 } from '@/lib/production-safety';
 import { isValidCoupon, applyDiscount, checkCouponUsage, recordCouponUsageIdempotent, createCouponSnapshot, getCouponInfo, validateDevCouponAccess } from '@/lib/coupons';
 import { 
-  validateOverrideAccess, 
-  parseOverrideCode, 
-  isOverrideCode,
-  OverrideRequest,
-} from '@/lib/price-override';
-import { 
   getAvailableCreditsForRoom, 
   consumeCreditsForBooking,
   getCreditBalanceForRoom,
@@ -68,10 +62,6 @@ const createBookingSchema = z.object({
   paymentMethod: z.enum(['PIX', 'CARD']).default('PIX'),
   // Parcelamento (apenas para CARD, 1-12)
   installmentCount: z.number().min(1).max(12).optional(),
-  // ========== PRICE_OVERRIDE (Admin/Dev) ==========
-  // Preço final fixo - NÃO stacka com créditos nem cupons
-  overrideFinalCents: z.number().int().min(0).optional(),
-  overrideReason: z.string().min(3).max(500).optional(),
 });
 
 
@@ -222,32 +212,17 @@ export default async function handler(
     // Usar o ID real da sala para as queries subsequentes
     const realRoomId = room.id;
 
-    // ========== PRÉ-VALIDAÇÃO (ANTES da transação) ==========
+    // ========== PRÉ-VALIDAÇÃO DE DEV COUPON (ANTES da transação) ==========
+    // DEV coupon em produção REQUER sessão autenticada com email na whitelist
+    // NUNCA confiar em email do body para autorizar DEV coupon
     const auth = getAuthFromRequest(req);
     
-    // Detectar se couponCode é na verdade um código de OVERRIDE (ex: OVERRIDE_5)
-    let overrideRequest: OverrideRequest | null = null;
-    let effectiveCouponCode = data.couponCode;
-    
-    if (data.couponCode && isOverrideCode(data.couponCode)) {
-      // Converter código OVERRIDE_X para override request
-      overrideRequest = parseOverrideCode(data.couponCode);
-      effectiveCouponCode = undefined; // Não processar como cupom
-    } else if (data.overrideFinalCents !== undefined) {
-      // Override explícito via body
-      overrideRequest = {
-        overrideFinalCents: data.overrideFinalCents,
-        overrideReason: data.overrideReason || 'Override via API',
-      };
-      effectiveCouponCode = undefined; // Override ignora cupom
-    }
-    
-    // Pré-validação de DEV coupon (mantido para retrocompatibilidade)
-    if (effectiveCouponCode) {
-      const couponKey = effectiveCouponCode.toUpperCase().trim();
+    if (data.couponCode) {
+      const couponKey = data.couponCode.toUpperCase().trim();
       const couponConfig = getCouponInfo(couponKey);
       
       if (couponConfig?.isDevCoupon && !auth?.userId) {
+        // DEV coupon sem sessão: bloqueia
         console.log(`[DEV_COUPON] ${requestId} | isDevCoupon=true | hasSession=false | BLOCKED`);
         return res.status(403).json({
           success: false,
@@ -277,13 +252,14 @@ export default async function handler(
       }
 
       // 5. Determinar userId: sessão (logado) ou resolveOrCreateUser (checkout anônimo)
+      // NOTA: 'auth' já foi obtido antes para pré-validação de DEV coupon
       let userId: string;
       let sessionEmail: string | null = null; // Email da SESSÃO (não do body)
-      let userRole: string | null = null;
       let isAnonymousCheckout = false;
       
       if (auth?.userId) {
         // LOGADO: usar userId da sessão diretamente
+        // NÃO chamar resolveOrCreateUser - email/phone do body são ignorados
         userId = auth.userId;
 
         // BLOQUEIO: Usuário logado deve ter email verificado para agendar
@@ -292,13 +268,9 @@ export default async function handler(
           throw new Error('EMAIL_NOT_VERIFIED');
         }
         
-        // Buscar email e role da SESSÃO para validação de override/cupom
-        const loggedUser = await tx.user.findUnique({ 
-          where: { id: userId }, 
-          select: { email: true, role: true } 
-        });
+        // Buscar email da SESSÃO para validação de cupom DEV
+        const loggedUser = await tx.user.findUnique({ where: { id: userId }, select: { email: true } });
         sessionEmail = loggedUser?.email || null;
-        userRole = loggedUser?.role || null;
       } else {
         // NÃO LOGADO: resolver por email > phone
         const { user } = await resolveOrCreateUser(tx, {
@@ -308,7 +280,7 @@ export default async function handler(
           cpf: data.userCpf,
         });
         userId = user.id;
-        // SEGURANÇA: NÃO usar email do body para validar override/cupom
+        // SEGURANÇA: NÃO usar email do body para validar DEV coupon
         // sessionEmail permanece null para checkout anônimo
         isAnonymousCheckout = true; // Flag para disparo de email de ativação
       }
@@ -348,115 +320,84 @@ export default async function handler(
       // Validar que amount é inteiro (CENTAVOS)
       assertIntegerCents(amountCents, 'booking.amountCents');
 
-      // ========== AUDITORIA: Guardar valor bruto ==========
+      // ========== AUDITORIA: Guardar valor bruto antes de cupom ==========
       const grossAmountCents = amountCents;
       let discountAmountCents = 0;
       let couponApplied: string | null = null;
       let couponSnapshot: object | null = null;
       let isDevCoupon = false;
-      
-      // ========== PRICE_OVERRIDE vs STANDARD ==========
-      let pricingMode: 'STANDARD' | 'OVERRIDE' = 'STANDARD';
-      let overrideFinalCentsApplied: number | null = null;
-      let overrideReasonApplied: string | null = null;
+
+      // 6.1 PRIMEIRO: Verificar e aplicar créditos se solicitado
+      // (Reorganizado: créditos ANTES de cupom para saber se há pagamento)
       let creditsUsedCents = 0;
       let creditIds: string[] = [];
-      let amountToPayCents: number;
-      let netAmountCents: number;
+      let amountToPayWithoutCoupon = amountCents; // Valor antes do cupom
 
-      // Verificar se é OVERRIDE
-      if (overrideRequest) {
-        // Validar permissão de override
-        const overrideCheck = validateOverrideAccess(
-          sessionEmail,
-          userRole,
-          overrideRequest,
-          requestId
-        );
+      if (data.useCredits) {
+        // P-008/P-011: Passar startAt/endAt para validar usageType
+        const availableCreditsCents = await getCreditBalanceForRoom(userId, realRoomId, startAt, startAt, endAt);
         
-        if (!overrideCheck.allowed) {
-          throw new Error(`OVERRIDE_BLOCKED: ${overrideCheck.reason}`);
-        }
-        
-        // OVERRIDE: preço fixo, ignora créditos e cupons
-        pricingMode = 'OVERRIDE';
-        overrideFinalCentsApplied = overrideCheck.finalCents!;
-        overrideReasonApplied = overrideRequest.overrideReason;
-        
-        // Override NÃO usa créditos
-        creditsUsedCents = 0;
-        creditIds = [];
-        
-        // Override NÃO aplica cupom
-        discountAmountCents = 0;
-        couponApplied = null;
-        
-        // Valor final = override
-        amountToPayCents = overrideFinalCentsApplied;
-        netAmountCents = grossAmountCents; // Net = gross (sem desconto em override)
-        
-        // LOG ESTRUTURADO (sem PII)
-        console.log(`[BOOKING_OVERRIDE] ${requestId} | pricingMode=OVERRIDE | grossAmount=${grossAmountCents} | overrideFinalCents=${overrideFinalCentsApplied} | reason=${overrideReasonApplied?.substring(0, 50)}`);
-      } else {
-        // STANDARD: lógica normal com créditos e cupom
-        let amountToPayWithoutCoupon = amountCents;
-
-        // Aplicar créditos se solicitado
-        if (data.useCredits) {
-          const availableCreditsCents = await getCreditBalanceForRoom(userId, realRoomId, startAt, startAt, endAt);
+        if (availableCreditsCents > 0) {
+          const creditsToUseCents = Math.min(availableCreditsCents, amountCents);
+          amountToPayWithoutCoupon = amountCents - creditsToUseCents;
           
-          if (availableCreditsCents > 0) {
-            const creditsToUseCents = Math.min(availableCreditsCents, amountCents);
-            amountToPayWithoutCoupon = amountCents - creditsToUseCents;
-            
-            const consumeResult = await consumeCreditsForBooking(
-              userId,
-              realRoomId,
-              creditsToUseCents,
-              startAt,
-              startAt,
-              endAt,
-              tx
-            );
-            
-            creditsUsedCents = consumeResult.totalConsumed;
-            creditIds = consumeResult.creditIds;
-          }
-        }
-
-        // Aplicar cupom APENAS se houver valor a pagar após créditos
-        if (effectiveCouponCode && amountToPayWithoutCoupon > 0) {
-          const couponKey = effectiveCouponCode.toUpperCase().trim();
+          // P-002: Passa tx para consumo atômico dentro da transação
+          // P-008/P-011: Passar startAt/endAt para validar usageType
+          const consumeResult = await consumeCreditsForBooking(
+            userId,
+            realRoomId,
+            creditsToUseCents,
+            startAt,
+            startAt, // startTime - validação de usageType
+            endAt,   // endTime - validação de usageType
+            tx // Transação Prisma
+          );
           
-          if (isValidCoupon(couponKey)) {
-            // Validar acesso ao DEV coupon
-            const devCheck = validateDevCouponAccess(couponKey, sessionEmail, requestId);
-            if (!devCheck.allowed) {
-              throw new Error(`DEV_COUPON_BLOCKED: ${devCheck.reason}`);
-            }
-            
-            // Verificar se usuário pode usar este cupom
-            const usageCheck = await checkCouponUsage(tx, userId, couponKey, 'BOOKING', sessionEmail);
-            if (!usageCheck.canUse) {
-              throw new Error(`CUPOM_INVALIDO: ${usageCheck.reason}`);
-            }
-            isDevCoupon = usageCheck.isDevCoupon || false;
-            
-            // Aplicar desconto sobre o valor RESTANTE (após créditos)
-            const discountResult = applyDiscount(amountToPayWithoutCoupon, couponKey);
-            discountAmountCents = discountResult.discountAmount;
-            couponApplied = couponKey;
-            couponSnapshot = createCouponSnapshot(couponKey);
-          }
+          creditsUsedCents = consumeResult.totalConsumed;
+          creditIds = consumeResult.creditIds;
         }
-        
-        // Cálculo final STANDARD
-        netAmountCents = grossAmountCents - discountAmountCents;
-        amountToPayCents = Math.max(0, netAmountCents - creditsUsedCents);
-        
-        // LOG ESTRUTURADO (sem PII)
-        console.log(`[BOOKING_CALC] ${requestId} | pricingMode=STANDARD | grossAmount=${grossAmountCents} | creditsUsed=${creditsUsedCents} | couponCode=${couponApplied || 'none'} | isDevCoupon=${isDevCoupon} | discountAmount=${discountAmountCents} | netAmount=${netAmountCents} | amountToPayFinal=${amountToPayCents}`);
       }
+
+      // 6.0.1 DEPOIS: Aplicar cupom APENAS se houver valor a pagar após créditos
+      // Se créditos cobrem 100%, ignorar cupom (não validar)
+      if (data.couponCode && amountToPayWithoutCoupon > 0) {
+        const couponKey = data.couponCode.toUpperCase().trim();
+        
+        if (isValidCoupon(couponKey)) {
+          // Validar acesso ao DEV coupon usando email da SESSÃO
+          const devCheck = validateDevCouponAccess(couponKey, sessionEmail, requestId);
+          if (!devCheck.allowed) {
+            throw new Error(`DEV_COUPON_BLOCKED: ${devCheck.reason}`);
+          }
+          
+          // P1-5: Verificar se usuário pode usar este cupom (ex: PRIMEIRACOMPRA single-use)
+          // DEV coupon: sessionEmail vem da SESSÃO, não do body
+          const usageCheck = await checkCouponUsage(tx, userId, couponKey, 'BOOKING', sessionEmail);
+          if (!usageCheck.canUse) {
+            throw new Error(`CUPOM_INVALIDO: ${usageCheck.reason}`);
+          }
+          isDevCoupon = usageCheck.isDevCoupon || false;
+          
+          // applyDiscount espera e retorna CENTAVOS
+          // Aplicar desconto sobre o valor RESTANTE (após créditos)
+          const discountResult = applyDiscount(amountToPayWithoutCoupon, couponKey);
+          discountAmountCents = discountResult.discountAmount;
+          couponApplied = couponKey;
+          couponSnapshot = createCouponSnapshot(couponKey);
+        }
+      }
+      
+      // ========== CÁLCULO FINAL (CORRIGIDO) ==========
+      // netAmountCents = valor líquido da reserva (gross - discount, SEM créditos)
+      // Usado para auditoria: quanto vale a reserva após desconto
+      const netAmountCents = grossAmountCents - discountAmountCents;
+      
+      // amountToPayCents = valor que o cliente deve PAGAR (após créditos e cupom)
+      // FÓRMULA: gross - créditos - desconto = net - créditos
+      const amountToPayCents = Math.max(0, netAmountCents - creditsUsedCents);
+      
+      // LOG ESTRUTURADO: Antes de criar booking/cobrança (sem PII)
+      console.log(`[BOOKING_CALC] ${requestId} | entityType=booking | grossAmount=${grossAmountCents} | creditsUsed=${creditsUsedCents} | amountToPayWithoutCoupon=${amountToPayWithoutCoupon} | couponCode=${couponApplied || 'none'} | isDevCoupon=${isDevCoupon} | discountAmount=${discountAmountCents} | netAmount=${netAmountCents} | amountToPayFinal=${amountToPayCents}`);
 
       // 6.2 Validar prazo mínimo para reservas que precisam de pagamento
       // Reservas com pagamento pendente precisam ter início > 30 minutos
@@ -501,12 +442,6 @@ export default async function handler(
           netAmount: netAmountCents,
           couponCode: couponApplied,
           couponSnapshot: couponSnapshot || undefined,
-          // ========== PRICE_OVERRIDE ==========
-          pricingMode,
-          overrideFinalCents: overrideFinalCentsApplied,
-          overrideReason: overrideReasonApplied,
-          overrideByUserId: pricingMode === 'OVERRIDE' ? userId : null,
-          overrideCreatedAt: pricingMode === 'OVERRIDE' ? new Date() : null,
         },
       });
 
@@ -526,20 +461,7 @@ export default async function handler(
         }
       }
 
-      return { 
-        booking, 
-        userId, 
-        amountCents, 
-        amountToPayCents, 
-        creditsUsedCents, 
-        hours, 
-        isAnonymousCheckout, 
-        grossAmountCents, 
-        discountAmountCents, 
-        couponApplied,
-        pricingMode,
-        overrideFinalCentsApplied,
-      };
+      return { booking, userId, amountCents, amountToPayCents, creditsUsedCents, hours, isAnonymousCheckout, grossAmountCents, discountAmountCents, couponApplied };
     });
 
     // ATIVAÇÃO DE CONTA (best-effort) - Apenas checkout anônimo

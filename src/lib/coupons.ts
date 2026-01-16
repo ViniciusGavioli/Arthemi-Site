@@ -135,14 +135,14 @@ export function validateDevCouponAccess(
 }
 
 // Cupons válidos - ÚNICA FONTE DE VERDADE
-// NOTA: DEV coupons foram removidos. Use OVERRIDE_X para preço administrativo.
 export const VALID_COUPONS: Record<string, CouponConfig> = {
-  // === CUPOM COMERCIAL (único público) ===
-  'PRIMEIRACOMPRA10': { discountType: 'percent', value: 10, description: '10% primeira compra', singleUsePerUser: true },
-  
-  // === CUPONS LEGADOS (mantidos para retrocompatibilidade) ===
+  // === CUPONS DE PRODUÇÃO ===
   'ARTHEMI10': { discountType: 'percent', value: 10, description: '10% de desconto', singleUsePerUser: false },
-  'PRIMEIRACOMPRA': { discountType: 'percent', value: 15, description: '15% primeira compra (legado)', singleUsePerUser: true },
+  'PRIMEIRACOMPRA': { discountType: 'percent', value: 15, description: '15% primeira compra', singleUsePerUser: true },
+  
+  // === CUPONS DE DESENVOLVIMENTO (uso infinito) ===
+  'TESTE50': { discountType: 'fixed', value: 500, description: 'DEV: R$5 desconto', singleUsePerUser: false, isDevCoupon: true },
+  'DEVTEST': { discountType: 'percent', value: 50, description: 'DEV: 50% desconto', singleUsePerUser: false, isDevCoupon: true },
 };
 
 /**

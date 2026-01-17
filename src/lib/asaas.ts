@@ -900,7 +900,6 @@ export async function createBookingCardPayment(
     description: input.description,
     externalReference: buildExternalReference(input.bookingId),
     billingType, // Sempre CREDIT_CARD
-    installmentCount,
     maxInstallmentCount: maxInstallments,
     // NÃO enviar installmentValue - Asaas calcula automaticamente
   });

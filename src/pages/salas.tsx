@@ -185,59 +185,114 @@ export default function SalasPage({ rooms }: SalasPageProps) {
 
           {/* Cards dos Consultórios com imagens clicáveis */}
           <div data-cards-section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16 scroll-mt-20">
-            {rooms.map((room, index) => {
-              const galleryData = roomsGalleryData[index];
-              const imageUrl = room.slug === 'sala-a' ? '/images/sala-a/foto-4.jpeg' : 
-                               room.slug === 'sala-b' ? '/images/sala-b/02-3.jpeg' : 
-                               '/images/sala-c/03-1.jpeg';
-              return (
-                <div 
-                  key={room.id}
-                  className="group relative rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 bg-white border border-warm-200"
-                >
+            {rooms.length > 0 ? (
+              rooms.map((room, index) => {
+                const galleryData = roomsGalleryData[index];
+                const imageUrl = room.slug === 'sala-a' ? '/images/sala-a/foto-4.jpeg' : 
+                                 room.slug === 'sala-b' ? '/images/sala-b/02-3.jpeg' : 
+                                 '/images/sala-c/03-1.jpeg';
+                return (
                   <div 
-                    className="relative w-full h-48 sm:h-56 cursor-pointer"
-                    onClick={() => handleOpenGallery(galleryData)}
+                    key={room.id}
+                    className="group relative rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 bg-white border border-warm-200"
                   >
-                    <Image 
-                      src={imageUrl}
-                      alt={galleryData.name}
-                      fill
-                      className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                      sizes="(max-width: 768px) 100vw, 33vw"
-                    />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
-                      <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white text-primary-800 px-4 py-2 rounded-full font-semibold flex items-center gap-2">
-                        <Eye className="w-4 h-4" />
-                        Ver fotos
-                      </span>
-                    </div>
-                  </div>
-                  <div className="p-5">
-                    <h3 className="text-lg font-bold text-primary-900 mb-1">{galleryData.name}</h3>
-                    <p className="text-sm text-accent-600 font-medium mb-3">{galleryData.description}</p>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="text-sm text-secondary-500">A partir de</span>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-xl font-bold text-accent-600">{galleryData.price}</span>
-                          <span className="text-secondary-500 text-sm">/hora</span>
-                        </div>
+                    <div 
+                      className="relative w-full h-48 sm:h-56 cursor-pointer"
+                      onClick={() => handleOpenGallery(galleryData)}
+                    >
+                      <Image 
+                        src={imageUrl}
+                        alt={galleryData.name}
+                        fill
+                        className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white text-primary-800 px-4 py-2 rounded-full font-semibold flex items-center gap-2">
+                          <Eye className="w-4 h-4" />
+                          Ver fotos
+                        </span>
                       </div>
-                      <button
-                        onClick={() => handleReservar(room)}
-                        className="bg-accent-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-accent-700 transition-colors"
-                      >
-                        Reservar
-                      </button>
+                    </div>
+                    <div className="p-5">
+                      <h3 className="text-lg font-bold text-primary-900 mb-1">{galleryData.name}</h3>
+                      <p className="text-sm text-accent-600 font-medium mb-3">{galleryData.description}</p>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-sm text-secondary-500">A partir de</span>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-xl font-bold text-accent-600">{galleryData.price}</span>
+                            <span className="text-secondary-500 text-sm">/hora</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleReservar(room)}
+                          className="bg-accent-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-accent-700 transition-colors"
+                        >
+                          Reservar
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            ) : (
+              /* Fallback quando rooms está vazio */
+              roomsGalleryData.map((galleryData, index) => {
+                const imageUrl = galleryData.slug === 'sala-a' ? '/images/sala-a/foto-4.jpeg' : 
+                                 galleryData.slug === 'sala-b' ? '/images/sala-b/02-3.jpeg' : 
+                                 '/images/sala-c/03-1.jpeg';
+                return (
+                  <div 
+                    key={galleryData.slug}
+                    className="group relative rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 bg-white border border-warm-200"
+                  >
+                    <div 
+                      className="relative w-full h-48 sm:h-56 cursor-pointer"
+                      onClick={() => handleOpenGallery(galleryData)}
+                    >
+                      <Image 
+                        src={imageUrl}
+                        alt={galleryData.name}
+                        fill
+                        className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white text-primary-800 px-4 py-2 rounded-full font-semibold flex items-center gap-2">
+                          <Eye className="w-4 h-4" />
+                          Ver fotos
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-5">
+                      <h3 className="text-lg font-bold text-primary-900 mb-1">{galleryData.name}</h3>
+                      <p className="text-sm text-accent-600 font-medium mb-3">{galleryData.description}</p>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-sm text-secondary-500">A partir de</span>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-xl font-bold text-accent-600">{galleryData.price}</span>
+                            <span className="text-secondary-500 text-sm">/hora</span>
+                          </div>
+                        </div>
+                        <a
+                          href="https://wa.me/5531991153634?text=Ol%C3%A1!%20Gostaria%20de%20fazer%20uma%20reserva."
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-accent-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-accent-700 transition-colors"
+                        >
+                          Reservar
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
 
-          {/* Tabela de Preços por Consultório */}
+          {/* Tabela de Preços por Consultório - usa PRICES_V3 diretamente (não depende de rooms) */}
           <section>
             <h2 className="text-2xl font-bold text-primary-900 mb-4 text-center">
               Tabela completa de preços
@@ -246,13 +301,26 @@ export default function SalasPage({ rooms }: SalasPageProps) {
               Compare as opções e escolha a que melhor se encaixa na sua rotina de atendimentos.
             </p>
             
-            {rooms.map((room) => {
+            {/* Dados estáticos das salas para tabela de preços */}
+            {[
+              { slug: 'sala-a', key: 'SALA_A' as const, title: 'Consultório 1 | Prime — Espaço premium', name: 'Consultório 1' },
+              { slug: 'sala-b', key: 'SALA_B' as const, title: 'Consultório 2 | Executive — Consultório amplo', name: 'Consultório 2' },
+              { slug: 'sala-c', key: 'SALA_C' as const, title: 'Consultório 3 | Essential — Espaço intimista', name: 'Consultório 3' },
+            ].map((roomData) => {
+              const roomPrices = PRICES_V3[roomData.key].prices;
+              const baseHourlyPrice = roomPrices.HOURLY_RATE;
+              
+              const packages = [
+                { hours: 1, label: '1h', price: baseHourlyPrice, isHourly: true },
+                { hours: 10, label: '10h', price: roomPrices.PACKAGE_10H, isHourly: false },
+                { hours: 20, label: '20h', price: roomPrices.PACKAGE_20H, isHourly: false },
+                { hours: 40, label: '40h', price: roomPrices.PACKAGE_40H, isHourly: false },
+              ];
+              
               return (
-                <div key={room.id} className="mb-10">
+                <div key={roomData.slug} className="mb-10">
                   <h3 className="text-xl font-semibold text-primary-800 mb-4">
-                    {room.slug === 'sala-a' ? 'Consultório 1 | Prime — Espaço premium' : 
-                     room.slug === 'sala-b' ? 'Consultório 2 | Executive — Consultório amplo' : 
-                     'Consultório 3 | Essential — Espaço intimista'}
+                    {roomData.title}
                   </h3>
                   <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-warm-200">
                     <div className="overflow-x-auto">
@@ -267,57 +335,42 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-warm-100">
-                          {(() => {
-                            // Usar PRICES_V3 como fonte única de verdade
-                            const roomKey = room.slug === 'sala-a' ? 'SALA_A' : room.slug === 'sala-b' ? 'SALA_B' : 'SALA_C';
-                            const roomPrices = PRICES_V3[roomKey].prices;
-                            const baseHourlyPrice = roomPrices.HOURLY_RATE; // Em reais
+                          {packages.map((pkg, idx) => {
+                            const pricePerHour = pkg.price / pkg.hours;
+                            const discount = pkg.isHourly ? 0 : Math.round(((baseHourlyPrice - pricePerHour) / baseHourlyPrice) * 100);
                             
-                            // Pacotes com preços do PRICES_V3 (não calculados)
-                            const packages = [
-                              { hours: 1, label: '1h', price: baseHourlyPrice, isHourly: true },
-                              { hours: 10, label: '10h', price: roomPrices.PACKAGE_10H, isHourly: false },
-                              { hours: 20, label: '20h', price: roomPrices.PACKAGE_20H, isHourly: false },
-                              { hours: 40, label: '40h', price: roomPrices.PACKAGE_40H, isHourly: false },
-                            ];
-
-                            return packages.map((pkg, idx) => {
-                              const pricePerHour = pkg.price / pkg.hours;
-                              const discount = pkg.isHourly ? 0 : Math.round(((baseHourlyPrice - pricePerHour) / baseHourlyPrice) * 100);
-                              
-                              return (
-                                <tr key={idx} className={`hover:bg-warm-50 ${!pkg.isHourly ? 'bg-accent-50/30' : ''}`}>
-                                  <td className="px-4 sm:px-6 py-4 text-center">
-                                    <span className="text-secondary-600">
-                                      {formatPrice(baseHourlyPrice)}
+                            return (
+                              <tr key={idx} className={`hover:bg-warm-50 ${!pkg.isHourly ? 'bg-accent-50/30' : ''}`}>
+                                <td className="px-4 sm:px-6 py-4 text-center">
+                                  <span className="text-secondary-600">
+                                    {formatPrice(baseHourlyPrice)}
+                                  </span>
+                                </td>
+                                <td className="px-4 sm:px-6 py-4 text-center text-secondary-600 font-medium">
+                                  {pkg.label}
+                                </td>
+                                <td className="px-4 sm:px-6 py-4 text-center">
+                                  <span className="font-semibold text-accent-600">
+                                    {formatPrice(pkg.price)}
+                                  </span>
+                                </td>
+                                <td className="px-4 sm:px-6 py-4 text-center">
+                                  <span className="font-medium text-primary-800">
+                                    {formatPrice(pricePerHour)}
+                                  </span>
+                                </td>
+                                <td className="px-4 sm:px-6 py-4 text-center">
+                                  {discount > 0 ? (
+                                    <span className="inline-block bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold">
+                                      -{discount}%
                                     </span>
-                                  </td>
-                                  <td className="px-4 sm:px-6 py-4 text-center text-secondary-600 font-medium">
-                                    {pkg.label}
-                                  </td>
-                                  <td className="px-4 sm:px-6 py-4 text-center">
-                                    <span className="font-semibold text-accent-600">
-                                      {formatPrice(pkg.price)}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 sm:px-6 py-4 text-center">
-                                    <span className="font-medium text-primary-800">
-                                      {formatPrice(pricePerHour)}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 sm:px-6 py-4 text-center">
-                                    {discount > 0 ? (
-                                      <span className="inline-block bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold">
-                                        -{discount}%
-                                      </span>
-                                    ) : (
-                                      <span className="text-secondary-400">—</span>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            });
-                          })()}
+                                  ) : (
+                                    <span className="text-secondary-400">—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -334,7 +387,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                             Para contratar turnos fixos, entre em contato conosco pelo WhatsApp.
                           </p>
                           <a
-                            href={`https://wa.me/5531991153634?text=${encodeURIComponent(`Olá! Tenho interesse em turnos fixos no ${room.name}. Podemos conversar sobre dia da semana e horário disponíveis?`)}`}
+                            href={`https://wa.me/5531991153634?text=${encodeURIComponent(`Olá! Tenho interesse em turnos fixos no ${roomData.name}. Podemos conversar sobre dia da semana e horário disponíveis?`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-800 hover:text-amber-900 underline"
@@ -412,41 +465,63 @@ export default function SalasPage({ rooms }: SalasPageProps) {
 }
 
 export const getServerSideProps: GetServerSideProps<SalasPageProps> = async () => {
-  const rooms = await prisma.room.findMany({
-    where: { isActive: true },
-    orderBy: { name: 'asc' },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      description: true,
-      imageUrl: true,
-      capacity: true,
-      amenities: true,
-      hourlyRate: true,
-      products: {
-        where: { isActive: true },
-        orderBy: { sortOrder: 'asc' },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          price: true,
-          hoursIncluded: true,
-          type: true,
-          roomId: true,
+  const requestId = `ssr-salas-${Date.now()}`;
+  
+  try {
+    console.log(`[${requestId}] SSR /salas iniciado`);
+    
+    const rooms = await prisma.room.findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        imageUrl: true,
+        capacity: true,
+        amenities: true,
+        hourlyRate: true,
+        products: {
+          where: { isActive: true },
+          orderBy: { sortOrder: 'asc' },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            price: true,
+            hoursIncluded: true,
+            type: true,
+            roomId: true,
+          },
         },
       },
-    },
-  });
+    });
 
-  return {
-    props: {
-      rooms: rooms.map(room => ({
-        ...room,
-        // Garante que hourlyRate tenha valor (fallback para pricePerHour se não existir)
-        hourlyRate: room.hourlyRate || 0,
-      })),
-    },
-  };
+    // Log estruturado para debug
+    console.log(`[${requestId}] roomsCount: ${rooms.length}`);
+    if (rooms.length > 0) {
+      console.log(`[${requestId}] firstRoom: ${JSON.stringify({ id: rooms[0].id, slug: rooms[0].slug, name: rooms[0].name })}`);
+    } else {
+      console.warn(`[${requestId}] ALERTA: Nenhuma room ativa encontrada!`);
+    }
+
+    return {
+      props: {
+        rooms: rooms.map(room => ({
+          ...room,
+          // Garante que hourlyRate tenha valor (fallback para pricePerHour se não existir)
+          hourlyRate: room.hourlyRate || 0,
+        })),
+      },
+    };
+  } catch (error) {
+    console.error(`[${requestId}] ERRO no SSR /salas:`, error);
+    // Retorna array vazio para não quebrar a página
+    return {
+      props: {
+        rooms: [],
+      },
+    };
+  }
 };

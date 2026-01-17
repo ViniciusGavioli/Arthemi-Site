@@ -22,7 +22,11 @@
 // ============================================================
 
 // Meta Pixel ID - configurar via variável de ambiente
-const META_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID;
+// Validação: deve ser apenas números (ID do Meta Pixel é numérico)
+const rawPixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID;
+const META_PIXEL_ID = rawPixelId && /^\d+$/.test(rawPixelId.trim()) 
+  ? rawPixelId.trim() 
+  : undefined;
 
 // Modo de debug (log no console)
 const DEBUG_MODE = process.env.NODE_ENV === 'development';

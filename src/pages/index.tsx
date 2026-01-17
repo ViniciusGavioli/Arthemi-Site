@@ -139,6 +139,12 @@ export default function Home({ dbRooms }: HomeProps) {
       const dbRoom = dbRooms.find(r => r.slug === selectedRoom.slug);
       if (dbRoom) {
         setBookingRoom(dbRoom);
+      } else {
+        // Fallback: se não encontrou a sala no banco, redireciona para WhatsApp
+        window.open(
+          `https://wa.me/5531991153634?text=${encodeURIComponent(`Olá! Gostaria de fazer uma reserva no ${selectedRoom.name}.`)}`,
+          '_blank'
+        );
       }
     }
   };
@@ -742,40 +748,62 @@ export default function Home({ dbRooms }: HomeProps) {
 }
 // Busca as salas do banco com IDs reais
 export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
-  const rooms = await prisma.room.findMany({
-    where: { isActive: true },
-    orderBy: { tier: 'asc' }, // Ordenar por tier (1=sala-a, 2=sala-b, 3=sala-c)
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      description: true,
-      imageUrl: true,
-      capacity: true,
-      amenities: true,
-      hourlyRate: true,
-      products: {
-        where: { isActive: true },
-        orderBy: { sortOrder: 'asc' },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          price: true,
-          hoursIncluded: true,
-          type: true,
-          roomId: true,
+  const requestId = `ssr-home-${Date.now()}`;
+  
+  try {
+    console.log(`[${requestId}] SSR /home iniciado`);
+    
+    const rooms = await prisma.room.findMany({
+      where: { isActive: true },
+      orderBy: { tier: 'asc' }, // Ordenar por tier (1=sala-a, 2=sala-b, 3=sala-c)
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        imageUrl: true,
+        capacity: true,
+        amenities: true,
+        hourlyRate: true,
+        products: {
+          where: { isActive: true },
+          orderBy: { sortOrder: 'asc' },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            price: true,
+            hoursIncluded: true,
+            type: true,
+            roomId: true,
+          },
         },
       },
-    },
-  });
+    });
 
-  return {
-    props: {
-      dbRooms: rooms.map(room => ({
-        ...room,
-        hourlyRate: room.hourlyRate || 0,
-      })),
-    },
-  };
+    // Log estruturado para debug
+    console.log(`[${requestId}] dbRoomsCount: ${rooms.length}`);
+    if (rooms.length > 0) {
+      console.log(`[${requestId}] firstRoom: ${JSON.stringify({ id: rooms[0].id, slug: rooms[0].slug, name: rooms[0].name })}`);
+    } else {
+      console.warn(`[${requestId}] ALERTA: Nenhuma room ativa encontrada!`);
+    }
+
+    return {
+      props: {
+        dbRooms: rooms.map(room => ({
+          ...room,
+          hourlyRate: room.hourlyRate || 0,
+        })),
+      },
+    };
+  } catch (error) {
+    console.error(`[${requestId}] ERRO no SSR /home:`, error);
+    // Retorna array vazio para não quebrar a página
+    return {
+      props: {
+        dbRooms: [],
+      },
+    };
+  }
 };

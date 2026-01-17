@@ -9,8 +9,8 @@ export const SITE_CONFIG = {
   shortName: 'Arthemi',
   tagline: 'Coworking de Saúde em Belo Horizonte',
   
-  // URL do site (sem barra no final)
-  url: process.env.NEXT_PUBLIC_APP_URL || 'https://www.arthemisaude.com',
+  // URL do site (sem barra no final) - sanitiza \r\n de ENVs corrompidas
+  url: (process.env.NEXT_PUBLIC_APP_URL || 'https://www.arthemisaude.com').replace(/[\r\n]+/g, '').replace(/\/$/, ''),
   
   // Imagem padrão para Open Graph (1200x630 recomendado)
   // TODO: Criar imagem og-image.jpg (1200x630) com logo + tagline

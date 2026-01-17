@@ -887,15 +887,16 @@ export async function createBookingCardPayment(
     description: input.description,
     externalReference: buildExternalReference(input.bookingId),
     billingType, // Sempre CREDIT_CARD
-    installmentCount,
+    installmentCount: 10,
     maxInstallmentCount: 10,
     // NÃO enviar installmentValue - Asaas calcula automaticamente
   });
 
   console.log('💳 [Asaas] Cobrança CARTÃO criada:', payment.id, {
     billingType,
-    installmentCount: installmentCount || 1,
+    installmentCount,
     invoiceUrl: payment.invoiceUrl,
+    payment
   });
 
   return {

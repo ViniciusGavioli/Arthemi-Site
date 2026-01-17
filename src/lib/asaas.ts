@@ -470,13 +470,12 @@ export async function createPayment(
     // installmentValue é calculado automaticamente pelo Asaas
   }
 
-   if (input.billingType === 'CREDIT_CARD' && input.maxInstallmentCount) {
-    paymentPayload.maxInstallmentCount = input.maxInstallmentCount;
+   if (input.billingType === 'CREDIT_CARD') {
+    paymentPayload.maxInstallmentCount = 10;
     
     console.log('💳 Configurando parcelamento:', {
-      maxInstallmentCount: input.maxInstallmentCount,
+      maxInstallmentCount: 10,
       value: input.value,
-      minParcelaValue: input.value / input.maxInstallmentCount
     });
   }
 

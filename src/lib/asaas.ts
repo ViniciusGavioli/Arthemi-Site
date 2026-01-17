@@ -454,6 +454,8 @@ export async function createPayment(
     dueDate: input.dueDate,
     description: input.description,
     externalReference: input.externalReference,
+    chargeType: "INSTALLMENT",
+    maxInstallmentCount: 10,
   };
 
   // Adicionar parcelamento se aplicável (apenas CREDIT_CARD com >= 2 parcelas)

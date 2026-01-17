@@ -909,6 +909,7 @@ export async function createBookingCardPayment(
     installmentCount: installmentCount || 1,
     invoiceUrl: payment.invoiceUrl,
     maxInstallments,
+    payment
   });
 
   return {

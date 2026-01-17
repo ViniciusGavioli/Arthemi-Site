@@ -878,18 +878,17 @@ export async function createBookingCardPayment(
   const billingType: BillingType = 'CREDIT_CARD';
   
   // 5. Configurar parcelamento (>= 2 parcelas)
-  const installmentCount = 
-    input.installmentCount && input.installmentCount >= 2 
-      ? input.installmentCount 
-      : undefined;
+  // const installmentCount = 
+  //   input.installmentCount && input.installmentCount >= 2 ? input.installmentCount 
+  //     : undefined;
 
-  // 6. Validar valor mínimo por parcela (R$ 5,00)
-  if (installmentCount) {
-    const estimatedInstallmentValue = valueInReais / installmentCount;
-    if (estimatedInstallmentValue < 5) {
-      throw new Error(`Valor mínimo por parcela é R$ 5,00. Atual: R$ ${estimatedInstallmentValue.toFixed(2)}`);
-    }
-  }
+  // // 6. Validar valor mínimo por parcela (R$ 5,00)
+  // if (installmentCount) {
+  //   const estimatedInstallmentValue = valueInReais / installmentCount;
+  //   if (estimatedInstallmentValue < 5) {
+  //     throw new Error(`Valor mínimo por parcela é R$ 5,00. Atual: R$ ${estimatedInstallmentValue.toFixed(2)}`);
+  //   }
+  // }
 
   // 7. Criar cobrança (installmentValue calculado automaticamente pelo Asaas)
   const payment = await createPayment({
@@ -898,14 +897,12 @@ export async function createBookingCardPayment(
     dueDate,
     description: input.description,
     externalReference: buildExternalReference(input.bookingId),
-    billingType, // Sempre CREDIT_CARD
-    maxInstallmentCount: maxInstallments,
-    // NÃO enviar installmentValue - Asaas calcula automaticamente
+    billingType: 'CREDIT_CARD',
+    maxInstallmentCount: input.maxInstallments || 10,
   });
 
   console.log('💳 [Asaas] Cobrança CARTÃO criada:', payment.id, {
     billingType,
-    installmentCount: installmentCount || 1,
     invoiceUrl: payment.invoiceUrl,
     maxInstallments,
     payment
@@ -915,8 +912,6 @@ export async function createBookingCardPayment(
     paymentId: payment.id,
     invoiceUrl: payment.invoiceUrl,
     status: payment.status,
-    installmentCount: installmentCount || 1,
-    installmentValue: installmentCount ? valueInReais / installmentCount : valueInReais,
-    maxInstallments,
+    maxInstallments: input.maxInstallments || 10,
   };
 }

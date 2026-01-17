@@ -446,7 +446,7 @@ export async function createPayment(
       // CORREÇÃO: Incluir amount na URL do mock para exibição correta
       invoiceUrl: `${process.env.NEXT_PUBLIC_APP_URL}/mock-payment?id=${mockId}&booking=${input.externalReference}&amount=${amountInCents}`,
       externalReference: input.externalReference,
-      maxInstallmentCount: 10,
+      maxInstallmentCount: input.maxInstallmentCount || 1,
     };
   }
 
@@ -468,6 +468,16 @@ export async function createPayment(
   ) {
     paymentPayload.installmentCount = input.installmentCount;
     // installmentValue é calculado automaticamente pelo Asaas
+  }
+
+   if (input.billingType === 'CREDIT_CARD' && input.maxInstallmentCount) {
+    paymentPayload.maxInstallmentCount = input.maxInstallmentCount;
+    
+    console.log('💳 Configurando parcelamento:', {
+      maxInstallmentCount: input.maxInstallmentCount,
+      value: input.value,
+      minParcelaValue: input.value / input.maxInstallmentCount
+    });
   }
 
   const payment = await asaasRequest<AsaasPayment>('/payments', {
@@ -821,7 +831,7 @@ export interface CreateBookingCardPaymentInput {
   description: string;
   dueDate?: string;
   installmentCount?: number; // 1 = à vista, 2-12 = parcelado
-  maxInstallmentCount?: number;
+  maxInstallments?: number;
 }
 
 export interface CardPaymentResult {
@@ -830,6 +840,7 @@ export interface CardPaymentResult {
   status: AsaasPaymentStatus;
   installmentCount?: number;
   installmentValue?: number;
+  maxInstallments: number;
 }
 
 /**
@@ -859,6 +870,8 @@ export async function createBookingCardPayment(
 
   // 3. Converter valor
   const valueInReais = centsToReal(input.value);
+
+  const maxInstallments = input.maxInstallments || 10;
   
   // 4. Billing type SEMPRE CREDIT_CARD para checkout hospedado
   // NOTA: UNDEFINED não funciona com /payments - causa erro 400
@@ -888,7 +901,7 @@ export async function createBookingCardPayment(
     externalReference: buildExternalReference(input.bookingId),
     billingType, // Sempre CREDIT_CARD
     installmentCount,
-    maxInstallmentCount: 10,
+    maxInstallmentCount: maxInstallments,
     // NÃO enviar installmentValue - Asaas calcula automaticamente
   });
 
@@ -896,6 +909,7 @@ export async function createBookingCardPayment(
     billingType,
     installmentCount: installmentCount || 1,
     invoiceUrl: payment.invoiceUrl,
+    maxInstallments,
   });
 
   return {
@@ -904,5 +918,6 @@ export async function createBookingCardPayment(
     status: payment.status,
     installmentCount: installmentCount || 1,
     installmentValue: installmentCount ? valueInReais / installmentCount : valueInReais,
+    maxInstallments,
   };
 }

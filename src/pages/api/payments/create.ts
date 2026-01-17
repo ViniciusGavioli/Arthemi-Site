@@ -189,6 +189,7 @@ export default async function handler(
       // Pagamento por CARTÃO DE CRÉDITO
       const result = await createBookingCardPayment({
         ...basePaymentInput,
+        maxInstallmentCount: 10,
         installmentCount: installmentCount || 1,
       });
 

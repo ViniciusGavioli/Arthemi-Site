@@ -87,6 +87,7 @@ export interface CreatePaymentInput {
   // Parcelamento (apenas para CREDIT_CARD)
   installmentCount?: number; // 2-12 parcelas
   installmentValue?: number; // Valor de cada parcela em reais
+  maxInstallmentCount?: number; // Máximo de parcelas permitidas
 }
 
 export interface AsaasPayment {
@@ -107,6 +108,7 @@ export interface AsaasPayment {
   // Campos de refund (preenchidos em eventos de estorno)
   refundedValue?: number;        // Valor efetivamente estornado (pode ser parcial)
   chargebackValue?: number;      // Valor do chargeback (quando aplicável)
+  maxInstallmentCount?: number; // Máximo de parcelas permitidas
 }
 
 export type AsaasPaymentStatus =
@@ -444,6 +446,7 @@ export async function createPayment(
       // CORREÇÃO: Incluir amount na URL do mock para exibição correta
       invoiceUrl: `${process.env.NEXT_PUBLIC_APP_URL}/mock-payment?id=${mockId}&booking=${input.externalReference}&amount=${amountInCents}`,
       externalReference: input.externalReference,
+      maxInstallmentCount: 10,
     };
   }
 
@@ -818,6 +821,7 @@ export interface CreateBookingCardPaymentInput {
   description: string;
   dueDate?: string;
   installmentCount?: number; // 1 = à vista, 2-12 = parcelado
+  maxInstallmentCount?: number;
 }
 
 export interface CardPaymentResult {
@@ -884,6 +888,7 @@ export async function createBookingCardPayment(
     externalReference: buildExternalReference(input.bookingId),
     billingType, // Sempre CREDIT_CARD
     installmentCount,
+    maxInstallmentCount: 10,
     // NÃO enviar installmentValue - Asaas calcula automaticamente
   });
 

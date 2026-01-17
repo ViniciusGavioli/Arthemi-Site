@@ -371,8 +371,9 @@ export default async function handler(
       // Usar helper PRICES_V3: calcular creditAmount baseado no tipo do produto
       let creditAmount: number;
       try {
+        // crédito é baseado no valor bruto do produto; override/desconto só afeta cobrança
         creditAmount = computeCreditAmountCents({
-          amountCents: amount,
+          amountCents: grossAmount,
           isHoursPurchase: !!data.hours,
           roomId: realRoomId,
           creditHours,

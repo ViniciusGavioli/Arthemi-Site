@@ -84,7 +84,8 @@ describe('P0 Integration Tests - PRICES_V3 vs Database', () => {
       const roomId = 'room-sala-a';
       const creditHours = 4;
       
-      const totalReais = getBookingTotalByDate(roomId, new Date(), creditHours, 'sala-a');
+      // Usar weekdayDate para garantir preço de dia útil (não depender de new Date())
+      const totalReais = getBookingTotalByDate(roomId, weekdayDate, creditHours, 'sala-a');
       const creditAmount = Math.round(totalReais * 100);
       
       // Deve ser centavos inteiros

@@ -190,7 +190,6 @@ export default async function handler(
       const result = await createBookingCardPayment({
         ...basePaymentInput,
         maxInstallmentCount: 10,
-        installmentCount: installmentCount || 1,
       });
 
       console.log('💳 [Asaas] Cobrança CARTÃO criada:', result.paymentId);

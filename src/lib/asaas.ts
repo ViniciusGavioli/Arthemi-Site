@@ -87,7 +87,6 @@ export interface CreatePaymentInput {
   // Parcelamento (apenas para CREDIT_CARD)
   installmentCount?: number; // 2-12 parcelas
   installmentValue?: number; // Valor de cada parcela em reais
-  maxInstallmentCount?: number; // Máximo de parcelas permitidas
 }
 
 export interface AsaasPayment {
@@ -108,7 +107,6 @@ export interface AsaasPayment {
   // Campos de refund (preenchidos em eventos de estorno)
   refundedValue?: number;        // Valor efetivamente estornado (pode ser parcial)
   chargebackValue?: number;      // Valor do chargeback (quando aplicável)
-  maxInstallmentCount?: number; // Máximo de parcelas permitidas
 }
 
 export type AsaasPaymentStatus =
@@ -446,7 +444,6 @@ export async function createPayment(
       // CORREÇÃO: Incluir amount na URL do mock para exibição correta
       invoiceUrl: `${process.env.NEXT_PUBLIC_APP_URL}/mock-payment?id=${mockId}&booking=${input.externalReference}&amount=${amountInCents}`,
       externalReference: input.externalReference,
-      maxInstallmentCount: input.maxInstallmentCount || 1,
     };
   }
 
@@ -468,15 +465,6 @@ export async function createPayment(
   ) {
     paymentPayload.installmentCount = input.installmentCount;
     // installmentValue é calculado automaticamente pelo Asaas
-  }
-
-   if (input.billingType === 'CREDIT_CARD') {
-    paymentPayload.maxInstallmentCount = 10;
-    
-    console.log('💳 Configurando parcelamento:', {
-      maxInstallmentCount: 10,
-      value: input.value,
-    });
   }
 
   const payment = await asaasRequest<AsaasPayment>('/payments', {
@@ -830,7 +818,6 @@ export interface CreateBookingCardPaymentInput {
   description: string;
   dueDate?: string;
   installmentCount?: number; // 1 = à vista, 2-12 = parcelado
-  maxInstallments?: number;
 }
 
 export interface CardPaymentResult {
@@ -839,7 +826,6 @@ export interface CardPaymentResult {
   status: AsaasPaymentStatus;
   installmentCount?: number;
   installmentValue?: number;
-  maxInstallments: number;
 }
 
 /**
@@ -869,8 +855,6 @@ export async function createBookingCardPayment(
 
   // 3. Converter valor
   const valueInReais = centsToReal(input.value);
-
-  const maxInstallments = input.maxInstallments || 10;
   
   // 4. Billing type SEMPRE CREDIT_CARD para checkout hospedado
   // NOTA: UNDEFINED não funciona com /payments - causa erro 400
@@ -878,17 +862,18 @@ export async function createBookingCardPayment(
   const billingType: BillingType = 'CREDIT_CARD';
   
   // 5. Configurar parcelamento (>= 2 parcelas)
-  // const installmentCount = 
-  //   input.installmentCount && input.installmentCount >= 2 ? input.installmentCount 
-  //     : undefined;
+  const installmentCount = 
+    input.installmentCount && input.installmentCount >= 2 
+      ? input.installmentCount 
+      : undefined;
 
-  // // 6. Validar valor mínimo por parcela (R$ 5,00)
-  // if (installmentCount) {
-  //   const estimatedInstallmentValue = valueInReais / installmentCount;
-  //   if (estimatedInstallmentValue < 5) {
-  //     throw new Error(`Valor mínimo por parcela é R$ 5,00. Atual: R$ ${estimatedInstallmentValue.toFixed(2)}`);
-  //   }
-  // }
+  // 6. Validar valor mínimo por parcela (R$ 5,00)
+  if (installmentCount) {
+    const estimatedInstallmentValue = valueInReais / installmentCount;
+    if (estimatedInstallmentValue < 5) {
+      throw new Error(`Valor mínimo por parcela é R$ 5,00. Atual: R$ ${estimatedInstallmentValue.toFixed(2)}`);
+    }
+  }
 
   // 7. Criar cobrança (installmentValue calculado automaticamente pelo Asaas)
   const payment = await createPayment({
@@ -897,21 +882,22 @@ export async function createBookingCardPayment(
     dueDate,
     description: input.description,
     externalReference: buildExternalReference(input.bookingId),
-    billingType: 'CREDIT_CARD',
-    maxInstallmentCount: input.maxInstallments || 10,
+    billingType, // Sempre CREDIT_CARD
+    installmentCount,
+    // NÃO enviar installmentValue - Asaas calcula automaticamente
   });
 
   console.log('💳 [Asaas] Cobrança CARTÃO criada:', payment.id, {
     billingType,
+    installmentCount: installmentCount || 1,
     invoiceUrl: payment.invoiceUrl,
-    maxInstallments,
-    payment
   });
 
   return {
     paymentId: payment.id,
     invoiceUrl: payment.invoiceUrl,
     status: payment.status,
-    maxInstallments: input.maxInstallments || 10,
+    installmentCount: installmentCount || 1,
+    installmentValue: installmentCount ? valueInReais / installmentCount : valueInReais,
   };
 }

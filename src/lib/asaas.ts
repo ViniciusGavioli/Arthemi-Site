@@ -460,14 +460,27 @@ export async function createPayment(
 
   // Adicionar parcelamento se aplicável (apenas CREDIT_CARD com >= 2 parcelas)
   // NOTA: Não enviar installmentValue - deixar Asaas calcular para evitar problemas de arredondamento
+  // if (
+  //   input.billingType === 'CREDIT_CARD' &&
+  //   input.installmentCount &&
+  //   input.installmentCount >= 2
+  // ) {
+  //   paymentPayload.installmentCount = 10;
+  //   // installmentValue é calculado automaticamente pelo Asaas
+  // }
+
   if (
     input.billingType === 'CREDIT_CARD' &&
-    input.installmentCount &&
-    input.installmentCount >= 2
+    input.installmentCount
   ) {
-    paymentPayload.installmentCount = 10;
-    // installmentValue é calculado automaticamente pelo Asaas
+    paymentPayload.totalValue = input.value; // Valor total da venda
+    paymentPayload.installmentCount = 3; // Usa o valor real do input
+    // O Asaas calculará o valor de cada parcela automaticamente
+  } else {
+    // Pagamento à vista (PIX, Boleto ou Cartão 1x)
+    paymentPayload.value = input.value;
   }
+
 
   const payment = await asaasRequest<AsaasPayment>('/payments', {
     method: 'POST',

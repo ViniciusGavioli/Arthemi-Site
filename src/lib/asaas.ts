@@ -454,33 +454,19 @@ export async function createPayment(
     dueDate: input.dueDate,
     description: input.description,
     externalReference: input.externalReference,
-    chargeType: "INSTALLMENT",
-    maxInstallmentCount: 10,
+    installmentCount: 3,
   };
 
   // Adicionar parcelamento se aplicável (apenas CREDIT_CARD com >= 2 parcelas)
   // NOTA: Não enviar installmentValue - deixar Asaas calcular para evitar problemas de arredondamento
-  // if (
-  //   input.billingType === 'CREDIT_CARD' &&
-  //   input.installmentCount &&
-  //   input.installmentCount >= 2
-  // ) {
-  //   paymentPayload.installmentCount = 10;
-  //   // installmentValue é calculado automaticamente pelo Asaas
-  // }
-
   if (
     input.billingType === 'CREDIT_CARD' &&
-    input.installmentCount
+    input.installmentCount &&
+    input.installmentCount >= 2
   ) {
-    paymentPayload.totalValue = input.value; // Valor total da venda
-    paymentPayload.installmentCount = 3; // Usa o valor real do input
-    // O Asaas calculará o valor de cada parcela automaticamente
-  } else {
-    // Pagamento à vista (PIX, Boleto ou Cartão 1x)
-    paymentPayload.value = input.value;
+    paymentPayload.installmentCount = input.installmentCount;
+    // installmentValue é calculado automaticamente pelo Asaas
   }
-
 
   const payment = await asaasRequest<AsaasPayment>('/payments', {
     method: 'POST',
@@ -904,7 +890,7 @@ export async function createBookingCardPayment(
 
   console.log('💳 [Asaas] Cobrança CARTÃO criada:', payment.id, {
     billingType,
-    installmentCount: installmentCount || 10,
+    installmentCount: installmentCount || 1,
     invoiceUrl: payment.invoiceUrl,
   });
 
@@ -912,7 +898,7 @@ export async function createBookingCardPayment(
     paymentId: payment.id,
     invoiceUrl: payment.invoiceUrl,
     status: payment.status,
-    installmentCount: installmentCount || 10,
+    installmentCount: installmentCount || 1,
     installmentValue: installmentCount ? valueInReais / installmentCount : valueInReais,
   };
 }

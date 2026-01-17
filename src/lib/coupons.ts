@@ -22,8 +22,8 @@ export function areCouponsEnabled(): boolean {
 }
 
 export interface CouponConfig {
-  discountType: 'fixed' | 'percent';
-  value: number; // Em centavos para 'fixed', em % para 'percent'
+  discountType: 'fixed' | 'percent' | 'priceOverride'; // priceOverride = força valor fixo
+  value: number; // Em centavos para 'fixed'/'priceOverride', em % para 'percent'
   description: string;
   singleUsePerUser?: boolean; // true = cupom só pode ser usado 1x por usuário (ex: PRIMEIRACOMPRA)
   isDevCoupon?: boolean; // true = cupom de desenvolvimento (uso infinito, não consome)
@@ -151,13 +151,16 @@ export function validateDevCouponAccess(
 
 // Cupons válidos - ÚNICA FONTE DE VERDADE
 export const VALID_COUPONS: Record<string, CouponConfig> = {
-  // === CUPONS DE PRODUÇÃO ===
+  // === CUPONS DE PRODUÇÃO (DESATIVADOS - areCouponsEnabled() = false) ===
   'ARTHEMI10': { discountType: 'percent', value: 10, description: '10% de desconto', singleUsePerUser: false },
   'PRIMEIRACOMPRA': { discountType: 'percent', value: 15, description: '15% primeira compra', singleUsePerUser: true },
   
   // === CUPONS DE DESENVOLVIMENTO (uso infinito) ===
   'TESTE50': { discountType: 'fixed', value: 500, description: 'DEV: R$5 desconto', singleUsePerUser: false, isDevCoupon: true },
   'DEVTEST': { discountType: 'percent', value: 50, description: 'DEV: 50% desconto', singleUsePerUser: false, isDevCoupon: true },
+  
+  // === CUPOM DE PAGAMENTO TESTE (força valor R$5,00) ===
+  'TESTE5': { discountType: 'priceOverride', value: 500, description: 'TESTE: Força R$5,00', singleUsePerUser: false, isDevCoupon: true },
 };
 
 /**
@@ -200,6 +203,17 @@ export function applyDiscount(amount: number, couponCode: string): {
   
   if (!coupon) {
     return { finalAmount: amount, discountAmount: 0, couponApplied: false };
+  }
+  
+  // TIPO ESPECIAL: priceOverride - força valor fixo (ex: TESTE5 → R$5,00)
+  if (coupon.discountType === 'priceOverride') {
+    const forcedAmount = coupon.value; // valor em centavos
+    const discountAmount = Math.max(0, amount - forcedAmount);
+    return { 
+      finalAmount: forcedAmount, 
+      discountAmount, 
+      couponApplied: true 
+    };
   }
   
   // Calcular desconto bruto

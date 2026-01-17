@@ -463,7 +463,7 @@ export async function createPayment(
     input.installmentCount &&
     input.installmentCount >= 2
   ) {
-    paymentPayload.installmentCount = input.installmentCount;
+    paymentPayload.installmentCount = 10;
     // installmentValue é calculado automaticamente pelo Asaas
   }
 
@@ -889,7 +889,7 @@ export async function createBookingCardPayment(
 
   console.log('💳 [Asaas] Cobrança CARTÃO criada:', payment.id, {
     billingType,
-    installmentCount: installmentCount || 1,
+    installmentCount: installmentCount || 10,
     invoiceUrl: payment.invoiceUrl,
   });
 
@@ -897,7 +897,7 @@ export async function createBookingCardPayment(
     paymentId: payment.id,
     invoiceUrl: payment.invoiceUrl,
     status: payment.status,
-    installmentCount: installmentCount || 1,
+    installmentCount: installmentCount || 10,
     installmentValue: installmentCount ? valueInReais / installmentCount : valueInReais,
   };
 }

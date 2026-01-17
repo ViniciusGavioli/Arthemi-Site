@@ -11,7 +11,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
 import { differenceInMinutes } from 'date-fns';
-import { restoreCouponUsage } from '@/lib/coupons';
+import { restoreCouponUsage, areCouponsEnabled } from '@/lib/coupons';
 
 const AUTO_CANCEL_THRESHOLD_MINUTES = 30;
 
@@ -127,8 +127,10 @@ export default async function handler(
       // Cancelar em transação + restaurar cupom
       let couponRestored = false;
       await prisma.$transaction(async (tx) => {
-        // Restaurar cupom se existir (wasPaid=false pois booking não foi pago)
-        if (booking.couponCode) {
+        // Restaurar cupom APENAS se cupoms estão habilitados
+        // wasPaid=false pois booking não foi pago
+        // NÃO restaura cupom em operações de override (TESTE5) pois não registra CouponUsage
+        if (areCouponsEnabled() && booking.couponCode && !booking.couponCode.startsWith('TESTE')) {
           const restoreResult = await restoreCouponUsage(tx, booking.id, undefined, false);
           couponRestored = restoreResult.restored;
           if (couponRestored) {

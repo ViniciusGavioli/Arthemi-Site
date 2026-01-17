@@ -13,7 +13,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
-import { restoreCouponUsage } from '@/lib/coupons';
+import { restoreCouponUsage, areCouponsEnabled } from '@/lib/coupons';
 
 // Limite de bookings por execução (para não travar)
 const BATCH_SIZE = 100;
@@ -156,9 +156,10 @@ export default async function handler(
         const result = await prisma.$transaction(async (tx) => {
           let couponRestored = false;
 
-          // Restaurar cupom se existir (antes de cancelar)
+          // Restaurar cupom APENAS se cupoms estão habilitados
           // wasPaid=false pois cleanup só processa bookings PENDING (não pagos)
-          if (booking.couponCode) {
+          // NÃO restaura cupom em operações de override (TESTE5) pois não registra CouponUsage
+          if (areCouponsEnabled() && booking.couponCode && !booking.couponCode.startsWith('TESTE')) {
             const restoreResult = await restoreCouponUsage(tx, booking.id, undefined, false);
             couponRestored = restoreResult.restored;
             if (couponRestored) {

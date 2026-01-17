@@ -181,32 +181,15 @@ export default async function handler(
 
     // ========== AUDITORIA: Guardar valor bruto antes de cupom ==========
     const grossAmount = totalAmount;
-
-    // Verifica saldo de créditos disponíveis para este horário específico
-    // Passa start/end para validar usageType dos créditos
-    // IMPORTANTE: Calcular ANTES de validar cupom para saber se haverá pagamento em dinheiro
-    const availableCredits = await getCreditBalanceForRoom(userId, roomId, start, start, end);
-    
-    // Calcular se há pagamento em dinheiro (sem cupom primeiro)
-    const creditsToUseWithoutCoupon = Math.min(availableCredits, grossAmount);
-    const amountToPayWithoutCoupon = grossAmount - creditsToUseWithoutCoupon;
-    
-    // ========== VALIDAÇÃO ANTECIPADA: Se não há pagamento em dinheiro, IGNORAR cupom ==========
-    // Cupom só é relevante quando há amountToPay > 0
-    // Isso evita validar cupom (e consumir tentativa) em agendamentos 100% com crédito
-    const shouldProcessCoupon = normalizedCouponCode && amountToPayWithoutCoupon > 0;
-    
     let discountAmount = 0;
     let couponApplied: string | null = null;
     let couponSnapshot: object | null = null;
     let netAmount = grossAmount;
-    let isDevCoupon = false;
 
-    // ========== APLICAR CUPOM (apenas se houver pagamento em dinheiro) ==========
-    if (shouldProcessCoupon && isValidCoupon(normalizedCouponCode)) {
+    // ========== APLICAR CUPOM (se fornecido) ==========
+    if (normalizedCouponCode && isValidCoupon(normalizedCouponCode)) {
       // Verificar se usuário pode usar este cupom (ex: PRIMEIRACOMPRA single-use)
-      // Passa user.email para validar acesso a cupons DEV em produção
-      const usageCheck = await checkCouponUsage(prisma, userId, normalizedCouponCode, CouponUsageContext.BOOKING, user.email);
+      const usageCheck = await checkCouponUsage(prisma, userId, normalizedCouponCode, CouponUsageContext.BOOKING);
       if (!usageCheck.canUse) {
         return res.status(400).json({
           success: false,
@@ -214,7 +197,6 @@ export default async function handler(
           code: 'COUPON_ALREADY_USED',
         });
       }
-      isDevCoupon = usageCheck.isDevCoupon || false;
       
       const discountResult = applyDiscount(grossAmount, normalizedCouponCode);
       discountAmount = discountResult.discountAmount;
@@ -222,13 +204,16 @@ export default async function handler(
       couponApplied = normalizedCouponCode;
       couponSnapshot = createCouponSnapshot(normalizedCouponCode);
     }
+
+    // Verifica saldo de créditos disponíveis para este horário específico
+    // Passa start/end para validar usageType dos créditos
+    const availableCredits = await getCreditBalanceForRoom(userId, roomId, start, start, end);
     
-    // Recalcular créditos a usar (sobre o netAmount - valor após cupom)
+    // Calcular créditos a usar (sobre o netAmount - valor após cupom)
     const creditsToUse = Math.min(availableCredits, netAmount);
     const amountToPay = netAmount - creditsToUse;
 
     // ========== ANTIFRAUDE: Cupom só vale se houver pagamento em dinheiro ==========
-    // (Esta verificação agora é redundante mas mantemos por segurança extra)
     if (couponApplied && amountToPay === 0) {
       return res.status(400).json({
         success: false,
@@ -333,14 +318,12 @@ export default async function handler(
       });
 
       // ========== REGISTRAR USO DO CUPOM (Anti-fraude) ==========
-      // Cupom DEV (isDevCoupon=true) → NÃO registra uso (uso infinito)
       if (couponApplied) {
         const couponResult = await recordCouponUsageIdempotent(tx, {
           userId,
           couponCode: couponApplied,
           context: CouponUsageContext.BOOKING,
           bookingId: booking.id,
-          isDevCoupon, // Se true, skip registro (cupom DEV)
         });
         
         if (!couponResult.ok) {

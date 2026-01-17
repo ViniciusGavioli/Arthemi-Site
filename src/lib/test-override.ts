@@ -1,90 +1,81 @@
 // ===========================================================
-// LIB: Test Override - Override de preço para testes em produção
+// lib/test-override.ts - Override de Teste R$5 (MVP)
 // ===========================================================
-// OBJETIVO: Permitir que DEV/ADMIN teste fluxo de pagamento com R$5
-// SEM usar sistema de cupons comerciais.
+// 
+// PROPÓSITO: Permitir testar fluxo de pagamento em produção com valor fixo R$5.
+// NÃO É CUPOM/DESCONTO - é um OVERRIDE do valor final.
 //
 // REGRAS:
-// - Override NÃO é desconto - é substituição do valor final
-// - Override só funciona com sessão válida + email na whitelist
-// - Override ignora créditos (não consome, não aplica)
-// - Override NÃO registra CouponUsage (não "queima" cupom)
-// - Log estruturado sem PII
-
-// ===========================================================
-// CONFIGURAÇÃO VIA ENV
+// 1. Só funciona se ENABLE_TEST_OVERRIDE=true
+// 2. Só funciona para usuários autenticados
+// 3. Só funciona para admin OU email na whitelist TEST_OVERRIDE_ADMIN_EMAILS
+// 4. Não consome créditos, não registra CouponUsage
+// 5. Valor fixo: R$5,00 (500 centavos)
 // ===========================================================
 
 /**
- * Flag global para habilitar override de teste
- * Default: false (desligado)
+ * Código de override de teste
+ */
+export const TEST_OVERRIDE_CODE = 'TESTE5';
+
+/**
+ * Valor fixo do override em centavos (R$5,00)
+ */
+export const TEST_OVERRIDE_AMOUNT_CENTS = 500;
+
+/**
+ * Erro customizado para acesso negado ao test override
+ */
+export class TestOverrideAccessError extends Error {
+  public readonly statusCode: number = 403;
+  public readonly code: string;
+
+  constructor(message: string, code: string) {
+    super(message);
+    this.name = 'TestOverrideAccessError';
+    this.code = code;
+    
+    // Fix prototype chain for instanceof
+    Object.setPrototypeOf(this, TestOverrideAccessError.prototype);
+  }
+}
+
+/**
+ * Verifica se o feature flag de test override está habilitado
  */
 export function isTestOverrideEnabled(): boolean {
   return process.env.ENABLE_TEST_OVERRIDE === 'true';
 }
 
 /**
- * Lista de emails autorizados para override de teste
- * Formato: "email1@x.com,email2@y.com"
+ * Retorna lista de emails autorizados para test override
  */
 function getTestOverrideAdminEmails(): string[] {
-  const envValue = process.env.TEST_OVERRIDE_ADMIN_EMAILS || '';
-  if (!envValue.trim()) return [];
-  return envValue.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
-}
-
-// ===========================================================
-// CONSTANTES
-// ===========================================================
-
-/** Código especial para ativar override R$5 */
-export const TEST_OVERRIDE_CODE = 'TESTE5';
-
-/** Valor final em centavos (R$5,00) */
-export const TEST_OVERRIDE_AMOUNT_CENTS = 500;
-
-// ===========================================================
-// ERRO CUSTOMIZADO
-// ===========================================================
-
-/**
- * Erro de acesso negado para override de teste
- * Lançado quando tentativa de usar TESTE5 sem permissão
- */
-export class TestOverrideAccessError extends Error {
-  public readonly code: string;
-  public readonly statusCode: number = 403;
-  
-  constructor(message: string, code: string) {
-    super(message);
-    this.name = 'TestOverrideAccessError';
-    this.code = code;
-    Object.setPrototypeOf(this, TestOverrideAccessError.prototype);
-  }
-}
-
-// ===========================================================
-// FUNÇÕES PRINCIPAIS
-// ===========================================================
-
-export interface TestOverrideResult {
-  /** Se override está ativo para este request */
-  enabled: boolean;
-  /** Valor final a pagar em centavos (500 se enabled) */
-  finalPayableCents: number;
-  /** Razão (para logs) */
-  reason: string;
+  const raw = process.env.TEST_OVERRIDE_ADMIN_EMAILS || '';
+  return raw.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
 }
 
 /**
- * Verifica se o código fornecido é um override de teste
- * NÃO valida autorização - apenas parsing
+ * Verifica se email está na whitelist de test override
  */
-export function parseTestOverride(code: string | undefined | null): {
+function isInTestOverrideWhitelist(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const whitelist = getTestOverrideAdminEmails();
+  return whitelist.includes(email.toLowerCase().trim());
+}
+
+/**
+ * Parseia código de cupom para verificar se é test override
+ * 
+ * @returns { isOverride: boolean, code: string | null }
+ */
+export function parseTestOverride(code: string | null | undefined): {
   isOverride: boolean;
   code: string | null;
 } {
-  if (!code) return { isOverride: false, code: null };
+  if (!code) {
+    return { isOverride: false, code: null };
+  }
   
   const normalized = code.toUpperCase().trim();
   
@@ -96,80 +87,87 @@ export function parseTestOverride(code: string | undefined | null): {
 }
 
 /**
- * Valida se usuário tem permissão para usar override de teste
- * Lança TestOverrideAccessError se não autorizado
+ * Valida se o usuário tem acesso ao test override
+ * Lança TestOverrideAccessError se não autorizado.
  * 
- * @param sessionEmail Email da SESSÃO (não do body)
- * @param isAdmin Se usuário é admin (role)
- * @param requestId Para log
- * @throws TestOverrideAccessError se não autorizado
+ * @param sessionEmail Email da sessão autenticada
+ * @param isAdmin Se o usuário é admin
+ * @param requestId ID da request para logs
+ * @throws TestOverrideAccessError
  */
 export function validateTestOverrideAccess(
   sessionEmail: string | null | undefined,
   isAdmin: boolean,
   requestId: string
 ): void {
-  // 1. Flag global desligada
+  // 1. Feature flag deve estar habilitado
   if (!isTestOverrideEnabled()) {
-    console.log(`[TEST_OVERRIDE] ${requestId} | blocked=true | reason=DISABLED`);
+    console.log(`[TEST_OVERRIDE] ${requestId} | denied=true | reason=FEATURE_DISABLED`);
     throw new TestOverrideAccessError(
       'Override de teste não está habilitado.',
       'TEST_OVERRIDE_DISABLED'
     );
   }
   
-  // 2. Requer sessão
+  // 2. Deve ter sessão autenticada
   if (!sessionEmail) {
-    console.log(`[TEST_OVERRIDE] ${requestId} | blocked=true | reason=NO_SESSION`);
+    console.log(`[TEST_OVERRIDE] ${requestId} | denied=true | reason=NO_SESSION`);
     throw new TestOverrideAccessError(
       'Override de teste requer login.',
       'TEST_OVERRIDE_NO_SESSION'
     );
   }
   
-  // 3. Admin role sempre passa
-  if (isAdmin) {
-    console.log(`[TEST_OVERRIDE] ${requestId} | allowed=true | reason=ADMIN_ROLE`);
-    return;
+  // 3. Deve ser admin OU estar na whitelist
+  const inWhitelist = isInTestOverrideWhitelist(sessionEmail);
+  
+  if (!isAdmin && !inWhitelist) {
+    console.log(`[TEST_OVERRIDE] ${requestId} | denied=true | reason=NOT_AUTHORIZED | isAdmin=${isAdmin} | inWhitelist=${inWhitelist}`);
+    throw new TestOverrideAccessError(
+      'Override de teste não autorizado para esta conta.',
+      'TEST_OVERRIDE_NOT_AUTHORIZED'
+    );
   }
   
-  // 4. Verificar whitelist
-  const allowedEmails = getTestOverrideAdminEmails();
-  const emailLower = sessionEmail.toLowerCase();
-  
-  if (allowedEmails.includes(emailLower)) {
-    console.log(`[TEST_OVERRIDE] ${requestId} | allowed=true | reason=WHITELIST`);
-    return;
-  }
-  
-  // 5. Não autorizado
-  console.log(`[TEST_OVERRIDE] ${requestId} | blocked=true | reason=NOT_IN_WHITELIST | whitelistCount=${allowedEmails.length}`);
-  throw new TestOverrideAccessError(
-    'Você não tem permissão para usar override de teste.',
-    'TEST_OVERRIDE_NOT_ALLOWED'
-  );
+  // Autorizado
+  console.log(`[TEST_OVERRIDE] ${requestId} | allowed=true | isAdmin=${isAdmin} | inWhitelist=${inWhitelist}`);
 }
 
 /**
- * Processa override de teste completo
- * Retorna se override está ativo e valores finais
+ * Resultado do processamento de test override
+ */
+export interface TestOverrideResult {
+  /** Se o override foi aplicado */
+  enabled: boolean;
+  /** Valor final a pagar em centavos (500 = R$5) */
+  finalPayableCents: number;
+  /** Motivo/código */
+  reason: string;
+}
+
+/**
+ * Processa possível test override
  * 
- * @param code Código do "cupom" (pode ser TESTE5)
+ * Se o código é TESTE5 e usuário está autorizado, retorna override ativo.
+ * Se não é código de override, retorna enabled=false sem erro.
+ * Se é código de override mas não autorizado, LANÇA ERRO.
+ * 
+ * @param couponCode Código do cupom/override
  * @param sessionEmail Email da sessão
  * @param isAdmin Se é admin
- * @param requestId Para log
- * @returns TestOverrideResult
+ * @param requestId ID da request
  */
 export function processTestOverride(
-  code: string | undefined | null,
+  couponCode: string | null | undefined,
   sessionEmail: string | null | undefined,
   isAdmin: boolean,
   requestId: string
 ): TestOverrideResult {
-  // 1. Verificar se é código de override
-  const parsed = parseTestOverride(code);
+  // 1. Parsear código
+  const parsed = parseTestOverride(couponCode);
   
   if (!parsed.isOverride) {
+    // Não é código de override - retornar sem erro
     return {
       enabled: false,
       finalPayableCents: 0,
@@ -177,15 +175,15 @@ export function processTestOverride(
     };
   }
   
-  // 2. Validar acesso (lança erro se não autorizado)
+  // 2. É código de override - validar acesso (pode lançar erro)
   validateTestOverrideAccess(sessionEmail, isAdmin, requestId);
   
-  // 3. Override autorizado
-  console.log(`[TEST_OVERRIDE] ${requestId} | enabled=true | finalPayable=${TEST_OVERRIDE_AMOUNT_CENTS} | endpoint=booking`);
+  // 3. Autorizado - retornar override ativo
+  console.log(`[TEST_OVERRIDE] ${requestId} | enabled=true | finalPayable=${TEST_OVERRIDE_AMOUNT_CENTS} | code=${TEST_OVERRIDE_CODE}`);
   
   return {
     enabled: true,
     finalPayableCents: TEST_OVERRIDE_AMOUNT_CENTS,
-    reason: 'AUTHORIZED',
+    reason: 'OVERRIDE_APPLIED',
   };
 }

@@ -70,8 +70,9 @@ export function PaymentMethodSelector({
         <p className="text-sm text-blue-700 flex items-start gap-2">
           <Shield className="w-4 h-4 mt-0.5 flex-shrink-0" />
           <span>
-            Você será direcionado para um ambiente seguro para finalizar o pagamento.
-            {selected === 'CARD' && ' As opções de parcelamento e eventuais taxas são exibidas nesse momento.'}
+            {selected === 'CARD' 
+              ? 'Você será direcionado ao checkout seguro Asaas, onde poderá escolher pagar à vista ou parcelar em até 12x.'
+              : 'Você será direcionado para um ambiente seguro para finalizar o pagamento.'}
           </span>
         </p>
       </div>

@@ -501,10 +501,15 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
         if (data.paymentUrl) {
           localStorage.setItem('lastBookingId', data.bookingId);
           localStorage.setItem('lastPaymentUrl', data.paymentUrl);
-          // FIX B: Salvar método de pagamento para exibir copy correta
           localStorage.setItem('lastPaymentMethod', formData.paymentMethod === 'CARD' ? 'CREDIT_CARD' : 'PIX');
-          const paymentMethodParam = formData.paymentMethod === 'CARD' ? 'CREDIT_CARD' : 'PIX';
-          window.location.href = `/booking/pending?booking=${data.bookingId}&paymentMethod=${paymentMethodParam}`;
+          
+          if (formData.paymentMethod === 'CARD') {
+            // CARTÃO: Redireciona direto para checkout Asaas (cliente escolhe parcelas lá)
+            window.location.href = data.paymentUrl;
+          } else {
+            // PIX: Vai para página pending com QR code
+            window.location.href = `/booking/pending?booking=${data.bookingId}&paymentMethod=PIX`;
+          }
           return;
         } else {
           throw new Error('Erro ao gerar pagamento. Tente novamente.');

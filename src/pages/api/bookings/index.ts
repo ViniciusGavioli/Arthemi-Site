@@ -5,7 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import prisma, { isOverbookingError, OVERBOOKING_ERROR_MESSAGE } from '@/lib/prisma';
-import { createBookingPayment, createBookingCardPayment, normalizeAsaasError } from '@/lib/asaas';
+import { createBookingPayment, createAsaasCheckoutForBooking, normalizeAsaasError } from '@/lib/asaas';
 import { brazilianPhone, validateCPF } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -618,11 +618,11 @@ export default async function handler(
       });
     }
 
-    // 8. Criar pagamento se necessário (PIX ou CARTÃO)
+    // 8. Criar pagamento se necessário (PIX ou CARTÃO via Checkout)
     let paymentUrl: string | undefined;
     let paymentMethod: 'PIX' | 'CREDIT_CARD' = 'PIX';
-    let installmentCount: number | undefined;
-    let installmentValue: number | undefined;
+    // NOTA: installmentCount/installmentValue não são mais enviados
+    // Cliente escolhe parcelas diretamente no Checkout Asaas
 
     if (data.payNow && result.amountToPayCents > 0) {
       // Validação preventiva de valor mínimo (APÓS desconto)
@@ -673,39 +673,53 @@ export default async function handler(
           description: `Reserva ${room.name} - ${result.hours}h${result.creditsUsedCents > 0 ? ` (R$ ${(result.creditsUsedCents/100).toFixed(2)} em créditos)` : ''}`,
         };
 
-        let paymentResult;
+        let paymentResult: { paymentId?: string; invoiceUrl?: string; checkoutId?: string; checkoutUrl?: string };
+        let isCheckoutFlow = false;
 
         if (data.paymentMethod === 'CARD') {
-          // Pagamento por CARTÃO DE CRÉDITO (com timeout)
-          const cardResult = await withTimeout(
-            createBookingCardPayment({
-              ...basePaymentInput,
-              installmentCount: data.installmentCount || 1,
+          // CARTÃO: Usar Checkout Asaas (cliente escolhe parcelas no checkout)
+          const checkoutResult = await withTimeout(
+            createAsaasCheckoutForBooking({
+              bookingId: result.booking.id,
+              customerName: data.userName,
+              customerEmail: data.userEmail || `${data.userPhone}@placeholder.com`,
+              customerPhone: data.userPhone,
+              customerCpf: data.userCpf,
+              value: result.amountToPayCents,
+              itemName: `Reserva ${room.name}`.substring(0, 30),
+              itemDescription: `${result.hours}h - ${new Date(data.startAt).toLocaleDateString('pt-BR')}`,
             }),
             TIMEOUTS.PAYMENT_CREATE,
-            'criação de pagamento cartão'
+            'criação de checkout cartão'
           );
-          paymentResult = cardResult;
+          paymentResult = {
+            checkoutId: checkoutResult.checkoutId,
+            checkoutUrl: checkoutResult.checkoutUrl,
+          };
           paymentMethod = 'CREDIT_CARD';
-          installmentCount = cardResult.installmentCount;
-          installmentValue = cardResult.installmentValue;
-          console.log(`💳 [BOOKING] Pagamento CARTÃO criado: ${cardResult.paymentId}`);
+          isCheckoutFlow = true;
+          console.log(`🛒 [BOOKING] Checkout CARTÃO criado: ${checkoutResult.checkoutId}`);
         } else {
           // Pagamento por PIX (default) (com timeout)
-          paymentResult = await withTimeout(
+          const pixResult = await withTimeout(
             createBookingPayment(basePaymentInput),
             TIMEOUTS.PAYMENT_CREATE,
             'criação de pagamento PIX'
           );
-          console.log(`🔲 [BOOKING] Pagamento PIX criado: ${paymentResult.paymentId}`);
+          paymentResult = {
+            paymentId: pixResult.paymentId,
+            invoiceUrl: pixResult.invoiceUrl,
+          };
+          console.log(`🔲 [BOOKING] Pagamento PIX criado: ${pixResult.paymentId}`);
         }
 
-        paymentUrl = paymentResult.invoiceUrl;
+        // URL para redirecionar cliente
+        paymentUrl = isCheckoutFlow ? paymentResult.checkoutUrl : paymentResult.invoiceUrl;
 
         await prisma.booking.update({
           where: { id: result.booking.id },
           data: { 
-            paymentId: paymentResult.paymentId,
+            paymentId: isCheckoutFlow ? paymentResult.checkoutId : paymentResult.paymentId,
             paymentMethod,
           },
         });
@@ -716,8 +730,8 @@ export default async function handler(
             userId: result.userId,
             amount: result.amountToPayCents,
             status: 'PENDING',
-            externalId: paymentResult.paymentId,
-            externalUrl: paymentResult.invoiceUrl,
+            externalId: isCheckoutFlow ? paymentResult.checkoutId : paymentResult.paymentId,
+            externalUrl: paymentUrl,
             idempotencyKey: generateBookingIdempotencyKey(result.booking.id, data.paymentMethod),
           },
         });
@@ -787,8 +801,7 @@ export default async function handler(
       bookingId: result.booking.id,
       paymentUrl,
       paymentMethod,
-      installmentCount,
-      installmentValue: installmentValue ? Math.round(installmentValue * 100) : undefined,
+      // CARTÃO: cliente escolhe parcelas no Checkout Asaas (não retornamos mais aqui)
       creditsUsed: result.creditsUsedCents,
       amountToPay: result.amountToPayCents,
     });

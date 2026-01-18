@@ -152,7 +152,13 @@ export type AsaasWebhookEvent =
   // Eventos de chargeback (cartão)
   | 'PAYMENT_CHARGEBACK_REQUESTED'
   | 'PAYMENT_CHARGEBACK_DISPUTE'
-  | 'PAYMENT_AWAITING_CHARGEBACK_REVERSAL';
+  | 'PAYMENT_AWAITING_CHARGEBACK_REVERSAL'
+  // Eventos de checkout (NOVO - Checkout API)
+  | 'CHECKOUT_CREATED'
+  | 'CHECKOUT_VIEWED'
+  | 'CHECKOUT_CANCELED'
+  | 'CHECKOUT_EXPIRED'
+  | 'CHECKOUT_PAID';
 
 export interface AsaasWebhookPayload {
   id: string;
@@ -457,14 +463,15 @@ export async function createPayment(
   };
 
   // Adicionar parcelamento se aplicável (apenas CREDIT_CARD com >= 2 parcelas)
-  // NOTA: Não enviar installmentValue - deixar Asaas calcular para evitar problemas de arredondamento
+  // NOTA: Asaas REQUER installmentValue quando installmentCount >= 2
   if (
     input.billingType === 'CREDIT_CARD' &&
     input.installmentCount &&
     input.installmentCount >= 2
   ) {
     paymentPayload.installmentCount = input.installmentCount;
-    // installmentValue é calculado automaticamente pelo Asaas
+    // Calcular valor da parcela (arredondado para 2 casas decimais)
+    paymentPayload.installmentValue = Math.round((input.value / input.installmentCount) * 100) / 100;
   }
 
   const payment = await asaasRequest<AsaasPayment>('/payments', {
@@ -900,4 +907,151 @@ export async function createBookingCardPayment(
     installmentCount: installmentCount || 1,
     installmentValue: installmentCount ? valueInReais / installmentCount : valueInReais,
   };
+}
+
+// ============================================================
+// CHECKOUT ASAAS (para CARTÃO com parcelamento dinâmico)
+// ============================================================
+
+// Imagem placeholder 1x1 PNG transparente (base64) - obrigatório pela OpenAPI Asaas
+// Sem quebras de linha para evitar problemas de parsing
+const ASAAS_CHECKOUT_ITEM_IMAGE_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+export interface CreateAsaasCheckoutInput {
+  bookingId: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  customerCpf: string;
+  value: number; // Em centavos
+  itemName: string; // Max 30 caracteres
+  itemDescription: string;
+  minutesToExpire?: number; // Default: 60
+  maxInstallmentCount?: number; // Default: 12
+}
+
+export interface AsaasCheckoutResult {
+  checkoutId: string;
+  checkoutUrl: string;
+}
+
+/**
+ * Cria um Checkout Asaas para pagamento com CARTÃO
+ * Cliente escolhe parcelamento no checkout (não no site)
+ * 
+ * DIFERENTE de /payments:
+ * - /checkouts permite cliente escolher parcelas
+ * - /checkouts calcula juros automaticamente
+ * - /checkouts suporta INSTALLMENT + DETACHED
+ * 
+ * @param input Dados do checkout
+ * @returns { checkoutId, checkoutUrl }
+ */
+export async function createAsaasCheckoutForBooking(
+  input: CreateAsaasCheckoutInput
+): Promise<AsaasCheckoutResult> {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://arthemisaude.com';
+  const valueInReais = centsToReal(input.value);
+  
+  // Truncar nome do item para 30 caracteres (requisito Asaas)
+  const itemName = input.itemName.length > 30 
+    ? input.itemName.substring(0, 30) 
+    : input.itemName;
+
+  // Mock mode
+  if (isMockMode()) {
+    console.log('🎭 [MOCK] Criando checkout:', input);
+    const mockCheckoutId = `chk_mock_${Date.now()}`;
+    const mockUrl = `${appUrl}/mock-payment?checkoutId=${mockCheckoutId}&booking=${input.bookingId}&amount=${input.value}&type=checkout`;
+    return {
+      checkoutId: mockCheckoutId,
+      checkoutUrl: mockUrl,
+    };
+  }
+
+  // Payload do checkout conforme API Asaas /v3/checkouts
+  const checkoutPayload = {
+    // Formas de pagamento: apenas cartão de crédito
+    billingTypes: ['CREDIT_CARD'],
+    
+    // Tipos de cobrança: avulsa + parcelamento
+    chargeTypes: ['DETACHED', 'INSTALLMENT'],
+    
+    // Configuração de parcelamento
+    installment: {
+      maxInstallmentCount: input.maxInstallmentCount || 12,
+    },
+    
+    // Expiração do checkout (minutos)
+    minutesToExpire: input.minutesToExpire || 60,
+    
+    // URLs de callback
+    callback: {
+      successUrl: `${appUrl}/booking/success?booking=${input.bookingId}`,
+      cancelUrl: `${appUrl}/booking/failure?booking=${input.bookingId}&reason=cancelled`,
+      expiredUrl: `${appUrl}/booking/failure?booking=${input.bookingId}&reason=expired`,
+    },
+    
+    // Itens do checkout (obrigatório)
+    items: [
+      {
+        name: itemName,
+        description: input.itemDescription,
+        quantity: 1,
+        value: valueInReais, // Em REAIS (não centavos)
+        imageBase64: ASAAS_CHECKOUT_ITEM_IMAGE_BASE64,
+      },
+    ],
+    
+    // Dados do cliente (pré-preenchidos no checkout)
+    customerData: {
+      name: input.customerName,
+      cpfCnpj: input.customerCpf,
+      email: input.customerEmail,
+      phone: input.customerPhone,
+    },
+    
+    // Referência externa: usado para identificar booking no webhook
+    externalReference: buildExternalReference(input.bookingId),
+  };
+
+  console.log('🛒 [Asaas] Criando checkout:', {
+    bookingId: input.bookingId,
+    value: valueInReais,
+    maxInstallments: input.maxInstallmentCount || 12,
+  });
+
+  const result = await asaasRequest<{
+    id: string;
+    url: string;
+    expirationDate: string;
+    status: string;
+  }>('/checkouts', {
+    method: 'POST',
+    body: JSON.stringify(checkoutPayload),
+  });
+
+  console.log('✅ [Asaas] Checkout criado:', result.id, {
+    url: result.url,
+    expirationDate: result.expirationDate,
+  });
+
+  return {
+    checkoutId: result.id,
+    checkoutUrl: result.url,
+  };
+}
+
+/**
+ * Verifica se evento é de checkout pago (CHECKOUT_PAID)
+ */
+export function isCheckoutPaid(event: string): boolean {
+  return event === 'CHECKOUT_PAID';
+}
+
+/**
+ * Verifica se evento é de checkout (qualquer)
+ */
+export function isCheckoutEvent(event: string): boolean {
+  return event.startsWith('CHECKOUT_');
 }

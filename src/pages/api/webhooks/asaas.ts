@@ -3,8 +3,8 @@
 // ===========================================================
 // Recebe notificações de pagamento do Asaas
 // Idempotência garantida por banco de dados (WebhookEvent)
-// Suporta PIX e Cartão (crédito/débito)
-// Trata: PAYMENT_CONFIRMED, PAYMENT_RECEIVED, PAYMENT_REFUNDED, CHARGEBACK_*
+// Suporta PIX e Cartão (crédito/débito) + Checkout API
+// Trata: PAYMENT_CONFIRMED, PAYMENT_RECEIVED, PAYMENT_REFUNDED, CHARGEBACK_*, CHECKOUT_PAID
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
@@ -18,6 +18,8 @@ import {
   isPaymentConfirmed,
   isPaymentRefundedOrChargeback,
   isCardCaptureRefused,
+  isCheckoutPaid,
+  isCheckoutEvent,
   realToCents,
 } from '@/lib/asaas';
 import { sendBookingConfirmationNotification } from '@/lib/booking-notifications';
@@ -151,15 +153,195 @@ export default async function handler(
     }
 
     // 2. Parsear e sanitizar payload
-    const rawPayload = req.body as AsaasWebhookPayload;
+    // NOTA: Checkout events têm estrutura diferente de Payment events
+    const rawPayload = req.body;
     
-    if (!rawPayload || !rawPayload.event || !rawPayload.payment) {
+    // Detectar se é evento de checkout (estrutura diferente)
+    const isCheckout = rawPayload?.event?.startsWith('CHECKOUT_');
+    
+    if (isCheckout) {
+      // ===================================================================
+      // CHECKOUT EVENT (CHECKOUT_PAID, CHECKOUT_EXPIRED, etc)
+      // ===================================================================
+      const checkoutPayload = rawPayload as {
+        id: string;
+        event: string;
+        checkout: {
+          id: string;
+          externalReference?: string;
+          status: string;
+          value?: number;
+        };
+      };
+
+      if (!checkoutPayload || !checkoutPayload.event || !checkoutPayload.checkout) {
+        console.error('❌ [Asaas Webhook] Payload de checkout inválido');
+        return res.status(400).json({ error: 'Payload de checkout inválido' });
+      }
+
+      const { id: eventId, event, checkout } = checkoutPayload;
+      const externalRef = sanitizeString(checkout.externalReference);
+      const checkoutId = sanitizeString(checkout.id);
+
+      console.log(`🛒 [Asaas Webhook] Evento de Checkout: ${event}`, {
+        eventId,
+        checkoutId,
+        externalReference: externalRef,
+        status: checkout.status,
+      });
+
+      // Idempotência para eventos de checkout
+      const existingCheckoutEvent = await withTimeout(
+        prisma.webhookEvent.findUnique({
+          where: { eventId },
+        }),
+        5000,
+        'verificação de evento checkout existente'
+      );
+
+      if (existingCheckoutEvent && existingCheckoutEvent.status === 'PROCESSED') {
+        console.log(`⏭️ [Asaas Webhook] Evento de checkout já processado: ${eventId}`);
+        return res.status(200).json({ received: true, skipped: true });
+      }
+
+      // Registrar evento antes de processar
+      if (!existingCheckoutEvent) {
+        await withTimeout(
+          prisma.webhookEvent.create({
+            data: {
+              eventId,
+              eventType: event,
+              paymentId: checkoutId,
+              bookingId: externalRef || null,
+              status: 'PROCESSING',
+              payload: checkoutPayload as object,
+            },
+          }),
+          5000,
+          'criação de webhook event checkout'
+        );
+      }
+
+      // Tratar apenas CHECKOUT_PAID (confirma pagamento)
+      if (isCheckoutPaid(event)) {
+        // Extrair bookingId do externalReference
+        const parsed = parseExternalReference(externalRef);
+        
+        if (!parsed) {
+          console.log(`⚠️ [Asaas Webhook] CHECKOUT_PAID sem externalReference válido`);
+          await prisma.webhookEvent.update({
+            where: { eventId },
+            data: { status: 'IGNORED_NO_REF' },
+          });
+          return res.status(200).json({ received: true, message: 'Sem referência' });
+        }
+
+        const actualBookingId = parsed.id;
+        const isPurchase = parsed.type === 'purchase';
+
+        console.log(`✅ [Asaas Webhook] CHECKOUT_PAID processando:`, {
+          checkoutId,
+          bookingId: actualBookingId,
+          isPurchase,
+        });
+
+        if (isPurchase) {
+          // Crédito: confirmar (mesma lógica de PAYMENT_CONFIRMED para créditos)
+          const credit = await prisma.credit.findUnique({
+            where: { id: actualBookingId },
+            include: { user: true },
+          });
+
+          if (credit && credit.status !== 'CONFIRMED') {
+            await prisma.credit.update({
+              where: { id: actualBookingId },
+              data: {
+                status: 'CONFIRMED',
+                // updatedAt é atualizado automaticamente pelo Prisma
+              },
+            });
+            console.log(`💳 [Asaas Webhook] Crédito confirmado via checkout: ${actualBookingId} (checkout: ${checkoutId})`);
+          }
+        } else {
+          // Booking: confirmar
+          const booking = await prisma.booking.findUnique({
+            where: { id: actualBookingId },
+            include: { user: true, room: true },
+          });
+
+          if (booking && booking.status !== 'CONFIRMED') {
+            await prisma.booking.update({
+              where: { id: actualBookingId },
+              data: {
+                status: 'CONFIRMED',
+                paymentStatus: 'APPROVED', // PaymentStatus enum usa APPROVED
+                financialStatus: 'PAID',
+                paymentId: checkoutId,
+                amountPaid: checkout.value ? realToCents(checkout.value) : (booking.netAmount ?? 0),
+              },
+            });
+
+            // Atualizar Payment record
+            await prisma.payment.updateMany({
+              where: { bookingId: actualBookingId, status: 'PENDING' },
+              data: { status: 'APPROVED' }, // Consistência com PaymentStatus enum
+            });
+
+            // Enviar notificação de confirmação
+            // sendBookingConfirmationNotification busca os dados internamente via bookingId
+            sendBookingConfirmationNotification(actualBookingId).catch(err => 
+              console.error('⚠️ Erro ao enviar notificação:', err)
+            );
+
+            // Trigger account activation (best-effort)
+            if (booking.user && !booking.user.emailVerifiedAt) {
+              triggerAccountActivation({
+                userId: booking.user.id,
+                userEmail: booking.user.email,
+                userName: booking.user.name || 'Cliente',
+              }).catch(err => 
+                console.error('⚠️ Erro ao ativar conta:', err)
+              );
+            }
+
+            console.log(`✅ [Asaas Webhook] Booking confirmado via checkout: ${actualBookingId}`);
+          }
+        }
+
+        await prisma.webhookEvent.update({
+          where: { eventId },
+          data: { status: 'PROCESSED' },
+        });
+
+        return res.status(200).json({ 
+          received: true, 
+          event,
+          action: 'checkout_paid_processed',
+          bookingId: actualBookingId,
+        });
+      }
+
+      // Outros eventos de checkout (EXPIRED, CANCELED, etc) - apenas logar
+      console.log(`ℹ️ [Asaas Webhook] Evento de checkout ignorado: ${event}`);
+      await prisma.webhookEvent.update({
+        where: { eventId },
+        data: { status: 'PROCESSED' },
+      });
+      return res.status(200).json({ received: true, event });
+    }
+
+    // ===================================================================
+    // PAYMENT EVENT (fluxo original)
+    // ===================================================================
+    const rawPaymentPayload = rawPayload as AsaasWebhookPayload;
+    
+    if (!rawPaymentPayload || !rawPaymentPayload.event || !rawPaymentPayload.payment) {
       console.error('❌ [Asaas Webhook] Payload inválido');
       return res.status(400).json({ error: 'Payload inválido' });
     }
 
     // Sanitizar dados do payload
-    const payload = sanitizeWebhookPayload(rawPayload);
+    const payload = sanitizeWebhookPayload(rawPaymentPayload);
     const { id: eventId, event, payment } = payload;
     const bookingId = payment.externalReference;
 

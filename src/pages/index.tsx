@@ -142,7 +142,7 @@ export default function Home({ dbRooms }: HomeProps) {
       } else {
         // Fallback: se não encontrou a sala no banco, redireciona para WhatsApp
         window.open(
-          `https://wa.me/5531991153634?text=${encodeURIComponent(`Olá! Gostaria de fazer uma reserva no ${selectedRoom.name}.`)}`,
+          `https://wa.me/5531984916090?text=${encodeURIComponent(`Olá! Gostaria de fazer uma reserva no ${selectedRoom.name}.`)}`,
           '_blank'
         );
       }

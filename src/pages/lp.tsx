@@ -17,12 +17,11 @@ import { formatCurrency } from '@/lib/utils';
 import { PRICES_V3, formatPrice, getAllProductsForRoom } from '@/constants/prices';
 import { Lightbulb, CheckCircle2, Eye } from 'lucide-react';
 import { analytics } from '@/lib/analytics';
+import { WHATSAPP_NUMBER } from '@/config/contact';
 
 // ============================================================
-// CONFIGURAÇÃO WHATSAPP
+// FUNÇÃO PARA CONSTRUIR URL WHATSAPP COM UTMs
 // ============================================================
-const WHATSAPP_NUMBER = '5531991322033';
-
 function buildWhatsAppUrl(roomName: string, utmParams: Record<string, string | undefined>): string {
   const baseMessage = `Oi! Quero reservar a sala ${roomName} no Espaço Arthemi. Pode me passar horários disponíveis e valores?`;
   

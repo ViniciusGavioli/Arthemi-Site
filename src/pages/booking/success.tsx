@@ -183,7 +183,7 @@ export default function BookingSuccessPage() {
             <p>
               Dúvidas? Entre em contato pelo{' '}
               <a 
-                href={booking ? generateSupportWhatsAppLink(String(booking)) : 'https://wa.me/5531999999999'} 
+                href={booking ? generateSupportWhatsAppLink(String(booking)) : 'https://wa.me/5531984916090'} 
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-green-600 hover:underline font-medium"

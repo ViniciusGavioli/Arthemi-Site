@@ -291,7 +291,8 @@ export async function sendWelcomeEmail(
   userName: string
 ): Promise<MailResult> {
   const loginLink = `${APP_URL}/login`;
-  const whatsappLink = `https://wa.me/${process.env.WHATSAPP_NUMBER || '5531999999999'}`;
+  const { WHATSAPP_NUMBER } = require('@/config/contact');
+  const whatsappLink = `https://wa.me/${WHATSAPP_NUMBER}`;
   
   const client = getResendClient();
   

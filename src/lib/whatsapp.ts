@@ -4,7 +4,11 @@
 // Gera links para envio de mensagens via WhatsApp Web/App
 // Sem API paga - usa links wa.me
 
-import { BUSINESS_INFO } from '@/constants/seo';
+// Importa número centralizado do config (single source of truth)
+import { WHATSAPP_NUMBER } from '@/config/contact';
+
+// Re-exporta para compatibilidade com imports existentes
+export { WHATSAPP_NUMBER };
 
 // ============================================================
 // TIPOS
@@ -28,15 +32,6 @@ export interface WhatsAppLinkResult {
   /** Link direto wa.me com mensagem (para cliente enviar para o negócio) */
   fullLink: string;
 }
-
-// ============================================================
-// CONFIGURAÇÃO
-// ============================================================
-
-/**
- * Número do WhatsApp do negócio (somente números, com código do país)
- */
-export const WHATSAPP_NUMBER = BUSINESS_INFO.whatsapp || '5531999999999';
 
 // ============================================================
 // FUNÇÕES UTILITÁRIAS

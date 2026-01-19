@@ -10,9 +10,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { format, isPast, isFuture, differenceInHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-
-// Número do WhatsApp para solicitar cancelamento
-const WHATSAPP_NUMBER = '5531984916090';
+import { WHATSAPP_NUMBER } from '@/config/contact';
 
 interface Booking {
   id: string;

@@ -277,7 +277,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                           </div>
                         </div>
                         <a
-                          href="https://wa.me/5531991153634?text=Ol%C3%A1!%20Gostaria%20de%20fazer%20uma%20reserva."
+                          href="https://wa.me/5531984916090?text=Ol%C3%A1!%20Gostaria%20de%20fazer%20uma%20reserva."
                           target="_blank"
                           rel="noopener noreferrer"
                           className="bg-accent-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-accent-700 transition-colors"
@@ -387,7 +387,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                             Para contratar turnos fixos, entre em contato conosco pelo WhatsApp.
                           </p>
                           <a
-                            href={`https://wa.me/5531991153634?text=${encodeURIComponent(`Olá! Tenho interesse em turnos fixos no ${roomData.name}. Podemos conversar sobre dia da semana e horário disponíveis?`)}`}
+                            href={`https://wa.me/5531984916090?text=${encodeURIComponent(`Olá! Tenho interesse em turnos fixos no ${roomData.name}. Podemos conversar sobre dia da semana e horário disponíveis?`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-800 hover:text-amber-900 underline"

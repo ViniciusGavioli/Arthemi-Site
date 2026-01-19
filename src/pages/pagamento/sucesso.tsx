@@ -7,8 +7,8 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import { CheckCircle, Mail, ArrowRight, MessageCircle, RefreshCw } from 'lucide-react';
+import { WHATSAPP_NUMBER } from '@/config/contact';
 
-const WHATSAPP_NUMBER = '5531991153634';
 const WHATSAPP_MESSAGE = encodeURIComponent(
   'Olá! Acabei de fazer um pagamento no site da Arthemi e preciso de ajuda.'
 );

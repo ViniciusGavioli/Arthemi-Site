@@ -165,7 +165,7 @@ export default function BookingSuccessPage() {
           {/* Botões */}
           <div className="space-y-3">
             <Link
-              href="/lp-whatsapp.html"
+              href="/lp"
               className="block w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-lg font-semibold transition-colors"
             >
               Fazer Nova Reserva

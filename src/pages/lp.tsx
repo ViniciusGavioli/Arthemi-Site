@@ -1,14 +1,14 @@
 // ===========================================================
-// Página /salas - Lista de Consultórios com RoomCard
+// Página /lp - Landing Page de Conversão via WhatsApp
+// Cópia da /salas com CTAs redirecionando para WhatsApp
 // ===========================================================
 
 import { useState, useEffect, useRef } from 'react';
 import { GetServerSideProps } from 'next';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Image from 'next/image';
 import { prisma } from '@/lib/prisma';
-import RoomCard from '@/components/RoomCard';
-import BookingModal from '@/components/BookingModal';
 import RoomGalleryModal from '@/components/RoomGalleryModal';
 import SEO, { BreadcrumbSchema } from '@/components/SEO';
 import Layout from '@/components/Layout';
@@ -18,16 +18,38 @@ import { PRICES_V3, formatPrice, getAllProductsForRoom } from '@/constants/price
 import { Lightbulb, CheckCircle2, Eye } from 'lucide-react';
 import { analytics } from '@/lib/analytics';
 
+// ============================================================
+// CONFIGURAÇÃO WHATSAPP
+// ============================================================
+const WHATSAPP_NUMBER = '5531991322033';
+
+function buildWhatsAppUrl(roomName: string, utmParams: Record<string, string | undefined>): string {
+  const baseMessage = `Oi! Quero reservar a sala ${roomName} no Espaço Arthemi. Pode me passar horários disponíveis e valores?`;
+  
+  // Adiciona UTMs se existirem
+  const utmParts: string[] = [];
+  if (utmParams.utm_source) utmParts.push(`utm_source: ${utmParams.utm_source}`);
+  if (utmParams.utm_medium) utmParts.push(`utm_medium: ${utmParams.utm_medium}`);
+  if (utmParams.utm_campaign) utmParts.push(`utm_campaign: ${utmParams.utm_campaign}`);
+  if (utmParams.utm_content) utmParts.push(`utm_content: ${utmParams.utm_content}`);
+  if (utmParams.utm_term) utmParts.push(`utm_term: ${utmParams.utm_term}`);
+  
+  const fullMessage = utmParts.length > 0 
+    ? `${baseMessage}\n\n[${utmParts.join(' | ')}]`
+    : baseMessage;
+  
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(fullMessage)}`;
+}
+
 // Helper para calcular menor preço por hora de um consultório
 function getLowestHourlyPrice(salaKey: 'SALA_A' | 'SALA_B' | 'SALA_C'): number {
   const prices = PRICES_V3[salaKey].prices;
   
-  // Calcular preço por hora de cada opção
   const hourlyOptions = [
-    prices.HOURLY_RATE,                    // Hora avulsa
-    prices.PACKAGE_10H / 10,               // Pacote 10h
-    prices.PACKAGE_20H / 20,               // Pacote 20h
-    prices.PACKAGE_40H / 40,               // Pacote 40h
+    prices.HOURLY_RATE,
+    prices.PACKAGE_10H / 10,
+    prices.PACKAGE_20H / 20,
+    prices.PACKAGE_40H / 40,
   ];
   
   return Math.min(...hourlyOptions);
@@ -55,14 +77,22 @@ interface Room {
   products: Product[];
 }
 
-interface SalasPageProps {
+interface LPPageProps {
   rooms: Room[];
 }
 
-export default function SalasPage({ rooms }: SalasPageProps) {
-  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+export default function LPPage({ rooms }: LPPageProps) {
+  const router = useRouter();
   const [galleryRoom, setGalleryRoom] = useState<{ name: string; slug: string } | null>(null);
+  
+  // Captura UTMs da URL
+  const utmParams = {
+    utm_source: router.query.utm_source as string | undefined,
+    utm_medium: router.query.utm_medium as string | undefined,
+    utm_campaign: router.query.utm_campaign as string | undefined,
+    utm_content: router.query.utm_content as string | undefined,
+    utm_term: router.query.utm_term as string | undefined,
+  };
   
   // Track de ViewContent: evita disparo duplicado para a mesma sala na mesma sessão
   const viewedRoomsRef = useRef<Set<string>>(new Set());
@@ -89,14 +119,10 @@ export default function SalasPage({ rooms }: SalasPageProps) {
     },
   ];
 
-  const handleReservar = (room: Room) => {
-    setSelectedRoom(room);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedRoom(null);
+  // Handler para abrir WhatsApp
+  const handleReservar = (roomName: string) => {
+    const whatsappUrl = buildWhatsAppUrl(roomName, utmParams);
+    window.open(whatsappUrl, '_blank');
   };
 
   // Handler para abrir galeria de fotos (dispara ViewContent)
@@ -107,28 +133,22 @@ export default function SalasPage({ rooms }: SalasPageProps) {
     if (!viewedRoomsRef.current.has(galleryData.slug)) {
       viewedRoomsRef.current.add(galleryData.slug);
       
-      // Encontrar o room para obter o ID
       const room = rooms.find(r => r.slug === galleryData.slug);
       if (room) {
-        // Calcular menor preço para enviar como value
         const roomKey = galleryData.slug === 'sala-a' ? 'SALA_A' : 
                         galleryData.slug === 'sala-b' ? 'SALA_B' : 'SALA_C';
         const lowestPrice = getLowestHourlyPrice(roomKey);
         
-        analytics.roomViewed(room.id, galleryData.name, lowestPrice * 100); // value em centavos
+        analytics.roomViewed(room.id, galleryData.name, lowestPrice * 100);
       }
     }
   };
 
-  // Handler para reservar direto da galeria
+  // Handler para reservar direto da galeria (abre WhatsApp)
   const handleReservarFromGallery = () => {
     if (galleryRoom) {
-      const room = rooms.find(r => r.slug === galleryRoom.slug);
-      if (room) {
-        setGalleryRoom(null); // Fecha galeria
-        setSelectedRoom(room);
-        setIsModalOpen(true); // Abre modal de reserva
-      }
+      setGalleryRoom(null);
+      handleReservar(galleryRoom.name);
     }
   };
 
@@ -138,11 +158,11 @@ export default function SalasPage({ rooms }: SalasPageProps) {
         title={PAGE_SEO.salas.title}
         description={PAGE_SEO.salas.description}
         keywords={PAGE_SEO.salas.keywords}
-        path="/salas"
+        path="/lp"
       />
       <BreadcrumbSchema items={[
         { name: 'Home', path: '/' },
-        { name: 'Consultórios e Investimento', path: '/salas' },
+        { name: 'Consultórios e Investimento', path: '/lp' },
       ]} />
 
       <Layout compactFooter>
@@ -226,7 +246,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                           </div>
                         </div>
                         <button
-                          onClick={() => handleReservar(room)}
+                          onClick={() => handleReservar(galleryData.name)}
                           className="bg-accent-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-accent-700 transition-colors"
                         >
                           Reservar
@@ -276,14 +296,12 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                             <span className="text-secondary-500 text-sm">/hora</span>
                           </div>
                         </div>
-                        <a
-                          href="https://wa.me/5531991153634?text=Ol%C3%A1!%20Gostaria%20de%20fazer%20uma%20reserva."
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          onClick={() => handleReservar(galleryData.name)}
                           className="bg-accent-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-accent-700 transition-colors"
                         >
                           Reservar
-                        </a>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -292,7 +310,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
             )}
           </div>
 
-          {/* Tabela de Preços por Consultório - usa PRICES_V3 diretamente (não depende de rooms) */}
+          {/* Tabela de Preços por Consultório */}
           <section>
             <h2 className="text-2xl font-bold text-primary-900 mb-4 text-center">
               Tabela completa de preços
@@ -301,11 +319,10 @@ export default function SalasPage({ rooms }: SalasPageProps) {
               Compare as opções e escolha a que melhor se encaixa na sua rotina de atendimentos.
             </p>
             
-            {/* Dados estáticos das salas para tabela de preços */}
             {[
-              { slug: 'sala-a', key: 'SALA_A' as const, title: 'Consultório 1 | Prime — Espaço premium', name: 'Consultório 1' },
-              { slug: 'sala-b', key: 'SALA_B' as const, title: 'Consultório 2 | Executive — Consultório amplo', name: 'Consultório 2' },
-              { slug: 'sala-c', key: 'SALA_C' as const, title: 'Consultório 3 | Essential — Espaço intimista', name: 'Consultório 3' },
+              { slug: 'sala-a', key: 'SALA_A' as const, title: 'Consultório 1 | Prime — Espaço premium', name: 'Consultório 1 | Prime' },
+              { slug: 'sala-b', key: 'SALA_B' as const, title: 'Consultório 2 | Executive — Consultório amplo', name: 'Consultório 2 | Executive' },
+              { slug: 'sala-c', key: 'SALA_C' as const, title: 'Consultório 3 | Essential — Espaço intimista', name: 'Consultório 3 | Essential' },
             ].map((roomData) => {
               const roomPrices = PRICES_V3[roomData.key].prices;
               const baseHourlyPrice = roomPrices.HOURLY_RATE;
@@ -375,26 +392,21 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                       </table>
                     </div>
                     
-                    {/* Aviso sobre Turnos Fixos */}
-                    <div className="border-t border-warm-200 bg-amber-50/50 p-4">
-                      <div className="flex items-start gap-3">
-                        <span className="text-amber-600 text-lg">💬</span>
-                        <div>
-                          <h4 className="text-sm font-semibold text-amber-800 mb-1">
-                            Turnos fixos
-                          </h4>
-                          <p className="text-xs text-amber-700 mb-2">
-                            Para contratar turnos fixos, entre em contato conosco pelo WhatsApp.
-                          </p>
-                          <a
-                            href={`https://wa.me/5531991153634?text=${encodeURIComponent(`Olá! Tenho interesse em turnos fixos no ${roomData.name}. Podemos conversar sobre dia da semana e horário disponíveis?`)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-800 hover:text-amber-900 underline"
-                          >
-                            Falar no WhatsApp →
-                          </a>
-                        </div>
+                    {/* CTA WhatsApp para cada sala */}
+                    <div className="border-t border-warm-200 bg-accent-50/50 p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <p className="text-sm text-secondary-700">
+                          Quer reservar? Fale conosco no WhatsApp!
+                        </p>
+                        <button
+                          onClick={() => handleReservar(roomData.name)}
+                          className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center gap-2 text-sm"
+                        >
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                          </svg>
+                          WhatsApp
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -422,36 +434,21 @@ export default function SalasPage({ rooms }: SalasPageProps) {
           </section>
         </main>
 
-        {/* Botão CTA Flutuante - Mobile */}
+        {/* Botão CTA Flutuante - Mobile (abre WhatsApp geral) */}
         <div className="fixed bottom-0 left-0 right-0 z-40 p-4 bg-white/95 backdrop-blur-sm border-t border-warm-200 md:hidden pb-safe">
           <button
-            onClick={() => {
-              // Scroll para os cards de consultórios
-              const cardsSection = document.querySelector('[data-cards-section]');
-              if (cardsSection) {
-                cardsSection.scrollIntoView({ behavior: 'smooth' });
-              }
-            }}
-            className="w-full bg-gradient-to-r from-accent-600 to-accent-700 text-white py-4 rounded-xl font-semibold text-lg hover:shadow-lg hover:shadow-accent-500/30 transition-all active:scale-[0.98]"
+            onClick={() => handleReservar('Espaço Arthemi')}
+            className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 rounded-xl font-semibold text-lg hover:shadow-lg hover:shadow-green-500/30 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
           >
-            Ver preços e reservar
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+            </svg>
+            Reservar pelo WhatsApp
           </button>
         </div>
       </Layout>
 
-      {/* Modal de Reserva */}
-      {isModalOpen && selectedRoom && (
-        <BookingModal
-          room={selectedRoom}
-          products={getAllProductsForRoom(
-            selectedRoom.slug === 'sala-a' ? 'SALA_A' :
-            selectedRoom.slug === 'sala-b' ? 'SALA_B' : 'SALA_C'
-          )}
-          onClose={handleCloseModal}
-        />
-      )}
-
-      {/* Modal de Galeria */}
+      {/* Modal de Galeria - ao clicar em Reservar abre WhatsApp */}
       {galleryRoom && (
         <RoomGalleryModal
           isOpen={!!galleryRoom}
@@ -464,42 +461,11 @@ export default function SalasPage({ rooms }: SalasPageProps) {
   );
 }
 
-export const getServerSideProps: GetServerSideProps<SalasPageProps> = async (context) => {
-  const requestId = `ssr-salas-${Date.now()}`;
-  
-  // ============================================================
-  // BLOQUEIO DE ACESSO: Apenas com token secreto na URL
-  // ============================================================
-  const accessKey = process.env.SALAS_ACCESS_KEY;
-  const queryKey = context.query.key as string | undefined;
-  
-  // Em produção, se não tiver SALAS_ACCESS_KEY configurada, bloqueia sempre
-  if (process.env.NODE_ENV === 'production' && !accessKey) {
-    console.warn(`[${requestId}] ⚠️ SALAS_ACCESS_KEY não configurada em produção - bloqueando acesso`);
-    return {
-      redirect: {
-        destination: '/lp',
-        permanent: false,
-      },
-    };
-  }
-  
-  // Se não passou token ou token não bate, redireciona
-  if (!queryKey || queryKey !== accessKey) {
-    console.log(`[${requestId}] 🚫 Acesso a /salas bloqueado - token inválido ou ausente`);
-    return {
-      redirect: {
-        destination: '/lp',
-        permanent: false,
-      },
-    };
-  }
-  
-  console.log(`[${requestId}] ✅ Acesso a /salas autorizado com token`);
-  // ============================================================
+export const getServerSideProps: GetServerSideProps<LPPageProps> = async (context) => {
+  const requestId = `ssr-lp-${Date.now()}`;
   
   try {
-    console.log(`[${requestId}] SSR /salas iniciado`);
+    console.log(`[${requestId}] SSR /lp iniciado`);
     
     const rooms = await prisma.room.findMany({
       where: { isActive: true },
@@ -529,26 +495,18 @@ export const getServerSideProps: GetServerSideProps<SalasPageProps> = async (con
       },
     });
 
-    // Log estruturado para debug
     console.log(`[${requestId}] roomsCount: ${rooms.length}`);
-    if (rooms.length > 0) {
-      console.log(`[${requestId}] firstRoom: ${JSON.stringify({ id: rooms[0].id, slug: rooms[0].slug, name: rooms[0].name })}`);
-    } else {
-      console.warn(`[${requestId}] ALERTA: Nenhuma room ativa encontrada!`);
-    }
 
     return {
       props: {
         rooms: rooms.map(room => ({
           ...room,
-          // Garante que hourlyRate tenha valor (fallback para pricePerHour se não existir)
           hourlyRate: room.hourlyRate || 0,
         })),
       },
     };
   } catch (error) {
-    console.error(`[${requestId}] ERRO no SSR /salas:`, error);
-    // Retorna array vazio para não quebrar a página
+    console.error(`[${requestId}] ERRO no SSR /lp:`, error);
     return {
       props: {
         rooms: [],

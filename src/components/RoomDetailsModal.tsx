@@ -264,7 +264,7 @@ export default function RoomDetailsModal({ isOpen, onClose, onReservar, room }: 
               {/* CTA Buttons */}
               <div className="flex gap-3">
                 <Link
-                  href="/lp-whatsapp.html"
+                  href="/lp"
                   onClick={onClose}
                   className="flex-1 border-2 border-accent-600 text-accent-600 text-center py-3 px-4 rounded-xl font-semibold hover:bg-accent-50 transition-all active:scale-[0.98]"
                 >

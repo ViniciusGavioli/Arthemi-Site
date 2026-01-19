@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Espaço Arthemi | Plataforma Digital Completa</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      --gold: #C9A962;
+      --gold-light: #E8D5A3;
+      --dark: #0D1117;
+      --dark-2: #161B22;
+      --dark-3: #21262D;
+      --white: #FFFFFF;
+      --gray: #8B949E;
+      --green: #3FB950;
+      --orange: #F0883E;
+      --blue: #58A6FF;
+    }
+    
+    html { scroll-behavior: smooth; }
+    
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--dark);
+      color: var(--white);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+    
+    /* ========== HERO ÉPICO ========== */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 60px 24px;
+      position: relative;
+      background: 
+        radial-gradient(ellipse at 50% 0%, rgba(201, 169, 98, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(201, 169, 98, 0.08) 0%, transparent 40%),
+        var(--dark);
+    }
+    
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23C9A962' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      opacity: 0.5;
+    }
+    
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+    }
+    
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(201, 169, 98, 0.1);
+      border: 1px solid rgba(201, 169, 98, 0.3);
+      padding: 8px 20px;
+      border-radius: 100px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--gold);
+      margin-bottom: 32px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .hero-badge::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
+    }
+    
+    .hero h1 {
+      font-size: clamp(2.5rem, 8vw, 5rem);
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 24px;
+      background: linear-gradient(135deg, var(--white) 0%, var(--gold-light) 50%, var(--gold) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .hero p {
+      font-size: 1.25rem;
+      color: var(--gray);
+      max-width: 600px;
+      margin: 0 auto 48px;
+      font-weight: 400;
+    }
+    
+    .hero-stats {
+      display: flex;
+      justify-content: center;
+      gap: 48px;
+      flex-wrap: wrap;
+    }
+    
+    .hero-stat {
+      text-align: center;
+    }
+    
+    .hero-stat .value {
+      font-size: 3rem;
+      font-weight: 800;
+      color: var(--gold);
+      display: block;
+      line-height: 1;
+    }
+    
+    .hero-stat .label {
+      font-size: 0.85rem;
+      color: var(--gray);
+      margin-top: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    /* ========== SEÇÕES ========== */
+    section {
+      padding: 120px 24px;
+      position: relative;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .section-header {
+      text-align: center;
+      margin-bottom: 80px;
+    }
+    
+    .section-tag {
+      display: inline-block;
+      background: rgba(201, 169, 98, 0.1);
+      border: 1px solid rgba(201, 169, 98, 0.2);
+      padding: 6px 16px;
+      border-radius: 100px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--gold);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 20px;
+    }
+    
+    .section-title {
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    
+    .section-desc {
+      font-size: 1.1rem;
+      color: var(--gray);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    
+    /* ========== FEATURES GRID ========== */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 24px;
+    }
+    
+    .feature-card {
+      background: var(--dark-2);
+      border: 1px solid var(--dark-3);
+      border-radius: 16px;
+      padding: 32px;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .feature-card:hover {
+      border-color: rgba(201, 169, 98, 0.3);
+      transform: translateY(-4px);
+    }
+    
+    .feature-card:hover::before {
+      opacity: 1;
+    }
+    
+    .feature-icon {
+      width: 56px;
+      height: 56px;
+      background: rgba(201, 169, 98, 0.1);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      margin-bottom: 20px;
+    }
+    
+    .feature-card h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    
+    .feature-card p {
+      color: var(--gray);
+      font-size: 0.95rem;
+      line-height: 1.7;
+    }
+    
+    .feature-tech {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--dark-3);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--blue);
+      margin-top: 16px;
+    }
+    
+    /* ========== DIFERENCIAL ========== */
+    .diff-section {
+      background: linear-gradient(180deg, var(--dark) 0%, var(--dark-2) 100%);
+    }
+    
+    .diff-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 32px;
+    }
+    
+    .diff-item {
+      display: flex;
+      gap: 16px;
+    }
+    
+    .diff-check {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      background: rgba(63, 185, 80, 0.15);
+      border: 1px solid rgba(63, 185, 80, 0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--green);
+      font-size: 0.9rem;
+    }
+    
+    .diff-item h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    .diff-item p {
+      font-size: 0.9rem;
+      color: var(--gray);
+    }
+    
+    /* ========== TECH STACK ========== */
+    .tech-section {
+      background: var(--dark-2);
+      border-top: 1px solid var(--dark-3);
+      border-bottom: 1px solid var(--dark-3);
+    }
+    
+    .tech-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 16px;
+    }
+    
+    .tech-badge {
+      background: var(--dark);
+      border: 1px solid var(--dark-3);
+      padding: 12px 24px;
+      border-radius: 100px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    
+    .tech-badge:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+    
+    /* ========== PENDÊNCIAS ========== */
+    .pending-section {
+      background: var(--dark);
+    }
+    
+    .pending-grid {
+      display: grid;
+      gap: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .pending-card {
+      background: var(--dark-2);
+      border: 1px solid var(--dark-3);
+      border-left: 3px solid var(--orange);
+      border-radius: 12px;
+      padding: 28px 32px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 20px;
+      align-items: center;
+    }
+    
+    .pending-card h4 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .pending-card h4::before {
+      content: '⚡';
+    }
+    
+    .pending-card p {
+      color: var(--gray);
+      font-size: 0.9rem;
+    }
+    
+    .pending-status {
+      background: rgba(240, 136, 62, 0.1);
+      border: 1px solid rgba(240, 136, 62, 0.3);
+      color: var(--orange);
+      padding: 8px 16px;
+      border-radius: 100px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    
+    .pending-estimate {
+      background: rgba(63, 185, 80, 0.1);
+      border: 1px solid rgba(63, 185, 80, 0.3);
+      border-radius: 12px;
+      padding: 24px 32px;
+      margin-top: 40px;
+      text-align: center;
+    }
+    
+    .pending-estimate h4 {
+      color: var(--green);
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+    }
+    
+    .pending-estimate p {
+      color: var(--gray);
+    }
+    
+    .pending-estimate strong {
+      color: var(--white);
+    }
+    
+    /* ========== CTA FINAL ========== */
+    .cta-section {
+      text-align: center;
+      padding: 160px 24px;
+      background: 
+        radial-gradient(ellipse at 50% 100%, rgba(201, 169, 98, 0.15) 0%, transparent 50%),
+        var(--dark);
+    }
+    
+    .cta-section h2 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 800;
+      margin-bottom: 24px;
+      background: linear-gradient(135deg, var(--white) 0%, var(--gold) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .cta-section p {
+      font-size: 1.2rem;
+      color: var(--gray);
+      max-width: 600px;
+      margin: 0 auto 48px;
+    }
+    
+    .cta-checks {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 32px;
+      margin-top: 60px;
+    }
+    
+    .cta-check {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 500;
+    }
+    
+    .cta-check::before {
+      content: '✓';
+      width: 24px;
+      height: 24px;
+      background: var(--green);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      color: var(--dark);
+      font-weight: 700;
+    }
+    
+    /* ========== FOOTER ========== */
+    footer {
+      background: var(--dark-2);
+      border-top: 1px solid var(--dark-3);
+      padding: 40px 24px;
+      text-align: center;
+    }
+    
+    footer .brand {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+    
+    footer p {
+      color: var(--gray);
+      font-size: 0.9rem;
+    }
+    
+    /* ========== RESPONSIVO ========== */
+    @media (max-width: 768px) {
+      .hero-stats { gap: 32px; }
+      .hero-stat .value { font-size: 2.2rem; }
+      .features-grid { grid-template-columns: 1fr; }
+      .pending-card { grid-template-columns: 1fr; }
+      section { padding: 80px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========== HERO ========== -->
+  <section class="hero">
+    <div class="hero-content">
+      <div class="hero-badge">
+        Sistema em Produção
+      </div>
+      <h1>Espaço Arthemi</h1>
+      <p>
+        Plataforma completa de reservas e pagamentos online. 
+        Desenvolvida do zero com tecnologia de ponta.
+      </p>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <span class="value">15K+</span>
+          <span class="label">Linhas de Código</span>
+        </div>
+        <div class="hero-stat">
+          <span class="value">60+</span>
+          <span class="label">Testes Automatizados</span>
+        </div>
+        <div class="hero-stat">
+          <span class="value">100%</span>
+          <span class="label">Responsivo</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== FUNCIONALIDADES ========== -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <div class="section-tag">Funcionalidades</div>
+        <h2 class="section-title">Tudo que foi construído</h2>
+        <p class="section-desc">
+          Cada módulo desenvolvido com atenção aos detalhes e foco em conversão.
+        </p>
+      </div>
+      
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">📅</div>
+          <h3>Agendamento Inteligente</h3>
+          <p>Calendário interativo com disponibilidade em tempo real. Bloqueio automático de conflitos, horário comercial configurável, turnos diferenciados.</p>
+          <span class="feature-tech">React + Prisma</span>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">💳</div>
+          <h3>Pagamentos PIX + Cartão</h3>
+          <p>PIX com QR Code dinâmico e código copia-cola. Cartão de crédito via checkout seguro do Asaas. Confirmação automática por webhook.</p>
+          <span class="feature-tech">Asaas API</span>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">🎟️</div>
+          <h3>Créditos Pré-Pagos</h3>
+          <p>Pacotes de 10h, 20h e 40h com descontos progressivos. Saldo por consultório. Uso automático no checkout com prioridade.</p>
+          <span class="feature-tech">Sistema Custom</span>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">👤</div>
+          <h3>Área do Cliente</h3>
+          <p>Login seguro com verificação de email. Dashboard com reservas, créditos, histórico. Edição de perfil e dados de pagamento.</p>
+          <span class="feature-tech">JWT + Auth</span>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">📧</div>
+          <h3>Emails Transacionais</h3>
+          <p>Templates profissionais para confirmação, verificação, lembretes. Disparos automáticos em cada etapa do fluxo.</p>
+          <span class="feature-tech">Resend</span>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <h3>Analytics Completo</h3>
+          <p>Meta Pixel integrado (Facebook/Instagram). Tracking de conversões, eventos customizados, UTMs capturados.</p>
+          <span class="feature-tech">Meta CAPI</span>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">🚀</div>
+          <h3>Landing Page Tráfego</h3>
+          <p>Página otimizada para conversão via WhatsApp. Captura de UTMs, mensagem pré-preenchida, mobile-first.</p>
+          <span class="feature-tech">HTML Puro</span>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">🔒</div>
+          <h3>Segurança</h3>
+          <p>Webhooks com token validado, rate limiting, sanitização de inputs, HTTPS, proteção CSRF, logs de auditoria.</p>
+          <span class="feature-tech">Best Practices</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== DIFERENCIAIS ========== -->
+  <section class="diff-section">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-tag">Diferenciais</div>
+        <h2 class="section-title">Por que isso é diferente</h2>
+        <p class="section-desc">
+          Não é template. É sistema próprio, feito sob medida.
+        </p>
+      </div>
+      
+      <div class="diff-grid">
+        <div class="diff-item">
+          <div class="diff-check">✓</div>
+          <div>
+            <h4>Código Próprio</h4>
+            <p>Não depende de plugins, themes ou plataformas terceiras. Controle total.</p>
+          </div>
+        </div>
+        
+        <div class="diff-item">
+          <div class="diff-check">✓</div>
+          <div>
+            <h4>Pagamentos Reais</h4>
+            <p>Não é simulação. PIX e Cartão funcionando em produção com dinheiro real.</p>
+          </div>
+        </div>
+        
+        <div class="diff-item">
+          <div class="diff-check">✓</div>
+          <div>
+            <h4>Escalável</h4>
+            <p>Arquitetura serverless na Vercel. Escala automática sob demanda.</p>
+          </div>
+        </div>
+        
+        <div class="diff-item">
+          <div class="diff-check">✓</div>
+          <div>
+            <h4>Testado</h4>
+            <p>60+ testes automatizados. Cada deploy é validado antes de ir ao ar.</p>
+          </div>
+        </div>
+        
+        <div class="diff-item">
+          <div class="diff-check">✓</div>
+          <div>
+            <h4>SEO Otimizado</h4>
+            <p>Meta tags, schema.org, sitemap, performance. Pronto para Google.</p>
+          </div>
+        </div>
+        
+        <div class="diff-item">
+          <div class="diff-check">✓</div>
+          <div>
+            <h4>Tráfego Pago Ready</h4>
+            <p>Pixel instalado, eventos de conversão, UTMs rastreados, LP dedicada.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== TECH STACK ========== -->
+  <section class="tech-section">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-tag">Tecnologia</div>
+        <h2 class="section-title">Stack Utilizada</h2>
+      </div>
+      
+      <div class="tech-grid">
+        <span class="tech-badge">Next.js 14</span>
+        <span class="tech-badge">React 18</span>
+        <span class="tech-badge">TypeScript</span>
+        <span class="tech-badge">Tailwind CSS</span>
+        <span class="tech-badge">Prisma ORM</span>
+        <span class="tech-badge">PostgreSQL</span>
+        <span class="tech-badge">Asaas API</span>
+        <span class="tech-badge">Resend</span>
+        <span class="tech-badge">Vercel</span>
+        <span class="tech-badge">Jest</span>
+        <span class="tech-badge">Meta CAPI</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PENDÊNCIAS ========== -->
+  <section class="pending-section">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-tag">Atenção</div>
+        <h2 class="section-title">Correções Pendentes</h2>
+        <p class="section-desc">
+          Erros técnicos que precisam ser resolvidos por um programador especializado.
+        </p>
+      </div>
+      
+      <div class="pending-grid">
+        <div class="pending-card">
+          <div>
+            <h4>Cupons de Desconto</h4>
+            <p>Funcionalidade incompleta. Necessário desenvolver backend e integrar com checkout.</p>
+          </div>
+          <span class="pending-status">Requer programador</span>
+        </div>
+        
+        <div class="pending-card">
+          <div>
+            <h4>Bug: Centavos × Reais</h4>
+            <p>Erro na conversão de valores enviados ao gateway de pagamento. Valores sendo multiplicados incorretamente.</p>
+          </div>
+          <span class="pending-status">Bug crítico</span>
+        </div>
+        
+        <div class="pending-card">
+          <div>
+            <h4>Parcelamento Cartão</h4>
+            <p>Cliente não consegue escolher parcelas. Integração com API do Asaas precisa de ajuste técnico.</p>
+          </div>
+          <span class="pending-status">Requer programador</span>
+        </div>
+      </div>
+      
+      <div class="pending-estimate" style="background: rgba(240, 136, 62, 0.1); border-color: rgba(240, 136, 62, 0.3);">
+        <h4 style="color: var(--orange);">⚠️ Necessário contratar desenvolvedor</h4>
+        <p>Estes problemas são técnicos e exigem <strong>conhecimento especializado em programação</strong> para serem resolvidos.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== CTA FINAL ========== -->
+  <section class="cta-section">
+    <h2>Pronto para escalar</h2>
+    <p>
+      O Espaço Arthemi agora tem infraestrutura digital 
+      que poucos concorrentes em BH possuem.
+    </p>
+    <div class="cta-checks">
+      <div class="cta-check">Reservas Online</div>
+      <div class="cta-check">Pagamentos Reais</div>
+      <div class="cta-check">Créditos Pré-Pagos</div>
+      <div class="cta-check">Área do Cliente</div>
+      <div class="cta-check">Tráfego Pago</div>
+    </div>
+  </section>
+
+  <!-- ========== FOOTER ========== -->
+  <footer>
+    <div class="brand">Espaço Arthemi</div>
+    <p>Sistema de Reservas e Pagamentos | Janeiro 2026</p>
+  </footer>
+
+</body>
+</html>

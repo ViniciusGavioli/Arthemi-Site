@@ -19,7 +19,7 @@ interface NavLink {
 
 const navLinks: NavLink[] = [
   { href: '/como-funciona', label: 'Como funciona' },
-  { href: '/lp-whatsapp.html', label: 'Consultórios e Investimento' },
+  { href: '/lp', label: 'Consultórios e Investimento' },
   { href: '/faq', label: 'Perguntas Frequentes' },
 ];
 
@@ -94,7 +94,7 @@ export default function Header({ variant = 'sticky' }: HeaderProps) {
               Entrar
             </Link>
             <Link 
-              href="/lp-whatsapp.html" 
+              href="/lp" 
               className="bg-gradient-to-r from-accent-600 to-accent-700 text-white px-6 py-2.5 rounded-full font-semibold hover:shadow-lg hover:shadow-accent-500/30 transition-all duration-300 hover:-translate-y-0.5"
             >
               Reservar consultório
@@ -139,7 +139,7 @@ export default function Header({ variant = 'sticky' }: HeaderProps) {
                 Entrar / Minha Conta
               </Link>
               <Link 
-                href="/lp-whatsapp.html" 
+                href="/lp" 
                 className="bg-accent-600 text-white px-6 py-3 rounded-full font-semibold text-center"
                 onClick={() => setMobileMenuOpen(false)}
               >

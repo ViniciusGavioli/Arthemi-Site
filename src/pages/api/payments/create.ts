@@ -181,7 +181,7 @@ export default async function handler(
       customerEmail: booking.user.email,
       customerPhone: booking.user.phone || '',
       customerCpf: booking.user.cpf || '',
-      value: totalAmount, // Em centavos
+      valueCents: totalAmount, // CENTAVOS (inteiro)
       description: `Reserva Espaço Arthemi - ${description}`,
     };
 

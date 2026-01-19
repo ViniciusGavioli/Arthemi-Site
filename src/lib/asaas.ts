@@ -4,6 +4,7 @@
 // Integração profissional com Asaas para PIX, Boleto e Cartão
 
 import { env } from './env';
+import { assertCents, assertPaymentCents, centsToReais } from './money';
 
 import { timingSafeEqual } from 'crypto';
 import rateLimiter from './asaas-limiter';
@@ -79,7 +80,7 @@ export type BillingType = 'PIX' | 'BOLETO' | 'CREDIT_CARD' | 'UNDEFINED';
 
 export interface CreatePaymentInput {
   customerId: string;
-  value: number; // Em reais (ex: 70.00)
+  valueReais: number; // EM REAIS (convertido de centavos antes de chamar)
   dueDate: string; // YYYY-MM-DD
   description: string;
   externalReference: string; // bookingId
@@ -490,26 +491,29 @@ export async function findOrCreateCustomer(
 
 /**
  * Cria uma cobrança no Asaas
+ * NOTA: valueReais já deve estar em REAIS (convertido pelo caller)
  */
 export async function createPayment(
   input: CreatePaymentInput
 ): Promise<AsaasPayment> {
+  // Log do valor para debug
+  console.log(`📤 [Asaas] createPayment: valueReais=${input.valueReais} (R$)`);
+  
   if (isMockMode()) {
-    console.log('🎭 [MOCK] Criando cobrança:', input);
+    console.log('🎭 [MOCK] Criando cobrança:', { ...input, valueReais: input.valueReais });
     const mockId = `pay_mock_${Date.now()}`;
-    // Valor em reais para exibição (input.value já está em reais aqui)
-    const amountInCents = Math.round(input.value * 100);
+    // Converter para centavos para URL do mock
+    const amountInCents = Math.round(input.valueReais * 100);
     return {
       id: mockId,
       dateCreated: new Date().toISOString(),
       customer: input.customerId,
-      value: input.value,
-      netValue: input.value * 0.97, // ~3% taxa
+      value: input.valueReais,
+      netValue: input.valueReais * 0.97, // ~3% taxa
       description: input.description,
       billingType: input.billingType,
       status: 'PENDING',
       dueDate: input.dueDate,
-      // CORREÇÃO: Incluir amount na URL do mock para exibição correta
       invoiceUrl: `${process.env.NEXT_PUBLIC_APP_URL}/mock-payment?id=${mockId}&booking=${input.externalReference}&amount=${amountInCents}`,
       externalReference: input.externalReference,
     };
@@ -518,7 +522,7 @@ export async function createPayment(
   const paymentPayload: Record<string, unknown> = {
     customer: input.customerId,
     billingType: input.billingType,
-    value: input.value,
+    value: input.valueReais, // EM REAIS para o Asaas
     dueDate: input.dueDate,
     description: input.description,
     externalReference: input.externalReference,
@@ -533,8 +537,15 @@ export async function createPayment(
   ) {
     paymentPayload.installmentCount = input.installmentCount;
     // Calcular valor da parcela (arredondado para 2 casas decimais)
-    paymentPayload.installmentValue = Math.round((input.value / input.installmentCount) * 100) / 100;
+    paymentPayload.installmentValue = Math.round((input.valueReais / input.installmentCount) * 100) / 100;
   }
+  
+  // Log do payload antes de enviar (sem dados sensíveis)
+  console.log('📦 [Asaas] Payment payload:', JSON.stringify({
+    billingType: paymentPayload.billingType,
+    value: paymentPayload.value,
+    externalReference: paymentPayload.externalReference,
+  }));
 
   const payment = await asaasRequest<AsaasPayment>('/payments', {
     method: 'POST',
@@ -768,31 +779,28 @@ export function isPaymentStatusConfirmed(status: AsaasPaymentStatus): boolean {
 }
 
   // ============================================================
-  // HELPERS DE CONVERSÃO DE MOEDA
+  // HELPERS DE CONVERSÃO DE MOEDA (deprecated - use money.ts)
   // ============================================================
 
   /**
-   * Converte reais para centavos
-   * @example realToCents(70.00) → 7000
+   * @deprecated Use toCents() de money.ts
    */
   export function realToCents(reais: number): number {
     return Math.round(reais * 100);
   }
 
   /**
-   * Converte centavos para reais
-   * @example centsToReal(7000) → 70.00
+   * @deprecated Use centsToReais() de money.ts
    */
   export function centsToReal(cents: number): number {
     return cents / 100;
   }
 
   /**
-   * Formata valor para exibição
-   * @example formatCurrency(7000) → "R$ 70,00"
+   * @deprecated Use formatBRL() de money.ts
    */
   export function formatCurrency(cents: number): string {
-    const reais = centsToReal(cents);
+    const reais = centsToReais(cents);
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
@@ -800,47 +808,31 @@ export function isPaymentStatusConfirmed(status: AsaasPaymentStatus): boolean {
   }
 
   /**
-   * Converte centavos para reais COM GUARDRAILS de segurança
-   * - Valida que o input parece estar em centavos (não reais)
-   * - Bloqueia valores absurdos que indicam erro de conversão
-   * - Valor máximo aceito: R$ 50.000 (5.000.000 centavos)
+   * Converte centavos para reais COM VALIDAÇÃO RIGOROSA.
+   * Usa assertPaymentCents para garantir que é inteiro válido.
    * 
-   * @example formatAsaasValue(7000) → 70.00 (válido)
-   * @example formatAsaasValue(199.96) → ERRO (parece ser reais, não centavos)
-   * @example formatAsaasValue(6000000) → ERRO (acima do limite de R$ 50k)
+   * @param valueCents Valor em CENTAVOS (inteiro)
+   * @param ctx Contexto para log/erro
+   * @returns Valor em REAIS para o Asaas
+   * @throws Error se valueCents não for inteiro ou estiver fora dos limites
+   */
+  export function convertCentsToAsaasValue(valueCents: number, ctx: string): number {
+    // Validação rigorosa: deve ser inteiro, >= 500 (R$5), <= 5_000_000 (R$50k)
+    assertPaymentCents(valueCents, ctx);
+    
+    const valueReais = centsToReais(valueCents);
+    
+    // Log para debug (sem dados sensíveis)
+    console.log(`💰 [Asaas] ${ctx}: ${valueCents} centavos → R$ ${valueReais.toFixed(2)}`);
+    
+    return valueReais;
+  }
+
+  /**
+   * @deprecated Use convertCentsToAsaasValue()
    */
   export function formatAsaasValue(inputCents: number, context?: string): number {
-    const ctx = context || 'valor';
-    
-    // Sanity check 1: Deve ser número inteiro (centavos não têm decimais)
-    if (!Number.isInteger(inputCents)) {
-      console.error(`⚠️ [Asaas] ALERTA: ${ctx} tem decimais (${inputCents}) - provavelmente já está em reais!`);
-      // Se parece ser reais (valor < 1000 com decimais), converta assumindo que é reais
-      if (inputCents < 1000) {
-        console.error(`⚠️ [Asaas] Assumindo que ${inputCents} já está em REAIS - retornando como está`);
-        return Number(inputCents.toFixed(2));
-      }
-    }
-    
-    // Sanity check 2: Valor mínimo do Asaas é R$ 5,00 (500 centavos)
-    if (inputCents < 500) {
-      console.warn(`⚠️ [Asaas] ALERTA: ${ctx} muito baixo (${inputCents} centavos = R$ ${inputCents/100})`);
-      // Isso pode ser intencional (desconto total), não bloquear
-    }
-    
-    // Sanity check 3: Limite máximo razoável de R$ 50.000 (5.000.000 centavos)
-    const MAX_CENTAVOS = 5_000_000; // R$ 50.000
-    if (inputCents > MAX_CENTAVOS) {
-      console.error(`🚨 [Asaas] BLOQUEADO: ${ctx} excede limite (${inputCents} centavos = R$ ${inputCents/100})`);
-      console.error(`🚨 [Asaas] Isso provavelmente indica que o valor foi passado em REAIS, não centavos`);
-      throw new Error(`Valor inválido: ${inputCents} centavos (R$ ${(inputCents/100).toFixed(2)}) excede o limite máximo permitido`);
-    }
-    
-    const valueInReais = inputCents / 100;
-    
-    console.log(`💰 [Asaas] ${ctx}: ${inputCents} centavos → R$ ${valueInReais.toFixed(2)}`);
-    
-    return valueInReais;
+    return convertCentsToAsaasValue(inputCents, context || 'valor');
   }
 
 // ============================================================
@@ -865,7 +857,7 @@ export interface CreateBookingPaymentInput {
   customerEmail: string;
   customerPhone: string;
   customerCpf: string; // CPF obrigatório para Asaas
-  value: number; // Em centavos
+  valueCents: number; // EM CENTAVOS (inteiro)
   description: string;
   dueDate?: string;
 }
@@ -880,16 +872,21 @@ export interface BookingPaymentResult {
 /**
  * Cria cobrança PIX para uma reserva
  * Função de alto nível que abstrai cliente + cobrança + QR Code
+ * 
+ * @param input.valueCents Valor em CENTAVOS (inteiro)
  */
 export async function createBookingPayment(
   input: CreateBookingPaymentInput
 ): Promise<BookingPaymentResult> {
+  // VALIDAÇÃO: valueCents deve ser inteiro dentro dos limites
+  const valueReais = convertCentsToAsaasValue(input.valueCents, `PIX booking:${input.bookingId}`);
+  
   // 1. Criar/buscar cliente
   const customer = await findOrCreateCustomer({
     name: input.customerName,
     email: input.customerEmail,
     phone: input.customerPhone,
-    cpfCnpj: input.customerCpf, // CPF obrigatório para Asaas
+    cpfCnpj: input.customerCpf,
   });
 
   // 2. Calcular data de vencimento (hoje + 1 dia se não especificado)
@@ -899,7 +896,7 @@ export async function createBookingPayment(
   // 3. Criar cobrança PIX
   const payment = await createPayment({
     customerId: customer.id,
-    value: centsToReal(input.value), // Converter centavos para reais
+    valueReais, // JÁ convertido de centavos
     dueDate,
     description: input.description,
     externalReference: buildExternalReference(input.bookingId),
@@ -927,7 +924,7 @@ export interface CreateBookingCardPaymentInput {
   customerEmail: string;
   customerPhone: string;
   customerCpf: string;
-  value: number; // Em centavos
+  valueCents: number; // EM CENTAVOS (inteiro)
   description: string;
   dueDate?: string;
   installmentCount?: number; // 1 = à vista, 2-12 = parcelado
@@ -949,11 +946,15 @@ export interface CardPaymentResult {
  * Suporta parcelamento: installmentCount >= 2
  * Valor mínimo por parcela: R$ 5,00 (validado pelo Asaas)
  * 
+ * @param input.valueCents Valor em CENTAVOS (inteiro)
  * @env ASAAS_CARD_BILLING_MODE - Se 'UNDEFINED', aceita débito e crédito (Asaas decide)
  */
 export async function createBookingCardPayment(
   input: CreateBookingCardPaymentInput
 ): Promise<CardPaymentResult> {
+  // VALIDAÇÃO: valueCents deve ser inteiro dentro dos limites
+  const valueReais = convertCentsToAsaasValue(input.valueCents, `CARD booking:${input.bookingId}`);
+  
   // 1. Criar/buscar cliente
   const customer = await findOrCreateCustomer({
     name: input.customerName,
@@ -965,33 +966,30 @@ export async function createBookingCardPayment(
   // 2. Calcular data de vencimento (hoje + 3 dias para cartão)
   const dueDate = input.dueDate || 
     new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-  // 3. Converter valor
-  const valueInReais = centsToReal(input.value);
   
-  // 4. Billing type SEMPRE CREDIT_CARD para checkout hospedado
+  // 3. Billing type SEMPRE CREDIT_CARD para checkout hospedado
   // NOTA: UNDEFINED não funciona com /payments - causa erro 400
   // Para aceitar débito, use checkout transparente com tokenização
   const billingType: BillingType = 'CREDIT_CARD';
   
-  // 5. Configurar parcelamento (>= 2 parcelas)
+  // 4. Configurar parcelamento (>= 2 parcelas)
   const installmentCount = 
     input.installmentCount && input.installmentCount >= 2 
       ? input.installmentCount 
       : undefined;
 
-  // 6. Validar valor mínimo por parcela (R$ 5,00)
+  // 5. Validar valor mínimo por parcela (R$ 5,00)
   if (installmentCount) {
-    const estimatedInstallmentValue = valueInReais / installmentCount;
+    const estimatedInstallmentValue = valueReais / installmentCount;
     if (estimatedInstallmentValue < 5) {
       throw new Error(`Valor mínimo por parcela é R$ 5,00. Atual: R$ ${estimatedInstallmentValue.toFixed(2)}`);
     }
   }
 
-  // 7. Criar cobrança (installmentValue calculado automaticamente pelo Asaas)
+  // 6. Criar cobrança (installmentValue calculado automaticamente pelo Asaas)
   const payment = await createPayment({
     customerId: customer.id,
-    value: valueInReais,
+    valueReais, // JÁ convertido de centavos
     dueDate,
     description: input.description,
     externalReference: buildExternalReference(input.bookingId),
@@ -1011,7 +1009,7 @@ export async function createBookingCardPayment(
     invoiceUrl: payment.invoiceUrl,
     status: payment.status,
     installmentCount: installmentCount || 1,
-    installmentValue: installmentCount ? valueInReais / installmentCount : valueInReais,
+    installmentValue: installmentCount ? valueReais / installmentCount : valueReais,
   };
 }
 
@@ -1029,7 +1027,7 @@ export interface CreateAsaasCheckoutInput {
   customerEmail: string;
   customerPhone: string;
   customerCpf: string;
-  value: number; // Em centavos
+  valueCents: number; // EM CENTAVOS (inteiro)
   itemName: string; // Max 30 caracteres
   itemDescription: string;
   minutesToExpire?: number; // Default: 60
@@ -1134,8 +1132,8 @@ export async function createAsaasCheckoutForBooking(
   // ============================================================
   const baseUrl = getAppBaseUrl();
   
-  // Usar formatAsaasValue com guardrails em vez de centsToReal
-  const valueInReais = formatAsaasValue(input.value, `checkout booking:${input.bookingId}`);
+  // VALIDAÇÃO + CONVERSÃO: valueCents deve ser inteiro dentro dos limites
+  const valueReais = convertCentsToAsaasValue(input.valueCents, `checkout booking:${input.bookingId}`);
   
   // DEBUG: Log das variáveis de ambiente para diagnóstico
   console.log('🌐 [Asaas] Variáveis de URL:', {
@@ -1180,7 +1178,7 @@ export async function createAsaasCheckoutForBooking(
   if (isMockMode()) {
     console.log('🎭 [MOCK] Criando checkout:', input);
     const mockCheckoutId = `chk_mock_${Date.now()}`;
-    const mockUrl = `${baseUrl}/mock-payment?checkoutId=${mockCheckoutId}&booking=${input.bookingId}&amount=${input.value}&type=checkout`;
+    const mockUrl = `${baseUrl}/mock-payment?checkoutId=${mockCheckoutId}&booking=${input.bookingId}&amount=${input.valueCents}&type=checkout`;
     return {
       checkoutId: mockCheckoutId,
       checkoutUrl: mockUrl,
@@ -1216,7 +1214,7 @@ export async function createAsaasCheckoutForBooking(
         name: itemName,
         description: input.itemDescription,
         quantity: 1,
-        value: valueInReais, // Em REAIS (não centavos)
+        value: valueReais, // Em REAIS (já convertido de centavos)
         imageBase64: ASAAS_CHECKOUT_ITEM_IMAGE_BASE64,
       },
     ],
@@ -1241,7 +1239,8 @@ export async function createAsaasCheckoutForBooking(
   // DEBUG: Log do payload COMPLETO antes de enviar (para diagnóstico)
   console.log('🛒 [Asaas] Criando checkout:', {
     bookingId: input.bookingId,
-    value: valueInReais,
+    valueCents: input.valueCents,
+    valueReais,
     maxInstallments: input.maxInstallmentCount || 12,
   });
   console.log('📦 [Asaas] Payload completo do checkout:', JSON.stringify({

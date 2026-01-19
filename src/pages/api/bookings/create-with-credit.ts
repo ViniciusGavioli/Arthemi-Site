@@ -440,7 +440,7 @@ export default async function handler(
           customerEmail: user.email,
           customerPhone: user.phone || '',
           customerCpf: user.cpf!,
-          value: result.amountToPay,
+          valueCents: result.amountToPay, // CENTAVOS (inteiro)
           description: `Reserva ${room.name} - ${hours}h (R$ ${(result.totalConsumed / 100).toFixed(2)} em créditos)`,
         });
 

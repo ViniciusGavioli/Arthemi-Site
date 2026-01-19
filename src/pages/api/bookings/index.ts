@@ -669,14 +669,14 @@ export default async function handler(
           });
         }
 
-        // createBookingPayment espera value em CENTAVOS
+        // createBookingPayment espera valueCents em CENTAVOS (inteiro)
         const basePaymentInput = {
           bookingId: result.booking.id,
           customerName: data.userName,
           customerEmail: data.userEmail || `${data.userPhone}@placeholder.com`,
           customerPhone: data.userPhone,
           customerCpf: data.userCpf,
-          value: result.amountToPayCents, // CENTAVOS
+          valueCents: result.amountToPayCents, // CENTAVOS (inteiro)
           description: `Reserva ${room.name} - ${result.hours}h${result.creditsUsedCents > 0 ? ` (R$ ${(result.creditsUsedCents/100).toFixed(2)} em créditos)` : ''}`,
         };
 
@@ -693,7 +693,7 @@ export default async function handler(
                 customerEmail: data.userEmail || `${data.userPhone}@placeholder.com`,
                 customerPhone: data.userPhone,
                 customerCpf: data.userCpf,
-                value: result.amountToPayCents,
+                valueCents: result.amountToPayCents, // CENTAVOS (inteiro)
                 itemName: `Reserva ${room.name}`.substring(0, 30),
                 itemDescription: `${result.hours}h - ${new Date(data.startAt).toLocaleDateString('pt-BR')}`,
                 // Endereço do CLIENTE (obrigatório em produção)

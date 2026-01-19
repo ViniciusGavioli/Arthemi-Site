@@ -507,7 +507,7 @@ export default async function handler(
       customerPhone: data.userPhone,
       customerCpf: data.userCpf,
       customerEmail: data.userEmail || `${data.userPhone}@temp.arthemi.com.br`,
-      value: amount, // Em centavos
+      valueCents: amount, // CENTAVOS (inteiro)
       description: `${productName} - ${room.name}`,
     };
 

@@ -61,7 +61,7 @@ export function PaymentMethodSelector({
           <span className={`font-medium ${selected === 'CARD' ? 'text-primary-700' : 'text-gray-700'}`}>
             Cartão
           </span>
-          <span className="text-xs text-gray-500 mt-1">Crédito ou Débito</span>
+          <span className="text-xs text-gray-500 mt-1">Pagamento seguro</span>
         </button>
       </div>
 
@@ -71,11 +71,17 @@ export function PaymentMethodSelector({
           <Shield className="w-4 h-4 mt-0.5 flex-shrink-0" />
           <span>
             {selected === 'CARD' 
-              ? 'Você será direcionado ao checkout seguro Asaas, onde poderá escolher pagar à vista ou parcelar em até 12x.'
+              ? 'Você será direcionado para o ambiente seguro do Asaas para finalizar o pagamento. O valor é confirmado antes de concluir.'
               : 'Você será direcionado para um ambiente seguro para finalizar o pagamento.'}
           </span>
         </p>
       </div>
+      {/* Nota sobre parcelamento - apenas informativo */}
+      {selected === 'CARD' && (
+        <p className="text-xs text-gray-500 text-center mt-2">
+          Parcelamento: disponível apenas quando habilitado para esta cobrança.
+        </p>
+      )}
     </div>
   );
 }

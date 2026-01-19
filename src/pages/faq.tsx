@@ -153,7 +153,7 @@ export default function FAQ() {
               Veja os preços e escolha o melhor horário para você.
             </p>
             <Link
-              href="/salas"
+              href="/lp-whatsapp.html"
               className="inline-block bg-warm-100 text-accent-700 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-warm-200 transition"
             >
               Ver consultórios e investimento

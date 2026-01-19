@@ -137,7 +137,7 @@ export default function ComoFunciona() {
               Escolha seu consultório e realize sua reserva.
             </p>
             <Link
-              href="/salas"
+              href="/lp-whatsapp.html"
               className="inline-block bg-warm-100 text-accent-700 px-8 py-4 rounded-full font-semibold text-lg hover:bg-warm-200 transition"
             >
               Ver consultórios e investimento

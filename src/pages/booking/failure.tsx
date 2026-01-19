@@ -87,7 +87,7 @@ export default function BookingFailurePage() {
               </button>
             )}
             <Link
-              href="/salas"
+              href="/lp-whatsapp.html"
               className="block w-full border border-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
             >
               Fazer Nova Reserva

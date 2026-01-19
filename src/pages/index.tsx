@@ -232,7 +232,7 @@ export default function Home({ dbRooms }: HomeProps) {
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 justify-center px-4">
                 <Link
-                  href="/salas"
+                  href="/lp-whatsapp.html"
                   className="group bg-gradient-to-r from-accent-600 to-accent-700 text-white px-8 py-4 min-h-[52px] rounded-full font-bold text-lg hover:shadow-2xl hover:shadow-accent-500/30 transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                   Ver consultórios e investimento
@@ -530,7 +530,7 @@ export default function Home({ dbRooms }: HomeProps) {
             
             <div className="text-center mt-12">
               <Link
-                href="/salas"
+                href="/lp-whatsapp.html"
                 className="inline-flex items-center gap-2 bg-primary-800 text-warm-100 px-8 py-4 rounded-full font-bold text-lg hover:bg-primary-900 transition-colors"
               >
                 Ver todos os preços e pacotes
@@ -617,7 +617,7 @@ export default function Home({ dbRooms }: HomeProps) {
               </div>
             </div>
             <Link
-              href="/salas"
+              href="/lp-whatsapp.html"
               className="inline-flex items-center gap-2 bg-gradient-to-r from-accent-500 to-accent-600 text-white px-10 py-5 rounded-full font-bold text-xl hover:shadow-2xl hover:shadow-accent-500/30 transition-all duration-300 hover:-translate-y-1"
             >
               Ver consultórios e investimento

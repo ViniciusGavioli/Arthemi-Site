@@ -464,8 +464,39 @@ export default function SalasPage({ rooms }: SalasPageProps) {
   );
 }
 
-export const getServerSideProps: GetServerSideProps<SalasPageProps> = async () => {
+export const getServerSideProps: GetServerSideProps<SalasPageProps> = async (context) => {
   const requestId = `ssr-salas-${Date.now()}`;
+  
+  // ============================================================
+  // BLOQUEIO DE ACESSO: Apenas com token secreto na URL
+  // ============================================================
+  const accessKey = process.env.SALAS_ACCESS_KEY;
+  const queryKey = context.query.key as string | undefined;
+  
+  // Em produção, se não tiver SALAS_ACCESS_KEY configurada, bloqueia sempre
+  if (process.env.NODE_ENV === 'production' && !accessKey) {
+    console.warn(`[${requestId}] ⚠️ SALAS_ACCESS_KEY não configurada em produção - bloqueando acesso`);
+    return {
+      redirect: {
+        destination: '/lp-whatsapp.html',
+        permanent: false,
+      },
+    };
+  }
+  
+  // Se não passou token ou token não bate, redireciona
+  if (!queryKey || queryKey !== accessKey) {
+    console.log(`[${requestId}] 🚫 Acesso a /salas bloqueado - token inválido ou ausente`);
+    return {
+      redirect: {
+        destination: '/lp-whatsapp.html',
+        permanent: false,
+      },
+    };
+  }
+  
+  console.log(`[${requestId}] ✅ Acesso a /salas autorizado com token`);
+  // ============================================================
   
   try {
     console.log(`[${requestId}] SSR /salas iniciado`);

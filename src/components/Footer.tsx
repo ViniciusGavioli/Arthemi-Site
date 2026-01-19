@@ -51,7 +51,7 @@ export default function Footer({ compact = false }: FooterProps) {
               <h3 className="text-warm-100 font-bold text-lg mb-4">Links</h3>
               <div className="flex flex-col gap-2 text-sm">
                 <Link href="/como-funciona" className="hover:text-warm-100 transition">Como funciona</Link>
-                <Link href="/salas" className="hover:text-warm-100 transition">Consultórios e Investimento</Link>
+                <Link href="/lp-whatsapp.html" className="hover:text-warm-100 transition">Consultórios e Investimento</Link>
                 <Link href="/faq" className="hover:text-warm-100 transition">Perguntas frequentes</Link>
               </div>
             </div>
@@ -121,7 +121,7 @@ export default function Footer({ compact = false }: FooterProps) {
             <h3 className="text-warm-100 font-bold mb-4">Links</h3>
             <div className="flex flex-col gap-3">
               <Link href="/como-funciona" className="hover:text-warm-100 transition">Como funciona</Link>
-              <Link href="/salas" className="hover:text-warm-100 transition">Consultórios e Investimento</Link>
+              <Link href="/lp-whatsapp.html" className="hover:text-warm-100 transition">Consultórios e Investimento</Link>
               <Link href="/faq" className="hover:text-warm-100 transition">Perguntas frequentes</Link>
             </div>
           </div>

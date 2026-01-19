@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consultório por Hora em BH | Espaço Arthemi</title>
+  <meta name="description" content="Alugue consultórios por hora em Belo Horizonte. Estrutura completa para psicólogos, terapeutas e coaches. Sem burocracia, agende pelo WhatsApp.">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="Consultório por Hora em BH | Espaço Arthemi">
+  <meta property="og:description" content="Estrutura completa para seus atendimentos. Aluguel por hora, sem burocracia.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  
+  <!-- Favicon placeholder -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏢</text></svg>">
+  
+  <style>
+    /* Reset & Base */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    :root {
+      --primary: #075E54;
+      --primary-dark: #054C44;
+      --accent: #25D366;
+      --bg: #FAFAFA;
+      --text: #1A1A1A;
+      --text-light: #666666;
+      --white: #FFFFFF;
+      --shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    
+    html {
+      scroll-behavior: smooth;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding-bottom: 80px; /* Espaço para botão fixo */
+    }
+    
+    /* Container */
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    
+    /* Hero */
+    .hero {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: var(--white);
+      padding: 60px 20px 50px;
+      text-align: center;
+    }
+    
+    .hero h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      line-height: 1.3;
+    }
+    
+    .hero p {
+      font-size: 1.1rem;
+      opacity: 0.95;
+      margin-bottom: 30px;
+      max-width: 400px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    
+    /* Botões WhatsApp */
+    .btn-whatsapp {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: var(--accent);
+      color: var(--white);
+      font-size: 1.1rem;
+      font-weight: 600;
+      padding: 16px 32px;
+      border-radius: 50px;
+      text-decoration: none;
+      box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .btn-whatsapp:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(37, 211, 102, 0.5);
+    }
+    
+    .btn-whatsapp svg {
+      width: 24px;
+      height: 24px;
+    }
+    
+    /* Seções */
+    section {
+      padding: 50px 20px;
+    }
+    
+    section h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 24px;
+      text-align: center;
+      color: var(--primary);
+    }
+    
+    /* Benefícios */
+    .benefits {
+      background: var(--white);
+    }
+    
+    .benefits-list {
+      list-style: none;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    
+    .benefits-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #EEE;
+    }
+    
+    .benefits-list li:last-child {
+      border-bottom: none;
+    }
+    
+    .benefits-list .icon {
+      font-size: 1.3rem;
+      flex-shrink: 0;
+    }
+    
+    .benefits-list strong {
+      display: block;
+      font-size: 1rem;
+    }
+    
+    .benefits-list span {
+      color: var(--text-light);
+      font-size: 0.9rem;
+    }
+    
+    /* Como Funciona */
+    .steps {
+      background: var(--bg);
+    }
+    
+    .steps-container {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--white);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+    }
+    
+    .step-number {
+      width: 40px;
+      height: 40px;
+      background: var(--primary);
+      color: var(--white);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    
+    .step-text {
+      font-size: 1rem;
+    }
+    
+    /* Para Quem */
+    .audience {
+      background: var(--white);
+    }
+    
+    .audience-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    
+    .audience-item {
+      background: var(--bg);
+      padding: 20px 16px;
+      border-radius: 12px;
+      text-align: center;
+      font-weight: 500;
+    }
+    
+    .audience-item .emoji {
+      font-size: 2rem;
+      display: block;
+      margin-bottom: 8px;
+    }
+    
+    /* CTA Final */
+    .cta-final {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: var(--white);
+      text-align: center;
+    }
+    
+    .cta-final h2 {
+      color: var(--white);
+      margin-bottom: 12px;
+    }
+    
+    .cta-final p {
+      opacity: 0.9;
+      margin-bottom: 24px;
+      font-size: 1rem;
+    }
+    
+    /* Rodapé */
+    footer {
+      background: var(--text);
+      color: var(--white);
+      padding: 30px 20px;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+    
+    footer .brand {
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+    }
+    
+    footer .location {
+      opacity: 0.8;
+      margin-bottom: 16px;
+    }
+    
+    footer .disclaimer {
+      opacity: 0.6;
+      font-size: 0.8rem;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    
+    /* Botão Fixo Mobile */
+    .fixed-cta {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--white);
+      padding: 12px 20px;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+      z-index: 1000;
+    }
+    
+    .fixed-cta .btn-whatsapp {
+      width: 100%;
+      padding: 14px 24px;
+    }
+    
+    /* Desktop */
+    @media (min-width: 768px) {
+      body {
+        padding-bottom: 0;
+      }
+      
+      .hero {
+        padding: 80px 20px 70px;
+      }
+      
+      .hero h1 {
+        font-size: 2.4rem;
+      }
+      
+      .hero p {
+        font-size: 1.2rem;
+      }
+      
+      section {
+        padding: 70px 20px;
+      }
+      
+      section h2 {
+        font-size: 1.6rem;
+      }
+      
+      .steps-container {
+        flex-direction: row;
+        max-width: 700px;
+      }
+      
+      .step {
+        flex-direction: column;
+        text-align: center;
+        flex: 1;
+      }
+      
+      .audience-grid {
+        grid-template-columns: repeat(4, 1fr);
+        max-width: 600px;
+      }
+      
+      .fixed-cta {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========== HERO ========== -->
+  <header class="hero">
+    <div class="container">
+      <h1>Consultório pronto para você atender em BH</h1>
+      <p>Alugue por hora. Sem contrato longo, sem burocracia. Estrutura completa para seus atendimentos.</p>
+      <a href="#" class="btn-whatsapp" onclick="openWhatsApp(); return false;">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Agendar pelo WhatsApp
+      </a>
+    </div>
+  </header>
+
+  <!-- ========== BENEFÍCIOS ========== -->
+  <section class="benefits">
+    <div class="container">
+      <h2>Por que escolher o Espaço Arthemi?</h2>
+      <ul class="benefits-list">
+        <li>
+          <span class="icon">⏰</span>
+          <div>
+            <strong>Aluguel por hora</strong>
+            <span>Pague apenas pelo tempo que usar</span>
+          </div>
+        </li>
+        <li>
+          <span class="icon">✨</span>
+          <div>
+            <strong>Estrutura completa</strong>
+            <span>Sala pronta, climatizada e decorada</span>
+          </div>
+        </li>
+        <li>
+          <span class="icon">📍</span>
+          <div>
+            <strong>Localização central em BH</strong>
+            <span>Fácil acesso para você e seus pacientes</span>
+          </div>
+        </li>
+        <li>
+          <span class="icon">📝</span>
+          <div>
+            <strong>Sem burocracia</strong>
+            <span>Sem contrato longo, sem fiador</span>
+          </div>
+        </li>
+        <li>
+          <span class="icon">🧘</span>
+          <div>
+            <strong>Ideal para atendimentos</strong>
+            <span>Ambiente profissional e acolhedor</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ========== COMO FUNCIONA ========== -->
+  <section class="steps">
+    <div class="container">
+      <h2>Como funciona?</h2>
+      <div class="steps-container">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-text">Escolha o horário que precisa</div>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-text">Confirme pelo WhatsApp</div>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-text">Atenda no consultório</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PARA QUEM ========== -->
+  <section class="audience">
+    <div class="container">
+      <h2>Ideal para</h2>
+      <div class="audience-grid">
+        <div class="audience-item">
+          <span class="emoji">🧠</span>
+          Psicólogos
+        </div>
+        <div class="audience-item">
+          <span class="emoji">💆</span>
+          Terapeutas
+        </div>
+        <div class="audience-item">
+          <span class="emoji">🎯</span>
+          Coaches
+        </div>
+        <div class="audience-item">
+          <span class="emoji">💼</span>
+          Autônomos
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== CTA FINAL ========== -->
+  <section class="cta-final">
+    <div class="container">
+      <h2>Pronto para atender com mais estrutura?</h2>
+      <p>Fale conosco e reserve seu horário hoje mesmo.</p>
+      <a href="#" class="btn-whatsapp" onclick="openWhatsApp(); return false;">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Falar no WhatsApp
+      </a>
+    </div>
+  </section>
+
+  <!-- ========== RODAPÉ ========== -->
+  <footer>
+    <div class="container">
+      <div class="brand">Espaço Arthemi</div>
+      <div class="location">Belo Horizonte – MG</div>
+      <div class="disclaimer">
+        Consultórios para locação por hora. Preços e disponibilidade sujeitos a confirmação.
+      </div>
+    </div>
+  </footer>
+
+  <!-- ========== BOTÃO FIXO MOBILE ========== -->
+  <div class="fixed-cta">
+    <a href="#" class="btn-whatsapp" onclick="openWhatsApp(); return false;">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      Agendar pelo WhatsApp
+    </a>
+  </div>
+
+  <!-- ========== JAVASCRIPT ========== -->
+  <script>
+    // =============================================
+    // 🔴 TROCAR O NÚMERO AQUI (com código do país)
+    // =============================================
+    const WHATSAPP_NUMBER = "5531991322033"; // Espaço Arthemi
+    
+    // Mensagem padrão
+    const DEFAULT_MESSAGE = "Oi! Quero agendar um consultório por hora no Espaço Arthemi. Pode me passar os horários e valores?";
+    
+    // Captura UTMs da URL
+    function getUtmParams() {
+      const params = new URLSearchParams(window.location.search);
+      const utms = [];
+      
+      const utmSource = params.get('utm_source');
+      const utmMedium = params.get('utm_medium');
+      const utmCampaign = params.get('utm_campaign');
+      const utmContent = params.get('utm_content');
+      const utmTerm = params.get('utm_term');
+      
+      if (utmSource) utms.push(`Origem: ${utmSource}`);
+      if (utmMedium) utms.push(`Mídia: ${utmMedium}`);
+      if (utmCampaign) utms.push(`Campanha: ${utmCampaign}`);
+      if (utmContent) utms.push(`Conteúdo: ${utmContent}`);
+      if (utmTerm) utms.push(`Termo: ${utmTerm}`);
+      
+      return utms.length > 0 ? `\n\n[${utms.join(' | ')}]` : '';
+    }
+    
+    // Abre WhatsApp com mensagem
+    function openWhatsApp() {
+      const utmInfo = getUtmParams();
+      const fullMessage = DEFAULT_MESSAGE + utmInfo;
+      const encodedMessage = encodeURIComponent(fullMessage);
+      const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`;
+      
+      window.open(whatsappUrl, '_blank');
+    }
+  </script>
+
+</body>
+</html>

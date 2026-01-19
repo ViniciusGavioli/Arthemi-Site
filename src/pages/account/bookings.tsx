@@ -291,7 +291,7 @@ export default function BookingsPage({ user: _user }: PageProps) {
                   <div className="bg-white rounded-xl p-6 text-center border border-gray-100">
                     <p className="text-gray-500 mb-4">Nenhuma reserva agendada</p>
                     <Link
-                      href="/salas"
+                      href="/lp-whatsapp.html"
                       className="inline-flex items-center gap-2 bg-amber-600 text-white px-5 py-2 rounded-lg hover:bg-amber-700 transition text-sm"
                     >
                       Fazer uma Reserva

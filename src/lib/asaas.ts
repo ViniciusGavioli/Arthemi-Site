@@ -171,6 +171,57 @@ export interface AsaasWebhookPayload {
 // HELPERS
 // ============================================================
 
+/**
+ * Retorna a URL base da aplicação (sempre absoluta e HTTPS em produção)
+ * Prioridade: NEXT_PUBLIC_APP_URL > VERCEL_URL > fallback
+ */
+export function getAppBaseUrl(): string {
+  // 1. Variável explícita (preferida)
+  const explicitUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (explicitUrl) {
+    return explicitUrl.trim().replace(/\/$/, ''); // Remove trailing slash
+  }
+  
+  // 2. Vercel URL (deploy automático)
+  const vercelUrl = process.env.VERCEL_URL;
+  if (vercelUrl) {
+    return `https://${vercelUrl.trim()}`;
+  }
+  
+  // 3. Fallback para produção
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://www.arthemisaude.com';
+  }
+  
+  // 4. Dev local
+  return 'http://localhost:3000';
+}
+
+/**
+ * Sanitiza e valida uma URL para uso em callbacks do Asaas
+ * @throws Error se a URL for inválida ou não for HTTPS em produção
+ */
+export function sanitizeCallbackUrl(rawUrl: string, fieldName: string): string {
+  const trimmed = rawUrl.trim().replace(/[\n\r\t]/g, '');
+  
+  try {
+    const parsed = new URL(trimmed);
+    
+    // Em produção, exigir HTTPS
+    if (process.env.NODE_ENV === 'production' && parsed.protocol !== 'https:') {
+      throw new Error(`${fieldName} deve usar HTTPS em produção. Recebido: ${trimmed}`);
+    }
+    
+    // Garantir que não tem espaços na URL final
+    return parsed.toString();
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('deve usar HTTPS')) {
+      throw err;
+    }
+    throw new Error(`${fieldName} inválida: "${trimmed}" não é uma URL válida`);
+  }
+}
+
 async function asaasRequest<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -209,12 +260,13 @@ async function asaasRequest<T>(
         errorBody = await response.text().catch(() => 'Unable to read response body');
       }
       
-      console.error('❌ Asaas API Error:', {
+      // Log COMPLETO do erro (JSON.stringify para evitar [Object])
+      console.error('❌ Asaas API Error:', JSON.stringify({
         status: response?.status,
         endpoint,
         timestamp: new Date().toISOString(),
-        errorBody, // ← AGORA TEMOS O ERRO REAL DO ASAAS
-      });
+        errorBody,
+      }, null, 2));
       
       // Se for erro de validação, propagar mensagem específica
       const asaasError = errorBody as { errors?: Array<{ description?: string; code?: string }> };
@@ -950,8 +1002,37 @@ export interface AsaasCheckoutResult {
 export async function createAsaasCheckoutForBooking(
   input: CreateAsaasCheckoutInput
 ): Promise<AsaasCheckoutResult> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://arthemisaude.com';
+  // ============================================================
+  // URL BASE - sanitizada e validada
+  // ============================================================
+  const baseUrl = getAppBaseUrl();
   const valueInReais = centsToReal(input.value);
+  
+  // Construir e VALIDAR URLs de callback ANTES de chamar Asaas
+  const rawSuccessUrl = `${baseUrl}/booking/success?booking=${input.bookingId}`;
+  const rawCancelUrl = `${baseUrl}/booking/failure?booking=${input.bookingId}&reason=cancelled`;
+  const rawExpiredUrl = `${baseUrl}/booking/failure?booking=${input.bookingId}&reason=expired`;
+  
+  let successUrl: string;
+  let cancelUrl: string;
+  let expiredUrl: string;
+  
+  try {
+    successUrl = sanitizeCallbackUrl(rawSuccessUrl, 'successUrl');
+    cancelUrl = sanitizeCallbackUrl(rawCancelUrl, 'cancelUrl');
+    expiredUrl = sanitizeCallbackUrl(rawExpiredUrl, 'expiredUrl');
+  } catch (urlError) {
+    console.error('❌ [Asaas] URL de callback inválida:', {
+      baseUrl,
+      rawSuccessUrl,
+      rawCancelUrl,
+      error: urlError instanceof Error ? urlError.message : urlError,
+    });
+    throw new Error(`Configuração de URL inválida: ${urlError instanceof Error ? urlError.message : 'URL malformada'}`);
+  }
+  
+  // Log das URLs para debug
+  console.log('🔗 [Asaas] URLs de callback:', { successUrl, cancelUrl, expiredUrl });
   
   // Truncar nome do item para 30 caracteres (requisito Asaas)
   const itemName = input.itemName.length > 30 
@@ -962,7 +1043,7 @@ export async function createAsaasCheckoutForBooking(
   if (isMockMode()) {
     console.log('🎭 [MOCK] Criando checkout:', input);
     const mockCheckoutId = `chk_mock_${Date.now()}`;
-    const mockUrl = `${appUrl}/mock-payment?checkoutId=${mockCheckoutId}&booking=${input.bookingId}&amount=${input.value}&type=checkout`;
+    const mockUrl = `${baseUrl}/mock-payment?checkoutId=${mockCheckoutId}&booking=${input.bookingId}&amount=${input.value}&type=checkout`;
     return {
       checkoutId: mockCheckoutId,
       checkoutUrl: mockUrl,
@@ -985,11 +1066,11 @@ export async function createAsaasCheckoutForBooking(
     // Expiração do checkout (minutos)
     minutesToExpire: input.minutesToExpire || 60,
     
-    // URLs de callback
+    // URLs de callback - JÁ VALIDADAS E SANITIZADAS
     callback: {
-      successUrl: `${appUrl}/booking/success?booking=${input.bookingId}`,
-      cancelUrl: `${appUrl}/booking/failure?booking=${input.bookingId}&reason=cancelled`,
-      expiredUrl: `${appUrl}/booking/failure?booking=${input.bookingId}&reason=expired`,
+      successUrl,
+      cancelUrl,
+      expiredUrl,
     },
     
     // Itens do checkout (obrigatório)

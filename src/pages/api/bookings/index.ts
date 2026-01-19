@@ -5,7 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import prisma, { isOverbookingError, OVERBOOKING_ERROR_MESSAGE } from '@/lib/prisma';
-import { createBookingPayment, createAsaasCheckoutForBooking, normalizeAsaasError } from '@/lib/asaas';
+import { createBookingPayment, createAsaasCheckoutForBooking, normalizeAsaasError, MissingAddressError } from '@/lib/asaas';
 import { brazilianPhone, validateCPF } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -64,6 +64,13 @@ const createBookingSchema = z.object({
   paymentMethod: z.enum(['PIX', 'CARD']).default('PIX'),
   // Parcelamento (apenas para CARD, 1-12)
   installmentCount: z.number().min(1).max(12).optional(),
+  // Endereço do cliente - OBRIGATÓRIO para pagamento com CARTÃO em produção
+  userAddress: z.string().min(5, 'Endereço inválido').optional(),
+  userAddressNumber: z.string().optional(),
+  userProvince: z.string().optional(), // Bairro
+  userCity: z.string().optional(),
+  userState: z.string().length(2, 'UF deve ter 2 letras').optional(),
+  userPostalCode: z.string().regex(/^\d{8}$/, 'CEP deve ter 8 dígitos').optional(),
 });
 
 
@@ -678,27 +685,48 @@ export default async function handler(
 
         if (data.paymentMethod === 'CARD') {
           // CARTÃO: Usar Checkout Asaas (cliente escolhe parcelas no checkout)
-          const checkoutResult = await withTimeout(
-            createAsaasCheckoutForBooking({
-              bookingId: result.booking.id,
-              customerName: data.userName,
-              customerEmail: data.userEmail || `${data.userPhone}@placeholder.com`,
-              customerPhone: data.userPhone,
-              customerCpf: data.userCpf,
-              value: result.amountToPayCents,
-              itemName: `Reserva ${room.name}`.substring(0, 30),
-              itemDescription: `${result.hours}h - ${new Date(data.startAt).toLocaleDateString('pt-BR')}`,
-            }),
-            TIMEOUTS.PAYMENT_CREATE,
-            'criação de checkout cartão'
-          );
-          paymentResult = {
-            checkoutId: checkoutResult.checkoutId,
-            checkoutUrl: checkoutResult.checkoutUrl,
-          };
-          paymentMethod = 'CREDIT_CARD';
-          isCheckoutFlow = true;
-          console.log(`🛒 [BOOKING] Checkout CARTÃO criado: ${checkoutResult.checkoutId}`);
+          try {
+            const checkoutResult = await withTimeout(
+              createAsaasCheckoutForBooking({
+                bookingId: result.booking.id,
+                customerName: data.userName,
+                customerEmail: data.userEmail || `${data.userPhone}@placeholder.com`,
+                customerPhone: data.userPhone,
+                customerCpf: data.userCpf,
+                value: result.amountToPayCents,
+                itemName: `Reserva ${room.name}`.substring(0, 30),
+                itemDescription: `${result.hours}h - ${new Date(data.startAt).toLocaleDateString('pt-BR')}`,
+                // Endereço do CLIENTE (obrigatório em produção)
+                customerAddress: data.userAddress,
+                customerAddressNumber: data.userAddressNumber,
+                customerProvince: data.userProvince,
+                customerCity: data.userCity,
+                customerState: data.userState,
+                customerPostalCode: data.userPostalCode,
+              }),
+              TIMEOUTS.PAYMENT_CREATE,
+              'criação de checkout cartão'
+            );
+            paymentResult = {
+              checkoutId: checkoutResult.checkoutId,
+              checkoutUrl: checkoutResult.checkoutUrl,
+            };
+            paymentMethod = 'CREDIT_CARD';
+            isCheckoutFlow = true;
+            console.log(`🛒 [BOOKING] Checkout CARTÃO criado: ${checkoutResult.checkoutId}`);
+          } catch (checkoutError) {
+            // Tratar erro de endereço faltante (400)
+            if (checkoutError instanceof MissingAddressError) {
+              console.error(`❌ [BOOKING] Endereço obrigatório para checkout:`, checkoutError.missingFields);
+              return res.status(400).json({
+                success: false,
+                error: checkoutError.message,
+                code: 'MISSING_ADDRESS',
+                details: { missingFields: checkoutError.missingFields },
+              });
+            }
+            throw checkoutError; // Re-throw outros erros
+          }
         } else {
           // Pagamento por PIX (default) (com timeout)
           const pixResult = await withTimeout(

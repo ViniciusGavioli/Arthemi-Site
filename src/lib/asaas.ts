@@ -1034,6 +1034,13 @@ export interface CreateAsaasCheckoutInput {
   itemDescription: string;
   minutesToExpire?: number; // Default: 60
   maxInstallmentCount?: number; // Default: 12
+  // Endereço do cliente - OBRIGATÓRIO em produção
+  customerAddress?: string;       // Ex: "Rua das Flores, 123"
+  customerAddressNumber?: string; // Ex: "123" ou "S/N"
+  customerProvince?: string;      // Bairro
+  customerCity?: string;
+  customerState?: string;         // UF (2 letras)
+  customerPostalCode?: string;    // CEP (apenas números)
 }
 
 export interface AsaasCheckoutResult {
@@ -1053,9 +1060,75 @@ export interface AsaasCheckoutResult {
  * @param input Dados do checkout
  * @returns { checkoutId, checkoutUrl }
  */
+// Tipo de erro para address ausente (400)
+export class MissingAddressError extends Error {
+  public readonly missingFields: string[];
+  constructor(missingFields: string[]) {
+    super(`Informe seu endereço para pagamento. Campos faltantes: ${missingFields.join(', ')}`);
+    this.name = 'MissingAddressError';
+    this.missingFields = missingFields;
+  }
+}
+
 export async function createAsaasCheckoutForBooking(
   input: CreateAsaasCheckoutInput
 ): Promise<AsaasCheckoutResult> {
+  // ============================================================
+  // VALIDAÇÃO DE ENDEREÇO - Obrigatório em produção
+  // ============================================================
+  const isProduction = process.env.NODE_ENV === 'production';
+  const hasCustomerAddress = !!(input.customerAddress && input.customerCity && input.customerState && input.customerPostalCode);
+  
+  // Verificar campos faltantes
+  const missingAddressFields: string[] = [];
+  if (!input.customerAddress) missingAddressFields.push('endereco');
+  if (!input.customerCity) missingAddressFields.push('cidade');
+  if (!input.customerState) missingAddressFields.push('estado');
+  if (!input.customerPostalCode) missingAddressFields.push('cep');
+  
+  if (isProduction && !hasCustomerAddress) {
+    console.error('🚨 [Asaas] PRODUÇÃO: Endereço do cliente obrigatório para checkout', {
+      bookingId: input.bookingId,
+      missingFields: missingAddressFields,
+    });
+    throw new MissingAddressError(missingAddressFields);
+  }
+  
+  // Em dev/test: permitir fallback COM WARNING explícito
+  let customerAddressData: {
+    address: string;
+    addressNumber: string;
+    province: string;
+    city: string;
+    state: string;
+    postalCode: string;
+  };
+  
+  if (hasCustomerAddress) {
+    // Usar endereço do CLIENTE (correto)
+    customerAddressData = {
+      address: input.customerAddress!,
+      addressNumber: input.customerAddressNumber || 'S/N',
+      province: input.customerProvince || 'Centro',
+      city: input.customerCity!,
+      state: input.customerState!,
+      postalCode: input.customerPostalCode!.replace(/\D/g, ''), // Apenas números
+    };
+    console.log('📍 [Asaas] Usando endereço do cliente:', customerAddressData.city, customerAddressData.state);
+  } else {
+    // FALLBACK apenas em DEV/TEST - NUNCA em produção (já bloqueado acima)
+    console.warn('⚠️ [Asaas] DEV/TEST: Usando endereço FALLBACK - NÃO FAZER ISSO EM PRODUÇÃO!');
+    console.warn('⚠️ [Asaas] Campos faltantes:', missingAddressFields.join(', '));
+    customerAddressData = {
+      address: 'Rua Teste Dev',
+      addressNumber: '1',
+      province: 'Centro',
+      city: 'Belo Horizonte',
+      state: 'MG',
+      postalCode: '30130000',
+    };
+  }
+  
   // ============================================================
   // URL BASE - sanitizada e validada
   // ============================================================
@@ -1149,20 +1222,16 @@ export async function createAsaasCheckoutForBooking(
     ],
     
     // Dados do cliente (pré-preenchidos no checkout)
-    // NOTA: Asaas exige 'address' para checkout, mesmo que mínimo
+    // NOTA: Asaas exige 'address' para checkout
+    // Em PRODUÇÃO: vem do cliente (validado acima)
+    // Em DEV/TEST: fallback com warning
     customerData: {
       name: input.customerName,
       cpfCnpj: input.customerCpf,
       email: input.customerEmail,
       phone: input.customerPhone,
-      // Address obrigatório - usando endereço da Arthemi como placeholder
-      // O cliente pode atualizar no checkout se necessário
-      address: 'Rua Pernambuco, 1183',
-      addressNumber: '1183',
-      province: 'Savassi',
-      city: 'Belo Horizonte',
-      state: 'MG',
-      postalCode: '30130151',
+      // Endereço do CLIENTE (não da empresa)
+      ...customerAddressData,
     },
     
     // Referência externa: usado para identificar booking no webhook

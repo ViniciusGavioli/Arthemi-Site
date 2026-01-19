@@ -1008,6 +1008,14 @@ export async function createAsaasCheckoutForBooking(
   const baseUrl = getAppBaseUrl();
   const valueInReais = centsToReal(input.value);
   
+  // DEBUG: Log das variáveis de ambiente para diagnóstico
+  console.log('🌐 [Asaas] Variáveis de URL:', {
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || '(não definido)',
+    VERCEL_URL: process.env.VERCEL_URL || '(não definido)',
+    NODE_ENV: process.env.NODE_ENV,
+    baseUrl,
+  });
+  
   // Construir e VALIDAR URLs de callback ANTES de chamar Asaas
   const rawSuccessUrl = `${baseUrl}/booking/success?booking=${input.bookingId}`;
   const rawCancelUrl = `${baseUrl}/booking/failure?booking=${input.bookingId}&reason=cancelled`;
@@ -1096,11 +1104,16 @@ export async function createAsaasCheckoutForBooking(
     externalReference: buildExternalReference(input.bookingId),
   };
 
+  // DEBUG: Log do payload COMPLETO antes de enviar (para diagnóstico)
   console.log('🛒 [Asaas] Criando checkout:', {
     bookingId: input.bookingId,
     value: valueInReais,
     maxInstallments: input.maxInstallmentCount || 12,
   });
+  console.log('📦 [Asaas] Payload completo do checkout:', JSON.stringify({
+    ...checkoutPayload,
+    items: checkoutPayload.items.map(i => ({ ...i, imageBase64: '[TRUNCATED]' })),
+  }, null, 2));
 
   const result = await asaasRequest<{
     id: string;

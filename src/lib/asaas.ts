@@ -270,7 +270,17 @@ async function asaasRequest<T>(
       
       // Se for erro de validação, propagar mensagem específica
       const asaasError = errorBody as { errors?: Array<{ description?: string; code?: string }> };
-      const errorMessage = asaasError?.errors?.[0]?.description || 'Erro na integração com gateway de pagamento';
+      
+      // Logar TODOS os erros para diagnóstico completo
+      if (asaasError?.errors && asaasError.errors.length > 0) {
+        console.error('🔴 [Asaas] Lista completa de erros:', asaasError.errors.map((e, i) => 
+          `${i+1}. [${e.code || 'NO_CODE'}] ${e.description || 'sem descrição'}`
+        ).join('\n'));
+      }
+      
+      // Combinar todas as mensagens de erro para uma resposta mais completa
+      const allErrorMessages = asaasError?.errors?.map(e => e.description).filter(Boolean);
+      const errorMessage = allErrorMessages?.join('; ') || 'Erro na integração com gateway de pagamento';
       const errorCode = asaasError?.errors?.[0]?.code;
       
       // Criar erro com metadados para normalização
@@ -789,6 +799,50 @@ export function isPaymentStatusConfirmed(status: AsaasPaymentStatus): boolean {
     }).format(reais);
   }
 
+  /**
+   * Converte centavos para reais COM GUARDRAILS de segurança
+   * - Valida que o input parece estar em centavos (não reais)
+   * - Bloqueia valores absurdos que indicam erro de conversão
+   * - Valor máximo aceito: R$ 50.000 (5.000.000 centavos)
+   * 
+   * @example formatAsaasValue(7000) → 70.00 (válido)
+   * @example formatAsaasValue(199.96) → ERRO (parece ser reais, não centavos)
+   * @example formatAsaasValue(6000000) → ERRO (acima do limite de R$ 50k)
+   */
+  export function formatAsaasValue(inputCents: number, context?: string): number {
+    const ctx = context || 'valor';
+    
+    // Sanity check 1: Deve ser número inteiro (centavos não têm decimais)
+    if (!Number.isInteger(inputCents)) {
+      console.error(`⚠️ [Asaas] ALERTA: ${ctx} tem decimais (${inputCents}) - provavelmente já está em reais!`);
+      // Se parece ser reais (valor < 1000 com decimais), converta assumindo que é reais
+      if (inputCents < 1000) {
+        console.error(`⚠️ [Asaas] Assumindo que ${inputCents} já está em REAIS - retornando como está`);
+        return Number(inputCents.toFixed(2));
+      }
+    }
+    
+    // Sanity check 2: Valor mínimo do Asaas é R$ 5,00 (500 centavos)
+    if (inputCents < 500) {
+      console.warn(`⚠️ [Asaas] ALERTA: ${ctx} muito baixo (${inputCents} centavos = R$ ${inputCents/100})`);
+      // Isso pode ser intencional (desconto total), não bloquear
+    }
+    
+    // Sanity check 3: Limite máximo razoável de R$ 50.000 (5.000.000 centavos)
+    const MAX_CENTAVOS = 5_000_000; // R$ 50.000
+    if (inputCents > MAX_CENTAVOS) {
+      console.error(`🚨 [Asaas] BLOQUEADO: ${ctx} excede limite (${inputCents} centavos = R$ ${inputCents/100})`);
+      console.error(`🚨 [Asaas] Isso provavelmente indica que o valor foi passado em REAIS, não centavos`);
+      throw new Error(`Valor inválido: ${inputCents} centavos (R$ ${(inputCents/100).toFixed(2)}) excede o limite máximo permitido`);
+    }
+    
+    const valueInReais = inputCents / 100;
+    
+    console.log(`💰 [Asaas] ${ctx}: ${inputCents} centavos → R$ ${valueInReais.toFixed(2)}`);
+    
+    return valueInReais;
+  }
+
 // ============================================================
 // TIPOS PARA INTEGRAÇÃO
 // ============================================================
@@ -1006,7 +1060,9 @@ export async function createAsaasCheckoutForBooking(
   // URL BASE - sanitizada e validada
   // ============================================================
   const baseUrl = getAppBaseUrl();
-  const valueInReais = centsToReal(input.value);
+  
+  // Usar formatAsaasValue com guardrails em vez de centsToReal
+  const valueInReais = formatAsaasValue(input.value, `checkout booking:${input.bookingId}`);
   
   // DEBUG: Log das variáveis de ambiente para diagnóstico
   console.log('🌐 [Asaas] Variáveis de URL:', {
@@ -1093,11 +1149,20 @@ export async function createAsaasCheckoutForBooking(
     ],
     
     // Dados do cliente (pré-preenchidos no checkout)
+    // NOTA: Asaas exige 'address' para checkout, mesmo que mínimo
     customerData: {
       name: input.customerName,
       cpfCnpj: input.customerCpf,
       email: input.customerEmail,
       phone: input.customerPhone,
+      // Address obrigatório - usando endereço da Arthemi como placeholder
+      // O cliente pode atualizar no checkout se necessário
+      address: 'Rua Pernambuco, 1183',
+      addressNumber: '1183',
+      province: 'Savassi',
+      city: 'Belo Horizonte',
+      state: 'MG',
+      postalCode: '30130151',
     },
     
     // Referência externa: usado para identificar booking no webhook

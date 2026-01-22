@@ -106,7 +106,7 @@ export default function BookingFailurePage() {
               Precisa de ajuda? Nossa equipe está disponível para auxiliá-lo.
             </p>
             <a
-              href="https://wa.me/5531984916090?text=Olá! Estou com problema no pagamento da minha reserva."
+              href="https://wa.me/5531999923910?text=Olá! Estou com problema no pagamento da minha reserva."
               className="inline-flex items-center gap-2 text-primary font-medium hover:underline"
             >
               <span>💬</span> Falar no WhatsApp

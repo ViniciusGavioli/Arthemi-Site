@@ -10,6 +10,7 @@ import Script from 'next/script';
 import { LocalBusinessSchema, WebSiteSchema } from '@/components/SEO';
 import { SITE_CONFIG, BUSINESS_INFO, getFullUrl, getOgImageUrl } from '@/constants/seo';
 import { getMetaPixelScript, getMetaPixelId, trackPageView } from '@/lib/meta-pixel';
+import { pageview as gtagPageview, saveUtmParams, GA4_MEASUREMENT_ID } from '@/lib/gtag';
 import '../styles/globals.css';
 
 // Domínio do Plausible (configurável via env)
@@ -23,10 +24,17 @@ const META_PIXEL_SCRIPT = getMetaPixelScript();
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
 
+  // Salva UTMs na primeira visita (para atribuição de conversão)
+  useEffect(() => {
+    saveUtmParams();
+  }, []);
+
   // Dispara PageView em cada navegação (SPA)
   useEffect(() => {
-    const handleRouteChange = () => {
-      // Dispara PageView do Meta Pixel em cada navegação
+    const handleRouteChange = (url: string) => {
+      // GA4 pageview
+      gtagPageview(url);
+      // Meta Pixel PageView
       trackPageView();
     };
 

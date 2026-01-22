@@ -574,7 +574,7 @@ export default function MinhaContaPage() {
                       Nossa equipe está disponível para auxiliar você.
                     </p>
                     <a
-                      href="https://wa.me/5531984916090"
+                      href="https://wa.me/5531999923910"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-block mt-3 text-sm font-medium text-primary-600 hover:text-primary-700"

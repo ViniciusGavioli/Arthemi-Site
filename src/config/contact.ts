@@ -4,10 +4,10 @@
  */
 
 /** Número do WhatsApp no formato internacional (sem +) */
-export const WHATSAPP_NUMBER = '5531984916090';
+export const WHATSAPP_NUMBER = '5531999923910';
 
 /** Nome para exibição */
-export const WHATSAPP_DISPLAY = '(31) 98491-6090';
+export const WHATSAPP_DISPLAY = '(31) 9992-3910';
 
 /**
  * Constrói URL do WhatsApp com mensagem pré-preenchida

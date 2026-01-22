@@ -133,7 +133,7 @@ export default function FAQ() {
               Fale conosco! Estamos à disposição para responder qualquer dúvida.
             </p>
             <a
-              href="https://wa.me/5531984916090"
+              href="https://wa.me/5531999923910"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition"

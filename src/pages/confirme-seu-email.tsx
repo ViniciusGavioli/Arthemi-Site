@@ -238,7 +238,7 @@ export default function ConfirmeEmailPage({ initialEmail, next }: ConfirmeEmailP
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-500">
             Precisa de ajuda?{' '}
-            <a href="https://wa.me/5531984916090" className="text-primary-600 hover:underline">
+            <a href="https://wa.me/5531999923910" className="text-primary-600 hover:underline">
               Fale conosco
             </a>
           </p>

@@ -142,7 +142,7 @@ export default function Home({ dbRooms }: HomeProps) {
       } else {
         // Fallback: se não encontrou a sala no banco, redireciona para WhatsApp
         window.open(
-          `https://wa.me/5531984916090?text=${encodeURIComponent(`Olá! Gostaria de fazer uma reserva no ${selectedRoom.name}.`)}`,
+          `https://wa.me/5531999923910?text=${encodeURIComponent(`Olá! Gostaria de fazer uma reserva no ${selectedRoom.name}.`)}`,
           '_blank'
         );
       }
@@ -687,7 +687,7 @@ export default function Home({ dbRooms }: HomeProps) {
                         rel="noopener noreferrer"
                         className="text-accent-600 hover:text-accent-700 transition"
                       >
-                        (31) 98491-6090
+                        (31) 9992-3910
                       </a>
                     </div>
                   </div>

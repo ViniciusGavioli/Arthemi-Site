@@ -185,7 +185,7 @@ export default async function handler(
     // P0-3: Apenas ADMINs podem usar este endpoint para cancelamento
     if (!isAdmin) {
       return res.status(403).json({ 
-        error: 'Cancelamento não disponível. Para cancelar sua reserva, entre em contato pelo WhatsApp: (31) 98491-6090',
+        error: 'Cancelamento não disponível. Para cancelar sua reserva, entre em contato pelo WhatsApp: (31) 9992-3910',
         code: 'USER_CANCEL_DISABLED'
       });
     }

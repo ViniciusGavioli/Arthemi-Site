@@ -365,7 +365,7 @@ export default function BookingDetailsPage() {
               {/* Link WhatsApp para cancelamento */}
               {booking.status !== 'CANCELLED' && (
                 <a
-                  href={`https://wa.me/5531984916090?text=Olá! Preciso de ajuda para cancelar minha reserva ${booking.id.slice(0, 8).toUpperCase()}`}
+                  href={`https://wa.me/5531999923910?text=Olá! Preciso de ajuda para cancelar minha reserva ${booking.id.slice(0, 8).toUpperCase()}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="block w-full py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold text-center hover:bg-gray-50 transition"
@@ -376,7 +376,7 @@ export default function BookingDetailsPage() {
 
               {/* Link WhatsApp para dúvidas */}
               <a
-                href={`https://wa.me/5531984916090?text=Olá! Tenho uma dúvida sobre minha reserva ${booking.id.slice(0, 8).toUpperCase()}`}
+                href={`https://wa.me/5531999923910?text=Olá! Tenho uma dúvida sobre minha reserva ${booking.id.slice(0, 8).toUpperCase()}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block w-full py-3 bg-green-500 text-white rounded-lg font-semibold text-center hover:bg-green-600 transition"

@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { MapPin, Phone, MessageCircle } from 'lucide-react';
 import { BUSINESS_INFO } from '@/constants/seo';
 import { analytics } from '@/lib/analytics';
+import { gtag } from '@/lib/gtag';
 
 interface FooterProps {
   /** Usa versão compacta (menos colunas) */
@@ -21,11 +22,13 @@ export default function Footer({ compact = false }: FooterProps) {
   // Handler para tracking de clique no WhatsApp
   const handleWhatsAppClick = () => {
     analytics.contactClicked('whatsapp', 'footer');
+    gtag.contact({ method: 'whatsapp', location: 'footer' });
   };
 
   // Handler para tracking de clique no telefone
   const handlePhoneClick = () => {
     analytics.contactClicked('phone', 'footer');
+    gtag.contact({ method: 'phone', location: 'footer' });
   };
 
   if (compact) {
@@ -69,12 +72,12 @@ export default function Footer({ compact = false }: FooterProps) {
                   WhatsApp
                 </a>
                 <a 
-                  href="tel:+5531984916090"
+                  href="tel:+5531999923910"
                   className="flex items-center gap-2 hover:text-warm-100 transition"
                   onClick={handlePhoneClick}
                 >
                   <Phone className="w-4 h-4" />
-                  (31) 98491-6090
+                  (31) 9992-3910
                 </a>
               </div>
             </div>
@@ -141,12 +144,12 @@ export default function Footer({ compact = false }: FooterProps) {
                 WhatsApp
               </a>
               <a 
-                href="tel:+5531984916090" 
+                href="tel:+5531999923910" 
                 className="flex items-center gap-2 hover:text-warm-100 transition"
                 onClick={handlePhoneClick}
               >
                 <Phone className="w-4 h-4" />
-                (31) 98491-6090
+                (31) 9992-3910
               </a>
             </div>
           </div>

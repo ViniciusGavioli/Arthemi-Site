@@ -21,6 +21,6 @@ export default async function handler(
   // Retornar 403 Forbidden para qualquer método
   return res.status(403).json({ 
     ok: false, 
-    error: 'Cancelamento não disponível. Para cancelar sua reserva, entre em contato pelo WhatsApp: (31) 98491-6090',
+    error: 'Cancelamento não disponível. Para cancelar sua reserva, entre em contato pelo WhatsApp: (31) 9992-3910',
   });
 }

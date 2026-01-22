@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState, useMemo } from 'react';
 import { generateBookingWhatsAppLink, generateSupportWhatsAppLink } from '@/lib/whatsapp';
 import { analytics } from '@/lib/analytics';
+import { gtag } from '@/lib/gtag';
 
 interface BookingDetails {
   id: string;
@@ -40,6 +41,14 @@ export default function BookingSuccessPage() {
             
             // Rastrear conversão
             analytics.bookingCompleted(bookingDetails.roomName, bookingDetails.total);
+            
+            // GA4 + Google Ads Purchase Event (conversão principal para tráfego pago)
+            gtag.purchase({
+              transactionId: bookingDetails.id,
+              value: bookingDetails.total,
+              itemId: data.roomId || 'room',
+              itemName: bookingDetails.roomName,
+            });
           }
         })
         .catch(console.error);
@@ -183,7 +192,7 @@ export default function BookingSuccessPage() {
             <p>
               Dúvidas? Entre em contato pelo{' '}
               <a 
-                href={booking ? generateSupportWhatsAppLink(String(booking)) : 'https://wa.me/5531984916090'} 
+                href={booking ? generateSupportWhatsAppLink(String(booking)) : 'https://wa.me/5531999923910'} 
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-green-600 hover:underline font-medium"

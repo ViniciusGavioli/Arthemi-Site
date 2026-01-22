@@ -436,7 +436,7 @@ export default function BookingPendingPage() {
             )}
 
             <div className="mt-6 text-sm text-gray-500">
-              <a href="https://wa.me/5531984916090" className="text-primary hover:underline">
+              <a href="https://wa.me/5531999923910" className="text-primary hover:underline">
                 Fale conosco no WhatsApp
               </a>
             </div>
@@ -600,7 +600,7 @@ export default function BookingPendingPage() {
             <p>Você receberá um e-mail assim que o pagamento for confirmado.</p>
             <p className="mt-2">
               Problemas?{' '}
-              <a href="https://wa.me/5531984916090" className="text-primary hover:underline">
+              <a href="https://wa.me/5531999923910" className="text-primary hover:underline">
                 Fale conosco
               </a>
             </p>

@@ -211,7 +211,7 @@ export default function BookingsPage({ user: _user }: PageProps) {
         {showCancel && !isPending && booking.status !== 'CANCELLED' && (
           <div className="mt-4 pt-4 border-t border-gray-100">
             <a
-              href={`https://wa.me/5531984916090?text=Olá! Preciso de ajuda com minha reserva ${booking.id.slice(0, 8).toUpperCase()}`}
+              href={`https://wa.me/5531999923910?text=Olá! Preciso de ajuda com minha reserva ${booking.id.slice(0, 8).toUpperCase()}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-green-600 hover:text-green-700 font-medium flex items-center gap-1"

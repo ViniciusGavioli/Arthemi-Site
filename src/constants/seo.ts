@@ -43,8 +43,8 @@ export const BUSINESS_INFO = {
   },
   
   // Contato
-  phone: '+55 31 8491-6090',
-  whatsapp: '5531984916090',
+  phone: '+55 31 9992-3910',
+  whatsapp: '5531999923910',
   email: 'contato@arthemisaude.com',
   
   // Redes sociais

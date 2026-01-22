@@ -72,7 +72,7 @@
 - Implementada função `handleCancelBooking()` que chama API `/api/me/bookings/[id]/cancel`
 - Adicionado estado de loading por booking
 - Em caso de erro: exibe botão de WhatsApp como fallback
-- Número WhatsApp: 5531984916090
+- Número WhatsApp: 5531999923910
 - Mensagem pré-formatada com detalhes da reserva
 
 ---
@@ -197,7 +197,7 @@ src/pages/api/auth/forgot-password.ts     # FIX G
 
 1. **Cupons hardcoded (FIX F):** Os cupons estão definidos no frontend. Para produção, considere mover para API ou banco de dados.
 
-2. **WhatsApp (FIX D):** O número configurado é 5531984916090. Altere se necessário.
+2. **WhatsApp (FIX D):** O número configurado é 5531999923910. Altere se necessário.
 
 3. **Resend (FIX G):** Certifique-se que `RESEND_API_KEY` está configurada nas variáveis de ambiente de produção.
 

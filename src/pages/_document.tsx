@@ -1,5 +1,5 @@
 // ===========================================================
-// _document.tsx - Documento base do Next.js com Google Tag Manager
+// _document.tsx - Documento base do Next.js com Google Tag Manager + GA4
 // ===========================================================
 
 import { Html, Head, Main, NextScript } from 'next/document';
@@ -7,10 +7,35 @@ import { Html, Head, Main, NextScript } from 'next/document';
 // Container GTM - Produção
 const GTM_ID = 'GTM-PFFZKL5L';
 
+// Google Analytics 4 - Measurement ID
+const GA4_ID = 'G-379R20W0J1';
+
 export default function Document() {
   return (
     <Html lang="pt-BR">
       <Head>
+        {/* Google Analytics 4 - gtag.js */}
+        {process.env.NODE_ENV === 'production' && (
+          <>
+            <script
+              async
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA4_ID}`}
+            />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${GA4_ID}', {
+                    page_path: window.location.pathname,
+                  });
+                `,
+              }}
+            />
+          </>
+        )}
+
         {/* Google Tag Manager - Script (HEAD) */}
         {process.env.NODE_ENV === 'production' && (
           <script

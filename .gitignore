@@ -26,7 +26,7 @@ prisma/migrations/*/migration_lock.toml
 
 # IDE
 .idea/
-.vscode/
+# .vscode/ - Workspace settings are now tracked for team consistency
 *.swp
 *.swo
 *~

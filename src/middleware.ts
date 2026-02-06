@@ -43,15 +43,27 @@ function handleAdminRoutes(request: NextRequest, pathname: string): NextResponse
     return NextResponse.next();
   }
 
+  // Verificar admin_token (JWT de admin) primeiro
   const adminToken = request.cookies.get('admin_token')?.value;
-
-  if (!adminToken) {
-    const loginUrl = new URL('/admin/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
+  if (adminToken) {
+    // Token admin presente - permitir acesso (validação completa será feita no SSR)
+    return NextResponse.next();
   }
 
-  return NextResponse.next();
+  // Se não tem admin_token, verificar se tem JWT de usuário (arthemi_session)
+  // O SSR vai verificar se o usuário tem role ADMIN
+  const jwtToken = request.cookies.get(AUTH_COOKIE_NAME)?.value;
+  if (jwtToken) {
+    // JWT presente - permitir acesso (validação de role será feita no SSR)
+    // Isso evita loop de redirecionamento quando usuário está logado mas não tem admin_token
+    return NextResponse.next();
+  }
+
+  // Sem nenhum token - redirecionar para login
+  // NOTA: /admin/login redireciona para /login?next=/admin
+  const loginUrl = new URL('/admin/login', request.url);
+  loginUrl.searchParams.set('redirect', pathname);
+  return NextResponse.redirect(loginUrl);
 }
 
 // ============================================================

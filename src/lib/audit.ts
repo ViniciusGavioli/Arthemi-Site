@@ -52,7 +52,11 @@ export type AuditAction =
   | 'REFUND_REVIEWING'
   | 'REFUND_APPROVED'
   | 'REFUND_REJECTED'
-  | 'REFUND_PAID';
+  | 'REFUND_PAID'
+  // Coupon actions
+  | 'COUPON_CREATED'
+  | 'COUPON_UPDATED'
+  | 'COUPON_DELETED';
 
 export type AuditSource = 'USER' | 'ADMIN' | 'SYSTEM';
 

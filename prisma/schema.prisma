@@ -596,6 +596,37 @@ model AuditEvent {
 }
 
 // ===========================================================
+// Coupon - Cupons de Desconto (Gerenciamento Dinâmico)
+// ===========================================================
+// Tabela para gerenciar cupons de desconto dinamicamente
+// Suporta cupons de percentual, valor fixo e override de preço
+
+model Coupon {
+  id              String        @id @default(cuid())
+  code            String        @unique // Código do cupom (ex: ARTHEMI10)
+  discountType    String        // 'fixed' | 'percent' | 'priceOverride'
+  value           Int           // Valor em centavos para 'fixed'/'priceOverride', em % para 'percent'
+  description     String        // Descrição do cupom
+  singleUsePerUser Boolean      @default(false) // true = cupom só pode ser usado 1x por usuário
+  isDevCoupon     Boolean       @default(false) // true = cupom de desenvolvimento
+  isActive        Boolean       @default(true)  // false = cupom desativado
+  validFrom       DateTime?     // Data de início da validade (null = sem limite)
+  validUntil      DateTime?     // Data de fim da validade (null = sem limite)
+  minAmountCents  Int?          // Valor mínimo em centavos para aplicar o cupom (null = sem mínimo)
+  maxUses         Int?          // Número máximo de usos totais (null = ilimitado)
+  currentUses     Int           @default(0)    // Número atual de usos
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  usages          CouponUsage[]
+
+  @@index([code])
+  @@index([isActive])
+  @@index([validUntil])
+  @@map("coupons")
+}
+
+// ===========================================================
 // CouponUsage - Rastreamento de Uso de Cupons (Anti-Fraude)
 // ===========================================================
 // Registra cada uso de cupom para impedir reutilização indevida
@@ -605,6 +636,7 @@ model CouponUsage {
   id         String            @id @default(cuid())
   userId     String
   couponCode String            // Código do cupom (ex: PRIMEIRACOMPRA)
+  couponId   String?           // ID do cupom (quando vem da tabela Coupon)
   context    CouponUsageContext
   bookingId  String?
   creditId   String?
@@ -613,9 +645,11 @@ model CouponUsage {
   restoredAt DateTime?         // Data de restauração (quando aplicável)
   
   user       User              @relation(fields: [userId], references: [id])
+  coupon     Coupon?           @relation(fields: [couponId], references: [id])
 
   @@unique([userId, couponCode, context]) // Impede cupom duplicado no mesmo contexto
   @@index([couponCode])
+  @@index([couponId])
   @@index([userId])
   @@map("coupon_usages")
 }

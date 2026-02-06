@@ -58,6 +58,11 @@ const LEGACY_ERROR_PATTERNS: Array<{
     parseMessage: (match) => match[1],
   },
   {
+    pattern: /^COUPON_USAGE_ERROR:\s*(.+)$/,
+    code: 'COUPON_INVALID',
+    parseMessage: (match) => match[1],
+  },
+  {
     pattern: /^COUPON_ALREADY_USED:(.+)$/,
     code: 'COUPON_ALREADY_USED',
     parseMessage: () => DefaultErrorMessages.COUPON_ALREADY_USED,

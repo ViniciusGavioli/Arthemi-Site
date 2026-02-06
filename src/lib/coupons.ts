@@ -3,8 +3,12 @@
 // ===========================================================
 // P1-5: Lógica de cupons em um único lugar (backend)
 // Usado por: /api/credits/purchase.ts, /api/admin/credits/create.ts, /api/bookings/index.ts
+// 
+// ATUALIZAÇÃO: Busca cupons do banco primeiro, com fallback para hardcoded
+// para compatibilidade com cupons legados
 
 import { PrismaClient, Prisma, CouponUsageContext, CouponUsageStatus } from '@prisma/client';
+import { prisma } from './prisma';
 
 // ===========================================================
 // MVP FLAG: DESLIGAR CUPOM COMERCIAL
@@ -27,6 +31,7 @@ export interface CouponConfig {
   description: string;
   singleUsePerUser?: boolean; // true = cupom só pode ser usado 1x por usuário (ex: PRIMEIRACOMPRA)
   isDevCoupon?: boolean; // true = cupom de desenvolvimento (uso infinito, não consome)
+  minAmountCents?: number | null; // Valor mínimo em centavos para aplicar o cupom (null = sem mínimo)
 }
 
 // ===========================================================
@@ -105,12 +110,12 @@ export function canUseDevCoupon(
  * @param requestId ID da request para logs
  * @returns { allowed: boolean, reason?: string, code?: string }
  */
-export function validateDevCouponAccess(
+export async function validateDevCouponAccess(
   couponCode: string,
   sessionEmail: string | null | undefined,
   requestId: string
-): { allowed: boolean; reason?: string; code?: string } {
-  const coupon = getCouponInfo(couponCode);
+): Promise<{ allowed: boolean; reason?: string; code?: string }> {
+  const coupon = await getCouponInfo(couponCode);
   
   // Não é cupom DEV: sempre passa
   if (!coupon?.isDevCoupon) {
@@ -164,23 +169,103 @@ export const VALID_COUPONS: Record<string, CouponConfig> = {
 };
 
 /**
- * Valida se um cupom existe
+ * Busca cupom do banco de dados
+ * Retorna null se não encontrado ou inativo
  */
-export function isValidCoupon(code: string): boolean {
+export async function getCouponFromDB(code: string): Promise<CouponConfig | null> {
+  if (!code) return null;
+  
+  try {
+    const normalizedCode = code.toUpperCase().trim();
+    const now = new Date();
+    
+    const coupon = await prisma.coupon.findUnique({
+      where: { code: normalizedCode },
+    });
+    
+    if (!coupon || !coupon.isActive) {
+      return null;
+    }
+    
+    // Validar data de validade
+    if (coupon.validFrom && now < coupon.validFrom) {
+      return null; // Cupom ainda não válido
+    }
+    
+    if (coupon.validUntil && now > coupon.validUntil) {
+      return null; // Cupom expirado
+    }
+    
+    // Validar limite de usos
+    if (coupon.maxUses && coupon.currentUses >= coupon.maxUses) {
+      return null; // Cupom esgotado
+    }
+    
+    // Converter para CouponConfig
+    // Nota: minAmountCents será validado no endpoint de validação
+    return {
+      discountType: coupon.discountType as 'fixed' | 'percent' | 'priceOverride',
+      value: coupon.value,
+      description: coupon.description,
+      singleUsePerUser: coupon.singleUsePerUser,
+      isDevCoupon: coupon.isDevCoupon,
+      minAmountCents: coupon.minAmountCents,
+    };
+  } catch (error) {
+    console.error('[COUPONS] Erro ao buscar cupom do banco:', error);
+    // Fallback para hardcoded em caso de erro
+    return null;
+  }
+}
+
+/**
+ * Valida se um cupom existe (banco ou hardcoded)
+ */
+export async function isValidCoupon(code: string): Promise<boolean> {
+  if (!code) return false;
+  
+  // Tentar buscar do banco primeiro
+  const dbCoupon = await getCouponFromDB(code);
+  if (dbCoupon) return true;
+  
+  // Fallback para hardcoded
+  return !!VALID_COUPONS[code.toUpperCase().trim()];
+}
+
+/**
+ * Versão síncrona para compatibilidade (usa apenas hardcoded)
+ * @deprecated Use isValidCouponAsync ou getCouponInfoAsync
+ */
+export function isValidCouponSync(code: string): boolean {
   if (!code) return false;
   return !!VALID_COUPONS[code.toUpperCase().trim()];
 }
 
 /**
- * Retorna as informações do cupom ou null
+ * Retorna as informações do cupom ou null (banco ou hardcoded)
  */
-export function getCouponInfo(code: string): CouponConfig | null {
+export async function getCouponInfo(code: string): Promise<CouponConfig | null> {
+  if (!code) return null;
+  
+  // Tentar buscar do banco primeiro
+  const dbCoupon = await getCouponFromDB(code);
+  if (dbCoupon) return dbCoupon;
+  
+  // Fallback para hardcoded
+  return VALID_COUPONS[code.toUpperCase().trim()] || null;
+}
+
+/**
+ * Versão síncrona para compatibilidade (usa apenas hardcoded)
+ * @deprecated Use getCouponInfo
+ */
+export function getCouponInfoSync(code: string): CouponConfig | null {
   if (!code) return null;
   return VALID_COUPONS[code.toUpperCase().trim()] || null;
 }
 
 /**
- * Aplica desconto do cupom em um valor
+ * Aplica desconto do cupom em um valor (versão assíncrona - busca do banco)
  * @param amount Valor original em centavos
  * @param couponCode Código do cupom
  * @returns Valor com desconto aplicado
@@ -194,13 +279,37 @@ export function getCouponInfo(code: string): CouponConfig | null {
  * - discountAmount >= 0
  * - finalAmount + discountAmount = amount (sempre)
  */
-export function applyDiscount(amount: number, couponCode: string): { 
+export async function applyDiscount(amount: number, couponCode: string): Promise<{ 
+  finalAmount: number; 
+  discountAmount: number; 
+  couponApplied: boolean;
+}> {
+  const coupon = await getCouponInfo(couponCode);
+  
+  return applyDiscountInternal(amount, coupon);
+}
+
+/**
+ * Versão síncrona para compatibilidade (usa apenas hardcoded)
+ * @deprecated Use applyDiscount (assíncrona) para buscar do banco
+ */
+export function applyDiscountSync(amount: number, couponCode: string): { 
   finalAmount: number; 
   discountAmount: number; 
   couponApplied: boolean;
 } {
-  const coupon = getCouponInfo(couponCode);
-  
+  const coupon = getCouponInfoSync(couponCode);
+  return applyDiscountInternal(amount, coupon);
+}
+
+/**
+ * Lógica interna de aplicação de desconto (reutilizada por sync e async)
+ */
+function applyDiscountInternal(amount: number, coupon: CouponConfig | null): {
+  finalAmount: number;
+  discountAmount: number;
+  couponApplied: boolean;
+} {
   if (!coupon) {
     return { finalAmount: amount, discountAmount: 0, couponApplied: false };
   }
@@ -277,7 +386,7 @@ export async function checkCouponUsage(
   userEmail?: string | null
 ): Promise<{ canUse: boolean; reason?: string; code?: string; isDevCoupon?: boolean }> {
   const normalizedCode = couponCode.toUpperCase().trim();
-  const coupon = getCouponInfo(normalizedCode);
+  const coupon = await getCouponInfo(normalizedCode);
   
   if (!coupon) {
     return { canUse: false, reason: 'Cupom inválido', code: 'COUPON_INVALID' };
@@ -437,10 +546,10 @@ export async function recordCouponUsage(
 }
 
 /**
- * Gera o snapshot do cupom para auditoria
+ * Gera o snapshot do cupom para auditoria (versão assíncrona)
  */
-export function createCouponSnapshot(couponCode: string): object | null {
-  const coupon = getCouponInfo(couponCode);
+export async function createCouponSnapshot(couponCode: string): Promise<object | null> {
+  const coupon = await getCouponInfo(couponCode);
   if (!coupon) return null;
   
   return {

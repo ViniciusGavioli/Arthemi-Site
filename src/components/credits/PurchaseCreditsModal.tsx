@@ -4,7 +4,7 @@
 // Suporta PIX e Cartão de Crédito
 // ===========================================================
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { X, Package, Clock, Check } from 'lucide-react';
 import { PaymentMethodSelector, PaymentMethod } from '@/components/booking/PaymentMethodSelector';
@@ -152,11 +152,14 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
       document.addEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'hidden';
       fetchRooms();
+      // NÃO resetar paymentMethod aqui - manter a seleção do usuário
     } else {
       // Reset cupom quando modal fecha
       setCouponCode('');
       setCouponError(null);
       setCouponApplied(null);
+      // Reset paymentMethod apenas quando modal fecha
+      setPaymentMethod('PIX');
     }
     
     return () => {
@@ -165,11 +168,36 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
     };
   }, [isOpen, handleKeyDown]);
 
-  // Limpa cupom aplicado quando muda produto (preço diferente)
+  // Revalidar cupom quando muda produto (preço diferente)
+  // Usar useRef para evitar loop infinito
+  const previousProductIdRef = useRef<string | null>(null);
+  const isApplyingCouponRef = useRef(false);
+  
   useEffect(() => {
-    setCouponApplied(null);
-    setCouponError(null);
-  }, [selectedProduct]);
+    // Se está aplicando cupom, não fazer nada (evitar loop)
+    if (isApplyingCouponRef.current) {
+      return;
+    }
+    
+    // Se não há produto selecionado, limpar cupom
+    if (!selectedProduct) {
+      setCouponApplied(null);
+      setCouponError(null);
+      previousProductIdRef.current = null;
+      return;
+    }
+    
+    // Se o produto mudou (ID diferente) E há cupom aplicado, limpar cupom para revalidação
+    // IMPORTANTE: Não incluir couponApplied nas dependências para evitar loop
+    if (previousProductIdRef.current && previousProductIdRef.current !== selectedProduct.id && couponApplied) {
+      // Limpar cupom aplicado - usuário precisará reaplicar se quiser
+      setCouponApplied(null);
+      setCouponError(null);
+    }
+    
+    // Atualizar referência do produto anterior
+    previousProductIdRef.current = selectedProduct.id;
+  }, [selectedProduct]); // Removido couponApplied das dependências para evitar loop
 
   async function fetchRooms() {
     try {
@@ -218,6 +246,7 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
       return;
     }
 
+    isApplyingCouponRef.current = true;
     setCouponValidating(true);
     setCouponError(null);
     setCouponApplied(null);
@@ -236,6 +265,8 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
 
       if (!res.ok || !data.valid) {
         setCouponError(data.message || 'Cupom inválido');
+        isApplyingCouponRef.current = false;
+        setCouponValidating(false);
         return;
       }
 
@@ -250,6 +281,7 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
       setCouponError('Erro ao validar cupom');
     } finally {
       setCouponValidating(false);
+      isApplyingCouponRef.current = false;
     }
   }
 
@@ -320,21 +352,28 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
 
       if (!res.ok) {
         // Verificar se é erro de cupom pelo código estruturado
-        if (data.code === 'COUPON_INVALID' && couponToSend) {
-          setCouponError(data.error || 'Cupom inválido ou não aplicável.');
+        if (data.code === 'COUPON_INVALID' || data.code === 'COUPON_MIN_AMOUNT' || data.code === 'COUPON_ALREADY_USED' || data.code === 'DEV_COUPON_NO_SESSION' || data.code === 'DEV_COUPON_NOT_ALLOWED') {
+          if (couponToSend) {
+            setCouponError(data.error || 'Cupom inválido ou não aplicável.');
+            return;
+          }
+        }
+        
+        // Verificar se é erro de CPF
+        if (data.code === 'INVALID_CPF') {
+          setError(data.error || 'CPF inválido.');
           return;
         }
         
-        // Fallback: detecção por texto (compatibilidade)
+        // Fallback: detecção por texto (compatibilidade) - APENAS se não identificado pelo código
         const errorMsg = (data.error || '').toLowerCase();
         const isCouponError = 
-          errorMsg.includes('coupon') || 
-          errorMsg.includes('cupom') || 
-          errorMsg.includes('inválido') ||
-          errorMsg.includes('expirado');
+          (errorMsg.includes('coupon') || errorMsg.includes('cupom')) && 
+          !errorMsg.includes('cpf') &&
+          couponToSend;
         
-        if (isCouponError && couponToSend) {
-          setCouponError('Cupom inválido ou não aplicável.');
+        if (isCouponError) {
+          setCouponError(data.error || 'Cupom inválido ou não aplicável.');
         } else {
           setError(data.error || 'Erro ao processar compra');
         }
@@ -537,9 +576,7 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                   />
                 </div>
 
-                {/* MVP: Campo de cupom OCULTO para usuários comuns
-                    Cupons comerciais desabilitados no MVP. */}
-                {/* 
+                {/* Campo de cupom de desconto */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Cupom de desconto (opcional)
@@ -594,7 +631,6 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                     </p>
                   )}
                 </div>
-                */}
 
                 {/* Campo de código de teste - APENAS para equipe (NEXT_PUBLIC_ENABLE_TEST_OVERRIDE=true) */}
                 {process.env.NEXT_PUBLIC_ENABLE_TEST_OVERRIDE === 'true' && (
@@ -624,9 +660,11 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
               {/* Método de Pagamento */}
               {selectedProduct && (
                 <PaymentMethodSelector
+                  key={`payment-${selectedProduct.id}`}
                   selected={paymentMethod}
                   onSelect={setPaymentMethod}
                   disabled={submitting}
+                  totalAmount={couponApplied ? couponApplied.netAmount : selectedProduct.price}
                 />
               )}
 

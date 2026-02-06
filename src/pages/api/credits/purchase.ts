@@ -136,10 +136,11 @@ export default async function handler(
       });
     }
 
-    // Validar CPF
+    // Validar CPF (ANTES de qualquer processamento de cupom)
     if (!validateCPF(data.userCpf)) {
       return res.status(400).json({
         success: false,
+        code: 'INVALID_CPF',
         error: 'CPF inválido.',
       });
     }
@@ -267,13 +268,14 @@ export default async function handler(
     // ========== VALIDAÇÃO DE DEV COUPON (ANTES de aplicar) ==========
     // DEV coupon em produção REQUER sessão autenticada com email na whitelist
     // NUNCA confiar em email do body para autorizar DEV coupon
+    // NOTA: Esta validação acontece DEPOIS da validação de CPF para garantir ordem correta
     const auth = getAuthFromRequest(req);
     const sessionEmail = auth?.userId ? null : null; // Buscaremos no banco dentro da transação
     
     // Pré-validação: se é DEV coupon e NÃO tem sessão, bloqueia imediatamente
     if (data.couponCode) {
       const couponKey = data.couponCode.toUpperCase().trim();
-      const couponConfig = getCouponInfo(couponKey);
+      const couponConfig = await getCouponInfo(couponKey);
       
       if (couponConfig?.isDevCoupon && !auth?.userId) {
         // DEV coupon sem sessão: bloqueia
@@ -287,11 +289,13 @@ export default async function handler(
     }
 
     // Aplicar cupom (P1-5: usando lib/coupons centralizada)
+    // NOTA: Esta validação acontece DEPOIS da validação de CPF para garantir ordem correta
     if (data.couponCode) {
       const couponKey = data.couponCode.toUpperCase().trim();
       
-      // Validar cupom ANTES de aplicar - retornar erro claro se inválido
-      if (!isValidCoupon(couponKey)) {
+      // Validar cupom ANTES de aplicar - retornar erro claro se inválido (busca do banco)
+      const isValid = await isValidCoupon(couponKey);
+      if (!isValid) {
         return res.status(400).json({
           success: false,
           code: 'COUPON_INVALID',
@@ -299,12 +303,22 @@ export default async function handler(
         });
       }
       
-      // Cupom válido - aplicar desconto
-      const discountResult = applyDiscount(amount, couponKey);
+      // Obter info do cupom para validar valor mínimo
+      const couponInfo = await getCouponInfo(couponKey);
+      if (couponInfo?.minAmountCents && amount < couponInfo.minAmountCents) {
+        return res.status(400).json({
+          success: false,
+          code: 'COUPON_MIN_AMOUNT',
+          error: `Cupom requer valor mínimo de R$ ${(couponInfo.minAmountCents / 100).toFixed(2).replace('.', ',')}.`,
+        });
+      }
+      
+      // Cupom válido - aplicar desconto (busca do banco)
+      const discountResult = await applyDiscount(amount, couponKey);
       discountAmount = discountResult.discountAmount;
       amount = discountResult.finalAmount;
       couponApplied = couponKey;
-      couponSnapshot = createCouponSnapshot(couponKey);
+      couponSnapshot = await createCouponSnapshot(couponKey);
     }
     
     // netAmount é o valor após desconto
@@ -353,8 +367,11 @@ export default async function handler(
       // DEV coupon: sessionEmail vem da SESSÃO, não do body
       let isDevCoupon = false;
       if (couponApplied) {
+        // Buscar cupom do banco para validar acesso DEV
+        const couponInfo = await getCouponInfo(couponApplied);
+        
         // Validar acesso ao DEV coupon usando email da SESSÃO
-        const devCheck = validateDevCouponAccess(couponApplied, sessionEmail, requestId);
+        const devCheck = await validateDevCouponAccess(couponApplied, sessionEmail, requestId);
         if (!devCheck.allowed) {
           throw new Error(`DEV_COUPON_BLOCKED: ${devCheck.reason}`);
         }
@@ -362,7 +379,8 @@ export default async function handler(
         // Validar uso do cupom (PRIMEIRACOMPRA, etc)
         const usageCheck = await checkCouponUsage(tx, userId, couponApplied, 'CREDIT_PURCHASE', sessionEmail);
         if (!usageCheck.canUse) {
-          throw new Error(`CUPOM_INVALIDO: ${usageCheck.reason}`);
+          // Usar BusinessError para garantir que o erro seja tratado corretamente
+          throw new Error(`COUPON_USAGE_ERROR: ${usageCheck.reason || 'Cupom não pode ser usado'}`);
         }
         isDevCoupon = usageCheck.isDevCoupon || false;
       }

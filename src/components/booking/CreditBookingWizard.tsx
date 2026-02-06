@@ -19,7 +19,7 @@ import {
 } from '@/lib/business-hours';
 import { getPricingInfoForUI } from '@/lib/pricing';
 import { MICROCOPY } from '@/lib/policies';
-import { isValidCoupon } from '@/lib/coupons';
+import { isValidCouponSync } from '@/lib/coupons';
 
 // ===========================================================
 // TIPOS
@@ -747,7 +747,7 @@ export function CreditBookingWizard({
               const value = e.target.value.toUpperCase();
               setCouponCode(value);
               // Validação discreta: mostrar aviso se cupom digitado não é reconhecido
-              if (value.trim() && !isValidCoupon(value)) {
+              if (value.trim() && !isValidCouponSync(value)) {
                 setCouponWarning(MICROCOPY.creditBooking.couponNotRecognized);
               } else {
                 setCouponWarning('');

@@ -5,7 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import prisma, { isOverbookingError, OVERBOOKING_ERROR_MESSAGE } from '@/lib/prisma';
-import { createBookingPayment, createAsaasCheckoutForBooking, normalizeAsaasError } from '@/lib/asaas';
+import { createBookingPayment, createBookingCardPayment, createAsaasCheckoutForBooking, normalizeAsaasError } from '@/lib/asaas';
 import { brazilianPhone, validateCPF } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -221,7 +221,7 @@ export default async function handler(
     
     if (data.couponCode) {
       const couponKey = data.couponCode.toUpperCase().trim();
-      const couponConfig = getCouponInfo(couponKey);
+      const couponConfig = await getCouponInfo(couponKey);
       
       if (couponConfig?.isDevCoupon && !auth?.userId) {
         // DEV coupon sem sessão: bloqueia
@@ -433,9 +433,9 @@ export default async function handler(
         // Ignorar código de override (já tratado acima)
         if (couponKey === TEST_OVERRIDE_CODE) {
           console.log(`[BOOKING] ${requestId} | coupon=${couponKey} ignored (override code without auth)`);
-        } else if (isValidCoupon(couponKey)) {
+        } else if (await isValidCoupon(couponKey)) {
           // Validar acesso ao DEV coupon usando email da SESSÃO
-          const devCheck = validateDevCouponAccess(couponKey, sessionEmail, requestId);
+          const devCheck = await validateDevCouponAccess(couponKey, sessionEmail, requestId);
           if (!devCheck.allowed) {
             throw new Error(`DEV_COUPON_BLOCKED: ${devCheck.reason}`);
           }
@@ -448,12 +448,12 @@ export default async function handler(
           }
           isDevCoupon = usageCheck.isDevCoupon || false;
           
-          // applyDiscount espera e retorna CENTAVOS
+          // applyDiscount espera e retorna CENTAVOS (busca do banco)
           // Aplicar desconto sobre o valor RESTANTE (após créditos)
-          const discountResult = applyDiscount(amountToPayWithoutCoupon, couponKey);
+          const discountResult = await applyDiscount(amountToPayWithoutCoupon, couponKey);
           discountAmountCents = discountResult.discountAmount;
           couponApplied = couponKey;
-          couponSnapshot = createCouponSnapshot(couponKey);
+          couponSnapshot = await createCouponSnapshot(couponKey);
         }
       } else if (data.couponCode && !couponsEnabled) {
         // MVP: Cupons desabilitados - ignorar silenciosamente
@@ -677,7 +677,32 @@ export default async function handler(
         let isCheckoutFlow = false;
 
         if (data.paymentMethod === 'CARD') {
-          // CARTÃO: Usar Checkout Asaas (cliente escolhe parcelas no checkout)
+          // CARTÃO: Se tem installmentCount específico, usar createBookingCardPayment
+          // Caso contrário, usar Checkout Asaas (cliente escolhe parcelas no checkout)
+          if (data.installmentCount && data.installmentCount > 1) {
+            // Parcelas específicas: usar createBookingCardPayment
+            const cardResult = await withTimeout(
+              createBookingCardPayment({
+                bookingId: result.booking.id,
+                customerName: data.userName,
+                customerEmail: data.userEmail || `${data.userPhone}@placeholder.com`,
+                customerPhone: data.userPhone,
+                customerCpf: data.userCpf,
+                value: result.amountToPayCents,
+                description: `Reserva ${room.name} - ${result.hours}h`,
+                installmentCount: data.installmentCount,
+              }),
+              TIMEOUTS.PAYMENT_CREATE,
+              'criação de pagamento cartão parcelado'
+            );
+            paymentResult = {
+              paymentId: cardResult.paymentId,
+              invoiceUrl: cardResult.invoiceUrl,
+            };
+            paymentMethod = 'CREDIT_CARD';
+            console.log(`💳 [BOOKING] Pagamento CARTÃO ${data.installmentCount}x criado: ${cardResult.paymentId}`);
+          } else {
+            // Sem parcelas específicas: usar Checkout Asaas (cliente escolhe no checkout)
           const checkoutResult = await withTimeout(
             createAsaasCheckoutForBooking({
               bookingId: result.booking.id,
@@ -699,6 +724,7 @@ export default async function handler(
           paymentMethod = 'CREDIT_CARD';
           isCheckoutFlow = true;
           console.log(`🛒 [BOOKING] Checkout CARTÃO criado: ${checkoutResult.checkoutId}`);
+          }
         } else {
           // Pagamento por PIX (default) (com timeout)
           const pixResult = await withTimeout(

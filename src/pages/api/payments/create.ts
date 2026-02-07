@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { 
   createBookingPayment, 
-  createBookingCardPayment,
+  createAsaasCheckoutForBooking,
   isMockMode, 
   PixQrCode 
 } from '@/lib/asaas';
@@ -24,6 +24,8 @@ import {
 const createPaymentSchema = z.object({
   bookingId: z.string().min(1, 'bookingId é obrigatório'),
   paymentMethod: z.enum(['PIX', 'CARD']).optional().default('PIX'),
+  // installmentCount: Mantido para compatibilidade, mas não é usado para CARD
+  // (cliente escolhe parcelas diretamente no checkout do Asaas)
   installmentCount: z.number().min(1).max(12).optional(),
 });
 
@@ -186,19 +188,28 @@ export default async function handler(
     };
 
     if (paymentMethod === 'CARD') {
-      // Pagamento por CARTÃO DE CRÉDITO
-      const result = await createBookingCardPayment({
-        ...basePaymentInput,
-        installmentCount: installmentCount || 1,
+      // Pagamento por CARTÃO DE CRÉDITO usando Checkout Asaas
+      // O checkout permite que o cliente escolha parcelas diretamente no Asaas
+      const result = await createAsaasCheckoutForBooking({
+        bookingId: booking.id,
+        customerName: booking.user.name,
+        customerEmail: booking.user.email,
+        customerPhone: booking.user.phone || '',
+        customerCpf: booking.user.cpf || '',
+        value: totalAmount, // Em centavos
+        itemName: description.length > 30 ? description.substring(0, 30) : description,
+        itemDescription: `Reserva Espaço Arthemi - ${description}`,
+        maxInstallmentCount: 12, // Permite até 12x (cliente escolhe no checkout)
+        minutesToExpire: 60,
       });
 
-      console.log('💳 [Asaas] Cobrança CARTÃO criada:', result.paymentId);
+      console.log('💳 [Asaas] Checkout CARTÃO criado:', result.checkoutId);
 
-      // Atualizar booking
+      // Atualizar booking com checkoutId (não paymentId ainda, será preenchido pelo webhook)
       await prisma.booking.update({
         where: { id: bookingId },
         data: {
-          paymentId: result.paymentId,
+          paymentId: result.checkoutId, // Temporário - será atualizado pelo webhook
           paymentStatus: 'PENDING',
           paymentMethod: 'CREDIT_CARD',
         },
@@ -212,8 +223,8 @@ export default async function handler(
           amount: totalAmount,
           status: 'PENDING',
           method: 'CREDIT_CARD',
-          externalId: result.paymentId,
-          externalUrl: result.invoiceUrl,
+          externalId: result.checkoutId, // Checkout ID (será atualizado pelo webhook com paymentId)
+          externalUrl: result.checkoutUrl,
           idempotencyKey,
         },
       });
@@ -222,11 +233,10 @@ export default async function handler(
         success: true,
         type: 'asaas',
         paymentMethod: 'CARD',
-        paymentId: result.paymentId,
-        invoiceUrl: result.invoiceUrl,
+        paymentId: result.checkoutId, // Checkout ID
+        invoiceUrl: result.checkoutUrl, // URL do checkout (cliente escolhe parcelas aqui)
         amount: totalAmount,
-        installmentCount: result.installmentCount,
-        installmentValue: result.installmentValue ? Math.round(result.installmentValue * 100) : undefined,
+        // Não retornamos installmentCount/installmentValue pois cliente escolhe no checkout
       });
     }
 

@@ -296,7 +296,9 @@ export const env = {
   
   // App
   get NEXT_PUBLIC_APP_URL(): string {
-    return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const url = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    // Limpar quebras de linha e espaços extras que podem estar no .env
+    return url.replace(/\r\n/g, '').replace(/\n/g, '').replace(/\r/g, '').trim();
   },
   
   // Meta

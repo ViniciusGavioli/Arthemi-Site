@@ -9,7 +9,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
-import { createBookingPayment, createBookingCardPayment, normalizeAsaasError } from '@/lib/asaas';
+import { createBookingPayment, createAsaasCheckoutForBooking, normalizeAsaasError } from '@/lib/asaas';
 import { brazilianPhone, validateCPF } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -535,16 +535,31 @@ export default async function handler(
     let paymentResult;
     
     if (data.paymentMethod === 'CARD') {
-      // Pagamento por Cartão (com timeout)
-      paymentResult = await withTimeout(
-        createBookingCardPayment({
-          ...basePaymentInput,
-          installmentCount: data.installmentCount || 1,
+      // Pagamento por Cartão usando Checkout Asaas (permite parcelamento)
+      // O checkout permite que o cliente escolha parcelas diretamente no Asaas
+      const checkoutResult = await withTimeout(
+        createAsaasCheckoutForBooking({
+          bookingId: `purchase:${result.credit.id}`,
+          customerName: data.userName,
+          customerEmail: data.userEmail || `${data.userPhone}@temp.arthemi.com.br`,
+          customerPhone: data.userPhone,
+          customerCpf: data.userCpf,
+          value: amount, // Em centavos
+          itemName: productName.length > 30 ? productName.substring(0, 30) : productName,
+          itemDescription: `${productName} - ${room.name}`,
+          maxInstallmentCount: 12, // Permite até 12x (cliente escolhe no checkout)
+          minutesToExpire: 60,
         }),
         TIMEOUTS.PAYMENT_CREATE,
-        'criação de pagamento cartão'
+        'criação de checkout cartão'
       );
-      console.log(`[CREDIT] Pagamento CARTÃO criado: ${paymentResult.paymentId}`);
+      console.log(`[CREDIT] Checkout CARTÃO criado: ${checkoutResult.checkoutId}`);
+      
+      // Adaptar retorno para formato compatível
+      paymentResult = {
+        paymentId: checkoutResult.checkoutId, // Checkout ID (será atualizado pelo webhook)
+        invoiceUrl: checkoutResult.checkoutUrl, // URL do checkout
+      };
     } else {
       // Pagamento por PIX (default) (com timeout)
       paymentResult = await withTimeout(

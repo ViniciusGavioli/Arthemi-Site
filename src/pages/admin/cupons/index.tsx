@@ -522,10 +522,10 @@ export default function CuponsPage({ user }: CuponsPageProps) {
               type="number"
               step="0.01"
               min="0"
-              value={formData.minAmountCents ? (parseFloat(formData.minAmountCents) / 100).toFixed(2) : ''}
+              value={formData.minAmountCents || ''}
               onChange={(e) => {
                 const val = e.target.value;
-                setFormData({ ...formData, minAmountCents: val ? (parseFloat(val) * 100).toString() : '' });
+                setFormData({ ...formData, minAmountCents: val || '' });
               }}
               error={formErrors.minAmountCents}
             />

@@ -133,11 +133,20 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
   }, [selectedRoom]);
 
   // Limpa seleção de produto E cupom quando muda sala
+  // Usar ref para rastrear a sala anterior e evitar reset desnecessário
+  const previousRoomIdRef = useRef<string | null>(null);
+  
   useEffect(() => {
-    setSelectedProduct(null);
-    // Invalidar cupom - preço diferente por sala
-    setCouponApplied(null);
-    setCouponError(null);
+    // Só resetar se a sala realmente mudou (comparar por ID)
+    const currentRoomId = selectedRoom?.id || null;
+    if (previousRoomIdRef.current !== currentRoomId) {
+      // Sala mudou - resetar produto e cupom
+      setSelectedProduct(null);
+      // Invalidar cupom - preço diferente por sala
+      setCouponApplied(null);
+      setCouponError(null);
+      previousRoomIdRef.current = currentRoomId;
+    }
   }, [selectedRoom]);
 
   // Fecha com ESC
@@ -147,11 +156,19 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
     }
   }, [onClose]);
 
+  // Usar ref para evitar chamar fetchRooms múltiplas vezes
+  const hasFetchedRoomsRef = useRef(false);
+
   useEffect(() => {
     if (isOpen) {
       document.addEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'hidden';
-      fetchRooms();
+      
+      // Buscar salas apenas uma vez quando modal abre
+      if (!hasFetchedRoomsRef.current) {
+        fetchRooms();
+        hasFetchedRoomsRef.current = true;
+      }
       // NÃO resetar paymentMethod aqui - manter a seleção do usuário
     } else {
       // Reset cupom quando modal fecha
@@ -160,6 +177,8 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
       setCouponApplied(null);
       // Reset paymentMethod apenas quando modal fecha
       setPaymentMethod('PIX');
+      // Reset flag para permitir buscar salas novamente na próxima abertura
+      hasFetchedRoomsRef.current = false;
     }
     
     return () => {
@@ -204,10 +223,22 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
       const res = await fetch('/api/rooms');
       if (res.ok) {
         const data = await res.json();
-        setRooms(data.rooms || []);
-        // Seleciona primeira sala por padrão
-        if (data.rooms?.length > 0) {
-          setSelectedRoom(data.rooms[0]);
+        const newRooms = data.rooms || [];
+        setRooms(newRooms);
+        
+        // Preservar seleção atual se a sala ainda existir
+        if (selectedRoom) {
+          const roomStillExists = newRooms.find((r: Room) => r.id === selectedRoom.id);
+          if (roomStillExists) {
+            // Atualizar referência do objeto mantendo a seleção
+            setSelectedRoom(roomStillExists);
+          } else if (newRooms.length > 0) {
+            // Sala não existe mais, selecionar primeira
+            setSelectedRoom(newRooms[0]);
+          }
+        } else if (newRooms.length > 0) {
+          // Nenhuma sala selecionada, selecionar primeira
+          setSelectedRoom(newRooms[0]);
         }
       }
     } catch (err) {

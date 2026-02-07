@@ -213,6 +213,7 @@ async function asaasRequest<T>(
       const asaasError = errorBody as { errors?: Array<{ description?: string; code?: string; field?: string }> };
       const errorsList = asaasError?.errors || [];
       
+      // Log detalhado dos erros
       console.error('❌ Asaas API Error:', {
         status: response?.status,
         endpoint,
@@ -222,8 +223,13 @@ async function asaasRequest<T>(
           code: err.code,
           field: err.field,
         })),
-        fullErrorBody: JSON.stringify(errorBody, null, 2), // Log completo para debug
       });
+      
+      // Log completo do errorBody (força expansão dos objetos)
+      console.error('❌ Asaas API Error - Full Body:', JSON.stringify(errorBody, null, 2));
+      
+      // Log completo do errorBody (força expansão dos objetos)
+      console.error('❌ Asaas API Error - Full Body:', JSON.stringify(errorBody, null, 2));
       
       // Se for erro de validação, propagar mensagem específica
       const errorMessage = errorsList[0]?.description || 'Erro na integração com gateway de pagamento';
@@ -1208,10 +1214,14 @@ export async function createAsaasCheckoutForBooking(
   
   // Debug: verificar customerData antes de enviar
   console.log('👤 [Asaas] customerData:', JSON.stringify(customerDataPayload, null, 2));
-  console.log('📦 [Asaas] checkoutPayload completo:', JSON.stringify({
-    ...checkoutPayload,
-    customerData: customerDataPayload,
-  }, null, 2));
+  console.log('📦 [Asaas] checkoutPayload completo:', JSON.stringify(checkoutPayload, null, 2));
+  
+  // Validação final antes de enviar: garantir que address está presente
+  if (!checkoutPayload.customerData || !checkoutPayload.customerData.address) {
+    console.error('❌ [Asaas] ERRO CRÍTICO: customerData.address não está presente no payload!');
+    console.error('❌ [Asaas] customerDataPayload:', JSON.stringify(customerDataPayload, null, 2));
+    throw new Error('Campo address é obrigatório mas não foi incluído no payload');
+  }
 
   const result = await asaasRequest<{
     id: string;

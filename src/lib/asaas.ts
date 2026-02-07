@@ -1000,16 +1000,50 @@ export async function createAsaasCheckoutForBooking(
     console.warn('   Esperado: valor em CENTAVOS (ex: 7000 para R$ 70,00)');
   }
   
-  // Obter appUrl e limpar qualquer whitespace (espaços, quebras de linha, etc.)
-  let appUrl = (env.NEXT_PUBLIC_APP_URL || 'https://arthemisaude.com').trim();
+  // Helper para limpar string de qualquer whitespace e quebras de linha
+  // Remove quebras de linha mas preserva espaços válidos na URL (entre protocolo e domínio)
+  const cleanUrl = (url: string): string => {
+    if (!url) return url;
+    // Primeiro, remover quebras de linha específicas
+    let cleaned = url
+      .replace(/\r\n/g, '')  // Windows line breaks
+      .replace(/\n/g, '')    // Unix line breaks
+      .replace(/\r/g, '');   // Mac line breaks
+    
+    // Remover espaços no início e fim, mas não no meio (pode ter espaços válidos em alguns casos)
+    cleaned = cleaned.trim();
+    
+    // Se ainda houver espaços no meio (que não deveriam existir em URLs), remover
+    // Mas preservar o formato básico da URL
+    if (cleaned.includes(' ')) {
+      // Se tem espaço, provavelmente é um erro - remover todos os espaços
+      cleaned = cleaned.replace(/\s+/g, '');
+    }
+    
+    return cleaned;
+  };
   
-  // Remover qualquer quebra de linha ou espaços extras
-  appUrl = appUrl.replace(/\r\n/g, '').replace(/\n/g, '').replace(/\r/g, '').trim();
+  // Obter appUrl e limpar qualquer whitespace (espaços, quebras de linha, etc.)
+  // O .env pode ter quebras de linha no final que causam URLs inválidas
+  const rawAppUrl = env.NEXT_PUBLIC_APP_URL || 'https://arthemisaude.com';
+  let appUrl = cleanUrl(rawAppUrl);
+  
+  // Debug: verificar se ainda há quebras de linha
+  if (appUrl.includes('\r') || appUrl.includes('\n')) {
+    console.error('⚠️ [Asaas] appUrl ainda contém quebras de linha após limpeza!', {
+      raw: JSON.stringify(rawAppUrl),
+      cleaned: JSON.stringify(appUrl),
+    });
+    // Forçar limpeza mais agressiva
+    appUrl = appUrl.split('\r').join('').split('\n').join('').trim();
+  }
   
   // Validar que appUrl é uma URL válida
   if (!appUrl || (!appUrl.startsWith('http://') && !appUrl.startsWith('https://'))) {
     throw new Error(`NEXT_PUBLIC_APP_URL inválido: "${appUrl}". Deve ser uma URL completa (ex: https://arthemisaude.com)`);
   }
+  
+  console.log('🔍 [Asaas] appUrl limpo:', JSON.stringify(appUrl));
   
   // Converter CENTAVOS → REAIS antes de enviar ao Asaas
   const valueInReais = centsToReal(input.value);
@@ -1030,23 +1064,26 @@ export async function createAsaasCheckoutForBooking(
     : input.bookingId.replace('booking:', '');
   
   // Construir URLs de callback (remover trailing slash do appUrl se houver)
-  const baseUrl = appUrl.replace(/\/$/, '');
-  const successUrl = isPurchase
+  // Limpar baseUrl novamente para garantir que não há quebras de linha
+  const baseUrl = cleanUrl(appUrl.replace(/\/$/, ''));
+  
+  // Construir URLs e limpar imediatamente após construção
+  const successUrl = cleanUrl(isPurchase
     ? `${baseUrl}/account/credits?purchase=${encodeURIComponent(entityId)}&status=success`
-    : `${baseUrl}/booking/success?booking=${encodeURIComponent(entityId)}`;
+    : `${baseUrl}/booking/success?booking=${encodeURIComponent(entityId)}`);
   
-  const cancelUrl = isPurchase
+  const cancelUrl = cleanUrl(isPurchase
     ? `${baseUrl}/account/credits?purchase=${encodeURIComponent(entityId)}&status=cancelled`
-    : `${baseUrl}/booking/failure?booking=${encodeURIComponent(entityId)}&reason=cancelled`;
+    : `${baseUrl}/booking/failure?booking=${encodeURIComponent(entityId)}&reason=cancelled`);
   
-  const expiredUrl = isPurchase
+  const expiredUrl = cleanUrl(isPurchase
     ? `${baseUrl}/account/credits?purchase=${encodeURIComponent(entityId)}&status=expired`
-    : `${baseUrl}/booking/failure?booking=${encodeURIComponent(entityId)}&reason=expired`;
+    : `${baseUrl}/booking/failure?booking=${encodeURIComponent(entityId)}&reason=expired`);
   
   // Validar URLs antes de enviar
   const urlPattern = /^https?:\/\/.+/;
   if (!urlPattern.test(successUrl) || !urlPattern.test(cancelUrl) || !urlPattern.test(expiredUrl)) {
-    throw new Error(`URLs de callback inválidas: successUrl=${successUrl}, cancelUrl=${cancelUrl}, expiredUrl=${expiredUrl}`);
+    throw new Error(`URLs de callback inválidas: successUrl="${successUrl}", cancelUrl="${cancelUrl}", expiredUrl="${expiredUrl}"`);
   }
   
   console.log('🔗 [Asaas] URLs de callback:', { successUrl, cancelUrl, expiredUrl });

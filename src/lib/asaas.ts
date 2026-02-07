@@ -969,6 +969,13 @@ export interface CreateAsaasCheckoutInput {
   itemDescription: string;
   minutesToExpire?: number; // Default: 60
   maxInstallmentCount?: number; // Default: 12
+  // Campos de endereço (opcionais, mas alguns podem ser obrigatórios pelo Asaas)
+  customerAddress?: string;
+  customerAddressNumber?: string;
+  customerComplement?: string;
+  customerPostalCode?: string;
+  customerProvince?: string;
+  customerCity?: number | string; // Código IBGE ou nome da cidade
 }
 
 export interface AsaasCheckoutResult {
@@ -1099,6 +1106,33 @@ export async function createAsaasCheckoutForBooking(
     };
   }
 
+  // Preparar dados do cliente com endereço (obrigatório pelo Asaas para checkout com cartão)
+  const customerDataPayload: Record<string, unknown> = {
+    name: input.customerName,
+    cpfCnpj: input.customerCpf,
+    email: input.customerEmail,
+    phone: input.customerPhone,
+  };
+  
+  // Adicionar campos de endereço (obrigatórios para checkout com cartão)
+  // Se não fornecidos, usar endereço padrão da empresa
+  if (input.customerAddress) {
+    customerDataPayload.address = input.customerAddress;
+    customerDataPayload.addressNumber = input.customerAddressNumber || 'S/N';
+    customerDataPayload.complement = input.customerComplement || '';
+    customerDataPayload.postalCode = input.customerPostalCode || '30140900'; // CEP da empresa
+    customerDataPayload.province = input.customerProvince || 'Santa Efigênia';
+    customerDataPayload.city = input.customerCity || 3106200; // Código IBGE de Belo Horizonte
+  } else {
+    // Endereço padrão da empresa (obrigatório pelo Asaas)
+    customerDataPayload.address = 'Área Hospitalar';
+    customerDataPayload.addressNumber = 'S/N';
+    customerDataPayload.complement = '';
+    customerDataPayload.postalCode = '30130000'; // CEP aproximado da Área Hospitalar
+    customerDataPayload.province = 'Área Hospitalar';
+    customerDataPayload.city = 3106200; // Código IBGE de Belo Horizonte
+  }
+
   // Payload do checkout conforme API Asaas /v3/checkouts
   const checkoutPayload = {
     // Formas de pagamento: apenas cartão de crédito
@@ -1134,12 +1168,8 @@ export async function createAsaasCheckoutForBooking(
     ],
     
     // Dados do cliente (pré-preenchidos no checkout)
-    customerData: {
-      name: input.customerName,
-      cpfCnpj: input.customerCpf,
-      email: input.customerEmail,
-      phone: input.customerPhone,
-    },
+    // O Asaas exige o campo 'address' para checkout com cartão
+    customerData: customerDataPayload,
     
     // Referência externa: usado para identificar booking no webhook
     externalReference: buildExternalReference(input.bookingId),

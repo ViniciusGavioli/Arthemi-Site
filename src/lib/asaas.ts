@@ -1000,7 +1000,12 @@ export async function createAsaasCheckoutForBooking(
     console.warn('   Esperado: valor em CENTAVOS (ex: 7000 para R$ 70,00)');
   }
   
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://arthemisaude.com';
+  const appUrl = env.NEXT_PUBLIC_APP_URL || 'https://arthemisaude.com';
+  
+  // Validar que appUrl é uma URL válida
+  if (!appUrl || (!appUrl.startsWith('http://') && !appUrl.startsWith('https://'))) {
+    throw new Error(`NEXT_PUBLIC_APP_URL inválido: "${appUrl}". Deve ser uma URL completa (ex: https://arthemisaude.com)`);
+  }
   
   // Converter CENTAVOS → REAIS antes de enviar ao Asaas
   const valueInReais = centsToReal(input.value);
@@ -1012,6 +1017,35 @@ export async function createAsaasCheckoutForBooking(
   const itemName = input.itemName.length > 30 
     ? input.itemName.substring(0, 30) 
     : input.itemName;
+
+  // Determinar URLs de callback baseado no tipo de bookingId
+  // Se começa com 'purchase:', é compra de crédito; senão, é booking
+  const isPurchase = input.bookingId.startsWith('purchase:');
+  const entityId = isPurchase 
+    ? input.bookingId.replace('purchase:', '') 
+    : input.bookingId.replace('booking:', '');
+  
+  // Construir URLs de callback (remover trailing slash do appUrl se houver)
+  const baseUrl = appUrl.replace(/\/$/, '');
+  const successUrl = isPurchase
+    ? `${baseUrl}/account/credits?purchase=${encodeURIComponent(entityId)}&status=success`
+    : `${baseUrl}/booking/success?booking=${encodeURIComponent(entityId)}`;
+  
+  const cancelUrl = isPurchase
+    ? `${baseUrl}/account/credits?purchase=${encodeURIComponent(entityId)}&status=cancelled`
+    : `${baseUrl}/booking/failure?booking=${encodeURIComponent(entityId)}&reason=cancelled`;
+  
+  const expiredUrl = isPurchase
+    ? `${baseUrl}/account/credits?purchase=${encodeURIComponent(entityId)}&status=expired`
+    : `${baseUrl}/booking/failure?booking=${encodeURIComponent(entityId)}&reason=expired`;
+  
+  // Validar URLs antes de enviar
+  const urlPattern = /^https?:\/\/.+/;
+  if (!urlPattern.test(successUrl) || !urlPattern.test(cancelUrl) || !urlPattern.test(expiredUrl)) {
+    throw new Error(`URLs de callback inválidas: successUrl=${successUrl}, cancelUrl=${cancelUrl}, expiredUrl=${expiredUrl}`);
+  }
+  
+  console.log('🔗 [Asaas] URLs de callback:', { successUrl, cancelUrl, expiredUrl });
 
   // Mock mode
   if (isMockMode()) {
@@ -1040,11 +1074,11 @@ export async function createAsaasCheckoutForBooking(
     // Expiração do checkout (minutos)
     minutesToExpire: input.minutesToExpire || 60,
     
-    // URLs de callback
+    // URLs de callback (ajustadas para compras de crédito ou bookings)
     callback: {
-      successUrl: `${appUrl}/booking/success?booking=${input.bookingId}`,
-      cancelUrl: `${appUrl}/booking/failure?booking=${input.bookingId}&reason=cancelled`,
-      expiredUrl: `${appUrl}/booking/failure?booking=${input.bookingId}&reason=expired`,
+      successUrl,
+      cancelUrl,
+      expiredUrl,
     },
     
     // Itens do checkout (obrigatório)

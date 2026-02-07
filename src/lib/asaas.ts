@@ -209,17 +209,25 @@ async function asaasRequest<T>(
         errorBody = await response.text().catch(() => 'Unable to read response body');
       }
       
+      // Expandir erros para debug completo
+      const asaasError = errorBody as { errors?: Array<{ description?: string; code?: string; field?: string }> };
+      const errorsList = asaasError?.errors || [];
+      
       console.error('❌ Asaas API Error:', {
         status: response?.status,
         endpoint,
         timestamp: new Date().toISOString(),
-        errorBody, // ← AGORA TEMOS O ERRO REAL DO ASAAS
+        errors: errorsList.map(err => ({
+          description: err.description,
+          code: err.code,
+          field: err.field,
+        })),
+        fullErrorBody: JSON.stringify(errorBody, null, 2), // Log completo para debug
       });
       
       // Se for erro de validação, propagar mensagem específica
-      const asaasError = errorBody as { errors?: Array<{ description?: string; code?: string }> };
-      const errorMessage = asaasError?.errors?.[0]?.description || 'Erro na integração com gateway de pagamento';
-      const errorCode = asaasError?.errors?.[0]?.code;
+      const errorMessage = errorsList[0]?.description || 'Erro na integração com gateway de pagamento';
+      const errorCode = errorsList[0]?.code;
       
       // Criar erro com metadados para normalização
       const err = new Error(errorMessage) as Error & { asaasErrorBody?: unknown; asaasErrorCode?: string };
@@ -1115,16 +1123,19 @@ export async function createAsaasCheckoutForBooking(
   };
   
   // Adicionar campos de endereço (obrigatórios para checkout com cartão)
+  // O Asaas exige que o campo 'address' seja uma string não vazia
   // Se não fornecidos, usar endereço padrão da empresa
-  if (input.customerAddress) {
-    customerDataPayload.address = input.customerAddress;
-    customerDataPayload.addressNumber = input.customerAddressNumber || 'S/N';
-    customerDataPayload.complement = input.customerComplement || '';
-    customerDataPayload.postalCode = input.customerPostalCode || '30140900'; // CEP da empresa
-    customerDataPayload.province = input.customerProvince || 'Santa Efigênia';
+  if (input.customerAddress && input.customerAddress.trim() !== '') {
+    customerDataPayload.address = input.customerAddress.trim();
+    customerDataPayload.addressNumber = input.customerAddressNumber?.trim() || 'S/N';
+    customerDataPayload.complement = input.customerComplement?.trim() || '';
+    customerDataPayload.postalCode = input.customerPostalCode?.trim() || '30130000';
+    customerDataPayload.province = input.customerProvince?.trim() || 'Área Hospitalar';
     customerDataPayload.city = input.customerCity || 3106200; // Código IBGE de Belo Horizonte
   } else {
     // Endereço padrão da empresa (obrigatório pelo Asaas)
+    // IMPORTANTE: address não pode ser vazio e deve ser um endereço válido
+    // Usar endereço completo: "Área Hospitalar, Belo Horizonte – MG"
     customerDataPayload.address = 'Área Hospitalar';
     customerDataPayload.addressNumber = 'S/N';
     customerDataPayload.complement = '';
@@ -1132,6 +1143,20 @@ export async function createAsaasCheckoutForBooking(
     customerDataPayload.province = 'Área Hospitalar';
     customerDataPayload.city = 3106200; // Código IBGE de Belo Horizonte
   }
+  
+  // Garantir que todos os campos obrigatórios estão preenchidos
+  // O Asaas pode rejeitar se algum campo estiver vazio ou inválido
+  if (!customerDataPayload.address || String(customerDataPayload.address).trim() === '') {
+    customerDataPayload.address = 'Área Hospitalar'; // Fallback garantido
+  }
+  
+  // Validação final: garantir que address não está vazio
+  const addressValue = String(customerDataPayload.address || '').trim();
+  if (!addressValue) {
+    throw new Error('Campo address é obrigatório e não pode estar vazio para checkout com cartão');
+  }
+  // Garantir que o valor final não está vazio
+  customerDataPayload.address = addressValue;
 
   // Payload do checkout conforme API Asaas /v3/checkouts
   const checkoutPayload = {
@@ -1180,6 +1205,13 @@ export async function createAsaasCheckoutForBooking(
     value: valueInReais,
     maxInstallments: input.maxInstallmentCount || 12,
   });
+  
+  // Debug: verificar customerData antes de enviar
+  console.log('👤 [Asaas] customerData:', JSON.stringify(customerDataPayload, null, 2));
+  console.log('📦 [Asaas] checkoutPayload completo:', JSON.stringify({
+    ...checkoutPayload,
+    customerData: customerDataPayload,
+  }, null, 2));
 
   const result = await asaasRequest<{
     id: string;

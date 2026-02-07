@@ -93,8 +93,9 @@ export default async function handler(
     const { code, grossAmount } = parsed.data;
     const normalizedCode = code.toUpperCase().trim();
 
-    // Verificar se cupom existe
-    if (!isValidCoupon(normalizedCode)) {
+    // Verificar se cupom existe (busca do banco)
+    const isValid = await isValidCoupon(normalizedCode);
+    if (!isValid) {
       return res.status(400).json({
         valid: false,
         code: normalizedCode,
@@ -104,8 +105,8 @@ export default async function handler(
       });
     }
 
-    // Obter info do cupom
-    const couponInfo = getCouponInfo(normalizedCode);
+    // Obter info do cupom (busca do banco)
+    const couponInfo = await getCouponInfo(normalizedCode);
     if (!couponInfo) {
       return res.status(400).json({
         valid: false,
@@ -116,8 +117,19 @@ export default async function handler(
       });
     }
 
-    // Calcular desconto
-    const { finalAmount, discountAmount, couponApplied } = applyDiscount(grossAmount, normalizedCode);
+    // Validar valor mínimo do cupom
+    if (couponInfo.minAmountCents && grossAmount < couponInfo.minAmountCents) {
+      return res.status(400).json({
+        valid: false,
+        code: normalizedCode,
+        grossAmount,
+        reason: 'MIN_AMOUNT',
+        message: `Cupom requer valor mínimo de ${formatCurrency(couponInfo.minAmountCents)}.`,
+      });
+    }
+
+    // Calcular desconto (busca do banco)
+    const { finalAmount, discountAmount, couponApplied } = await applyDiscount(grossAmount, normalizedCode);
 
     if (!couponApplied || discountAmount === 0) {
       return res.status(400).json({

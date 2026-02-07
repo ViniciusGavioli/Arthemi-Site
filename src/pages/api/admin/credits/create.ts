@@ -99,14 +99,14 @@ export default async function handler(
     if (data.couponCode) {
       const couponUpper = data.couponCode.toUpperCase().trim();
       
-      if (!isValidCoupon(couponUpper)) {
+      if (!await isValidCoupon(couponUpper)) {
         return res.status(400).json({
           success: false,
           error: `Cupom "${data.couponCode}" inválido. Cupons aceitos: TESTE50, ARTHEMI10, PRIMEIRACOMPRA`,
         });
       }
       
-      const discountResult = applyDiscount(originalAmount, couponUpper);
+      const discountResult = await applyDiscount(originalAmount, couponUpper);
       finalAmount = discountResult.finalAmount;
       discountAmount = discountResult.discountAmount;
       couponApplied = couponUpper;

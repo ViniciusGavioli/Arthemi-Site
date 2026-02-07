@@ -187,7 +187,7 @@ export default async function handler(
     let netAmount = grossAmount;
 
     // ========== APLICAR CUPOM (se fornecido) ==========
-    if (normalizedCouponCode && isValidCoupon(normalizedCouponCode)) {
+    if (normalizedCouponCode && await isValidCoupon(normalizedCouponCode)) {
       // Verificar se usuário pode usar este cupom (ex: PRIMEIRACOMPRA single-use)
       const usageCheck = await checkCouponUsage(prisma, userId, normalizedCouponCode, CouponUsageContext.BOOKING);
       if (!usageCheck.canUse) {
@@ -198,7 +198,7 @@ export default async function handler(
         });
       }
       
-      const discountResult = applyDiscount(grossAmount, normalizedCouponCode);
+      const discountResult = await applyDiscount(grossAmount, normalizedCouponCode);
       discountAmount = discountResult.discountAmount;
       netAmount = discountResult.finalAmount;
       couponApplied = normalizedCouponCode;

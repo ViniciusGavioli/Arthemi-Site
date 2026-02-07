@@ -428,10 +428,24 @@ export async function findOrCreateCustomer(
 
 /**
  * Cria uma cobrança no Asaas
+ * 
+ * ⚠️ IMPORTANTE: input.value DEVE estar em REAIS (não centavos)
+ * Esta função envia o valor diretamente ao Asaas sem conversão adicional
+ * 
+ * @param input.value - Valor em REAIS (ex: 70.00 para R$ 70,00)
  */
 export async function createPayment(
   input: CreatePaymentInput
 ): Promise<AsaasPayment> {
+  // VALIDAÇÃO: Garantir que value está em reais (não centavos)
+  // Se value > 10000, provavelmente está em centavos (ex: 7000 para R$ 70,00)
+  if (input.value > 10000) {
+    console.error('⚠️ [Asaas] ATENÇÃO: Valor suspeito de estar em centavos:', input.value);
+    console.error('   Esperado: valor em REAIS (ex: 70.00 para R$ 70,00)');
+    console.error('   Recebido:', input.value);
+    // Não lançar erro em produção para não quebrar, mas logar para debug
+  }
+
   if (isMockMode()) {
     console.log('🎭 [MOCK] Criando cobrança:', input);
     const mockId = `pay_mock_${Date.now()}`;
@@ -456,7 +470,7 @@ export async function createPayment(
   const paymentPayload: Record<string, unknown> = {
     customer: input.customerId,
     billingType: input.billingType,
-    value: input.value,
+    value: input.value, // ⚠️ JÁ EM REAIS - não converter novamente
     dueDate: input.dueDate,
     description: input.description,
     externalReference: input.externalReference,
@@ -774,10 +788,19 @@ export interface BookingPaymentResult {
 /**
  * Cria cobrança PIX para uma reserva
  * Função de alto nível que abstrai cliente + cobrança + QR Code
+ * 
+ * ⚠️ IMPORTANTE: input.value DEVE estar em CENTAVOS
+ * Esta função converte centavos → reais antes de enviar ao Asaas
  */
 export async function createBookingPayment(
   input: CreateBookingPaymentInput
 ): Promise<BookingPaymentResult> {
+  // VALIDAÇÃO: Garantir que value está em centavos
+  if (input.value < 100 && input.value > 0) {
+    console.warn('⚠️ [Asaas] Valor muito baixo para centavos:', input.value);
+    console.warn('   Esperado: valor em CENTAVOS (ex: 7000 para R$ 70,00)');
+  }
+
   // 1. Criar/buscar cliente
   const customer = await findOrCreateCustomer({
     name: input.customerName,
@@ -790,10 +813,16 @@ export async function createBookingPayment(
   const dueDate = input.dueDate || 
     new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-  // 3. Criar cobrança PIX
+  // 3. Converter CENTAVOS → REAIS antes de enviar ao Asaas
+  const valueInReais = centsToReal(input.value);
+  
+  // LOG para auditoria de conversão
+  console.log(`💱 [Asaas] Conversão PIX: ${input.value} centavos → R$ ${valueInReais.toFixed(2)}`);
+
+  // 4. Criar cobrança PIX
   const payment = await createPayment({
     customerId: customer.id,
-    value: centsToReal(input.value), // Converter centavos para reais
+    value: valueInReais, // ⚠️ JÁ CONVERTIDO PARA REAIS
     dueDate,
     description: input.description,
     externalReference: buildExternalReference(input.bookingId),
@@ -843,11 +872,20 @@ export interface CardPaymentResult {
  * Suporta parcelamento: installmentCount >= 2
  * Valor mínimo por parcela: R$ 5,00 (validado pelo Asaas)
  * 
+ * ⚠️ IMPORTANTE: input.value DEVE estar em CENTAVOS
+ * Esta função converte centavos → reais antes de enviar ao Asaas
+ * 
  * @env ASAAS_CARD_BILLING_MODE - Se 'UNDEFINED', aceita débito e crédito (Asaas decide)
  */
 export async function createBookingCardPayment(
   input: CreateBookingCardPaymentInput
 ): Promise<CardPaymentResult> {
+  // VALIDAÇÃO: Garantir que value está em centavos
+  if (input.value < 100 && input.value > 0) {
+    console.warn('⚠️ [Asaas] Valor muito baixo para centavos:', input.value);
+    console.warn('   Esperado: valor em CENTAVOS (ex: 7000 para R$ 70,00)');
+  }
+
   // 1. Criar/buscar cliente
   const customer = await findOrCreateCustomer({
     name: input.customerName,
@@ -860,8 +898,11 @@ export async function createBookingCardPayment(
   const dueDate = input.dueDate || 
     new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-  // 3. Converter valor
+  // 3. Converter CENTAVOS → REAIS antes de enviar ao Asaas
   const valueInReais = centsToReal(input.value);
+  
+  // LOG para auditoria de conversão
+  console.log(`💱 [Asaas] Conversão CARTÃO: ${input.value} centavos → R$ ${valueInReais.toFixed(2)}`);
   
   // 4. Billing type SEMPRE CREDIT_CARD para checkout hospedado
   // NOTA: UNDEFINED não funciona com /payments - causa erro 400
@@ -944,14 +985,28 @@ export interface AsaasCheckoutResult {
  * - /checkouts calcula juros automaticamente
  * - /checkouts suporta INSTALLMENT + DETACHED
  * 
+ * ⚠️ IMPORTANTE: input.value DEVE estar em CENTAVOS
+ * Esta função converte centavos → reais antes de enviar ao Asaas
+ * 
  * @param input Dados do checkout
  * @returns { checkoutId, checkoutUrl }
  */
 export async function createAsaasCheckoutForBooking(
   input: CreateAsaasCheckoutInput
 ): Promise<AsaasCheckoutResult> {
+  // VALIDAÇÃO: Garantir que value está em centavos
+  if (input.value < 100 && input.value > 0) {
+    console.warn('⚠️ [Asaas] Valor muito baixo para centavos:', input.value);
+    console.warn('   Esperado: valor em CENTAVOS (ex: 7000 para R$ 70,00)');
+  }
+  
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://arthemisaude.com';
+  
+  // Converter CENTAVOS → REAIS antes de enviar ao Asaas
   const valueInReais = centsToReal(input.value);
+  
+  // LOG para auditoria de conversão
+  console.log(`💱 [Asaas] Conversão CHECKOUT: ${input.value} centavos → R$ ${valueInReais.toFixed(2)}`);
   
   // Truncar nome do item para 30 caracteres (requisito Asaas)
   const itemName = input.itemName.length > 30 

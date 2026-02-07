@@ -129,6 +129,7 @@ interface BadgeProps {
   size?: 'sm' | 'md' | 'lg';
   icon?: string;
   pulse?: boolean;
+  className?: string;
 }
 
 const badgeVariants = {
@@ -147,9 +148,9 @@ const badgeSizes = {
   lg: 'px-3 py-1.5 text-sm',
 };
 
-export function Badge({ children, variant = 'gray', size = 'md', icon, pulse }: BadgeProps) {
+export function Badge({ children, variant = 'gray', size = 'md', icon, pulse, className = '' }: BadgeProps) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full font-semibold border ${badgeVariants[variant]} ${badgeSizes[size]} ${pulse ? 'animate-pulse' : ''}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full font-semibold border ${badgeVariants[variant]} ${badgeSizes[size]} ${pulse ? 'animate-pulse' : ''} ${className}`}>
       {icon && <span>{icon}</span>}
       {children}
     </span>

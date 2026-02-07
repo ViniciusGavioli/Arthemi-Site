@@ -17,6 +17,7 @@ const menuItems = [
   { href: '/admin/dashboard', icon: '📊', label: 'Dashboard' },
   { href: '/admin/reservas', icon: '📅', label: 'Reservas' },
   { href: '/admin/clientes', icon: '👥', label: 'Clientes' },
+  { href: '/admin/cupons', icon: '🎫', label: 'Cupons' },
   { href: '/admin/nova-reserva', icon: '➕', label: 'Nova Reserva' },
   { href: '/admin/auditoria', icon: '📋', label: 'Auditoria' },
   { href: '/admin/marketing', icon: '📈', label: 'Marketing & Integrações' },

@@ -3,10 +3,12 @@
 // ===========================================================
 // Substitui validação de admin_token estático por JWT assinado
 // Centraliza autenticação de endpoints /api/admin/*
+// Aceita tanto admin_token (legado) quanto arthemi_session com role ADMIN
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import jwt from 'jsonwebtoken';
 import { env } from '@/lib/env';
+import { AUTH_COOKIE_NAME, verifySessionToken } from '@/lib/auth';
 
 // Nome do cookie de admin
 export const ADMIN_COOKIE_NAME = 'admin_token';
@@ -85,6 +87,10 @@ export function verifyAdminToken(token: string): boolean {
 
 /**
  * Middleware: Valida autenticação admin para API routes
+ * Aceita dois métodos:
+ * 1. admin_token (JWT legado com type: 'admin')
+ * 2. arthemi_session (JWT do usuário com role: 'ADMIN')
+ * 
  * Retorna true se autenticado, false e envia 401 caso contrário
  * 
  * @example
@@ -97,32 +103,47 @@ export function requireAdminAuth(
   req: NextApiRequest,
   res: NextApiResponse
 ): boolean {
+  // Método 1: Verificar admin_token (legado)
   const adminToken = req.cookies[ADMIN_COOKIE_NAME];
-  
-  if (!adminToken) {
-    res.status(401).json({ error: 'Não autorizado' });
-    return false;
+  if (adminToken && verifyAdminToken(adminToken)) {
+    return true;
   }
-  
-  if (!verifyAdminToken(adminToken)) {
-    res.status(401).json({ error: 'Token inválido ou expirado' });
-    return false;
+
+  // Método 2: Verificar arthemi_session com role ADMIN
+  const userToken = req.cookies[AUTH_COOKIE_NAME];
+  if (userToken) {
+    const payload = verifySessionToken(userToken);
+    if (payload && payload.role === 'ADMIN') {
+      return true;
+    }
   }
-  
-  return true;
+
+  // Nenhum método válido encontrado
+  res.status(401).json({ error: 'Não autorizado' });
+  return false;
 }
 
 /**
  * Helper: Extrai e valida token admin de requisição
- * Retorna null se não autenticado ou token inválido
+ * Aceita tanto admin_token quanto arthemi_session com role ADMIN
+ * Retorna true se autenticado, false caso contrário
  * Não envia resposta - útil para verificação silenciosa
  */
 export function getAdminAuth(req: NextApiRequest): boolean {
+  // Método 1: Verificar admin_token (legado)
   const adminToken = req.cookies[ADMIN_COOKIE_NAME];
-  
-  if (!adminToken) {
-    return false;
+  if (adminToken && verifyAdminToken(adminToken)) {
+    return true;
   }
-  
-  return verifyAdminToken(adminToken);
+
+  // Método 2: Verificar arthemi_session com role ADMIN
+  const userToken = req.cookies[AUTH_COOKIE_NAME];
+  if (userToken) {
+    const payload = verifySessionToken(userToken);
+    if (payload && payload.role === 'ADMIN') {
+      return true;
+    }
+  }
+
+  return false;
 }

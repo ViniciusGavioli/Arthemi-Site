@@ -2,11 +2,11 @@
 // Componente: PaymentMethodSelector - Seleção de método de pagamento
 // PIX (default) ou Cartão de Crédito
 // ===========================================================
-// NOTA: Parcelamento/taxas são exibidos SOMENTE no checkout hospedado.
-// NÃO simular parcelas localmente - checkout externo é fonte da verdade.
+// Inclui seletor de parcelas quando cartão é selecionado
 // ===========================================================
 
 import { CreditCard, QrCode, Shield } from 'lucide-react';
+import { InstallmentSelector } from './InstallmentSelector';
 
 export type PaymentMethod = 'PIX' | 'CARD';
 
@@ -14,12 +14,18 @@ interface PaymentMethodSelectorProps {
   selected: PaymentMethod;
   onSelect: (method: PaymentMethod) => void;
   disabled?: boolean;
+  totalAmount?: number; // Valor total em centavos (para calcular parcelas)
+  selectedInstallments?: number; // Número de parcelas selecionadas
+  onInstallmentChange?: (installments: number) => void; // Callback quando parcelas mudam
 }
 
 export function PaymentMethodSelector({
   selected,
   onSelect,
   disabled = false,
+  totalAmount = 0,
+  selectedInstallments = 1,
+  onInstallmentChange,
 }: PaymentMethodSelectorProps) {
   return (
     <div className="space-y-4">
@@ -31,7 +37,11 @@ export function PaymentMethodSelector({
         {/* PIX */}
         <button
           type="button"
-          onClick={() => onSelect('PIX')}
+          onClick={() => {
+            onSelect('PIX');
+            // Reset parcelas ao selecionar PIX
+            if (onInstallmentChange) onInstallmentChange(1);
+          }}
           disabled={disabled}
           className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${
             selected === 'PIX'
@@ -65,13 +75,23 @@ export function PaymentMethodSelector({
         </button>
       </div>
 
+      {/* Seletor de parcelas (apenas para cartão) */}
+      {selected === 'CARD' && totalAmount > 0 && onInstallmentChange && (
+        <InstallmentSelector
+          totalAmount={totalAmount}
+          selectedInstallments={selectedInstallments}
+          onSelect={onInstallmentChange}
+          disabled={disabled}
+        />
+      )}
+
       {/* Aviso de redirecionamento para checkout seguro */}
       <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
         <p className="text-sm text-blue-700 flex items-start gap-2">
           <Shield className="w-4 h-4 mt-0.5 flex-shrink-0" />
           <span>
             {selected === 'CARD' 
-              ? 'Você será direcionado ao checkout seguro Asaas, onde poderá escolher pagar à vista ou parcelar em até 12x.'
+              ? 'Você será direcionado ao checkout seguro Asaas para finalizar o pagamento.'
               : 'Você será direcionado para um ambiente seguro para finalizar o pagamento.'}
           </span>
         </p>

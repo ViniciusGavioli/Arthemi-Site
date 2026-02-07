@@ -141,6 +141,7 @@ interface BookingFormData {
   couponCode: string;
   notes: string;
   paymentMethod: 'PIX' | 'CARD';
+  installmentCount: number; // Número de parcelas (1 = à vista, 2-12 = parcelado)
 }
 
 // Função para formatar CPF (XXX.XXX.XXX-XX)
@@ -172,6 +173,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     couponCode: '',
     notes: '',
     paymentMethod: 'PIX',
+    installmentCount: 1, // Parcelas (1 = à vista)
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -495,6 +497,9 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
           couponCode: formData.couponCode || undefined,
           notes: formData.notes || undefined,
           paymentMethod: formData.paymentMethod,
+          installmentCount: formData.paymentMethod === 'CARD' && formData.installmentCount > 1 
+            ? formData.installmentCount 
+            : undefined,
         }),
       });
 
@@ -1113,8 +1118,20 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
           {getTotalPrice() > 0 && (
             <PaymentMethodSelector
               selected={formData.paymentMethod}
-              onSelect={(method) => setFormData(prev => ({ ...prev, paymentMethod: method }))}
+              onSelect={(method) => {
+                setFormData(prev => ({ 
+                  ...prev, 
+                  paymentMethod: method,
+                  // Reset parcelas ao selecionar PIX
+                  installmentCount: method === 'PIX' ? 1 : prev.installmentCount
+                }));
+              }}
               disabled={submitting}
+              totalAmount={Math.round(getTotalPrice() * 100)} // Converter para centavos
+              selectedInstallments={formData.installmentCount}
+              onInstallmentChange={(installments) => 
+                setFormData(prev => ({ ...prev, installmentCount: installments }))
+              }
             />
           )}
 

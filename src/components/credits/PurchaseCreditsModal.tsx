@@ -343,6 +343,7 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
           productType: !isAvulsa ? selectedProduct.productType : undefined,
           // Método de pagamento: PIX ou CARD
           paymentMethod,
+          // Parcelamento: Cliente escolhe diretamente no checkout do Asaas (não enviamos mais)
           // Cupom de desconto - APENAS se validado previamente
           couponCode: couponToSend,
         }),

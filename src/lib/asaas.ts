@@ -228,9 +228,6 @@ async function asaasRequest<T>(
       // Log completo do errorBody (força expansão dos objetos)
       console.error('❌ Asaas API Error - Full Body:', JSON.stringify(errorBody, null, 2));
       
-      // Log completo do errorBody (força expansão dos objetos)
-      console.error('❌ Asaas API Error - Full Body:', JSON.stringify(errorBody, null, 2));
-      
       // Se for erro de validação, propagar mensagem específica
       const errorMessage = errorsList[0]?.description || 'Erro na integração com gateway de pagamento';
       const errorCode = errorsList[0]?.code;
@@ -1225,22 +1222,41 @@ export async function createAsaasCheckoutForBooking(
 
   const result = await asaasRequest<{
     id: string;
-    url: string;
-    expirationDate: string;
-    status: string;
+    url?: string;
+    checkoutUrl?: string;
+    expirationDate?: string;
+    status?: string;
+    [key: string]: unknown; // Permitir outros campos
   }>('/checkouts', {
     method: 'POST',
     body: JSON.stringify(checkoutPayload),
   });
 
+  // Debug: verificar resposta completa
+  console.log('✅ [Asaas] Checkout criado - Resposta completa:', JSON.stringify(result, null, 2));
+
+  // O Asaas pode retornar 'url', 'checkoutUrl', ou outros campos
+  // Verificar todos os campos possíveis
+  const checkoutUrl = (result as Record<string, unknown>).url as string | undefined
+    || (result as Record<string, unknown>).checkoutUrl as string | undefined
+    || (result as Record<string, unknown>).link as string | undefined
+    || (result as Record<string, unknown>).checkoutLink as string | undefined;
+  
+  if (!checkoutUrl) {
+    console.error('❌ [Asaas] ERRO: URL do checkout não encontrada na resposta!');
+    console.error('❌ [Asaas] Resposta completa:', JSON.stringify(result, null, 2));
+    console.error('❌ [Asaas] Campos disponíveis:', Object.keys(result));
+    throw new Error('URL do checkout não foi retornada pela API do Asaas');
+  }
+
   console.log('✅ [Asaas] Checkout criado:', result.id, {
-    url: result.url,
+    url: checkoutUrl,
     expirationDate: result.expirationDate,
   });
 
   return {
     checkoutId: result.id,
-    checkoutUrl: result.url,
+    checkoutUrl: checkoutUrl,
   };
 }
 

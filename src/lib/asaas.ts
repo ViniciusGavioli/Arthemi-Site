@@ -1000,7 +1000,11 @@ export async function createAsaasCheckoutForBooking(
     console.warn('   Esperado: valor em CENTAVOS (ex: 7000 para R$ 70,00)');
   }
   
-  const appUrl = env.NEXT_PUBLIC_APP_URL || 'https://arthemisaude.com';
+  // Obter appUrl e limpar qualquer whitespace (espaços, quebras de linha, etc.)
+  let appUrl = (env.NEXT_PUBLIC_APP_URL || 'https://arthemisaude.com').trim();
+  
+  // Remover qualquer quebra de linha ou espaços extras
+  appUrl = appUrl.replace(/\r\n/g, '').replace(/\n/g, '').replace(/\r/g, '').trim();
   
   // Validar que appUrl é uma URL válida
   if (!appUrl || (!appUrl.startsWith('http://') && !appUrl.startsWith('https://'))) {

@@ -4,6 +4,7 @@
 
 import type { GetServerSideProps, GetServerSidePropsContext } from 'next';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import { requireAuthSSR } from '@/lib/auth';
@@ -40,9 +41,46 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (ctx: Get
 };
 
 export default function CreditsPage({ user: _user }: PageProps) {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<CreditsSummary | null>(null);
   const [error, setError] = useState('');
+
+  // Tratar callback do Asaas (sucesso, cancelamento ou expiração)
+  useEffect(() => {
+    if (!router.isReady) return;
+
+    const purchaseId = router.query.purchase as string | undefined;
+    const status = router.query.status as string | undefined;
+
+    if (purchaseId && status) {
+      // Limpar flags de compra pendente se cancelado ou expirado
+      if (status === 'cancelled' || status === 'expired') {
+        // Limpar sessionStorage IMEDIATAMENTE
+        sessionStorage.removeItem('purchasePending');
+        sessionStorage.removeItem('purchaseRoomId');
+        
+        // Limpar query params para evitar reprocessamento
+        const { purchase, status: _status, ...rest } = router.query;
+        router.replace({ pathname: router.pathname, query: rest }, undefined, { shallow: true });
+      } else if (status === 'success') {
+        // Em caso de sucesso, redirecionar para /minha-conta com flag
+        // IMPORTANTE: Manter sessionStorage apenas se status=success
+        sessionStorage.setItem('purchasePending', '1');
+        router.replace('/minha-conta?afterPurchase=1');
+      }
+    } else if (purchaseId && !status) {
+      // Se houver purchaseId mas não houver status, pode ser um callback incompleto
+      // Por segurança, limpar flags e não redirecionar
+      console.log('[ACCOUNT/CREDITS] PurchaseId sem status - limpando flags por segurança');
+      sessionStorage.removeItem('purchasePending');
+      sessionStorage.removeItem('purchaseRoomId');
+      
+      // Limpar query params
+      const { purchase, ...rest } = router.query;
+      router.replace({ pathname: router.pathname, query: rest }, undefined, { shallow: true });
+    }
+  }, [router.isReady, router.query, router]);
 
   useEffect(() => {
     async function fetchCredits() {

@@ -10,6 +10,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { createBookingPayment, createAsaasCheckoutForBooking, normalizeAsaasError } from '@/lib/asaas';
+import { PRICES_V3, ROOM_SLUG_MAP, type RoomKey } from '@/constants/prices';
 import { brazilianPhone, validateCPF } from '@/lib/validations';
 import { logUserAction } from '@/lib/audit';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -213,7 +214,40 @@ export default async function handler(
       }
 
       creditHours = product.hoursIncluded || 0;
-      amount = product.price;
+      // DEBUG: Log do preço do produto antes de atribuir
+      console.log(`[CREDITS/PURCHASE] Produto encontrado (por tipo): ${product.name} | Preço no banco: ${product.price} centavos | Tipo: ${product.type}`);
+      
+      // CORREÇÃO: Se o preço parece estar em reais (valor muito alto), converter para centavos
+      // Exemplo: se PACKAGE_40H deveria ser ~195960 centavos mas está como 1959600 ou 19596000
+      // Valores acima de 1000000 centavos (R$ 10.000,00) são suspeitos para pacotes
+      if (product.price > 1000000 && product.type.startsWith('PACKAGE_')) {
+        console.warn(`⚠️ [CREDITS/PURCHASE] Valor suspeito detectado: ${product.price} centavos para ${product.type}. Verificando se precisa correção...`);
+        // Tentar detectar se está em reais (dividir por 100) ou em dezenas de centavos (dividir por 10)
+        const roomKey = ROOM_SLUG_MAP[room.slug] as RoomKey | undefined;
+        if (roomKey && PRICES_V3[roomKey]) {
+          const roomPrices = PRICES_V3[roomKey].prices;
+          const priceReais = (roomPrices as any)[product.type] as number | undefined;
+          if (priceReais) {
+            const expectedPriceCents = Math.round(priceReais * 100);
+            if (expectedPriceCents > 0 && Math.abs(product.price - expectedPriceCents * 10) < Math.abs(product.price - expectedPriceCents)) {
+              console.warn(`⚠️ [CREDITS/PURCHASE] Corrigindo valor: ${product.price} → ${expectedPriceCents} centavos`);
+              amount = expectedPriceCents;
+            } else if (expectedPriceCents > 0 && Math.abs(product.price - expectedPriceCents * 100) < Math.abs(product.price - expectedPriceCents)) {
+              console.warn(`⚠️ [CREDITS/PURCHASE] Corrigindo valor: ${product.price} → ${expectedPriceCents} centavos (estava em reais)`);
+              amount = expectedPriceCents;
+            } else {
+              amount = product.price;
+            }
+          } else {
+            amount = product.price;
+          }
+        } else {
+          amount = product.price;
+        }
+      } else {
+        amount = product.price;
+      }
+      
       productName = product.name;
       validityDays = product.validityDays || 365;
       productType = product.type; // Captura tipo para definir usageType
@@ -248,6 +282,8 @@ export default async function handler(
       }
 
       creditHours = product.hoursIncluded || 0;
+      // DEBUG: Log do preço do produto antes de atribuir
+      console.log(`[CREDITS/PURCHASE] Produto encontrado (por ID): ${product.name} | Preço no banco: ${product.price} centavos | Tipo: ${product.type}`);
       amount = product.price;
       productName = product.name;
       validityDays = product.validityDays || 365;
@@ -258,6 +294,9 @@ export default async function handler(
         error: 'Deve informar hours, productType ou productId.',
       });
     }
+
+    // DEBUG: Log do valor após atribuição
+    console.log(`[CREDITS/PURCHASE] Valor atribuído (amount): ${amount} centavos | Produto: ${productName}`);
 
     // ========== AUDITORIA: Guardar valor bruto antes de cupom ==========
     const grossAmount = amount;
@@ -519,6 +558,9 @@ export default async function handler(
       });
     }
 
+    // DEBUG: Log do valor antes de criar pagamento
+    console.log(`[CREDITS/PURCHASE] Valor final antes de criar pagamento: ${amount} centavos (R$ ${(amount / 100).toFixed(2)})`);
+    
     const basePaymentInput = {
       bookingId: `purchase:${result.credit.id}`, // Prefixo 'purchase:' para distinguir de 'booking:' no webhook
       customerName: data.userName,

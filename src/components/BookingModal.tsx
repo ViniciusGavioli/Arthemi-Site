@@ -247,11 +247,40 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
   // Obter informações de preço usando helper unificado (weekday vs saturday)
   const pricingInfo = getPricingInfoForUI(room.id, formData.date, room.slug);
 
+  // Produtos filtrados para esta sala - apenas pacotes de horas
+  // Turnos (SHIFT_FIXED, SATURDAY_SHIFT) são tratados manualmente via WhatsApp/Admin
+  // Excluídos: DAY_PASS, SATURDAY_5H (descontinuados)
+  const officialTypes = ['PACKAGE_10H', 'PACKAGE_20H', 'PACKAGE_40H'];
+  const filteredProducts = products
+    .filter((p) => officialTypes.includes(p.type))
+    .map((p) => {
+      // CORREÇÃO: Se o preço parece estar incorreto (muito alto), corrigir automaticamente
+      // Valores acima de 1000000 centavos (R$ 10.000,00) são suspeitos para pacotes
+      // Pacotes normalmente custam entre R$ 300 e R$ 2.000 (30000 a 200000 centavos)
+      if (p.price > 1000000 && p.type.startsWith('PACKAGE_')) {
+        // Tentar detectar se está multiplicado por 10 ou 100
+        // Se dividir por 10 resulta em um valor razoável (entre 30000 e 200000), usar esse valor
+        const dividedBy10 = Math.round(p.price / 10);
+        if (dividedBy10 >= 30000 && dividedBy10 <= 200000) {
+          console.warn(`⚠️ [BookingModal] Corrigindo preço de ${p.name}: ${p.price} → ${dividedBy10} centavos (estava multiplicado por 10)`);
+          return { ...p, price: dividedBy10 };
+        }
+        // Se dividir por 100 resulta em um valor razoável, usar esse valor
+        const dividedBy100 = Math.round(p.price / 100);
+        if (dividedBy100 >= 30000 && dividedBy100 <= 200000) {
+          console.warn(`⚠️ [BookingModal] Corrigindo preço de ${p.name}: ${p.price} → ${dividedBy100} centavos (estava multiplicado por 100)`);
+          return { ...p, price: dividedBy100 };
+        }
+      }
+      return p;
+    });
+
   // Calcular valor total (preço base - desconto aplicado no backend)
   const getTotalPrice = () => {
     let basePrice: number;
     if (formData.productType === 'package' && formData.productId) {
-      const product = products.find((p) => p.id === formData.productId);
+      // Usar filteredProducts para obter o produto corrigido
+      const product = filteredProducts.find((p) => p.id === formData.productId);
       basePrice = product?.price || 0;
     } else {
       // Usar preço da sala conforme data (helper unificado)
@@ -308,14 +337,6 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
       }
     }
   }, [formData.startHour, formData.date, formData.productType, formData.duration, availabilitySlots]);
-
-  // Produtos filtrados para esta sala - apenas pacotes de horas
-  // Turnos (SHIFT_FIXED, SATURDAY_SHIFT) são tratados manualmente via WhatsApp/Admin
-  // Excluídos: DAY_PASS, SATURDAY_5H (descontinuados)
-  const officialTypes = ['PACKAGE_10H', 'PACKAGE_20H', 'PACKAGE_40H'];
-  const filteredProducts = products.filter((p) => 
-    officialTypes.includes(p.type)
-  );
 
   // ===========================================================
   // UX HELPER: Scroll para mensagem de erro e cooldown do botão
@@ -436,8 +457,9 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
         // Determinar se é horas avulsas ou pacote
         const isHourlyCredit = formData.productId === 'hourly_credit';
         
-        // Buscar o produto selecionado para obter o type
-        const selectedProduct = products.find((p) => p.id === formData.productId);
+        // Buscar o produto selecionado para obter o type (usar filteredProducts para obter o produto corrigido)
+        const selectedProduct = filteredProducts.find((p) => p.id === formData.productId) || 
+                                products.find((p) => p.id === formData.productId);
         
         const response = await fetch('/api/credits/purchase', {
           method: 'POST',
@@ -1127,11 +1149,9 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                 }));
               }}
               disabled={submitting}
-              totalAmount={Math.round(getTotalPrice() * 100)} // Converter para centavos
-              selectedInstallments={formData.installmentCount}
-              onInstallmentChange={(installments) => 
-                setFormData(prev => ({ ...prev, installmentCount: installments }))
-              }
+              totalAmount={getTotalPrice()} // Já está em centavos
+              // Removido: selectedInstallments e onInstallmentChange
+              // O parcelamento será escolhido diretamente no checkout do Asaas
             />
           )}
 

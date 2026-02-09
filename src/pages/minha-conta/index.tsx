@@ -103,22 +103,53 @@ export default function MinhaContaPage() {
   const [successMessage, setSuccessMessage] = useState('');
 
   // Detecta retorno de compra via ?afterPurchase=1 OU sessionStorage
+  // IMPORTANTE: Só mostra toast de sucesso se realmente houve sucesso
   useEffect(() => {
     if (!router.isReady) return;
 
+    // PRIORIDADE 1: Verificar status na URL primeiro (mais confiável)
+    const status = router.query.status as string | undefined;
+    const purchaseId = router.query.purchase as string | undefined;
     const fromQuery = router.query.afterPurchase === '1';
     const fromStorage = sessionStorage.getItem('purchasePending') === '1';
 
-    if (fromQuery || fromStorage) {
-      // Limpa flags
-      if (fromQuery) {
-        const { afterPurchase, ...rest } = router.query;
+    // Se houver status de cancelamento ou expiração na URL, limpar flags IMEDIATAMENTE e não mostrar toast
+    if (status === 'cancelled' || status === 'expired') {
+      // Limpar sessionStorage imediatamente
+      sessionStorage.removeItem('purchasePending');
+      sessionStorage.removeItem('purchaseRoomId');
+      
+      // Limpar query params
+      if (purchaseId || status) {
+        const { purchase, status: _status, afterPurchase, ...rest } = router.query;
         router.replace({ pathname: router.pathname, query: rest }, undefined, { shallow: true });
       }
-      if (fromStorage) {
-        sessionStorage.removeItem('purchasePending');
-        sessionStorage.removeItem('purchaseRoomId');
-      }
+      return; // Não mostrar toast de sucesso
+    }
+
+    // PRIORIDADE 2: Se houver purchaseId na URL mas NÃO houver status=success, limpar flags
+    // Isso cobre casos onde o usuário cancelou mas o status não foi passado corretamente
+    if (purchaseId && status !== 'success') {
+      console.log('[MINHA-CONTA] PurchaseId na URL sem status=success - limpando flags por segurança');
+      sessionStorage.removeItem('purchasePending');
+      sessionStorage.removeItem('purchaseRoomId');
+      
+      // Limpar query params
+      const { purchase, status: _status, ...rest } = router.query;
+      router.replace({ pathname: router.pathname, query: rest }, undefined, { shallow: true });
+      return; // Não mostrar toast sem confirmação de sucesso
+    }
+
+    // PRIORIDADE 3: Só mostrar toast de sucesso se realmente houve sucesso confirmado
+    // fromQuery=1 indica sucesso explícito (vindo de /account/credits com status=success)
+    if (fromQuery) {
+      // Limpa flags
+      const { afterPurchase, ...rest } = router.query;
+      router.replace({ pathname: router.pathname, query: rest }, undefined, { shallow: true });
+      
+      // Limpar sessionStorage também
+      sessionStorage.removeItem('purchasePending');
+      sessionStorage.removeItem('purchaseRoomId');
 
       // Mostra toast de sucesso
       setSuccessMessage('Créditos liberados! Agora agende seu horário.');
@@ -133,6 +164,14 @@ export default function MinhaContaPage() {
 
       // Limpa mensagem após 5s
       setTimeout(() => setSuccessMessage(''), 5000);
+    } else {
+      // Se não houver fromQuery=1, não houve confirmação explícita de sucesso
+      // Limpar sessionStorage por segurança para evitar falsos positivos
+      if (fromStorage) {
+        console.log('[MINHA-CONTA] SessionStorage encontrado mas sem confirmação explícita (fromQuery) - limpando por segurança...');
+      }
+      sessionStorage.removeItem('purchasePending');
+      sessionStorage.removeItem('purchaseRoomId');
     }
   }, [router]);
 

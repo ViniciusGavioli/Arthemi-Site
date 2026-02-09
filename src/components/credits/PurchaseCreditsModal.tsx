@@ -141,10 +141,10 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
     const currentRoomId = selectedRoom?.id || null;
     if (previousRoomIdRef.current !== currentRoomId) {
       // Sala mudou - resetar produto e cupom
-      setSelectedProduct(null);
-      // Invalidar cupom - preço diferente por sala
-      setCouponApplied(null);
-      setCouponError(null);
+    setSelectedProduct(null);
+    // Invalidar cupom - preço diferente por sala
+    setCouponApplied(null);
+    setCouponError(null);
       previousRoomIdRef.current = currentRoomId;
     }
   }, [selectedRoom]);
@@ -166,7 +166,7 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
       
       // Buscar salas apenas uma vez quando modal abre
       if (!hasFetchedRoomsRef.current) {
-        fetchRooms();
+      fetchRooms();
         hasFetchedRoomsRef.current = true;
       }
       // NÃO resetar paymentMethod aqui - manter a seleção do usuário

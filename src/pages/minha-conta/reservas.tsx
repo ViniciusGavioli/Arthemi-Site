@@ -1,8 +1,7 @@
 // ===========================================================
 // Página: /minha-conta/reservas - Lista de Reservas do Cliente
 // ===========================================================
-// P0-3: Cancelamento pelo usuário REMOVIDO
-// Usuários devem solicitar cancelamento via WhatsApp
+// P0-3: Cancelamento de reservas PENDING restaurado
 
 import { useEffect, useState, useCallback } from 'react';
 import Head from 'next/head';
@@ -29,6 +28,10 @@ export default function ReservasPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('upcoming');
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [error, setError] = useState('');
 
   // Função para buscar reservas
   const fetchBookings = useCallback(async () => {
@@ -62,8 +65,34 @@ export default function ReservasPage() {
     init();
   }, [router, fetchBookings]);
 
-  // P0-3: Cancelamento pelo usuário REMOVIDO
-  // Apenas link para WhatsApp para solicitar cancelamento 
+  // Cancelar reserva PENDING
+  async function handleCancelPending(bookingId: string) {
+    setCancellingId(bookingId);
+    setShowCancelModal(null);
+    setError('');
+
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel' }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setSuccessMessage(data.message || 'Reserva cancelada com sucesso!');
+        await fetchBookings();
+        setTimeout(() => setSuccessMessage(''), 5000);
+      } else {
+        setError(data.error || 'Erro ao cancelar reserva');
+      }
+    } catch {
+      setError('Erro de conexão ao cancelar');
+    } finally {
+      setCancellingId(null);
+    }
+  }
 
   // P0-3: Gerar link do WhatsApp com mensagem para solicitar cancelamento
   const getWhatsAppCancelLink = (bookingId: string) => {
@@ -140,10 +169,24 @@ export default function ReservasPage() {
         <main className="max-w-3xl mx-auto px-4 py-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-6">Minhas Reservas</h1>
 
-          {/* Mensagem de sucesso */}
           {created && (
             <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
               <p className="text-green-700">✅ Reserva criada com sucesso!</p>
+            </div>
+          )}
+
+          {/* Mensagem de sucesso */}
+          {successMessage && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6 flex items-center justify-between">
+              <span>✅ {successMessage}</span>
+              <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800">✕</button>
+            </div>
+          )}
+
+          {/* Erro */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+              {error}
             </div>
           )}
 
@@ -157,11 +200,10 @@ export default function ReservasPage() {
               <button
                 key={f.key}
                 onClick={() => setFilter(f.key as any)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  filter === f.key
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-100'
-                }`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === f.key
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-100'
+                  }`}
               >
                 {f.label}
               </button>
@@ -195,9 +237,8 @@ export default function ReservasPage() {
                 return (
                   <div
                     key={booking.id}
-                    className={`bg-white rounded-xl shadow-sm border border-gray-100 p-5 ${
-                      !isUpcoming ? 'opacity-60' : ''
-                    }`}
+                    className={`bg-white rounded-xl shadow-sm border border-gray-100 p-5 ${!isUpcoming ? 'opacity-60' : ''
+                      }`}
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div>
@@ -221,7 +262,31 @@ export default function ReservasPage() {
                       )}
                     </div>
 
-                    {/* P0-3: Apenas link para WhatsApp - cancelamento é ADMIN-ONLY */}
+                    {/* Botão cancelar para reservas PENDING */}
+                    {isUpcoming && booking.status === 'PENDING' && (
+                      <div className="mt-4 pt-4 border-t border-gray-100">
+                        <button
+                          onClick={() => setShowCancelModal(booking.id)}
+                          disabled={cancellingId === booking.id}
+                          className="text-sm text-red-600 hover:text-red-700 font-medium flex items-center gap-1 disabled:opacity-50"
+                        >
+                          {cancellingId === booking.id ? (
+                            <>
+                              <span className="animate-spin">⏳</span> Cancelando...
+                            </>
+                          ) : (
+                            <>
+                              ❌ Cancelar reserva pendente
+                            </>
+                          )}
+                        </button>
+                        <p className="text-xs text-gray-500 mt-1">
+                          O horário será liberado imediatamente
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Link WhatsApp para reservas CONFIRMED */}
                     {isUpcoming && booking.status === 'CONFIRMED' && (
                       <div className="mt-4 pt-4 border-t border-gray-100">
                         <div className="flex gap-3 items-center">
@@ -246,6 +311,47 @@ export default function ReservasPage() {
           )}
         </main>
       </div>
+
+      {/* Modal de confirmação de cancelamento */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Confirmar Cancelamento
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Tem certeza que deseja cancelar esta reserva pendente?
+            </p>
+            <ul className="text-sm text-gray-500 mb-6 space-y-1">
+              <li>✓ O horário será liberado imediatamente</li>
+              <li>✓ Créditos utilizados serão restaurados</li>
+              <li>✓ Cobrança pendente será cancelada</li>
+            </ul>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCancelModal(null)}
+                disabled={!!cancellingId}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Voltar
+              </button>
+              <button
+                onClick={() => handleCancelPending(showCancelModal)}
+                disabled={!!cancellingId}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {cancellingId ? (
+                  <>
+                    <span className="animate-spin">⏳</span> Cancelando...
+                  </>
+                ) : (
+                  'Confirmar Cancelamento'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

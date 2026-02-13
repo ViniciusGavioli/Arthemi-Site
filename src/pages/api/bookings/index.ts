@@ -12,15 +12,15 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { checkApiRateLimit, getClientIp, sendRateLimitResponse } from '@/lib/api-rate-limit';
 import { resolveOrCreateUser } from '@/lib/user-resolve';
 import { getAuthFromRequest } from '@/lib/auth';
-import { 
-  withTimeout, 
-  getSafeErrorMessage, 
+import {
+  withTimeout,
+  getSafeErrorMessage,
   TIMEOUTS,
   cpfInUseByOther,
 } from '@/lib/production-safety';
 import { isValidCoupon, applyDiscount, checkCouponUsage, recordCouponUsageIdempotent, createCouponSnapshot, getCouponInfo, validateDevCouponAccess, areCouponsEnabled } from '@/lib/coupons';
-import { 
-  getAvailableCreditsForRoom, 
+import {
+  getAvailableCreditsForRoom,
   consumeCreditsForBooking,
   getCreditBalanceForRoom,
   validateBookingWindow,
@@ -111,7 +111,7 @@ export default async function handler(
 
     // 1. Validar body com Zod
     const validation = createBookingSchema.safeParse(req.body);
-    
+
     if (!validation.success) {
       return res.status(400).json({
         success: false,
@@ -218,11 +218,11 @@ export default async function handler(
     // DEV coupon em produção REQUER sessão autenticada com email na whitelist
     // NUNCA confiar em email do body para autorizar DEV coupon
     const auth = getAuthFromRequest(req);
-    
+
     if (data.couponCode) {
       const couponKey = data.couponCode.toUpperCase().trim();
       const couponConfig = await getCouponInfo(couponKey);
-      
+
       if (couponConfig?.isDevCoupon && !auth?.userId) {
         // DEV coupon sem sessão: bloqueia
         console.log(`[DEV_COUPON] ${requestId} | isDevCoupon=true | hasSession=false | BLOCKED`);
@@ -258,7 +258,7 @@ export default async function handler(
       let userId: string;
       let sessionEmail: string | null = null; // Email da SESSÃO (não do body)
       let isAnonymousCheckout = false;
-      
+
       if (auth?.userId) {
         // LOGADO: usar userId da sessão diretamente
         // NÃO chamar resolveOrCreateUser - email/phone do body são ignorados
@@ -269,7 +269,7 @@ export default async function handler(
         if (!emailCheck.canBook) {
           throw new Error('EMAIL_NOT_VERIFIED');
         }
-        
+
         // Buscar email da SESSÃO para validação de cupom DEV
         const loggedUser = await tx.user.findUnique({ where: { id: userId }, select: { email: true } });
         sessionEmail = loggedUser?.email || null;
@@ -290,9 +290,9 @@ export default async function handler(
       // 6. Calcular valor usando helper unificado de preço (weekday vs saturday)
       // IMPORTANTE: Todos os valores financeiros são em CENTAVOS (inteiros)
       const hours = Math.ceil((endAt.getTime() - startAt.getTime()) / (1000 * 60 * 60));
-      
+
       let amountCents: number;
-      
+
       // Se tem productId, busca preço do produto (já em CENTAVOS no banco)
       if (data.productId) {
         const product = await tx.product.findUnique({
@@ -318,7 +318,7 @@ export default async function handler(
           throw new Error(`PRICING_ERROR: ${err instanceof Error ? err.message : 'Erro ao calcular preço'}`);
         }
       }
-      
+
       // Validar que amount é inteiro (CENTAVOS)
       assertIntegerCents(amountCents, 'booking.amountCents');
 
@@ -334,19 +334,19 @@ export default async function handler(
       // Verifica ANTES de créditos/cupom - se ativo, ignora tudo e usa valor fixo
       const isAdmin = getAdminAuth(req);
       const testOverride = processTestOverride(data.couponCode, sessionEmail, isAdmin, requestId);
-      
+
       if (testOverride.enabled) {
         // Override ativo: valor final fixo, sem créditos, sem cupom
         isTestOverride = true;
         couponApplied = TEST_OVERRIDE_CODE; // Para auditoria
         couponSnapshot = { type: 'TEST_OVERRIDE', finalAmount: testOverride.finalPayableCents };
-        
+
         // CÁLCULO SIMPLES: amountToPayCents = 500 (R$5)
         const amountToPayCents = testOverride.finalPayableCents;
         const netAmountCents = grossAmountCents; // Sem desconto real
         const creditsUsedCents = 0;
         const creditIds: string[] = [];
-        
+
         console.log(`[BOOKING_CALC] ${requestId} | TEST_OVERRIDE=true | grossAmount=${grossAmountCents} | amountToPayFinal=${amountToPayCents}`);
 
         // Validar prazo mínimo
@@ -359,7 +359,7 @@ export default async function handler(
         // Criar booking com override
         const financialStatus = 'PENDING_PAYMENT';
         const expiresAt = new Date(Date.now() + PENDING_BOOKING_EXPIRATION_HOURS * 60 * 60 * 1000);
-        
+
         const booking = await tx.booking.create({
           data: {
             userId: userId,
@@ -399,11 +399,11 @@ export default async function handler(
       if (data.useCredits) {
         // P-008/P-011: Passar startAt/endAt para validar usageType
         const availableCreditsCents = await getCreditBalanceForRoom(userId, realRoomId, startAt, startAt, endAt);
-        
+
         if (availableCreditsCents > 0) {
           const creditsToUseCents = Math.min(availableCreditsCents, amountCents);
           amountToPayWithoutCoupon = amountCents - creditsToUseCents;
-          
+
           // P-002: Passa tx para consumo atômico dentro da transação
           // P-008/P-011: Passar startAt/endAt para validar usageType
           const consumeResult = await consumeCreditsForBooking(
@@ -415,7 +415,7 @@ export default async function handler(
             endAt,   // endTime - validação de usageType
             tx // Transação Prisma
           );
-          
+
           creditsUsedCents = consumeResult.totalConsumed;
           creditIds = consumeResult.creditIds;
         }
@@ -426,10 +426,10 @@ export default async function handler(
       // - Houver valor a pagar após créditos
       // - Código não for override de teste (já tratado acima)
       const couponsEnabled = areCouponsEnabled();
-      
+
       if (couponsEnabled && data.couponCode && amountToPayWithoutCoupon > 0) {
         const couponKey = data.couponCode.toUpperCase().trim();
-        
+
         // Ignorar código de override (já tratado acima)
         if (couponKey === TEST_OVERRIDE_CODE) {
           console.log(`[BOOKING] ${requestId} | coupon=${couponKey} ignored (override code without auth)`);
@@ -439,7 +439,7 @@ export default async function handler(
           if (!devCheck.allowed) {
             throw new Error(`DEV_COUPON_BLOCKED: ${devCheck.reason}`);
           }
-          
+
           // P1-5: Verificar se usuário pode usar este cupom (ex: PRIMEIRACOMPRA single-use)
           // DEV coupon: sessionEmail vem da SESSÃO, não do body
           const usageCheck = await checkCouponUsage(tx, userId, couponKey, 'BOOKING', sessionEmail);
@@ -447,7 +447,7 @@ export default async function handler(
             throw new Error(`CUPOM_INVALIDO: ${usageCheck.reason}`);
           }
           isDevCoupon = usageCheck.isDevCoupon || false;
-          
+
           // applyDiscount espera e retorna CENTAVOS (busca do banco)
           // Aplicar desconto sobre o valor RESTANTE (após créditos)
           const discountResult = await applyDiscount(amountToPayWithoutCoupon, couponKey);
@@ -459,16 +459,16 @@ export default async function handler(
         // MVP: Cupons desabilitados - ignorar silenciosamente
         console.log(`[BOOKING] ${requestId} | coupon=${data.couponCode} ignored (COUPONS_ENABLED=false)`);
       }
-      
+
       // ========== CÁLCULO FINAL (CORRIGIDO) ==========
       // netAmountCents = valor líquido da reserva (gross - discount, SEM créditos)
       // Usado para auditoria: quanto vale a reserva após desconto
       const netAmountCents = grossAmountCents - discountAmountCents;
-      
+
       // amountToPayCents = valor que o cliente deve PAGAR (após créditos e cupom)
       // FÓRMULA: gross - créditos - desconto = net - créditos
       const amountToPayCents = Math.max(0, netAmountCents - creditsUsedCents);
-      
+
       // LOG ESTRUTURADO: Antes de criar booking/cobrança (sem PII)
       console.log(`[BOOKING_CALC] ${requestId} | entityType=booking | grossAmount=${grossAmountCents} | creditsUsed=${creditsUsedCents} | amountToPayWithoutCoupon=${amountToPayWithoutCoupon} | couponCode=${couponApplied || 'none'} | isDevCoupon=${isDevCoupon} | discountAmount=${discountAmountCents} | netAmount=${netAmountCents} | amountToPayFinal=${amountToPayCents}`);
 
@@ -477,7 +477,7 @@ export default async function handler(
       if (amountToPayCents > 0) {
         const now = new Date();
         const minutesUntilStart = (startAt.getTime() - now.getTime()) / (1000 * 60);
-        
+
         if (minutesUntilStart < 30) {
           throw new Error('TEMPO_INSUFICIENTE');
         }
@@ -486,13 +486,13 @@ export default async function handler(
       // 7. Criar booking
       // Determinar financialStatus baseado no pagamento/créditos
       const financialStatus = amountToPayCents <= 0 ? 'PAID' : 'PENDING_PAYMENT';
-      
+
       // Calcular expiresAt para bookings PENDING (cleanup automático)
       const isPendingBooking = amountToPayCents > 0;
-      const expiresAt = isPendingBooking 
+      const expiresAt = isPendingBooking
         ? new Date(Date.now() + PENDING_BOOKING_EXPIRATION_HOURS * 60 * 60 * 1000)
         : null;
-      
+
       const booking = await tx.booking.create({
         data: {
           userId: userId,
@@ -528,7 +528,7 @@ export default async function handler(
           bookingId: booking.id,
           isDevCoupon, // Se true, skip registro (cupom DEV)
         });
-        
+
         if (!couponResult.ok) {
           throw new Error(`COUPON_ALREADY_USED:${couponApplied}`);
         }
@@ -628,14 +628,14 @@ export default async function handler(
       // Validação preventiva de valor mínimo (APÓS desconto)
       const paymentMethodType = data.paymentMethod === 'CARD' ? 'CREDIT_CARD' : 'PIX';
       const minAmountCents = getMinPaymentAmountCents(paymentMethodType);
-      
+
       if (result.amountToPayCents < minAmountCents) {
         // Cancelar booking criado pois pagamento não pode ser processado
         await prisma.booking.update({
           where: { id: result.booking.id },
           data: { status: 'CANCELLED', cancelReason: 'Valor abaixo do mínimo para pagamento após desconto' },
         });
-        
+
         return res.status(400).json({
           success: false,
           error: `Valor após desconto (R$ ${(result.amountToPayCents / 100).toFixed(2)}) abaixo do mínimo permitido para ${paymentMethodType === 'PIX' ? 'PIX' : 'cartão'} (R$ ${(minAmountCents / 100).toFixed(2)}).`,
@@ -647,7 +647,7 @@ export default async function handler(
           },
         } as ApiResponse);
       }
-      
+
       try {
         // P0-1: Verificar se já existe pagamento ativo para este booking (idempotência)
         const existingPayment = await checkBookingHasActivePayment(result.booking.id);
@@ -656,7 +656,7 @@ export default async function handler(
           return res.status(201).json({
             success: true,
             bookingId: result.booking.id,
-            paymentUrl: existingPayment.existingPayment.externalUrl,            paymentId: existingPayment.existingPayment.externalId, // P0-1: Para debug            paymentMethod: data.paymentMethod === 'CARD' ? 'CREDIT_CARD' : 'PIX',
+            paymentUrl: existingPayment.existingPayment.externalUrl, paymentId: existingPayment.existingPayment.externalId, // P0-1: Para debug            paymentMethod: data.paymentMethod === 'CARD' ? 'CREDIT_CARD' : 'PIX',
             creditsUsed: result.creditsUsedCents,
             amountToPay: result.amountToPayCents,
           });
@@ -670,7 +670,7 @@ export default async function handler(
           customerPhone: data.userPhone,
           customerCpf: data.userCpf,
           value: result.amountToPayCents, // CENTAVOS
-          description: `Reserva ${room.name} - ${result.hours}h${result.creditsUsedCents > 0 ? ` (R$ ${(result.creditsUsedCents/100).toFixed(2)} em créditos)` : ''}`,
+          description: `Reserva ${room.name} - ${result.hours}h${result.creditsUsedCents > 0 ? ` (R$ ${(result.creditsUsedCents / 100).toFixed(2)} em créditos)` : ''}`,
         };
 
         let paymentResult: { paymentId?: string; invoiceUrl?: string; checkoutId?: string; checkoutUrl?: string };
@@ -703,27 +703,27 @@ export default async function handler(
             console.log(`💳 [BOOKING] Pagamento CARTÃO ${data.installmentCount}x criado: ${cardResult.paymentId}`);
           } else {
             // Sem parcelas específicas: usar Checkout Asaas (cliente escolhe no checkout)
-          const checkoutResult = await withTimeout(
-            createAsaasCheckoutForBooking({
-              bookingId: result.booking.id,
-              customerName: data.userName,
-              customerEmail: data.userEmail || `${data.userPhone}@placeholder.com`,
-              customerPhone: data.userPhone,
-              customerCpf: data.userCpf,
-              value: result.amountToPayCents,
-              itemName: `Reserva ${room.name}`.substring(0, 30),
-              itemDescription: `${result.hours}h - ${new Date(data.startAt).toLocaleDateString('pt-BR')}`,
-            }),
-            TIMEOUTS.PAYMENT_CREATE,
-            'criação de checkout cartão'
-          );
-          paymentResult = {
-            checkoutId: checkoutResult.checkoutId,
-            checkoutUrl: checkoutResult.checkoutUrl,
-          };
-          paymentMethod = 'CREDIT_CARD';
-          isCheckoutFlow = true;
-          console.log(`🛒 [BOOKING] Checkout CARTÃO criado: ${checkoutResult.checkoutId}`);
+            const checkoutResult = await withTimeout(
+              createAsaasCheckoutForBooking({
+                bookingId: result.booking.id,
+                customerName: data.userName,
+                customerEmail: data.userEmail || `${data.userPhone}@placeholder.com`,
+                customerPhone: data.userPhone,
+                customerCpf: data.userCpf,
+                value: result.amountToPayCents,
+                itemName: `Reserva ${room.name}`.substring(0, 30),
+                itemDescription: `${result.hours}h - ${new Date(data.startAt).toLocaleDateString('pt-BR')}`,
+              }),
+              TIMEOUTS.PAYMENT_CREATE,
+              'criação de checkout cartão'
+            );
+            paymentResult = {
+              checkoutId: checkoutResult.checkoutId,
+              checkoutUrl: checkoutResult.checkoutUrl,
+            };
+            paymentMethod = 'CREDIT_CARD';
+            isCheckoutFlow = true;
+            console.log(`🛒 [BOOKING] Checkout CARTÃO criado: ${checkoutResult.checkoutId}`);
           }
         } else {
           // Pagamento por PIX (default) (com timeout)
@@ -744,7 +744,7 @@ export default async function handler(
 
         await prisma.booking.update({
           where: { id: result.booking.id },
-          data: { 
+          data: {
             paymentId: isCheckoutFlow ? paymentResult.checkoutId : paymentResult.paymentId,
             paymentMethod,
           },
@@ -788,10 +788,10 @@ export default async function handler(
       } catch (paymentError) {
         // Normalizar erro do Asaas para código padronizado
         const normalizedError = normalizeAsaasError(
-          paymentError, 
+          paymentError,
           data.paymentMethod === 'CARD' ? 'CREDIT_CARD' : 'PIX'
         );
-        
+
         console.error('❌ [BOOKING] Erro ao criar cobrança Asaas:', {
           requestId,
           bookingId: result.booking.id,
@@ -799,12 +799,12 @@ export default async function handler(
           message: normalizedError.message,
           details: normalizedError.details,
         });
-        
+
         await prisma.booking.update({
           where: { id: result.booking.id },
           data: { status: 'CANCELLED', cancelReason: `Erro pagamento: ${normalizedError.code}` },
         });
-        
+
         // Retornar erro normalizado com código padronizado
         const statusCode = normalizedError.code === 'PAYMENT_MIN_AMOUNT' ? 400 : 502;
         return res.status(statusCode).json({
@@ -816,10 +816,10 @@ export default async function handler(
       }
     }
 
-    console.log(`[API] POST /api/bookings END`, JSON.stringify({ 
-      requestId, 
-      statusCode: 201, 
-      duration: Date.now() - startTime 
+    console.log(`[API] POST /api/bookings END`, JSON.stringify({
+      requestId,
+      statusCode: 201,
+      duration: Date.now() - startTime
     }));
 
     return res.status(201).json({

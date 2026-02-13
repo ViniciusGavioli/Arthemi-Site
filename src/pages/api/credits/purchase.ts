@@ -28,8 +28,8 @@ import { computeCreditAmountCents } from '@/lib/credits';
 import { getBookingTotalByDate } from '@/lib/pricing';
 import { getMinPaymentAmountCents } from '@/lib/business-rules';
 import { respondError } from '@/lib/errors';
-import { 
-  generatePurchaseIdempotencyKey, 
+import {
+  generatePurchaseIdempotencyKey,
   checkPurchaseHasPayment,
 } from '@/lib/payment-idempotency';
 
@@ -105,7 +105,7 @@ export default async function handler(
 
     // Validação
     const validation = purchaseCreditsSchema.safeParse(req.body);
-    
+
     if (!validation.success) {
       return res.status(400).json({
         success: false,
@@ -190,7 +190,7 @@ export default async function handler(
     } else if (data.productType) {
       // Compra por tipo de produto (SHIFT_FIXED, SATURDAY_SHIFT, etc)
       const product = await prisma.product.findFirst({
-        where: { 
+        where: {
           roomId: realRoomId,
           type: data.productType as any, // Cast necessário - validado pelo schema
           isActive: true,
@@ -214,40 +214,36 @@ export default async function handler(
       }
 
       creditHours = product.hoursIncluded || 0;
-      // DEBUG: Log do preço do produto antes de atribuir
-      console.log(`[CREDITS/PURCHASE] Produto encontrado (por tipo): ${product.name} | Preço no banco: ${product.price} centavos | Tipo: ${product.type}`);
-      
-      // CORREÇÃO: Se o preço parece estar em reais (valor muito alto), converter para centavos
-      // Exemplo: se PACKAGE_40H deveria ser ~195960 centavos mas está como 1959600 ou 19596000
-      // Valores acima de 1000000 centavos (R$ 10.000,00) são suspeitos para pacotes
-      if (product.price > 1000000 && product.type.startsWith('PACKAGE_')) {
-        console.warn(`⚠️ [CREDITS/PURCHASE] Valor suspeito detectado: ${product.price} centavos para ${product.type}. Verificando se precisa correção...`);
-        // Tentar detectar se está em reais (dividir por 100) ou em dezenas de centavos (dividir por 10)
+      creditHours = product.hoursIncluded || 0;
+
+      // FIX 2026-02-13: Usar PRICES_V3 como fonte da verdade de preço
+      // O preço no banco pode estar inconsistente (ex: salvo em REAIS ao invés de CENTAVOS ou vice-versa)
+      // PRICES_V3 armazena em REAIS, então convertemos para CENTAVOS aqui
+      try {
         const roomKey = ROOM_SLUG_MAP[room.slug] as RoomKey | undefined;
-        if (roomKey && PRICES_V3[roomKey]) {
-          const roomPrices = PRICES_V3[roomKey].prices;
-          const priceReais = (roomPrices as any)[product.type] as number | undefined;
+        if (roomKey && PRICES_V3[roomKey]?.prices) {
+          const priceReais = PRICES_V3[roomKey].prices[product.type as keyof typeof PRICES_V3[typeof roomKey]['prices']];
           if (priceReais) {
-            const expectedPriceCents = Math.round(priceReais * 100);
-            if (expectedPriceCents > 0 && Math.abs(product.price - expectedPriceCents * 10) < Math.abs(product.price - expectedPriceCents)) {
-              console.warn(`⚠️ [CREDITS/PURCHASE] Corrigindo valor: ${product.price} → ${expectedPriceCents} centavos`);
-              amount = expectedPriceCents;
-            } else if (expectedPriceCents > 0 && Math.abs(product.price - expectedPriceCents * 100) < Math.abs(product.price - expectedPriceCents)) {
-              console.warn(`⚠️ [CREDITS/PURCHASE] Corrigindo valor: ${product.price} → ${expectedPriceCents} centavos (estava em reais)`);
-              amount = expectedPriceCents;
-            } else {
-              amount = product.price;
+            const priceCents = Math.round(priceReais * 100);
+
+            // Log de auditoria para detectar discrepâncias
+            if (priceCents !== product.price) {
+              console.warn(`[PRICING_FIX] Discrepância de preço detectada para ${product.type}: DB=${product.price} vs CONST=${priceCents}. Usando CONST.`);
             }
+
+            amount = priceCents;
           } else {
+            console.warn(`[PRICING_FIX] Preço não encontrado em PRICES_V3 para ${product.type}. Usando preço do banco.`);
             amount = product.price;
           }
         } else {
+          console.warn(`[PRICING_FIX] RoomKey não encontrada para slug ${room.slug}. Usando preço do banco.`);
           amount = product.price;
         }
-      } else {
-        amount = product.price;
+      } catch (err) {
+        console.error('[PRICING_FIX] Erro ao resolver preço via PRICES_V3:', err);
+        amount = product.price; // Fallback seguro
       }
-      
       productName = product.name;
       validityDays = product.validityDays || 365;
       productType = product.type; // Captura tipo para definir usageType
@@ -310,12 +306,12 @@ export default async function handler(
     // NOTA: Esta validação acontece DEPOIS da validação de CPF para garantir ordem correta
     const auth = getAuthFromRequest(req);
     const sessionEmail = auth?.userId ? null : null; // Buscaremos no banco dentro da transação
-    
+
     // Pré-validação: se é DEV coupon e NÃO tem sessão, bloqueia imediatamente
     if (data.couponCode) {
       const couponKey = data.couponCode.toUpperCase().trim();
       const couponConfig = await getCouponInfo(couponKey);
-      
+
       if (couponConfig?.isDevCoupon && !auth?.userId) {
         // DEV coupon sem sessão: bloqueia
         console.log(`[DEV_COUPON] ${requestId} | isDevCoupon=true | hasSession=false | BLOCKED`);
@@ -331,7 +327,7 @@ export default async function handler(
     // NOTA: Esta validação acontece DEPOIS da validação de CPF para garantir ordem correta
     if (data.couponCode) {
       const couponKey = data.couponCode.toUpperCase().trim();
-      
+
       // Validar cupom ANTES de aplicar - retornar erro claro se inválido (busca do banco)
       const isValid = await isValidCoupon(couponKey);
       if (!isValid) {
@@ -341,7 +337,7 @@ export default async function handler(
           error: 'Cupom inválido ou não aplicável.',
         });
       }
-      
+
       // Obter info do cupom para validar valor mínimo
       const couponInfo = await getCouponInfo(couponKey);
       if (couponInfo?.minAmountCents && amount < couponInfo.minAmountCents) {
@@ -351,7 +347,7 @@ export default async function handler(
           error: `Cupom requer valor mínimo de R$ ${(couponInfo.minAmountCents / 100).toFixed(2).replace('.', ',')}.`,
         });
       }
-      
+
       // Cupom válido - aplicar desconto (busca do banco)
       const discountResult = await applyDiscount(amount, couponKey);
       discountAmount = discountResult.discountAmount;
@@ -359,7 +355,7 @@ export default async function handler(
       couponApplied = couponKey;
       couponSnapshot = await createCouponSnapshot(couponKey);
     }
-    
+
     // netAmount é o valor após desconto
     const netAmount = amount;
 
@@ -380,7 +376,7 @@ export default async function handler(
       let userId: string;
       let sessionEmail: string | null = null; // Email da SESSÃO (não do body)
       let isAnonymousCheckout = false;
-      
+
       if (auth?.userId) {
         // LOGADO: usar userId da sessão diretamente
         // NÃO chamar resolveOrCreateUser - email/phone do body são ignorados
@@ -408,13 +404,13 @@ export default async function handler(
       if (couponApplied) {
         // Buscar cupom do banco para validar acesso DEV
         const couponInfo = await getCouponInfo(couponApplied);
-        
+
         // Validar acesso ao DEV coupon usando email da SESSÃO
         const devCheck = await validateDevCouponAccess(couponApplied, sessionEmail, requestId);
         if (!devCheck.allowed) {
           throw new Error(`DEV_COUPON_BLOCKED: ${devCheck.reason}`);
         }
-        
+
         // Validar uso do cupom (PRIMEIRACOMPRA, etc)
         const usageCheck = await checkCouponUsage(tx, userId, couponApplied, 'CREDIT_PURCHASE', sessionEmail);
         if (!usageCheck.canUse) {
@@ -479,7 +475,7 @@ export default async function handler(
           creditId: credit.id,
           isDevCoupon, // Se true, skip registro (cupom DEV)
         });
-        
+
         if (!couponResult.ok) {
           throw new Error(`COUPON_ALREADY_USED:${couponApplied}`);
         }
@@ -526,7 +522,7 @@ export default async function handler(
     // P-003: Gerar idempotencyKey e verificar se já existe pagamento
     const idempotencyKey = generatePurchaseIdempotencyKey(result.credit.id, data.paymentMethod || 'PIX');
     const existingPayment = await checkPurchaseHasPayment(result.credit.id);
-    
+
     if (existingPayment.exists && existingPayment.existingPayment) {
       console.log(`♻️ [CREDITS] Pagamento já existe (idempotência): ${existingPayment.existingPayment.id}`);
       return res.status(200).json({
@@ -540,13 +536,13 @@ export default async function handler(
     // Validação preventiva de valor mínimo
     const paymentMethodType = data.paymentMethod === 'CARD' ? 'CREDIT_CARD' : 'PIX';
     const minAmount = getMinPaymentAmountCents(paymentMethodType);
-    
+
     if (amount < minAmount) {
       // Excluir crédito pendente criado
       await prisma.credit.delete({
         where: { id: result.credit.id },
       });
-      
+
       return res.status(400).json({
         success: false,
         error: `Valor abaixo do mínimo permitido para ${paymentMethodType === 'PIX' ? 'PIX' : 'cartão'}.`,
@@ -560,7 +556,7 @@ export default async function handler(
 
     // DEBUG: Log do valor antes de criar pagamento
     console.log(`[CREDITS/PURCHASE] Valor final antes de criar pagamento: ${amount} centavos (R$ ${(amount / 100).toFixed(2)})`);
-    
+
     const basePaymentInput = {
       bookingId: `purchase:${result.credit.id}`, // Prefixo 'purchase:' para distinguir de 'booking:' no webhook
       customerName: data.userName,
@@ -575,7 +571,7 @@ export default async function handler(
     console.log(`[PURCHASE_CALC] ${requestId} | entityType=credit_purchase | grossAmount=${grossAmount} | couponCode=${couponApplied || 'none'} | isDevCoupon=${result.isDevCoupon || false} | discountAmount=${discountAmount} | amountToPayFinal=${amount}`);
 
     let paymentResult;
-    
+
     if (data.paymentMethod === 'CARD') {
       // Pagamento por Cartão usando Checkout Asaas (permite parcelamento)
       // O checkout permite que o cliente escolha parcelas diretamente no Asaas
@@ -596,7 +592,7 @@ export default async function handler(
         'criação de checkout cartão'
       );
       console.log(`[CREDIT] Checkout CARTÃO criado: ${checkoutResult.checkoutId}`);
-      
+
       // Adaptar retorno para formato compatível
       paymentResult = {
         paymentId: checkoutResult.checkoutId, // Checkout ID (será atualizado pelo webhook)
@@ -661,10 +657,10 @@ export default async function handler(
 
     console.log(`[CREDIT] Compra iniciada: ${result.credit.id} - ${productName} - R$ ${(amount / 100).toFixed(2)}`);
 
-    console.log(`[API] POST /api/credits/purchase END`, JSON.stringify({ 
-      requestId, 
-      statusCode: 201, 
-      duration: Date.now() - startTime 
+    console.log(`[API] POST /api/credits/purchase END`, JSON.stringify({
+      requestId,
+      statusCode: 201,
+      duration: Date.now() - startTime
     }));
 
     return res.status(201).json({

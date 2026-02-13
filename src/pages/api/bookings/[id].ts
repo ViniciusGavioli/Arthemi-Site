@@ -30,7 +30,7 @@ export default async function handler(
   // P-004: Verificar autenticação (usuário ou admin)
   const userAuth = getAuthFromRequest(req);
   const isAdmin = getAdminAuth(req);
-  
+
   if (!userAuth && !isAdmin) {
     return res.status(401).json({ error: 'Não autenticado' });
   }
@@ -102,73 +102,73 @@ export default async function handler(
 
       // Verificar no asaas se o pagamento foi realizado e atualizar status da reserva se necessário
       try {
-      const payment = await getPaymentByExternalReference(booking.id);
-      
-      if (!payment) {
-        console.log(`⚠️ [BOOKING] Nenhum pagamento encontrado para a reserva ${booking.id}`);
-      } else {
-        const isConfirmed = isPaymentStatusConfirmed(payment.status);
-        
-        // P-013: Verificar se reserva está em estado final antes de atualizar
-        // Estados finais: CANCELLED, CONFIRMED, COMPLETED, NO_SHOW
-        const isFinalState = ['CANCELLED', 'CONFIRMED', 'COMPLETED', 'NO_SHOW'].includes(booking.status);
-        
-        if (booking.status === 'CANCELLED') {
-          // NUNCA reviver uma reserva cancelada, mesmo que o pagamento seja confirmado
-          console.log(`⚠️ [BOOKING] Reserva ${booking.id} está CANCELADA - NÃO reviver mesmo com pagamento confirmado`);
-        } else if (isConfirmed && booking.status === 'PENDING') {
-          // Atualizar apenas se PENDING e pagamento confirmado
-          const updatedBooking = await prisma.booking.update({
-            where: { id: booking.id },
-            data: { 
-              status: 'CONFIRMED',
-              paymentStatus: 'APPROVED',
-              paymentId: payment.id,
-              amountPaid: realToCents(payment.value),
-              financialStatus: 'PAID',
-              origin: 'COMMERCIAL',
-            },
-            select: {
-              id: true,
-              emailSentAt: true,
-            },
-          });
-          
-          console.log(`✅ [BOOKING] Reserva ${booking.id} atualizada para CONFIRMED (financialStatus=PAID, amountPaid=${realToCents(payment.value)})`);
-          
-          // ENVIAR EMAIL DE CONFIRMAÇÃO - Verificar emailSentAt para evitar duplicidade
-          if (!updatedBooking.emailSentAt) {
-            try {
-              const emailSuccess = await sendBookingConfirmationNotification(booking.id);
-              if (emailSuccess) {
-                // Marcar email como enviado
-                await prisma.booking.update({
-                  where: { id: booking.id },
-                  data: { emailSentAt: new Date() },
-                });
-                console.log(`📧 [BOOKING] Email de confirmação enviado para ${booking.id}`);
-              } else {
-                console.warn(`⚠️ [BOOKING] Falha ao enviar email para ${booking.id}`);
+        const payment = await getPaymentByExternalReference(booking.id);
+
+        if (!payment) {
+          console.log(`⚠️ [BOOKING] Nenhum pagamento encontrado para a reserva ${booking.id}`);
+        } else {
+          const isConfirmed = isPaymentStatusConfirmed(payment.status);
+
+          // P-013: Verificar se reserva está em estado final antes de atualizar
+          // Estados finais: CANCELLED, CONFIRMED, COMPLETED, NO_SHOW
+          const isFinalState = ['CANCELLED', 'CONFIRMED', 'COMPLETED', 'NO_SHOW'].includes(booking.status);
+
+          if (booking.status === 'CANCELLED') {
+            // NUNCA reviver uma reserva cancelada, mesmo que o pagamento seja confirmado
+            console.log(`⚠️ [BOOKING] Reserva ${booking.id} está CANCELADA - NÃO reviver mesmo com pagamento confirmado`);
+          } else if (isConfirmed && booking.status === 'PENDING') {
+            // Atualizar apenas se PENDING e pagamento confirmado
+            const updatedBooking = await prisma.booking.update({
+              where: { id: booking.id },
+              data: {
+                status: 'CONFIRMED',
+                paymentStatus: 'APPROVED',
+                paymentId: payment.id,
+                amountPaid: realToCents(payment.value),
+                financialStatus: 'PAID',
+                origin: 'COMMERCIAL',
+              },
+              select: {
+                id: true,
+                emailSentAt: true,
+              },
+            });
+
+            console.log(`✅ [BOOKING] Reserva ${booking.id} atualizada para CONFIRMED (financialStatus=PAID, amountPaid=${realToCents(payment.value)})`);
+
+            // ENVIAR EMAIL DE CONFIRMAÇÃO - Verificar emailSentAt para evitar duplicidade
+            if (!updatedBooking.emailSentAt) {
+              try {
+                const emailSuccess = await sendBookingConfirmationNotification(booking.id);
+                if (emailSuccess) {
+                  // Marcar email como enviado
+                  await prisma.booking.update({
+                    where: { id: booking.id },
+                    data: { emailSentAt: new Date() },
+                  });
+                  console.log(`📧 [BOOKING] Email de confirmação enviado para ${booking.id}`);
+                } else {
+                  console.warn(`⚠️ [BOOKING] Falha ao enviar email para ${booking.id}`);
+                }
+              } catch (emailError) {
+                console.error('⚠️ [BOOKING] Erro ao enviar email:', emailError);
+                // Não falha a requisição por erro de email
               }
-            } catch (emailError) {
-              console.error('⚠️ [BOOKING] Erro ao enviar email:', emailError);
-              // Não falha a requisição por erro de email
+            } else {
+              console.log(`⏭️ [BOOKING] Email já enviado anteriormente para ${booking.id}`);
             }
-          } else {
-            console.log(`⏭️ [BOOKING] Email já enviado anteriormente para ${booking.id}`);
+
+          } else if (!isConfirmed && booking.status === 'PENDING') {
+            // Reserva ainda pendente, pagamento não confirmado
+            console.log(`ℹ️ [BOOKING] Reserva ${booking.id} ainda PENDING, pagamento não confirmado`);
+          } else if (isFinalState) {
+            // P-012: NÃO rebaixar estados finais - apenas log
+            console.log(`⚠️ [BOOKING] Reserva ${booking.id} em estado final ${booking.status}, não alterar`);
           }
-          
-        } else if (!isConfirmed && booking.status === 'PENDING') {
-          // Reserva ainda pendente, pagamento não confirmado
-          console.log(`ℹ️ [BOOKING] Reserva ${booking.id} ainda PENDING, pagamento não confirmado`);
-        } else if (isFinalState) {
-          // P-012: NÃO rebaixar estados finais - apenas log
-          console.log(`⚠️ [BOOKING] Reserva ${booking.id} em estado final ${booking.status}, não alterar`);
         }
+      } catch (error) {
+        console.error(`❌ [BOOKING] Erro ao processar pagamento da reserva ${booking.id}:`, error);
       }
-    } catch (error) {
-      console.error(`❌ [BOOKING] Erro ao processar pagamento da reserva ${booking.id}:`, error);
-    }
       // Retornar booking com campos de cupom/desconto
       return res.status(200).json(responseWithCoupon);
     } catch (error) {
@@ -178,25 +178,19 @@ export default async function handler(
   }
 
   // ========================================================
-  // PATCH - Cancelar reserva (APENAS ADMIN)
-  // P0-3: Usuários não podem mais cancelar diretamente
+  // PATCH - Cancelar reserva
+  // P0-3 ATUALIZADO: Usuários podem cancelar reservas PENDING
+  // Reservas CONFIRMED+ requerem admin
   // ========================================================
   if (req.method === 'PATCH') {
-    // P0-3: Apenas ADMINs podem usar este endpoint para cancelamento
-    if (!isAdmin) {
-      return res.status(403).json({ 
-        error: 'Cancelamento não disponível. Para cancelar sua reserva, entre em contato pelo WhatsApp: (31) 9992-3910',
-        code: 'USER_CANCEL_DISABLED'
-      });
-    }
-    
+
     try {
       const { action } = req.body;
 
       // Apenas ação de cancelamento permitida
       if (action !== 'cancel') {
-        return res.status(400).json({ 
-          error: 'Ação inválida. Use action: "cancel"' 
+        return res.status(400).json({
+          error: 'Ação inválida. Use action: "cancel"'
         });
       }
 
@@ -221,13 +215,21 @@ export default async function handler(
         return res.status(403).json({ error: 'Acesso não autorizado' });
       }
 
+      // P0-3: Usuários (não-admin) só podem cancelar reservas PENDING
+      if (!isAdmin && booking.status !== 'PENDING') {
+        return res.status(403).json({
+          error: 'Para cancelar reservas confirmadas, entre em contato pelo WhatsApp: (31) 9992-3910',
+          code: 'USER_CANCEL_CONFIRMED_ONLY_ADMIN'
+        });
+      }
+
       // ====================================================
       // REGRAS DE CANCELAMENTO
       // ====================================================
-      
+
       // 1. Não pode cancelar se já está cancelada
       if (booking.status === 'CANCELLED') {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'Esta reserva já foi cancelada',
           code: 'ALREADY_CANCELLED'
         });
@@ -236,9 +238,9 @@ export default async function handler(
       // 2. Não pode cancelar se horário já iniciou
       const now = new Date();
       const startTime = new Date(booking.startTime);
-      
+
       if (startTime <= now) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'Não é possível cancelar uma reserva que já iniciou ou passou',
           code: 'ALREADY_STARTED'
         });
@@ -246,9 +248,9 @@ export default async function handler(
 
       // 3. OBRIGATÓRIO: mínimo de 48 horas de antecedência
       const hoursUntilStart = (startTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-      
+
       if (hoursUntilStart < MIN_CANCELLATION_HOURS) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: `Cancelamentos só são permitidos com no mínimo ${MIN_CANCELLATION_HOURS} horas de antecedência.`,
           code: 'TOO_LATE',
           hoursRemaining: Math.floor(hoursUntilStart),
@@ -261,7 +263,7 @@ export default async function handler(
       // ====================================================
       const updatedBooking = await prisma.booking.update({
         where: { id },
-        data: { 
+        data: {
           status: 'CANCELLED',
           updatedAt: new Date(),
         },

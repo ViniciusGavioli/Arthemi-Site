@@ -21,7 +21,7 @@ import { analytics } from '@/lib/analytics';
 // Helper para calcular menor preço por hora de um consultório
 function getLowestHourlyPrice(salaKey: 'SALA_A' | 'SALA_B' | 'SALA_C'): number {
   const prices = PRICES_V3[salaKey].prices;
-  
+
   // Calcular preço por hora de cada opção
   const hourlyOptions = [
     prices.HOURLY_RATE,                    // Hora avulsa
@@ -29,7 +29,7 @@ function getLowestHourlyPrice(salaKey: 'SALA_A' | 'SALA_B' | 'SALA_C'): number {
     prices.PACKAGE_20H / 20,               // Pacote 20h
     prices.PACKAGE_40H / 40,               // Pacote 40h
   ];
-  
+
   return Math.min(...hourlyOptions);
 }
 
@@ -63,7 +63,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [galleryRoom, setGalleryRoom] = useState<{ name: string; slug: string } | null>(null);
-  
+
   // Track de ViewContent: evita disparo duplicado para a mesma sala na mesma sessão
   const viewedRoomsRef = useRef<Set<string>>(new Set());
 
@@ -102,19 +102,19 @@ export default function SalasPage({ rooms }: SalasPageProps) {
   // Handler para abrir galeria de fotos (dispara ViewContent)
   const handleOpenGallery = (galleryData: { name: string; slug: string }) => {
     setGalleryRoom(galleryData);
-    
+
     // Disparar ViewContent apenas 1x por sala por sessão
     if (!viewedRoomsRef.current.has(galleryData.slug)) {
       viewedRoomsRef.current.add(galleryData.slug);
-      
+
       // Encontrar o room para obter o ID
       const room = rooms.find(r => r.slug === galleryData.slug);
       if (room) {
         // Calcular menor preço para enviar como value
-        const roomKey = galleryData.slug === 'sala-a' ? 'SALA_A' : 
-                        galleryData.slug === 'sala-b' ? 'SALA_B' : 'SALA_C';
+        const roomKey = galleryData.slug === 'sala-a' ? 'SALA_A' :
+          galleryData.slug === 'sala-b' ? 'SALA_B' : 'SALA_C';
         const lowestPrice = getLowestHourlyPrice(roomKey);
-        
+
         analytics.roomViewed(room.id, galleryData.name, lowestPrice * 100); // value em centavos
       }
     }
@@ -188,19 +188,19 @@ export default function SalasPage({ rooms }: SalasPageProps) {
             {rooms.length > 0 ? (
               rooms.map((room, index) => {
                 const galleryData = roomsGalleryData[index];
-                const imageUrl = room.slug === 'sala-a' ? '/images/sala-a/foto-4.jpeg' : 
-                                 room.slug === 'sala-b' ? '/images/sala-b/02-3.jpeg' : 
-                                 '/images/sala-c/03-1.jpeg';
+                const imageUrl = room.slug === 'sala-a' ? '/images/sala-a/foto-4.jpeg' :
+                  room.slug === 'sala-b' ? '/images/sala-b/02-3.jpeg' :
+                    '/images/sala-c/03-1.jpeg';
                 return (
-                  <div 
+                  <div
                     key={room.id}
                     className="group relative rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 bg-white border border-warm-200"
                   >
-                    <div 
+                    <div
                       className="relative w-full h-48 sm:h-56 cursor-pointer"
                       onClick={() => handleOpenGallery(galleryData)}
                     >
-                      <Image 
+                      <Image
                         src={imageUrl}
                         alt={galleryData.name}
                         fill
@@ -239,19 +239,19 @@ export default function SalasPage({ rooms }: SalasPageProps) {
             ) : (
               /* Fallback quando rooms está vazio */
               roomsGalleryData.map((galleryData, index) => {
-                const imageUrl = galleryData.slug === 'sala-a' ? '/images/sala-a/foto-4.jpeg' : 
-                                 galleryData.slug === 'sala-b' ? '/images/sala-b/02-3.jpeg' : 
-                                 '/images/sala-c/03-1.jpeg';
+                const imageUrl = galleryData.slug === 'sala-a' ? '/images/sala-a/foto-4.jpeg' :
+                  galleryData.slug === 'sala-b' ? '/images/sala-b/02-3.jpeg' :
+                    '/images/sala-c/03-1.jpeg';
                 return (
-                  <div 
+                  <div
                     key={galleryData.slug}
                     className="group relative rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 bg-white border border-warm-200"
                   >
-                    <div 
+                    <div
                       className="relative w-full h-48 sm:h-56 cursor-pointer"
                       onClick={() => handleOpenGallery(galleryData)}
                     >
-                      <Image 
+                      <Image
                         src={imageUrl}
                         alt={galleryData.name}
                         fill
@@ -300,7 +300,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
             <p className="text-center text-secondary-600 mb-8 max-w-2xl mx-auto">
               Compare as opções e escolha a que melhor se encaixa na sua rotina de atendimentos.
             </p>
-            
+
             {/* Dados estáticos das salas para tabela de preços */}
             {[
               { slug: 'sala-a', key: 'SALA_A' as const, title: 'Consultório 1 | Prime — Espaço premium', name: 'Consultório 1' },
@@ -309,14 +309,14 @@ export default function SalasPage({ rooms }: SalasPageProps) {
             ].map((roomData) => {
               const roomPrices = PRICES_V3[roomData.key].prices;
               const baseHourlyPrice = roomPrices.HOURLY_RATE;
-              
+
               const packages = [
                 { hours: 1, label: '1h', price: baseHourlyPrice, isHourly: true },
                 { hours: 10, label: '10h', price: roomPrices.PACKAGE_10H, isHourly: false },
                 { hours: 20, label: '20h', price: roomPrices.PACKAGE_20H, isHourly: false },
                 { hours: 40, label: '40h', price: roomPrices.PACKAGE_40H, isHourly: false },
               ];
-              
+
               return (
                 <div key={roomData.slug} className="mb-10">
                   <h3 className="text-xl font-semibold text-primary-800 mb-4">
@@ -338,7 +338,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                           {packages.map((pkg, idx) => {
                             const pricePerHour = pkg.price / pkg.hours;
                             const discount = pkg.isHourly ? 0 : Math.round(((baseHourlyPrice - pricePerHour) / baseHourlyPrice) * 100);
-                            
+
                             return (
                               <tr key={idx} className={`hover:bg-warm-50 ${!pkg.isHourly ? 'bg-accent-50/30' : ''}`}>
                                 <td className="px-4 sm:px-6 py-4 text-center">
@@ -374,29 +374,6 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                         </tbody>
                       </table>
                     </div>
-                    
-                    {/* Aviso sobre Turnos Fixos */}
-                    <div className="border-t border-warm-200 bg-amber-50/50 p-4">
-                      <div className="flex items-start gap-3">
-                        <span className="text-amber-600 text-lg">💬</span>
-                        <div>
-                          <h4 className="text-sm font-semibold text-amber-800 mb-1">
-                            Turnos fixos
-                          </h4>
-                          <p className="text-xs text-amber-700 mb-2">
-                            Para contratar turnos fixos, entre em contato conosco pelo WhatsApp.
-                          </p>
-                          <a
-                            href={`https://wa.me/5531999923910?text=${encodeURIComponent(`Olá! Tenho interesse em turnos fixos no ${roomData.name}. Podemos conversar sobre dia da semana e horário disponíveis?`)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-800 hover:text-amber-900 underline"
-                          >
-                            Falar no WhatsApp →
-                          </a>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </div>
               );
@@ -409,8 +386,8 @@ export default function SalasPage({ rooms }: SalasPageProps) {
               Sem letras miúdas
             </h2>
             <p className="text-secondary-600 max-w-2xl mx-auto mb-6">
-              O valor que você vê é o valor que você paga. Não cobramos taxa de adesão, 
-              não temos fidelidade e não há custos extras. Se precisar cancelar ou remarcar, 
+              O valor que você vê é o valor que você paga. Não cobramos taxa de adesão,
+              não temos fidelidade e não há custos extras. Se precisar cancelar ou remarcar,
               basta avisar com 24 horas de antecedência.
             </p>
             <Link
@@ -445,7 +422,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
           room={selectedRoom}
           products={getAllProductsForRoom(
             selectedRoom.slug === 'sala-a' ? 'SALA_A' :
-            selectedRoom.slug === 'sala-b' ? 'SALA_B' : 'SALA_C'
+              selectedRoom.slug === 'sala-b' ? 'SALA_B' : 'SALA_C'
           )}
           onClose={handleCloseModal}
         />
@@ -466,13 +443,13 @@ export default function SalasPage({ rooms }: SalasPageProps) {
 
 export const getServerSideProps: GetServerSideProps<SalasPageProps> = async (context) => {
   const requestId = `ssr-salas-${Date.now()}`;
-  
+
   // ============================================================
   // BLOQUEIO DE ACESSO: Apenas com token secreto na URL
   // ============================================================
   const accessKey = process.env.SALAS_ACCESS_KEY;
   const queryKey = context.query.key as string | undefined;
-  
+
   // Em produção, se não tiver SALAS_ACCESS_KEY configurada, bloqueia sempre
   if (process.env.NODE_ENV === 'production' && !accessKey) {
     console.warn(`[${requestId}] ⚠️ SALAS_ACCESS_KEY não configurada em produção - bloqueando acesso`);
@@ -483,7 +460,7 @@ export const getServerSideProps: GetServerSideProps<SalasPageProps> = async (con
       },
     };
   }
-  
+
   // Se não passou token ou token não bate, redireciona
   if (!queryKey || queryKey !== accessKey) {
     console.log(`[${requestId}] 🚫 Acesso a /salas bloqueado - token inválido ou ausente`);
@@ -494,13 +471,13 @@ export const getServerSideProps: GetServerSideProps<SalasPageProps> = async (con
       },
     };
   }
-  
+
   console.log(`[${requestId}] ✅ Acesso a /salas autorizado com token`);
   // ============================================================
-  
+
   try {
     console.log(`[${requestId}] SSR /salas iniciado`);
-    
+
     const rooms = await prisma.room.findMany({
       where: { isActive: true },
       orderBy: { name: 'asc' },

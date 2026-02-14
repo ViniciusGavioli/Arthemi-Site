@@ -14,7 +14,6 @@ import { gtag } from '@/lib/gtag';
 import { PaymentMethodSelector } from '@/components/booking';
 import { getPricingInfoForUI } from '@/lib/pricing';
 import { getHourOptionsForDate, getBusinessHoursForDate, isClosedDay } from '@/lib/business-hours';
-import { useSession } from 'next-auth/react';
 
 // Registrar locale português
 registerLocale('pt-BR', ptBR);
@@ -179,7 +178,34 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     installmentCount: 1, // Parcelas (1 = à vista)
   });
 
-  const { data: session } = useSession();
+  // Estado para dados do usuário autenticado
+  const [userData, setUserData] = useState<{
+    name: string | null;
+    email: string;
+    phone?: string;
+    professionalRegister?: string;
+  } | null>(null);
+
+  // Buscar dados do usuário autenticado
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const response = await fetch('/api/auth/me');
+        const data = await response.json();
+        if (data.authenticated && data.user) {
+          setUserData({
+            name: data.user.name,
+            email: data.user.email,
+            phone: undefined, // API não retorna phone, será preenchido pelo formulário
+            professionalRegister: undefined, // API não retorna professionalRegister, será preenchido pelo formulário
+          });
+        }
+      } catch (error) {
+        console.error('[BookingModal] Erro ao buscar dados do usuário:', error);
+      }
+    };
+    fetchUserData();
+  }, []);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -605,7 +631,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
           userEmail: formData.userEmail,
           userCpf: formData.userCpf.replace(/\D/g, ''),
           professionalRegister: formData.professionalRegister.trim(),
-          productId: formData.productType === 'package' ? formData.productId : undefined,
+          productId: undefined, // Hora avulsa não usa productId
           roomId: room.id,
           startAt: startAt.toISOString(),
           endAt: endAt.toISOString(),
@@ -1299,10 +1325,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                   paymentMethod: method,
                   // Reset parcelas ao selecionar PIX
                   installmentCount: method === 'PIX' ? 1 : prev.installmentCount,
-                  userName: session.user.name || '',
-                  userEmail: session.user.email || '',
-                  userPhone: session.user.phone || '', // Ajuste conforme seu objeto de sessão
-                  professionalRegister: (session.user as any).professionalRegister || '',
+                  userName: userData?.name || '',
+                  userEmail: userData?.email || '',
+                  userPhone: userData?.phone || formData.userPhone || '',
+                  professionalRegister: userData?.professionalRegister || formData.professionalRegister || '',
                 }));
               }}
               disabled={submitting}

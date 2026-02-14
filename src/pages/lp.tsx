@@ -17,6 +17,28 @@ import { formatCurrency } from '@/lib/utils';
 import { PRICES_V3, formatPrice, getAllProductsForRoom } from '@/constants/prices';
 import { Lightbulb, CheckCircle2, Eye } from 'lucide-react';
 import { analytics } from '@/lib/analytics';
+import { WHATSAPP_NUMBER } from '@/config/contact';
+
+// ============================================================
+// FUNÇÃO PARA CONSTRUIR URL WHATSAPP COM UTMs
+// ============================================================
+function buildWhatsAppUrl(roomName: string, utmParams: Record<string, string | undefined>): string {
+  const baseMessage = `Oi! Quero reservar a sala ${roomName} no Espaço Arthemi. Pode me passar horários disponíveis e valores?`;
+  
+  // Adiciona UTMs se existirem
+  const utmParts: string[] = [];
+  if (utmParams.utm_source) utmParts.push(`utm_source: ${utmParams.utm_source}`);
+  if (utmParams.utm_medium) utmParts.push(`utm_medium: ${utmParams.utm_medium}`);
+  if (utmParams.utm_campaign) utmParts.push(`utm_campaign: ${utmParams.utm_campaign}`);
+  if (utmParams.utm_content) utmParts.push(`utm_content: ${utmParams.utm_content}`);
+  if (utmParams.utm_term) utmParts.push(`utm_term: ${utmParams.utm_term}`);
+  
+  const fullMessage = utmParts.length > 0 
+    ? `${baseMessage}\n\n[${utmParts.join(' | ')}]`
+    : baseMessage;
+  
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(fullMessage)}`;
+}
 
 // Helper para calcular menor preço por hora de um consultório
 function getLowestHourlyPrice(salaKey: 'SALA_A' | 'SALA_B' | 'SALA_C'): number {
@@ -151,12 +173,14 @@ export default function LPPage({ rooms }: LPPageProps) {
         {/* Hero */}
         <div className="relative text-white py-16 overflow-hidden">
           {/* Foto de fundo desfocada */}
-          <img
+          <Image
             src="/images/espaco/Recepcao-01.jpeg"
             alt=""
             aria-hidden="true"
-            className="absolute inset-0 w-full h-full object-cover"
+            fill
+            className="object-cover"
             style={{ filter: 'blur(8px)', transform: 'scale(1.05)' }}
+            priority
           />
           {/* Overlay nude/warm */}
           <div

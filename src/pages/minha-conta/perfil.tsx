@@ -13,14 +13,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  CreditCard, 
-  Calendar, 
-  Clock, 
-  AlertTriangle, 
+import {
+  User,
+  Mail,
+  Phone,
+  CreditCard,
+  Calendar,
+  Clock,
+  AlertTriangle,
   ChevronLeft,
   Edit3,
   Save,
@@ -43,6 +43,7 @@ interface UserProfile {
   name: string;
   phone: string;
   cpf: string | null;
+  professionalRegister: string | null;
   emailNotifications: boolean;
   createdAt?: string;
 }
@@ -63,6 +64,7 @@ interface FieldErrors {
   name?: string;
   phone?: string;
   cpf?: string;
+  professionalRegister?: string;
 }
 
 // ===========================================================
@@ -118,10 +120,10 @@ function formatHoursDisplay(hours: number): string {
 function validateCPF(cpf: string): boolean {
   const cleanCPF = cpf.replace(/\D/g, '');
   if (cleanCPF.length !== 11) return false;
-  
+
   // Bloqueia sequências repetidas
   if (/^(\d)\1{10}$/.test(cleanCPF)) return false;
-  
+
   // Calcula primeiro dígito verificador
   let sum = 0;
   for (let i = 0; i < 9; i++) {
@@ -130,7 +132,7 @@ function validateCPF(cpf: string): boolean {
   let digit1 = (sum * 10) % 11;
   if (digit1 === 10) digit1 = 0;
   if (digit1 !== parseInt(cleanCPF[9])) return false;
-  
+
   // Calcula segundo dígito verificador
   sum = 0;
   for (let i = 0; i < 10; i++) {
@@ -139,7 +141,7 @@ function validateCPF(cpf: string): boolean {
   let digit2 = (sum * 10) % 11;
   if (digit2 === 10) digit2 = 0;
   if (digit2 !== parseInt(cleanCPF[10])) return false;
-  
+
   return true;
 }
 
@@ -161,21 +163,21 @@ function validatePhone(phone: string): boolean {
 
 export default function PerfilPage() {
   const router = useRouter();
-  
+
   // ---- Estados de dados ----
   const [user, setUser] = useState<UserProfile | null>(null);
   const [credits, setCredits] = useState<CreditSummary | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  
+
   // ---- Estados de edição ----
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', phone: '', cpf: '' });
+  const [editForm, setEditForm] = useState({ name: '', phone: '', cpf: '', professionalRegister: '' });
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  
+
   // ---- Estados de segurança ----
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [sendingReset, setSendingReset] = useState(false);
@@ -187,34 +189,35 @@ export default function PerfilPage() {
     try {
       // Busca via API de perfil com JWT auth
       const profileRes = await fetch('/api/user/profile');
-      
+
       if (profileRes.status === 401) {
         router.replace('/login');
         return;
       }
-      
+
       if (!profileRes.ok) {
         throw new Error('Erro ao buscar perfil');
       }
-      
+
       const profileData = await profileRes.json();
-      
+
       if (!profileData.success) {
         throw new Error(profileData.error || 'Erro ao buscar perfil');
       }
-      
+
       // Atualiza estados
       setUser(profileData.user);
       setCredits(profileData.credits);
       setStats(profileData.stats);
-      
+
       // Preenche formulário de edição
       setEditForm({
         name: profileData.user.name || '',
         phone: formatPhone(profileData.user.phone || ''),
         cpf: formatCPF(profileData.user.cpf || ''),
+        professionalRegister: profileData.user.professionalRegister || '',
       });
-      
+
     } catch (err) {
       console.error('Erro ao carregar perfil:', err);
       setError(true);
@@ -228,20 +231,21 @@ export default function PerfilPage() {
   }, [fetchProfile]);
 
   // ---- Handlers de edição ----
-  
+
   function handleEditClick() {
     if (user) {
       setEditForm({
         name: user.name || '',
         phone: formatPhone(user.phone || ''),
         cpf: formatCPF(user.cpf || ''),
+        professionalRegister: user.professionalRegister || '',
       });
       setFieldErrors({});
     }
     setIsEditing(true);
     setSaveSuccess(false);
   }
-  
+
   function handleCancelEdit() {
     setIsEditing(false);
     setFieldErrors({});
@@ -250,10 +254,11 @@ export default function PerfilPage() {
         name: user.name || '',
         phone: formatPhone(user.phone || ''),
         cpf: formatCPF(user.cpf || ''),
+        professionalRegister: user.professionalRegister || '',
       });
     }
   }
-  
+
   function handleInputChange(field: keyof typeof editForm, value: string) {
     setEditForm(prev => ({ ...prev, [field]: value }));
     // Limpa erro do campo ao digitar
@@ -261,31 +266,31 @@ export default function PerfilPage() {
       setFieldErrors(prev => ({ ...prev, [field]: undefined }));
     }
   }
-  
+
   async function handleSave() {
     // Validação local
     const errors: FieldErrors = {};
-    
+
     if (!editForm.name || editForm.name.trim().length < 2) {
       errors.name = 'Nome deve ter pelo menos 2 caracteres';
     }
-    
+
     if (editForm.phone && !validatePhone(editForm.phone)) {
       errors.phone = 'Telefone inválido. Use o formato (XX) 9XXXX-XXXX';
     }
-    
+
     if (editForm.cpf && !validateCPF(editForm.cpf)) {
       errors.cpf = 'CPF inválido';
     }
-    
+
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       return;
     }
-    
+
     setSaving(true);
     setSaveSuccess(false);
-    
+
     try {
       const res = await fetch('/api/user/profile', {
         method: 'PUT',
@@ -294,11 +299,12 @@ export default function PerfilPage() {
           name: editForm.name.trim(),
           phone: editForm.phone.replace(/\D/g, '') || undefined,
           cpf: editForm.cpf.replace(/\D/g, '') || undefined,
+          professionalRegister: editForm.professionalRegister.trim() || undefined,
         }),
       });
-      
+
       const data = await res.json();
-      
+
       if (!res.ok) {
         if (data.fieldErrors) {
           setFieldErrors(data.fieldErrors);
@@ -307,15 +313,15 @@ export default function PerfilPage() {
         }
         return;
       }
-      
+
       // Atualiza usuário local
       setUser(data.user);
       setIsEditing(false);
       setSaveSuccess(true);
-      
+
       // Limpa mensagem de sucesso após 3s
       setTimeout(() => setSaveSuccess(false), 3000);
-      
+
     } catch (err) {
       console.error('Erro ao salvar perfil:', err);
       setFieldErrors({ name: 'Erro ao salvar. Tente novamente.' });
@@ -323,25 +329,25 @@ export default function PerfilPage() {
       setSaving(false);
     }
   }
-  
+
   // ---- Handler de reset de senha ----
-  
+
   async function handleSendResetEmail() {
     if (!user?.email) return;
-    
+
     setSendingReset(true);
     setResetError('');
-    
+
     try {
       const res = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email }),
       });
-      
+
       // A API sempre retorna 200 por segurança
       setResetSent(true);
-      
+
     } catch (err) {
       console.error('Erro ao solicitar reset:', err);
       setResetError('Erro ao enviar email. Tente novamente.');
@@ -349,7 +355,7 @@ export default function PerfilPage() {
       setSendingReset(false);
     }
   }
-  
+
   function closePasswordModal() {
     setShowPasswordModal(false);
     setResetSent(false);
@@ -431,7 +437,7 @@ export default function PerfilPage() {
             <h1 className="text-2xl font-bold text-gray-900">Meu Perfil</h1>
             <p className="text-gray-500 mt-1">Gerencie suas informações pessoais e preferências</p>
           </div>
-          
+
           {/* Mensagem de sucesso */}
           {saveSuccess && (
             <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
@@ -454,7 +460,7 @@ export default function PerfilPage() {
                   <p className="text-sm text-gray-500">Informações da sua conta</p>
                 </div>
               </div>
-              
+
               {/* Botão Editar/Cancelar */}
               {!isEditing ? (
                 <button
@@ -487,9 +493,8 @@ export default function PerfilPage() {
                         type="text"
                         value={editForm.name}
                         onChange={(e) => handleInputChange('name', e.target.value)}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-                          fieldErrors.name ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                        }`}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${fieldErrors.name ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                          }`}
                         placeholder="Seu nome completo"
                       />
                       {fieldErrors.name && (
@@ -527,9 +532,8 @@ export default function PerfilPage() {
                         type="tel"
                         value={editForm.phone}
                         onChange={(e) => handleInputChange('phone', e.target.value)}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-                          fieldErrors.phone ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                        }`}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${fieldErrors.phone ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                          }`}
                         placeholder="(11) 99999-9999"
                       />
                       {fieldErrors.phone && (
@@ -555,9 +559,8 @@ export default function PerfilPage() {
                         type="text"
                         value={editForm.cpf}
                         onChange={(e) => handleInputChange('cpf', e.target.value)}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-                          fieldErrors.cpf ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                        }`}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${fieldErrors.cpf ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                          }`}
                         placeholder="000.000.000-00"
                         maxLength={14}
                       />
@@ -572,8 +575,32 @@ export default function PerfilPage() {
                   )}
                 </div>
               </div>
+
+              {/* Registro Profissional */}
+              <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl">
+                <Shield className="w-5 h-5 text-gray-400 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm text-gray-500 mb-1">Registro Profissional</p>
+                  {isEditing ? (
+                    <div>
+                      <input
+                        type="text"
+                        value={editForm.professionalRegister}
+                        onChange={(e) => handleInputChange('professionalRegister', e.target.value.toUpperCase())}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        placeholder="Ex: CRM-SP 123456"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Opcional. Ex: CRM, CRP, OAB...</p>
+                    </div>
+                  ) : (
+                    <p className="font-medium text-gray-900">
+                      {user.professionalRegister || 'Não informado'}
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
-            
+
             {/* Botão Salvar */}
             {isEditing && (
               <div className="mt-6 flex justify-end">
@@ -611,7 +638,7 @@ export default function PerfilPage() {
                 <p className="text-sm text-gray-500">Gerencie o acesso à sua conta</p>
               </div>
             </div>
-            
+
             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
               <div className="flex items-center gap-3">
                 <Lock className="w-5 h-5 text-gray-400" />
@@ -740,11 +767,11 @@ export default function PerfilPage() {
       {showPasswordModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           {/* Overlay */}
-          <div 
+          <div
             className="absolute inset-0 bg-black/50"
             onClick={closePasswordModal}
           />
-          
+
           {/* Modal */}
           <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-6">
             <button
@@ -754,7 +781,7 @@ export default function PerfilPage() {
             >
               <X className="w-5 h-5" />
             </button>
-            
+
             <div className="text-center mb-6">
               <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
                 <Lock className="w-8 h-8 text-amber-600" />
@@ -764,7 +791,7 @@ export default function PerfilPage() {
                 Enviaremos um link para {user.email} para você criar uma nova senha.
               </p>
             </div>
-            
+
             {resetSent ? (
               <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
                 <Check className="w-8 h-8 text-green-600 mx-auto mb-2" />
@@ -786,7 +813,7 @@ export default function PerfilPage() {
                     <p className="text-sm text-red-700">{resetError}</p>
                   </div>
                 )}
-                
+
                 <div className="flex gap-3">
                   <button
                     onClick={closePasswordModal}

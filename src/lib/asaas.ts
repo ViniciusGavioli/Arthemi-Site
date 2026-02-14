@@ -31,25 +31,25 @@ function getApiKey(): string {
  */
 export function isMockMode(): boolean {
   const apiKey = process.env.ASAAS_API_KEY || '';
-  const isProduction = process.env.NODE_ENV === 'production';
   const hasValidKey = apiKey.startsWith('$aact_');
-  
-  // PRODUÇÃO: Se tem API key válida, NUNCA é mock
-  // Ignora ASAAS_MOCK_MODE, MOCK_PAYMENTS, qualquer flag
-  if (isProduction && hasValidKey) {
-    console.log('🟢 [Asaas] Modo PRODUÇÃO - API real ativa');
-    return false;
-  }
-  
+
   // Sem API key válida = sempre mock
   if (!hasValidKey) {
     console.log('🟡 [Asaas] Modo MOCK - API key inválida ou ausente');
     return true;
   }
-  
-  // DEV com API key: mock por padrão (para não cobrar durante desenvolvimento)
-  const mockModeEnv = process.env.ASAAS_MOCK_MODE;
-  return mockModeEnv !== 'false';
+
+  // Com API key válida: Real por padrão, exceto se forçado via env
+  // MUDANÇA: Defaults to FALSE (Real) se a chave existe
+  const forceMock = process.env.ASAAS_MOCK_MODE === 'true';
+
+  if (forceMock) {
+    console.log('🟡 [Asaas] Modo MOCK - Forçado por variável de ambiente');
+    return true;
+  }
+
+  console.log('🟢 [Asaas] Modo REAL - API key válida detectada');
+  return false;
 }
 
 // ============================================================
@@ -190,7 +190,7 @@ async function asaasRequest<T>(
   try {
     const response = await fetch(`${apiUrl}${endpoint}`, {
       ...options,
-      signal: controller.signal, 
+      signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
         'access_token': apiKey,
@@ -208,11 +208,10 @@ async function asaasRequest<T>(
       } catch {
         errorBody = await response.text().catch(() => 'Unable to read response body');
       }
-      
       // Expandir erros para debug completo
       const asaasError = errorBody as { errors?: Array<{ description?: string; code?: string; field?: string }> };
       const errorsList = asaasError?.errors || [];
-      
+
       // Log detalhado dos erros
       console.error('❌ Asaas API Error:', {
         status: response?.status,
@@ -224,14 +223,13 @@ async function asaasRequest<T>(
           field: err.field,
         })),
       });
-      
+
       // Log completo do errorBody (força expansão dos objetos)
       console.error('❌ Asaas API Error - Full Body:', JSON.stringify(errorBody, null, 2));
-      
+
       // Se for erro de validação, propagar mensagem específica
       const errorMessage = errorsList[0]?.description || 'Erro na integração com gateway de pagamento';
       const errorCode = errorsList[0]?.code;
-      
       // Criar erro com metadados para normalização
       const err = new Error(errorMessage) as Error & { asaasErrorBody?: unknown; asaasErrorCode?: string };
       err.asaasErrorBody = errorBody;
@@ -242,11 +240,11 @@ async function asaasRequest<T>(
     return response.json();
   } catch (error) {
     clearTimeout(timeout); // Limpar timeout mesmo em erro
-    
+
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error('Timeout na comunicação com Asaas (15s)');
     }
-    
+
     throw error;
   }
 }
@@ -275,7 +273,7 @@ export function normalizeAsaasError(
 ): NormalizedAsaasError {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const errorLower = errorMessage.toLowerCase();
-  
+
   // Detectar erro de valor mínimo
   // Asaas retorna mensagens específicas como:
   // - "O valor mínimo para cobrança via PIX é de R$ 1,00"
@@ -287,14 +285,14 @@ export function normalizeAsaasError(
     /value\s*must\s*be\s*at\s*least\s*\d/i,       // "value must be at least X" (com número)
     /valor.*abaixo\s*do\s*m[íi]nimo\s*permitido/i, // "valor abaixo do mínimo permitido"
   ];
-  
+
   const isMinAmountError = minAmountPatterns.some(pattern => pattern.test(errorMessage));
-  
+
   if (isMinAmountError) {
     // Extrair valor mínimo da mensagem se possível
     const valueMatch = errorMessage.match(/R\$\s*([\d,.]+)/);
     let minAmountCents = 100; // Default PIX
-    
+
     if (valueMatch) {
       const valueStr = valueMatch[1].replace('.', '').replace(',', '.');
       minAmountCents = Math.round(parseFloat(valueStr) * 100);
@@ -303,7 +301,7 @@ export function normalizeAsaasError(
     } else if (paymentMethod === 'BOLETO') {
       minAmountCents = 500; // R$ 5,00 para boleto
     }
-    
+
     return {
       code: 'PAYMENT_MIN_AMOUNT',
       message: 'Valor abaixo do mínimo permitido para este método de pagamento.',
@@ -314,7 +312,7 @@ export function normalizeAsaasError(
       },
     };
   }
-  
+
   // Detectar timeout
   if (errorLower.includes('timeout') || errorLower.includes('15s')) {
     return {
@@ -323,7 +321,7 @@ export function normalizeAsaasError(
       details: { originalError: errorMessage },
     };
   }
-  
+
   // Detectar erro de cartão recusado
   if (errorLower.includes('recusad') || errorLower.includes('declined') || errorLower.includes('refused')) {
     return {
@@ -332,7 +330,7 @@ export function normalizeAsaasError(
       details: { originalError: errorMessage },
     };
   }
-  
+
   // Detectar erro de cliente inválido - patterns específicos
   // Evitar falsos positivos com "customer" ou "cliente" em contextos genéricos
   const customerErrorPatterns = [
@@ -341,7 +339,7 @@ export function normalizeAsaasError(
     /cpf\s*(inválido|invalid)/i,
     /invalid\s*cpf/i,
   ];
-  
+
   if (customerErrorPatterns.some(pattern => pattern.test(errorMessage))) {
     return {
       code: 'PAYMENT_CUSTOMER_ERROR',
@@ -349,7 +347,7 @@ export function normalizeAsaasError(
       details: { originalError: errorMessage },
     };
   }
-  
+
   // Erro genérico
   return {
     code: 'PAYMENT_ERROR',
@@ -386,7 +384,7 @@ export async function findOrCreateCustomer(
   if (searchResult.data.length > 0) {
     const existingCustomer = searchResult.data[0];
     console.log('✅ Cliente encontrado:', existingCustomer.id);
-    
+
     // FIX C: SEMPRE atualizar customer para desabilitar notificações do Asaas
     // Isso garante que nenhum cliente receba emails do Asaas, apenas nossos emails próprios
     // Atualização idempotente - segura para executar múltiplas vezes
@@ -394,13 +392,13 @@ export async function findOrCreateCustomer(
       const updatePayload: Record<string, unknown> = {
         notificationDisabled: true,
       };
-      
+
       // Se cliente existente não tem CPF mas input tem, atualizar também
       if (!existingCustomer.cpfCnpj && input.cpfCnpj) {
         updatePayload.cpfCnpj = input.cpfCnpj;
         console.log('🔄 Atualizando CPF do cliente:', existingCustomer.id);
       }
-      
+
       const updatedCustomer = await asaasRequest<AsaasCustomer>(
         `/customers/${existingCustomer.id}`,
         {
@@ -649,40 +647,40 @@ export function validateWebhookToken(token: string | null): boolean {
   const expectedToken = process.env.ASAAS_WEBHOOK_TOKEN;
   const isProduction = process.env.NODE_ENV === 'production';
   const isMock = isMockMode();
-  
+
   // Em produção SEM mock: token é OBRIGATÓRIO
   if (isProduction && !isMock && !expectedToken) {
     console.error('🚨 [SEGURANÇA] ASAAS_WEBHOOK_TOKEN não configurado em produção!');
     return false;
   }
-  
+
   // Em desenvolvimento ou mock: aceita se não configurou (apenas warning)
   if (!expectedToken) {
     console.warn('⚠️ ASAAS_WEBHOOK_TOKEN não configurado - webhook não autenticado');
     return true;
   }
-  
+
   // Token não fornecido
   if (!token) {
     return false;
   }
-  
+
   // Validação real do token
   return safeCompare(token, expectedToken);
 }
 
 
- /**
-  * Comparação segura de strings para evitar timing attacks
-  */
-  export function safeCompare(a: string, b: string): boolean {
-    const bufA = Buffer.from(a, 'utf8');
-    const bufB = Buffer.from(b, 'utf8');
+/**
+ * Comparação segura de strings para evitar timing attacks
+ */
+export function safeCompare(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, 'utf8');
+  const bufB = Buffer.from(b, 'utf8');
 
-    if (bufA.length !== bufB.length) return false;
+  if (bufA.length !== bufB.length) return false;
 
-    return timingSafeEqual(bufA, bufB);
-  }
+  return timingSafeEqual(bufA, bufB);
+}
 
 /**
  * Verifica se o evento indica pagamento confirmado
@@ -730,37 +728,37 @@ export function isPaymentStatusConfirmed(status: AsaasPaymentStatus): boolean {
   return status === 'RECEIVED' || status === 'CONFIRMED';
 }
 
-  // ============================================================
-  // HELPERS DE CONVERSÃO DE MOEDA
-  // ============================================================
+// ============================================================
+// HELPERS DE CONVERSÃO DE MOEDA
+// ============================================================
 
-  /**
-   * Converte reais para centavos
-   * @example realToCents(70.00) → 7000
-   */
-  export function realToCents(reais: number): number {
-    return Math.round(reais * 100);
-  }
+/**
+ * Converte reais para centavos
+ * @example realToCents(70.00) → 7000
+ */
+export function realToCents(reais: number): number {
+  return Math.round(reais * 100);
+}
 
-  /**
-   * Converte centavos para reais
-   * @example centsToReal(7000) → 70.00
-   */
-  export function centsToReal(cents: number): number {
-    return cents / 100;
-  }
+/**
+ * Converte centavos para reais
+ * @example centsToReal(7000) → 70.00
+ */
+export function centsToReal(cents: number): number {
+  return cents / 100;
+}
 
-  /**
-   * Formata valor para exibição
-   * @example formatCurrency(7000) → "R$ 70,00"
-   */
-  export function formatCurrency(cents: number): string {
-    const reais = centsToReal(cents);
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(reais);
-  }
+/**
+ * Formata valor para exibição
+ * @example formatCurrency(7000) → "R$ 70,00"
+ */
+export function formatCurrency(cents: number): string {
+  const reais = centsToReal(cents);
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(reais);
+}
 
 // ============================================================
 // TIPOS PARA INTEGRAÇÃO
@@ -821,12 +819,12 @@ export async function createBookingPayment(
   });
 
   // 2. Calcular data de vencimento (hoje + 1 dia se não especificado)
-  const dueDate = input.dueDate || 
+  const dueDate = input.dueDate ||
     new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   // 3. Converter CENTAVOS → REAIS antes de enviar ao Asaas
   const valueInReais = centsToReal(input.value);
-  
+
   // LOG para auditoria de conversão
   console.log(`💱 [Asaas] Conversão PIX: ${input.value} centavos → R$ ${valueInReais.toFixed(2)}`);
 
@@ -906,24 +904,24 @@ export async function createBookingCardPayment(
   });
 
   // 2. Calcular data de vencimento (hoje + 3 dias para cartão)
-  const dueDate = input.dueDate || 
+  const dueDate = input.dueDate ||
     new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   // 3. Converter CENTAVOS → REAIS antes de enviar ao Asaas
   const valueInReais = centsToReal(input.value);
-  
+
   // LOG para auditoria de conversão
   console.log(`💱 [Asaas] Conversão CARTÃO: ${input.value} centavos → R$ ${valueInReais.toFixed(2)}`);
-  
+
   // 4. Billing type SEMPRE CREDIT_CARD para checkout hospedado
   // NOTA: UNDEFINED não funciona com /payments - causa erro 400
   // Para aceitar débito, use checkout transparente com tokenização
   const billingType: BillingType = 'CREDIT_CARD';
-  
+
   // 5. Configurar parcelamento (>= 2 parcelas)
-  const installmentCount = 
-    input.installmentCount && input.installmentCount >= 2 
-      ? input.installmentCount 
+  const installmentCount =
+    input.installmentCount && input.installmentCount >= 2
+      ? input.installmentCount
       : undefined;
 
   // 6. Validar valor mínimo por parcela (R$ 5,00)
@@ -1017,7 +1015,7 @@ export async function createAsaasCheckoutForBooking(
     console.warn('⚠️ [Asaas] Valor muito baixo para centavos:', input.value);
     console.warn('   Esperado: valor em CENTAVOS (ex: 7000 para R$ 70,00)');
   }
-  
+
   // Helper para limpar string de qualquer whitespace e quebras de linha
   // Remove quebras de linha mas preserva espaços válidos na URL (entre protocolo e domínio)
   const cleanUrl = (url: string): string => {
@@ -1027,25 +1025,25 @@ export async function createAsaasCheckoutForBooking(
       .replace(/\r\n/g, '')  // Windows line breaks
       .replace(/\n/g, '')    // Unix line breaks
       .replace(/\r/g, '');   // Mac line breaks
-    
+
     // Remover espaços no início e fim, mas não no meio (pode ter espaços válidos em alguns casos)
     cleaned = cleaned.trim();
-    
+
     // Se ainda houver espaços no meio (que não deveriam existir em URLs), remover
     // Mas preservar o formato básico da URL
     if (cleaned.includes(' ')) {
       // Se tem espaço, provavelmente é um erro - remover todos os espaços
       cleaned = cleaned.replace(/\s+/g, '');
     }
-    
+
     return cleaned;
   };
-  
+
   // Obter appUrl e limpar qualquer whitespace (espaços, quebras de linha, etc.)
   // O .env pode ter quebras de linha no final que causam URLs inválidas
   const rawAppUrl = env.NEXT_PUBLIC_APP_URL || 'https://arthemisaude.com';
   let appUrl = cleanUrl(rawAppUrl);
-  
+
   // Debug: verificar se ainda há quebras de linha
   if (appUrl.includes('\r') || appUrl.includes('\n')) {
     console.error('⚠️ [Asaas] appUrl ainda contém quebras de linha após limpeza!', {
@@ -1055,55 +1053,55 @@ export async function createAsaasCheckoutForBooking(
     // Forçar limpeza mais agressiva
     appUrl = appUrl.split('\r').join('').split('\n').join('').trim();
   }
-  
+
   // Validar que appUrl é uma URL válida
   if (!appUrl || (!appUrl.startsWith('http://') && !appUrl.startsWith('https://'))) {
     throw new Error(`NEXT_PUBLIC_APP_URL inválido: "${appUrl}". Deve ser uma URL completa (ex: https://arthemisaude.com)`);
   }
-  
+
   console.log('🔍 [Asaas] appUrl limpo:', JSON.stringify(appUrl));
-  
+
   // Converter CENTAVOS → REAIS antes de enviar ao Asaas
   const valueInReais = centsToReal(input.value);
-  
+
   // LOG para auditoria de conversão
   console.log(`💱 [Asaas] Conversão CHECKOUT: ${input.value} centavos → R$ ${valueInReais.toFixed(2)}`);
-  
+
   // Truncar nome do item para 30 caracteres (requisito Asaas)
-  const itemName = input.itemName.length > 30 
-    ? input.itemName.substring(0, 30) 
+  const itemName = input.itemName.length > 30
+    ? input.itemName.substring(0, 30)
     : input.itemName;
 
   // Determinar URLs de callback baseado no tipo de bookingId
   // Se começa com 'purchase:', é compra de crédito; senão, é booking
   const isPurchase = input.bookingId.startsWith('purchase:');
-  const entityId = isPurchase 
-    ? input.bookingId.replace('purchase:', '') 
+  const entityId = isPurchase
+    ? input.bookingId.replace('purchase:', '')
     : input.bookingId.replace('booking:', '');
-  
+
   // Construir URLs de callback (remover trailing slash do appUrl se houver)
   // Limpar baseUrl novamente para garantir que não há quebras de linha
   const baseUrl = cleanUrl(appUrl.replace(/\/$/, ''));
-  
+
   // Construir URLs e limpar imediatamente após construção
   const successUrl = cleanUrl(isPurchase
     ? `${baseUrl}/account/credits?purchase=${encodeURIComponent(entityId)}&status=success`
     : `${baseUrl}/booking/success?booking=${encodeURIComponent(entityId)}`);
-  
+
   const cancelUrl = cleanUrl(isPurchase
     ? `${baseUrl}/account/credits?purchase=${encodeURIComponent(entityId)}&status=cancelled`
     : `${baseUrl}/booking/failure?booking=${encodeURIComponent(entityId)}&reason=cancelled`);
-  
+
   const expiredUrl = cleanUrl(isPurchase
     ? `${baseUrl}/account/credits?purchase=${encodeURIComponent(entityId)}&status=expired`
     : `${baseUrl}/booking/failure?booking=${encodeURIComponent(entityId)}&reason=expired`);
-  
+
   // Validar URLs antes de enviar
   const urlPattern = /^https?:\/\/.+/;
   if (!urlPattern.test(successUrl) || !urlPattern.test(cancelUrl) || !urlPattern.test(expiredUrl)) {
     throw new Error(`URLs de callback inválidas: successUrl="${successUrl}", cancelUrl="${cancelUrl}", expiredUrl="${expiredUrl}"`);
   }
-  
+
   console.log('🔗 [Asaas] URLs de callback:', { successUrl, cancelUrl, expiredUrl });
 
   // Mock mode
@@ -1124,7 +1122,7 @@ export async function createAsaasCheckoutForBooking(
     email: input.customerEmail,
     phone: input.customerPhone,
   };
-  
+
   // Adicionar campos de endereço (obrigatórios para checkout com cartão)
   // O Asaas exige que o campo 'address' seja uma string não vazia
   // Se não fornecidos, usar endereço padrão da empresa
@@ -1146,13 +1144,13 @@ export async function createAsaasCheckoutForBooking(
     customerDataPayload.province = 'Área Hospitalar';
     customerDataPayload.city = 3106200; // Código IBGE de Belo Horizonte
   }
-  
+
   // Garantir que todos os campos obrigatórios estão preenchidos
   // O Asaas pode rejeitar se algum campo estiver vazio ou inválido
   if (!customerDataPayload.address || String(customerDataPayload.address).trim() === '') {
     customerDataPayload.address = 'Área Hospitalar'; // Fallback garantido
   }
-  
+
   // Validação final: garantir que address não está vazio
   const addressValue = String(customerDataPayload.address || '').trim();
   if (!addressValue) {
@@ -1165,25 +1163,25 @@ export async function createAsaasCheckoutForBooking(
   const checkoutPayload = {
     // Formas de pagamento: apenas cartão de crédito
     billingTypes: ['CREDIT_CARD'],
-    
+
     // Tipos de cobrança: avulsa + parcelamento
     chargeTypes: ['DETACHED', 'INSTALLMENT'],
-    
+
     // Configuração de parcelamento
     installment: {
       maxInstallmentCount: input.maxInstallmentCount || 12,
     },
-    
+
     // Expiração do checkout (minutos)
     minutesToExpire: input.minutesToExpire || 60,
-    
+
     // URLs de callback (ajustadas para compras de crédito ou bookings)
     callback: {
       successUrl,
       cancelUrl,
       expiredUrl,
     },
-    
+
     // Itens do checkout (obrigatório)
     items: [
       {
@@ -1194,11 +1192,10 @@ export async function createAsaasCheckoutForBooking(
         imageBase64: ASAAS_CHECKOUT_ITEM_IMAGE_BASE64,
       },
     ],
-    
+
     // Dados do cliente (pré-preenchidos no checkout)
     // O Asaas exige o campo 'address' para checkout com cartão
     customerData: customerDataPayload,
-    
     // Referência externa: usado para identificar booking no webhook
     externalReference: buildExternalReference(input.bookingId),
   };
@@ -1208,11 +1205,11 @@ export async function createAsaasCheckoutForBooking(
     value: valueInReais,
     maxInstallments: input.maxInstallmentCount || 12,
   });
-  
+
   // Debug: verificar customerData antes de enviar
   console.log('👤 [Asaas] customerData:', JSON.stringify(customerDataPayload, null, 2));
   console.log('📦 [Asaas] checkoutPayload completo:', JSON.stringify(checkoutPayload, null, 2));
-  
+
   // Validação final antes de enviar: garantir que address está presente
   if (!checkoutPayload.customerData || !checkoutPayload.customerData.address) {
     console.error('❌ [Asaas] ERRO CRÍTICO: customerData.address não está presente no payload!');
@@ -1241,7 +1238,7 @@ export async function createAsaasCheckoutForBooking(
     || (result as Record<string, unknown>).checkoutUrl as string | undefined
     || (result as Record<string, unknown>).link as string | undefined
     || (result as Record<string, unknown>).checkoutLink as string | undefined;
-  
+
   if (!checkoutUrl) {
     console.error('❌ [Asaas] ERRO: URL do checkout não encontrada na resposta!');
     console.error('❌ [Asaas] Resposta completa:', JSON.stringify(result, null, 2));

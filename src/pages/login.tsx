@@ -20,7 +20,7 @@ interface LoginPageProps {
 export const getServerSideProps: GetServerSideProps<LoginPageProps> = async (ctx) => {
   // Se já logado, redireciona para account
   const auth = getAuthFromSSR(ctx);
-  
+
   if (auth) {
     const next = safeNext(ctx.query.next, '/minha-conta');
     return {
@@ -33,7 +33,7 @@ export const getServerSideProps: GetServerSideProps<LoginPageProps> = async (ctx
 
   // Mensagem de sucesso (registro ou reset)
   const successMessage = getSuccessMessage(ctx.query as Record<string, unknown>);
-  
+
   // Flag para disparar CompleteRegistration
   const isFromRegistration = ctx.query.registered === '1';
 
@@ -54,7 +54,7 @@ export default function LoginPage({ successMessage, isFromRegistration }: LoginP
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  
+
   // Ref para garantir que CompleteRegistration dispara apenas 1x
   const registrationTrackedRef = useRef(false);
 
@@ -88,7 +88,17 @@ export default function LoginPage({ successMessage, isFromRegistration }: LoginP
 
       // Login OK - redirecionar
       const destination = safeNext(next, '/minha-conta');
-      router.push(destination);
+
+      try {
+        const navigated = await router.push(destination);
+        // router.push retorna false quando a navegação é cancelada/abortada
+        if (navigated === false) {
+          window.location.href = destination;
+        }
+      } catch {
+        // Fallback: hard redirect se router.push falhar
+        window.location.href = destination;
+      }
 
     } catch {
       setError('Erro de conexão. Tente novamente.');

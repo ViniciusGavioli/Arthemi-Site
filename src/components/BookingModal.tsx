@@ -14,6 +14,7 @@ import { gtag } from '@/lib/gtag';
 import { PaymentMethodSelector } from '@/components/booking';
 import { getPricingInfoForUI } from '@/lib/pricing';
 import { getHourOptionsForDate, getBusinessHoursForDate, isClosedDay } from '@/lib/business-hours';
+import { useSession } from 'next-auth/react';
 
 // Registrar locale português
 registerLocale('pt-BR', ptBR);
@@ -133,6 +134,7 @@ interface BookingFormData {
   userPhone: string;
   userEmail: string;
   userCpf: string;
+  professionalRegister: string;
   date: Date | null;
   startHour: number;
   duration: number;
@@ -165,6 +167,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     userPhone: '',
     userEmail: '',
     userCpf: '',
+    professionalRegister: '',
     date: null,
     startHour: 9,
     duration: 1,
@@ -175,6 +178,8 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     paymentMethod: 'PIX',
     installmentCount: 1, // Parcelas (1 = à vista)
   });
+
+  const { data: session } = useSession();
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -481,6 +486,16 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     // E5: Validação defensiva por tipo
     if (formData.productType === 'hourly') {
       // Hora avulsa PRECISA de data e horário
+      if (!formData.userCpf) {
+        showErrorWithScroll('Por favor, informe seu CPF.');
+        return;
+      }
+
+      if (!formData.professionalRegister || formData.professionalRegister.trim().length < 3) {
+        showErrorWithScroll('Por favor, informe seu Registro Profissional (CRM, CRP, etc).');
+        return;
+      }
+
       if (!formData.date) {
         showErrorWithScroll('Por favor, selecione uma data.');
         return;
@@ -586,11 +601,12 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userName: formData.userName,
-          userPhone: formData.userPhone,
-          userEmail: formData.userEmail || undefined,
+          userPhone: formData.userPhone.replace(/\D/g, ''),
+          userEmail: formData.userEmail,
           userCpf: formData.userCpf.replace(/\D/g, ''),
+          professionalRegister: formData.professionalRegister.trim(),
+          productId: formData.productType === 'package' ? formData.productId : undefined,
           roomId: room.id,
-          productId: formData.productId || undefined,
           startAt: startAt.toISOString(),
           endAt: endAt.toISOString(),
           payNow: true,
@@ -1282,7 +1298,11 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                   ...prev,
                   paymentMethod: method,
                   // Reset parcelas ao selecionar PIX
-                  installmentCount: method === 'PIX' ? 1 : prev.installmentCount
+                  installmentCount: method === 'PIX' ? 1 : prev.installmentCount,
+                  userName: session.user.name || '',
+                  userEmail: session.user.email || '',
+                  userPhone: session.user.phone || '', // Ajuste conforme seu objeto de sessão
+                  professionalRegister: (session.user as any).professionalRegister || '',
                 }));
               }}
               disabled={submitting}

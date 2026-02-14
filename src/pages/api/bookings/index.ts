@@ -52,6 +52,7 @@ const createBookingSchema = z.object({
   userPhone: brazilianPhone,
   userEmail: z.string().email('Email inválido').optional(),
   userCpf: z.string().length(11, 'CPF deve ter 11 dígitos').regex(/^\d+$/, 'CPF deve conter apenas números'),
+  professionalRegister: z.string().optional(), // Opcional aqui pois o usuário pode já ter no banco
   productId: z.string().optional(),
   roomId: z.string().min(1, 'Sala é obrigatória'),
   startAt: z.string().datetime({ message: 'Data/hora de início inválida' }),
@@ -280,11 +281,36 @@ export default async function handler(
           email: data.userEmail,
           phone: data.userPhone,
           cpf: data.userCpf,
+          professionalRegister: data.professionalRegister,
         });
         userId = user.id;
         // SEGURANÇA: NÃO usar email do body para validar DEV coupon
         // sessionEmail permanece null para checkout anônimo
         isAnonymousCheckout = true; // Flag para disparo de email de ativação
+      }
+
+      // 5.1 VALIDAÇÃO OBRIGATÓRIA: Registro Profissional
+      // Todo usuário deve ter o registro profissional salvo para fazer uma reserva
+      const currentUser = await tx.user.findUnique({
+        where: { id: userId },
+        select: { professionalRegister: true, role: true }
+      });
+
+      // Se não tem no banco e não veio no request (para update via resolveOrCreateUser), bloqueia
+      // Nota: resolveOrCreateUser já atualizou o user se veio no request. Então basta checar o banco agora.
+      if (!currentUser?.professionalRegister && currentUser?.role !== 'ADMIN') {
+        const providedRegister = data.professionalRegister;
+
+        // Se forneceu agora mas resolveOrCreateUser não rodou (usuário logado), precisamos atualizar
+        if (providedRegister && auth?.userId) {
+          await tx.user.update({
+            where: { id: userId },
+            data: { professionalRegister: providedRegister }
+          });
+        } else if (!providedRegister) {
+          // Não tem no banco e não mandou agora
+          throw new Error('REGISTRO_PROFISSIONAL_OBRIGATORIO');
+        }
       }
 
       // 6. Calcular valor usando helper unificado de preço (weekday vs saturday)

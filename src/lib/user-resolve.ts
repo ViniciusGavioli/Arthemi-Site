@@ -12,6 +12,7 @@ interface ResolveUserInput {
   email?: string | null;
   phone: string;
   cpf?: string | null;
+  professionalRegister?: string | null;
 }
 
 interface ResolveUserResult {
@@ -38,10 +39,11 @@ export async function resolveOrCreateUser(
   const phoneNorm = input.phone.replace(/\D/g, '');
   const nameNorm = input.name.trim();
   const cpfNorm = input.cpf?.replace(/\D/g, '') || null;
+  const registerNorm = input.professionalRegister?.trim() || null;
 
   // 2. Tentar resolver por email primeiro (se fornecido)
   let user: User | null = null;
-  
+
   if (emailNorm) {
     user = await prisma.user.findUnique({
       where: { email: emailNorm },
@@ -69,6 +71,11 @@ export async function resolveOrCreateUser(
       updateData.cpf = cpfNorm;
     }
 
+    // Atualiza registro profissional se fornecido
+    if (registerNorm && (!user.professionalRegister || user.professionalRegister !== registerNorm)) {
+      updateData.professionalRegister = registerNorm;
+    }
+
     // NÃO atualiza phone ou email aqui - são campos unique e podem causar conflito
     // Se precisar atualizar phone/email, deve ser feito com verificação prévia
 
@@ -86,7 +93,7 @@ export async function resolveOrCreateUser(
   // 5. Não achou - criar novo usuário usando UPSERT para evitar P2002
   // IMPORTANTE: P2002 dentro de transação interativa aborta TODA a transação (25P02)
   // Por isso usamos upsert que é atômico e nunca causa P2002
-  
+
   // Decidir qual campo usar como chave do upsert
   // Prioridade: email > phone (email é mais confiável como identificador único)
   if (emailNorm) {
@@ -108,7 +115,7 @@ export async function resolveOrCreateUser(
     });
     return { user: result, isNew: false }; // Não sabemos se é novo, mas é seguro
   }
-  
+
   // Se não tem email, usa phone como chave
   const result = await prisma.user.upsert({
     where: { phone: phoneNorm },

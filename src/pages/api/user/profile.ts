@@ -24,6 +24,7 @@ interface UserData {
   email: string;
   phone: string;
   cpf: string | null;
+  professionalRegister: string | null;
   emailNotifications: boolean;
   createdAt: string;
 }
@@ -77,6 +78,7 @@ const UpdateProfileSchema = z.object({
     }, {
       message: 'CPF inválido',
     }),
+  professionalRegister: z.string().optional(),
   emailNotifications: z.boolean().optional(),
 });
 
@@ -175,6 +177,7 @@ async function handleGet(
       email: user.email,
       phone: user.phone,
       cpf: user.cpf,
+      professionalRegister: user.professionalRegister,
       emailNotifications: true, // TODO: Adicionar campo no schema quando necessário
       createdAt: user.createdAt.toISOString(),
     },
@@ -286,6 +289,14 @@ async function handlePut(
   if (phone) updateData.phone = phone.replace(/\D/g, '');
   if (cpf) updateData.cpf = cpf.replace(/\D/g, '');
 
+  // Atualizar registro profissional
+  const { professionalRegister } = parsed.data;
+  if (typeof professionalRegister === 'string') {
+    // Permite string vazia para limpar? Ou apenas atualizar se tiver valor?
+    // Assumindo que pode atualizar qualquer string passada
+    (updateData as any).professionalRegister = professionalRegister.trim() || null;
+  }
+
   // Atualizar usuário
   const updatedUser = await prisma.user.update({
     where: { id: userId },
@@ -326,6 +337,7 @@ async function handlePut(
       email: updatedUser.email,
       phone: updatedUser.phone,
       cpf: updatedUser.cpf,
+      professionalRegister: updatedUser.professionalRegister,
       emailNotifications: true,
       createdAt: updatedUser.createdAt.toISOString(),
     },

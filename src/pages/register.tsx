@@ -13,7 +13,7 @@ import { getAuthFromSSR } from '@/lib/auth';
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
   // Se já logado, redireciona para account
   const auth = getAuthFromSSR(ctx);
-  
+
   if (auth) {
     return {
       redirect: {
@@ -33,6 +33,7 @@ export default function RegisterPage() {
     name: '',
     email: '',
     phone: '',
+    professionalRegister: '',
     password: '',
     confirmPassword: '',
   });
@@ -85,6 +86,7 @@ export default function RegisterPage() {
           name: formData.name,
           email: formData.email,
           phone: formData.phone.replace(/\D/g, ''), // Apenas números
+          professionalRegister: formData.professionalRegister.trim() || undefined,
           password: formData.password,
         }),
       });
@@ -194,6 +196,25 @@ export default function RegisterPage() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors"
                 placeholder="(11) 99999-9999"
               />
+            </div>
+
+            <div>
+              <label htmlFor="professionalRegister" className="block text-sm font-medium text-gray-700 mb-1">
+                Registro Profissional (Opcional)
+              </label>
+              <input
+                type="text"
+                id="professionalRegister"
+                name="professionalRegister"
+                value={formData.professionalRegister}
+                onChange={(e) => handleChange({ ...e, target: { ...e.target, value: e.target.value.toUpperCase(), name: 'professionalRegister' } })}
+                autoComplete="off"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors"
+                placeholder="Ex: CRM-SP 123456"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Necessário para realizar agendamentos. Pode ser preenchido depois.
+              </p>
             </div>
 
             <div>

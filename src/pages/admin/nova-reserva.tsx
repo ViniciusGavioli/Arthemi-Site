@@ -18,6 +18,7 @@ interface User {
   name: string;
   phone: string;
   email: string;
+  professionalRegister?: string | null;
 }
 
 interface Credit {
@@ -55,6 +56,7 @@ export default function NovaReservaPage() {
     name: '',
     phone: '',
     email: '',
+    professionalRegister: '',
   });
 
   // Dados da reserva
@@ -254,6 +256,7 @@ export default function NovaReservaPage() {
         payload.userPhone = newUserData.phone;
         payload.userName = newUserData.name;
         payload.userEmail = newUserData.email || undefined;
+        payload.professionalRegister = newUserData.professionalRegister || undefined;
       }
 
       // Tipo de reserva
@@ -327,6 +330,11 @@ export default function NovaReservaPage() {
                       <p className="font-semibold text-green-800">{selectedUser.name}</p>
                       <p className="text-sm text-green-600">{selectedUser.phone}</p>
                       <p className="text-sm text-green-600">{selectedUser.email}</p>
+                      {selectedUser.professionalRegister && (
+                        <p className="text-sm text-green-600 font-medium mt-1">
+                          Registro: {selectedUser.professionalRegister}
+                        </p>
+                      )}
                     </div>
                     <Button
                       type="button"
@@ -416,6 +424,12 @@ export default function NovaReservaPage() {
                         type="email"
                         value={newUserData.email}
                         onChange={(e) => setNewUserData(d => ({ ...d, email: e.target.value }))}
+                      />
+                      <Input
+                        label="Registro Profissional (CRM/CRP...)"
+                        value={newUserData.professionalRegister}
+                        onChange={(e) => setNewUserData(d => ({ ...d, professionalRegister: e.target.value.toUpperCase() }))}
+                        placeholder="Ex: CRM-SP 123456"
                       />
                     </div>
                   ) : (

@@ -3,6 +3,7 @@
 // ===========================================================
 
 import { useState, useRef } from 'react';
+import { useRouter } from 'next/router';
 import { GetServerSideProps } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -58,6 +59,7 @@ interface LPPageProps {
 }
 
 export default function LPPage({ rooms }: LPPageProps) {
+  const router = useRouter();
   const [galleryRoom, setGalleryRoom] = useState<{ name: string; slug: string } | null>(null);
   const [bookingRoom, setBookingRoom] = useState<Room | null>(null);
   // Captura UTMs da URL

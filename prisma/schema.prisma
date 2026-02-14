@@ -15,6 +15,7 @@ model User {
   phone           String           @unique
   cpf             String?          // CPF para Asaas
   role            UserRole         @default(CUSTOMER)
+  professionalRegister String?     // Registro Profissional (CRM, CRP, CRF, etc.)
   
   // ========== Campos de Autenticação (Login Email+Senha) ==========
   passwordHash    String?          // Hash bcrypt da senha (nullable para migração de usuários antigos)

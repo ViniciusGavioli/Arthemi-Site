@@ -40,7 +40,7 @@ function startCleanup() {
     const now = Date.now();
     const expiredRate: string[] = [];
     const expiredBlock: string[] = [];
-    
+
     // Limpar rate limit entries antigas
     rateLimitStore.forEach((entry, key) => {
       if (now - entry.windowStart > 2 * 60 * 1000) {
@@ -48,7 +48,7 @@ function startCleanup() {
       }
     });
     expiredRate.forEach((k) => rateLimitStore.delete(k));
-    
+
     // Limpar block entries antigas (após 30min do último bloqueio)
     blockStore.forEach((entry, key) => {
       if (now - entry.lastBlockTime > BACKOFF_RESET_AFTER_MS) {
@@ -75,10 +75,10 @@ export interface ApiRateLimitResult {
   retryAfterSeconds?: number;  // Segundos até poder tentar novamente (quando bloqueado)
 }
 
-// Configuração padrão: 15 req / 60s
+// Configuração padrão: 100 req / 60s (temporário para testes, original: 15)
 const DEFAULT_CONFIG: ApiRateLimitConfig = {
   windowMs: 60 * 1000,   // 1 minuto
-  maxRequests: 15,       // 15 tentativas
+  maxRequests: 100,      // 100 tentativas (temporário, original: 15)
 };
 
 /**
@@ -106,7 +106,7 @@ export function checkApiRateLimit(
 ): ApiRateLimitResult {
   const key = `${endpoint}:${ip}`;
   const now = Date.now();
-  
+
   // Primeiro verificar se está em período de bloqueio (backoff)
   const blockEntry = blockStore.get(key);
   if (blockEntry && now < blockEntry.blockedUntil) {
@@ -118,7 +118,7 @@ export function checkApiRateLimit(
       retryAfterSeconds,
     };
   }
-  
+
   const entry = rateLimitStore.get(key);
 
   // Se não existe ou janela expirou, cria novo
@@ -136,21 +136,21 @@ export function checkApiRateLimit(
     // Aplicar backoff progressivo
     const currentBlockEntry = blockStore.get(key);
     let newBlockCount = 1;
-    
+
     // Se já foi bloqueado antes e não passou muito tempo, incrementa
     if (currentBlockEntry && now - currentBlockEntry.lastBlockTime < BACKOFF_RESET_AFTER_MS) {
       newBlockCount = currentBlockEntry.blockCount + 1;
     }
-    
+
     const backoffSeconds = calculateBackoffSeconds(newBlockCount);
     const blockedUntil = now + (backoffSeconds * 1000);
-    
+
     blockStore.set(key, {
       blockCount: newBlockCount,
       blockedUntil,
       lastBlockTime: now,
     });
-    
+
     return {
       allowed: false,
       remaining: 0,
@@ -199,11 +199,11 @@ export function getRateLimitMessage(retryAfterSeconds?: number): string {
   if (!retryAfterSeconds) {
     return RATE_LIMIT_MESSAGE;
   }
-  
+
   if (retryAfterSeconds < 60) {
     return `Muitas tentativas. Tente novamente em ${retryAfterSeconds} segundos.`;
   }
-  
+
   const minutes = Math.ceil(retryAfterSeconds / 60);
   return `Muitas tentativas. Tente novamente em ${minutes} minuto${minutes > 1 ? 's' : ''}.`;
 }
@@ -253,11 +253,11 @@ export function sendRateLimitResponse<T>(
   customMessage?: string
 ): void {
   const retryAfter = result.retryAfterSeconds || 60;
-  
+
   res.setHeader('Retry-After', retryAfter);
   res.setHeader('X-RateLimit-Remaining', result.remaining);
   res.setHeader('X-RateLimit-Reset', result.resetAt.toISOString());
-  
+
   res.status(429).json({
     success: false,
     error: customMessage || getRateLimitMessage(result.retryAfterSeconds),

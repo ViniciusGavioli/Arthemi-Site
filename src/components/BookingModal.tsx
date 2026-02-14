@@ -73,7 +73,7 @@ function validateBlockAvailability(
 ): { valid: boolean; unavailableSlots: number[] } {
   const selectedSlots = computeSelectedSlots(startHour, duration);
   const unavailableSlots: number[] = [];
-  
+
   for (const hour of selectedSlots) {
     const slot = availabilitySlots.find(s => s.hour === hour);
     // Se slot não existe ou não está disponível
@@ -81,7 +81,7 @@ function validateBlockAvailability(
       unavailableSlots.push(hour);
     }
   }
-  
+
   return {
     valid: unavailableSlots.length === 0,
     unavailableSlots,
@@ -133,6 +133,7 @@ interface BookingFormData {
   userPhone: string;
   userEmail: string;
   userCpf: string;
+  professionalRegister: string;
   date: Date | null;
   startHour: number;
   duration: number;
@@ -165,6 +166,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     userPhone: '',
     userEmail: '',
     userCpf: '',
+    professionalRegister: '',
     date: null,
     startHour: 9,
     duration: 1,
@@ -176,27 +178,56 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     installmentCount: 1, // Parcelas (1 = à vista)
   });
 
+  // Estado para dados do usuário autenticado
+  const [userData, setUserData] = useState<{
+    name: string | null;
+    email: string;
+    phone?: string;
+    professionalRegister?: string;
+  } | null>(null);
+
+  // Buscar dados do usuário autenticado
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const response = await fetch('/api/auth/me');
+        const data = await response.json();
+        if (data.authenticated && data.user) {
+          setUserData({
+            name: data.user.name,
+            email: data.user.email,
+            phone: undefined, // API não retorna phone, será preenchido pelo formulário
+            professionalRegister: undefined, // API não retorna professionalRegister, será preenchido pelo formulário
+          });
+        }
+      } catch (error) {
+        console.error('[BookingModal] Erro ao buscar dados do usuário:', error);
+      }
+    };
+    fetchUserData();
+  }, []);
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [cpfError, setCpfError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  
+
   // Cooldown para evitar múltiplos cliques no botão
   const [buttonCooldown, setButtonCooldown] = useState(false);
-  
+
   // Ref para scroll automático ao topo quando houver erro
   const modalContentRef = useRef<HTMLDivElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
-  
+
   // Estados de disponibilidade
   const [availabilitySlots, setAvailabilitySlots] = useState<AvailabilitySlot[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
-  
+
   // Estado para erro de bloco indisponível (FIX A)
   const [blockError, setBlockError] = useState<string | null>(null);
-  
+
   // Compute selected slots para destacar visualmente (FIX A)
   const selectedSlots = useMemo(() => {
     if (formData.productType !== 'hourly' || !formData.date) return [];
@@ -210,10 +241,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
       const dateStr = format(date, 'yyyy-MM-dd');
       const response = await fetch(`/api/availability?roomId=${room.id}&date=${dateStr}`);
       const data = await response.json();
-      
+
       if (data.success && data.slots) {
         setAvailabilitySlots(data.slots);
-        
+
         // Se o horário atual não está disponível, selecionar o primeiro disponível
         const currentHourSlot = data.slots.find((s: AvailabilitySlot) => s.hour === formData.startHour);
         if (!currentHourSlot?.available) {
@@ -275,8 +306,19 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
       return p;
     });
 
-  // Calcular valor total (preço base - desconto aplicado no backend)
-  const getTotalPrice = () => {
+  // Estado de cupom
+  const [couponCode, setCouponCode] = useState('');
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponValidating, setCouponValidating] = useState(false);
+  const [couponApplied, setCouponApplied] = useState<{
+    code: string;
+    discountAmount: number;
+    netAmount: number;
+    message: string;
+  } | null>(null);
+
+  // Helper para calcular preço base (sem desconto)
+  const getBasePrice = useCallback(() => {
     let basePrice: number;
     if (formData.productType === 'package' && formData.productId) {
       // Usar filteredProducts para obter o produto corrigido
@@ -286,8 +328,77 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
       // Usar preço da sala conforme data (helper unificado)
       basePrice = pricingInfo.hourlyPrice * formData.duration;
     }
-    // Cupom é validado e aplicado no backend, não no front
-    return basePrice;
+    return basePrice; // EM CENTAVOS
+  }, [formData.productType, formData.productId, formData.duration, products, pricingInfo]);
+
+  // Validar cupom via API
+  const handleApplyCoupon = async () => {
+    const price = getBasePrice();
+    if (!price || !couponCode.trim()) {
+      setCouponError('Digite um cupom');
+      return;
+    }
+
+    setCouponValidating(true);
+    setCouponError(null);
+
+    try {
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: couponCode.trim(),
+          grossAmount: price,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.valid) {
+        setCouponError(data.message || 'Cupom inválido');
+        return;
+      }
+
+      // Cupom válido
+      setCouponApplied({
+        code: data.code,
+        discountAmount: data.discountAmount,
+        netAmount: data.netAmount,
+        message: data.message,
+      });
+
+      // Atualizar no formData para envio
+      setFormData(prev => ({ ...prev, couponCode: data.code }));
+    } catch (err) {
+      setCouponError('Erro ao validar cupom');
+    } finally {
+      setCouponValidating(false);
+    }
+  };
+
+  // Remover cupom
+  const handleRemoveCoupon = () => {
+    setCouponCode('');
+    setCouponApplied(null);
+    setCouponError(null);
+    setFormData(prev => ({ ...prev, couponCode: '' }));
+  };
+
+  // Resetar cupom quando muda produto/duração (pois o preço muda)
+  useEffect(() => {
+    if (couponApplied) {
+      handleRemoveCoupon();
+    }
+  }, [formData.productType, formData.productId, formData.duration, formData.date]);
+
+  // Calcular valor total (com ou sem desconto)
+  // Se applyDiscount = false, retorna o preço cheio (para subtotal)
+  const getTotalPrice = (applyDiscount = true) => {
+    // Se temos cupom aplicado e validado, usar o netAmount dele
+    if (applyDiscount && couponApplied) {
+      return couponApplied.netAmount;
+    }
+    return getBasePrice();
   };
 
   // Opções de horário DINÂMICAS baseadas na data selecionada
@@ -308,18 +419,18 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
   useEffect(() => {
     if (formData.productType === 'hourly' && formData.date) {
       const hours = getBusinessHoursForDate(formData.date);
-      
+
       // Se dia fechado, resetar horário
       if (!hours) {
         return;
       }
-      
+
       // Se startHour está fora do range válido, resetar para primeiro disponível
       if (formData.startHour < hours.start || formData.startHour >= hours.end) {
         setFormData(prev => ({ ...prev, startHour: hours.start }));
         return;
       }
-      
+
       // FIX A: Revalidar bloco quando duração mudar
       if (availabilitySlots.length > 0) {
         const validation = validateBlockAvailability(formData.startHour, formData.duration, availabilitySlots);
@@ -329,7 +440,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
           setBlockError(null);
         }
       }
-      
+
       // Ajustar duração se ultrapassar fechamento
       const maxDuration = hours.end - formData.startHour;
       if (formData.duration > maxDuration) {
@@ -366,7 +477,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     // Ativar cooldown para evitar múltiplos cliques
     activateButtonCooldown();
 
@@ -401,18 +512,28 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     // E5: Validação defensiva por tipo
     if (formData.productType === 'hourly') {
       // Hora avulsa PRECISA de data e horário
+      if (!formData.userCpf) {
+        showErrorWithScroll('Por favor, informe seu CPF.');
+        return;
+      }
+
+      if (!formData.professionalRegister || formData.professionalRegister.trim().length < 3) {
+        showErrorWithScroll('Por favor, informe seu Registro Profissional (CRM, CRP, etc).');
+        return;
+      }
+
       if (!formData.date) {
         showErrorWithScroll('Por favor, selecione uma data.');
         return;
       }
-      
+
       // Verificar se é dia fechado
       const bh = getBusinessHoursForDate(formData.date);
       if (!bh) {
         showErrorWithScroll('Fechado neste dia. Por favor, selecione outra data.');
         return;
       }
-      
+
       if (!formData.startHour) {
         showErrorWithScroll('Por favor, selecione um horário.');
         return;
@@ -422,7 +543,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
         showErrorWithScroll(`A reserva ultrapassa o horário de fechamento (${bh.end}h). Duração máxima disponível: ${bh.end - formData.startHour}h.`);
         return;
       }
-      
+
       // FIX A: Validar que bloco inteiro está disponível
       const blockValidation = validateBlockAvailability(formData.startHour, formData.duration, availabilitySlots);
       if (!blockValidation.valid) {
@@ -443,7 +564,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
 
     // Rastrear tentativa de reserva
     analytics.bookingSubmitted(room.name, getTotalPrice());
-    
+
     // GA4 begin_checkout event (importante para tráfego pago)
     gtag.beginCheckout({
       itemId: room.id,
@@ -456,11 +577,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
       if (formData.productType === 'package') {
         // Determinar se é horas avulsas ou pacote
         const isHourlyCredit = formData.productId === 'hourly_credit';
-        
-        // Buscar o produto selecionado para obter o type (usar filteredProducts para obter o produto corrigido)
-        const selectedProduct = filteredProducts.find((p) => p.id === formData.productId) || 
-                                products.find((p) => p.id === formData.productId);
-        
+        // Buscar o produto selecionado para obter o type
+        // Tentar buscar em filteredProducts primeiro, depois em products geral
+        const selectedProduct = filteredProducts.find((p) => p.id === formData.productId) ||
+          products.find((p) => p.id === formData.productId);
         const response = await fetch('/api/credits/purchase', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -507,11 +627,12 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userName: formData.userName,
-          userPhone: formData.userPhone,
-          userEmail: formData.userEmail || undefined,
+          userPhone: formData.userPhone.replace(/\D/g, ''),
+          userEmail: formData.userEmail,
           userCpf: formData.userCpf.replace(/\D/g, ''),
+          professionalRegister: formData.professionalRegister.trim(),
+          productId: undefined, // Hora avulsa não usa productId
           roomId: room.id,
-          productId: formData.productId || undefined,
           startAt: startAt.toISOString(),
           endAt: endAt.toISOString(),
           payNow: true,
@@ -519,8 +640,8 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
           couponCode: formData.couponCode || undefined,
           notes: formData.notes || undefined,
           paymentMethod: formData.paymentMethod,
-          installmentCount: formData.paymentMethod === 'CARD' && formData.installmentCount > 1 
-            ? formData.installmentCount 
+          installmentCount: formData.paymentMethod === 'CARD' && formData.installmentCount > 1
+            ? formData.installmentCount
             : undefined,
         }),
       });
@@ -537,7 +658,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
           localStorage.setItem('lastBookingId', data.bookingId);
           localStorage.setItem('lastPaymentUrl', data.paymentUrl);
           localStorage.setItem('lastPaymentMethod', formData.paymentMethod === 'CARD' ? 'CREDIT_CARD' : 'PIX');
-          
+
           if (formData.paymentMethod === 'CARD') {
             // CARTÃO: Redireciona direto para checkout Asaas (cliente escolhe parcelas lá)
             window.location.href = data.paymentUrl;
@@ -584,11 +705,11 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
   }
 
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4 modal-backdrop overflow-y-auto"
       onClick={(e) => !submitting && e.target === e.currentTarget && onClose()}
     >
-      <div 
+      <div
         ref={modalContentRef}
         className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto modal-content my-2 sm:my-4"
       >
@@ -601,11 +722,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
           <button
             onClick={onClose}
             disabled={submitting}
-            className={`text-2xl transition ${
-              submitting
-                ? 'text-gray-300 cursor-not-allowed'
-                : 'text-gray-400 hover:text-gray-600'
-            }`}
+            className={`text-2xl transition ${submitting
+              ? 'text-gray-300 cursor-not-allowed'
+              : 'text-gray-400 hover:text-gray-600'
+              }`}
           >
             ×
           </button>
@@ -614,7 +734,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
         {/* Formulário */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div 
+            <div
               ref={errorRef}
               className="bg-red-50 border-2 border-red-300 text-red-700 px-4 py-3 rounded-lg text-sm shadow-sm"
               role="alert"
@@ -636,11 +756,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
               value={formData.userName}
               onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
               disabled={submitting}
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition text-base ${
-                submitting
-                  ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
-                  : 'border-gray-300'
-              }`}
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition text-base ${submitting
+                ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                : 'border-gray-300'
+                }`}
               placeholder="Seu nome"
               required
             />
@@ -669,13 +788,12 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                 setPhoneError(getPhoneError(formData.userPhone));
               }}
               disabled={submitting}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                submitting
-                  ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
-                  : phoneError 
-                    ? 'border-red-300 bg-red-50' 
-                    : 'border-gray-300'
-              }`}
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${submitting
+                ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                : phoneError
+                  ? 'border-red-300 bg-red-50'
+                  : 'border-gray-300'
+                }`}
               placeholder="(31) 99999-9999"
               required
               autoComplete="tel"
@@ -695,11 +813,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
               value={formData.userEmail}
               onChange={(e) => setFormData({ ...formData, userEmail: e.target.value })}
               disabled={submitting}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                submitting
-                  ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
-                  : 'border-gray-300'
-              }`}
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${submitting
+                ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                : 'border-gray-300'
+                }`}
               placeholder="seu@email.com"
             />
           </div>
@@ -719,13 +836,12 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                 if (cpfError && isValidCpf(masked)) setCpfError(null);
               }}
               disabled={submitting}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                submitting
-                  ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
-                  : cpfError
-                    ? 'border-red-300 bg-red-50'
-                    : 'border-gray-300'
-              }`}
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${submitting
+                ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                : cpfError
+                  ? 'border-red-300 bg-red-50'
+                  : 'border-gray-300'
+                }`}
               placeholder="000.000.000-00"
               required
             />
@@ -744,11 +860,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                 type="button"
                 onClick={() => setFormData({ ...formData, productType: 'hourly', productId: '' })}
                 disabled={submitting}
-                className={`p-4 rounded-lg border-2 transition-all text-left ${
-                  formData.productType === 'hourly'
-                    ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-500 ring-offset-2'
-                    : 'border-gray-200 hover:border-gray-300 bg-white'
-                } ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`p-4 rounded-lg border-2 transition-all text-left ${formData.productType === 'hourly'
+                  ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-500 ring-offset-2'
+                  : 'border-gray-200 hover:border-gray-300 bg-white'
+                  } ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <div className="text-lg font-semibold text-gray-900">🗓️ Agendar horário</div>
                 <div className="text-sm text-gray-500 mt-1">Escolha data e hora agora</div>
@@ -757,11 +872,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                 type="button"
                 onClick={() => setFormData({ ...formData, productType: 'package' })}
                 disabled={submitting}
-                className={`p-4 rounded-lg border-2 transition-all text-left ${
-                  formData.productType === 'package'
-                    ? 'border-accent-500 bg-accent-50 ring-2 ring-accent-500 ring-offset-2'
-                    : 'border-gray-200 hover:border-gray-300 bg-white'
-                } ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`p-4 rounded-lg border-2 transition-all text-left ${formData.productType === 'package'
+                  ? 'border-accent-500 bg-accent-50 ring-2 ring-accent-500 ring-offset-2'
+                  : 'border-gray-200 hover:border-gray-300 bg-white'
+                  } ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <div className="text-lg font-semibold text-gray-900">💰 Comprar créditos</div>
                 <div className="text-sm text-gray-500 mt-1">Agende depois, na sua conta</div>
@@ -776,15 +890,14 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   O que você quer comprar?
                 </label>
-                
+
                 {/* Opção: Horas Avulsas */}
                 <div className="space-y-3">
-                  <div 
-                    className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                      formData.productId === 'hourly_credit' 
-                        ? 'border-accent-500 bg-accent-50' 
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                  <div
+                    className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${formData.productId === 'hourly_credit'
+                      ? 'border-accent-500 bg-accent-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                      }`}
                     onClick={() => setFormData({ ...formData, productId: 'hourly_credit' })}
                   >
                     <div className="flex items-center justify-between">
@@ -799,7 +912,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                         )}
                       </div>
                     </div>
-                    
+
                     {formData.productId === 'hourly_credit' && (
                       <div className="mt-3 pt-3 border-t border-gray-200">
                         <label htmlFor="hours-credit-select" className="block text-sm font-medium text-gray-700 mb-1">
@@ -834,13 +947,12 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
 
                   {/* Pacotes */}
                   {filteredProducts.filter(p => p.type !== 'HOURLY_RATE').map((product) => (
-                    <div 
+                    <div
                       key={product.id}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        formData.productId === product.id 
-                          ? 'border-accent-500 bg-accent-50' 
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${formData.productId === product.id
+                        ? 'border-accent-500 bg-accent-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                        }`}
                       onClick={() => setFormData({ ...formData, productId: product.id })}
                     >
                       <div className="flex items-center justify-between">
@@ -871,7 +983,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                   <div>
                     <h4 className="font-semibold text-blue-900">Você está comprando créditos</h4>
                     <p className="text-sm text-blue-700 mt-1">
-                      O agendamento será feito depois, na sua área do cliente. 
+                      O agendamento será feito depois, na sua área do cliente.
                       Seus créditos ficam disponíveis imediatamente após o pagamento.
                     </p>
                   </div>
@@ -895,11 +1007,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                   dateFormat="dd/MM/yyyy"
                   placeholderText="Selecione a data"
                   disabled={submitting}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                    submitting
-                      ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
-                      : 'border-gray-300'
-                  }`}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${submitting
+                    ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                    : 'border-gray-300'
+                    }`}
                   minDate={new Date()}
                   filterDate={(date) => date.getDay() !== 0} // Bloqueia domingos
                 />
@@ -912,7 +1023,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                     <span className="inline-block w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin ml-2" />
                   )}
                 </label>
-                
+
                 {!formData.date ? (
                   <p className="text-sm text-gray-500 italic">Selecione uma data para ver os horários disponíveis</p>
                 ) : isClosed ? (
@@ -939,7 +1050,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                         // FIX A: Destacar TODOS os slots do intervalo selecionado
                         const isInSelectedRange = selectedSlots.includes(hour);
                         const isStartHour = formData.startHour === hour;
-                        
+
                         return (
                           <button
                             key={hour}
@@ -955,22 +1066,21 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                               setBlockError(null);
                               setFormData({ ...formData, startHour: hour });
                             }}
-                            className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                              isInSelectedRange
-                                ? isStartHour
-                                  ? 'bg-primary-600 text-white ring-2 ring-primary-600 ring-offset-2'
-                                  : 'bg-primary-500 text-white'
-                                : isAvailable
-                                  ? 'bg-white border border-gray-300 text-gray-700 hover:border-primary-400 hover:bg-primary-50'
-                                  : 'bg-gray-100 text-gray-400 cursor-not-allowed line-through'
-                            } ${submitting || loadingAvailability ? 'cursor-not-allowed opacity-50' : ''}`}
+                            className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${isInSelectedRange
+                              ? isStartHour
+                                ? 'bg-primary-600 text-white ring-2 ring-primary-600 ring-offset-2'
+                                : 'bg-primary-500 text-white'
+                              : isAvailable
+                                ? 'bg-white border border-gray-300 text-gray-700 hover:border-primary-400 hover:bg-primary-50'
+                                : 'bg-gray-100 text-gray-400 cursor-not-allowed line-through'
+                              } ${submitting || loadingAvailability ? 'cursor-not-allowed opacity-50' : ''}`}
                           >
                             {String(hour).padStart(2, '0')}:00
                           </button>
                         );
                       })}
                     </div>
-                    
+
                     {/* FIX A: Mostrar intervalo selecionado */}
                     {formData.duration > 1 && formData.startHour && (
                       <div className="bg-primary-50 border border-primary-200 rounded-lg p-3 mb-2">
@@ -979,14 +1089,14 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                         </p>
                       </div>
                     )}
-                    
+
                     {/* FIX A: Erro de bloco indisponível */}
                     {blockError && (
                       <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-2">
                         <p className="text-red-700 text-sm">{blockError}</p>
                       </div>
                     )}
-                    
+
                     {/* Legenda */}
                     <div className="flex items-center gap-4 text-xs text-gray-500">
                       <div className="flex items-center gap-1">
@@ -1017,11 +1127,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                   value={formData.duration}
                   onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })}
                   disabled={submitting || isClosed}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                    submitting || isClosed
-                      ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
-                      : 'border-gray-300'
-                  }`}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${submitting || isClosed
+                    ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                    : 'border-gray-300'
+                    }`}
                 >
                   {/* Durações válidas baseadas no horário de fechamento DINÂMICO */}
                   {[1, 2, 3, 4]
@@ -1080,11 +1189,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                 value={formData.couponCode}
                 onChange={(e) => setFormData({ ...formData, couponCode: e.target.value.toUpperCase() })}
                 disabled={submitting}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                  submitting
-                    ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
-                    : 'border-gray-300'
-                }`}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${submitting
+                  ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                  : 'border-gray-300'
+                  }`}
                 placeholder="Ex: TESTE5"
               />
               {formData.couponCode.trim() && (
@@ -1104,11 +1212,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               disabled={submitting}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                submitting
-                  ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
-                  : 'border-gray-300'
-              }`}
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${submitting
+                ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                : 'border-gray-300'
+                }`}
               rows={2}
               placeholder="Alguma informação adicional?"
             />
@@ -1128,11 +1235,83 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                 </span>
               </div>
             )}
-            <div className="flex justify-between items-center pt-2 border-t">
+            {/* Subtotal (se tem cupom aplicado) */}
+            {couponApplied && (
+              <>
+                <div className="flex justify-between items-center mb-1 text-sm">
+                  <span className="text-gray-600">Subtotal</span>
+                  <span className="font-medium text-gray-500">
+                    {formatCurrency(getTotalPrice(false))}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center mb-1 text-sm">
+                  <span className="text-green-600">Desconto ({couponApplied.code})</span>
+                  <span className="font-medium text-green-600">
+                    -{formatCurrency(couponApplied.discountAmount)}
+                  </span>
+                </div>
+              </>
+            )}
+
+            <div className="flex justify-between items-center pt-2 border-t mt-4">
               <span className="font-semibold">Total</span>
               <span className="text-xl font-bold text-primary-600">
                 {formatCurrency(getTotalPrice())}
               </span>
+            </div>
+
+            {/* Campo de Cupom */}
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">
+                Cupom de desconto
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={couponCode}
+                  onChange={(e) => {
+                    setCouponCode(e.target.value.toUpperCase());
+                    setCouponError(null);
+                  }}
+                  disabled={!!couponApplied || submitting}
+                  className={`flex-1 px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${couponError ? 'border-red-300 bg-red-50 text-red-900 placeholder-red-300' :
+                    couponApplied ? 'border-green-300 bg-green-50 text-green-900' :
+                      'border-gray-300'
+                    }`}
+                  placeholder="Código do cupom"
+                />
+                {!couponApplied ? (
+                  <button
+                    type="button"
+                    onClick={handleApplyCoupon}
+                    disabled={!couponCode.trim() || couponValidating || submitting}
+                    className="px-4 py-2 text-sm font-medium text-primary-700 bg-primary-50 border border-primary-200 rounded-lg hover:bg-primary-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {couponValidating ? (
+                      <div className="w-5 h-5 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      'Aplicar'
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleRemoveCoupon}
+                    disabled={submitting}
+                    className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
+                  >
+                    Remover
+                  </button>
+                )}
+              </div>
+              {couponError && (
+                <p className="mt-1 text-xs text-red-600">{couponError}</p>
+              )}
+              {couponApplied && (
+                <p className="mt-1 text-xs text-green-600 flex items-center gap-1">
+                  <span className="font-semibold">Sucesso!</span> {couponApplied.message}
+                </p>
+              )}
             </div>
           </div>
 
@@ -1141,17 +1320,23 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
             <PaymentMethodSelector
               selected={formData.paymentMethod}
               onSelect={(method) => {
-                setFormData(prev => ({ 
-                  ...prev, 
+                setFormData(prev => ({
+                  ...prev,
                   paymentMethod: method,
                   // Reset parcelas ao selecionar PIX
-                  installmentCount: method === 'PIX' ? 1 : prev.installmentCount
+                  installmentCount: method === 'PIX' ? 1 : prev.installmentCount,
+                  userName: userData?.name || '',
+                  userEmail: userData?.email || '',
+                  userPhone: userData?.phone || formData.userPhone || '',
+                  professionalRegister: userData?.professionalRegister || formData.professionalRegister || '',
                 }));
               }}
               disabled={submitting}
               totalAmount={getTotalPrice()} // Já está em centavos
-              // Removido: selectedInstallments e onInstallmentChange
-              // O parcelamento será escolhido diretamente no checkout do Asaas
+              selectedInstallments={formData.installmentCount}
+              onInstallmentChange={(installments) =>
+                setFormData(prev => ({ ...prev, installmentCount: installments }))
+              }
             />
           )}
 
@@ -1167,17 +1352,17 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
             />
             <label htmlFor="acceptTerms" className="text-sm text-gray-600">
               Li e aceito os{' '}
-              <Link 
-                href="/termos" 
-                target="_blank" 
+              <Link
+                href="/termos"
+                target="_blank"
                 className="text-primary-600 hover:underline"
               >
                 Termos de Uso
               </Link>{' '}
               e a{' '}
-              <Link 
-                href="/privacidade" 
-                target="_blank" 
+              <Link
+                href="/privacidade"
+                target="_blank"
                 className="text-primary-600 hover:underline"
               >
                 Política de Privacidade
@@ -1192,22 +1377,20 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className={`flex-1 px-4 py-3 min-h-[48px] border rounded-lg font-semibold transition text-base ${
-                submitting
-                  ? 'border-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'border-gray-300 text-gray-700 hover:bg-gray-50 active:bg-gray-100'
-              }`}
+              className={`flex-1 px-4 py-3 min-h-[48px] border rounded-lg font-semibold transition text-base ${submitting
+                ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-50 active:bg-gray-100'
+                }`}
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={submitting || buttonCooldown}
-              className={`flex-1 px-4 py-3 min-h-[48px] rounded-lg font-semibold transition flex items-center justify-center gap-2 text-base ${
-                submitting || buttonCooldown
-                  ? 'bg-gray-400 cursor-not-allowed text-white'
-                  : 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800'
-              }`}
+              className={`flex-1 px-4 py-3 min-h-[48px] rounded-lg font-semibold transition flex items-center justify-center gap-2 text-base ${submitting || buttonCooldown
+                ? 'bg-gray-400 cursor-not-allowed text-white'
+                : 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800'
+                }`}
             >
               {(submitting || buttonCooldown) && (
                 <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

@@ -6,7 +6,7 @@
 // Decisões técnicas:
 // - JWT assinado com HS256 (jsonwebtoken)
 // - Sessão: 7 dias em cookie HttpOnly
-// - Rate limit: 5 tentativas, bloqueio 30 min
+// - Rate limit: 100 tentativas, bloqueio 30 min (temporário para testes, original: 5)
 // - Mensagens genéricas (não revelar se email existe)
 
 import { NextApiRequest, NextApiResponse } from 'next';
@@ -58,8 +58,8 @@ const SCRYPT_N = 16384;
 const SCRYPT_R = 8;
 const SCRYPT_P = 1;
 
-/** Máximo de tentativas de login antes do bloqueio */
-export const MAX_LOGIN_ATTEMPTS = 5;
+/** Máximo de tentativas de login antes do bloqueio (temporário: 100, original: 5) */
+export const MAX_LOGIN_ATTEMPTS = 100;
 
 /** Duração do bloqueio em minutos */
 export const LOCKOUT_DURATION_MINUTES = 30;
@@ -96,7 +96,7 @@ export interface LoginResult {
 
 function getJWTSecret(): string {
   const secret = process.env.JWT_SECRET;
-  
+
   if (!secret) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('❌ JWT_SECRET não configurado em produção!');
@@ -105,7 +105,7 @@ function getJWTSecret(): string {
     console.warn('⚠️ [AUTH] JWT_SECRET não configurado - usando fallback DEV');
     return 'dev-secret-arthemi-2025-nao-usar-em-producao';
   }
-  
+
   return secret;
 }
 
@@ -118,7 +118,7 @@ function getJWTSecret(): string {
  */
 export function signSessionToken(payload: { userId: string; role: 'CUSTOMER' | 'ADMIN' }): string {
   const secret = getJWTSecret();
-  
+
   return jwt.sign(
     { userId: payload.userId, role: payload.role },
     secret,
@@ -134,11 +134,11 @@ export function verifySessionToken(token: string): JWTPayload | null {
   try {
     const secret = getJWTSecret();
     const decoded = jwt.verify(token, secret) as JWTPayload;
-    
+
     if (!decoded.userId || !decoded.role) {
       return null;
     }
-    
+
     return decoded;
   } catch {
     return null;
@@ -154,7 +154,7 @@ export function verifySessionToken(token: string): JWTPayload | null {
  */
 export function setAuthCookie(res: NextApiResponse, token: string): void {
   const isProduction = process.env.NODE_ENV === 'production';
-  
+
   const cookie = serialize(AUTH_COOKIE_NAME, token, {
     httpOnly: true,
     secure: isProduction,
@@ -162,7 +162,7 @@ export function setAuthCookie(res: NextApiResponse, token: string): void {
     path: '/',
     maxAge: SESSION_DURATION_SECONDS,
   });
-  
+
   res.setHeader('Set-Cookie', cookie);
 }
 
@@ -171,7 +171,7 @@ export function setAuthCookie(res: NextApiResponse, token: string): void {
  */
 export function clearAuthCookie(res: NextApiResponse): void {
   const isProduction = process.env.NODE_ENV === 'production';
-  
+
   const cookie = serialize(AUTH_COOKIE_NAME, '', {
     httpOnly: true,
     secure: isProduction,
@@ -179,7 +179,7 @@ export function clearAuthCookie(res: NextApiResponse): void {
     path: '/',
     maxAge: 0, // Expira imediatamente
   });
-  
+
   res.setHeader('Set-Cookie', cookie);
 }
 
@@ -191,17 +191,17 @@ export function getAuthFromRequest(req: NextApiRequest): AuthUser | null {
   // Parse cookies
   const cookies = req.cookies || parse(req.headers.cookie || '');
   const token = cookies[AUTH_COOKIE_NAME];
-  
+
   if (!token) {
     return null;
   }
-  
+
   const payload = verifySessionToken(token);
-  
+
   if (!payload) {
     return null;
   }
-  
+
   return {
     userId: payload.userId,
     role: payload.role,
@@ -217,12 +217,12 @@ export function requireAuth(
   res: NextApiResponse
 ): AuthUser | null {
   const auth = getAuthFromRequest(req);
-  
+
   if (!auth) {
     res.status(401).json({ error: 'Não autenticado' });
     return null;
   }
-  
+
   return auth;
 }
 
@@ -236,17 +236,17 @@ export function requireRole(
   requiredRole: 'ADMIN' | 'CUSTOMER'
 ): AuthUser | null {
   const auth = requireAuth(req, res);
-  
+
   if (!auth) {
     return null; // 401 já foi enviado
   }
-  
+
   // ADMIN pode tudo, CUSTOMER só acessa se role == CUSTOMER
   if (requiredRole === 'ADMIN' && auth.role !== 'ADMIN') {
     res.status(403).json({ error: 'Acesso não autorizado' });
     return null;
   }
-  
+
   return auth;
 }
 
@@ -280,17 +280,17 @@ export async function hashPassword(password: string): Promise<string> {
   if (!password || password.length < 8) {
     throw new Error('Senha deve ter pelo menos 8 caracteres');
   }
-  
+
   // Gerar salt aleatório criptograficamente seguro
   const salt = randomBytes(SALT_LENGTH);
-  
+
   // Derivar chave usando scrypt
   const derivedKey = await scryptAsync(password, salt, KEY_LENGTH, {
     N: SCRYPT_N,
     r: SCRYPT_R,
     p: SCRYPT_P,
   });
-  
+
   // Formato versionado: v1$scrypt$N$r$p$salt$key
   return `${HASH_VERSION}$scrypt$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${salt.toString('base64')}$${derivedKey.toString('base64')}`;
 }
@@ -305,24 +305,24 @@ export async function comparePassword(password: string, storedHash: string): Pro
   try {
     // Parse do hash armazenado
     const parts = storedHash.split('$');
-    
+
     // Formato versionado: ['v1', 'scrypt', 'N', 'r', 'p', 'salt', 'key']
     if (parts.length !== 7 || parts[0] !== 'v1' || parts[1] !== 'scrypt') {
       console.error('[AUTH] Formato de hash inválido ou versão não suportada');
       return false;
     }
-    
+
     const N = parseInt(parts[2], 10);
     const r = parseInt(parts[3], 10);
     const p = parseInt(parts[4], 10);
     const salt = Buffer.from(parts[5], 'base64');
     const storedKey = Buffer.from(parts[6], 'base64');
-    
+
     // Derivar chave da senha fornecida com os mesmos parâmetros
     const derivedKey = await scryptAsync(password, salt, storedKey.length, {
       N, r, p,
     });
-    
+
     // Comparação timing-safe (previne timing attacks)
     return timingSafeEqual(derivedKey, storedKey);
   } catch (error) {
@@ -368,7 +368,7 @@ export async function processLogin(
   password: string
 ): Promise<LoginResult> {
   const normalizedEmail = email.toLowerCase().trim();
-  
+
   // Buscar usuário
   const user = await prisma.user.findUnique({
     where: { email: normalizedEmail },
@@ -382,7 +382,7 @@ export async function processLogin(
       lockedUntil: true,
     },
   });
-  
+
   // User não existe ou não tem senha configurada
   if (!user || !user.passwordHash) {
     return {
@@ -391,7 +391,7 @@ export async function processLogin(
       statusCode: 401,
     };
   }
-  
+
   // Conta desativada
   if (!user.isActive) {
     return {
@@ -400,7 +400,7 @@ export async function processLogin(
       statusCode: 403,
     };
   }
-  
+
   // Verificar bloqueio temporário
   if (user.lockedUntil && user.lockedUntil > new Date()) {
     const minutesRemaining = Math.ceil(
@@ -412,15 +412,15 @@ export async function processLogin(
       statusCode: 429,
     };
   }
-  
+
   // Verificar senha
   const passwordValid = await comparePassword(password, user.passwordHash);
-  
+
   if (!passwordValid) {
     // Incrementar tentativas falhas
     const newFailedAttempts = (user.failedAttempts || 0) + 1;
     const shouldLock = newFailedAttempts >= MAX_LOGIN_ATTEMPTS;
-    
+
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -430,7 +430,7 @@ export async function processLogin(
           : null,
       },
     });
-    
+
     if (shouldLock) {
       return {
         success: false,
@@ -438,7 +438,7 @@ export async function processLogin(
         statusCode: 429,
       };
     }
-    
+
     const attemptsRemaining = MAX_LOGIN_ATTEMPTS - newFailedAttempts;
     return {
       success: false,
@@ -446,7 +446,7 @@ export async function processLogin(
       statusCode: 401,
     };
   }
-  
+
   // Login bem-sucedido: zerar contadores
   await prisma.user.update({
     where: { id: user.id },
@@ -456,7 +456,7 @@ export async function processLogin(
       lastLoginAt: new Date(),
     },
   });
-  
+
   return {
     success: true,
     statusCode: 200,
@@ -483,22 +483,22 @@ export function getAuthUserId(req: NextApiRequest): string | null {
  */
 export function getAuthFromSSR(ctx: GetServerSidePropsContext): AuthUser | null {
   const { req } = ctx;
-  
+
   // Parse cookies do header
   const cookieHeader = req.headers.cookie || '';
   const cookies = parse(cookieHeader);
   const token = cookies[AUTH_COOKIE_NAME];
-  
+
   if (!token) {
     return null;
   }
-  
+
   const payload = verifySessionToken(token);
-  
+
   if (!payload) {
     return null;
   }
-  
+
   return {
     userId: payload.userId,
     role: payload.role,
@@ -514,11 +514,11 @@ export function requireAuthSSR(
   redirectTo = '/login'
 ): { redirect: { destination: string; permanent: false } } | { auth: AuthUser } {
   const auth = getAuthFromSSR(ctx);
-  
+
   if (!auth) {
     const currentPath = ctx.resolvedUrl || ctx.req.url || '/';
     const destination = `${redirectTo}?next=${encodeURIComponent(currentPath)}`;
-    
+
     return {
       redirect: {
         destination,
@@ -526,7 +526,7 @@ export function requireAuthSSR(
       },
     };
   }
-  
+
   return { auth };
 }
 
@@ -538,12 +538,12 @@ export function requireAdminSSR(
   ctx: GetServerSidePropsContext
 ): { redirect: { destination: string; permanent: false } } | { auth: AuthUser } {
   const result = requireAuthSSR(ctx, '/login');
-  
+
   // Não autenticado
   if ('redirect' in result) {
     return result;
   }
-  
+
   // Autenticado mas não é admin
   if (result.auth.role !== 'ADMIN') {
     return {
@@ -553,6 +553,6 @@ export function requireAdminSSR(
       },
     };
   }
-  
+
   return result;
 }

@@ -5,11 +5,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { 
-  Card, CardContent, Button, Input, Select, Textarea, Badge, Spinner, Toast 
+import {
+  Card, CardContent, Button, Input, Select, Textarea, Badge, Spinner, Toast
 } from '@/components/admin/ui';
-import { 
-  useToast, formatCurrency, fetchApi 
+import {
+  useToast, formatCurrency, fetchApi
 } from '@/components/admin/helpers';
 import { getHourOptionsForDate, getBusinessHoursForDate, isClosedDay } from '@/lib/business-hours';
 
@@ -18,6 +18,7 @@ interface User {
   name: string;
   phone: string;
   email: string;
+  professionalRegister?: string | null;
 }
 
 interface Credit {
@@ -55,6 +56,7 @@ export default function NovaReservaPage() {
     name: '',
     phone: '',
     email: '',
+    professionalRegister: '',
   });
 
   // Dados da reserva
@@ -90,7 +92,7 @@ export default function NovaReservaPage() {
     } finally {
       setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Carregar usuário da query
@@ -125,8 +127,8 @@ export default function NovaReservaPage() {
       if (res.ok) {
         const data = await res.json();
         // Filtrar créditos ativos
-        const activeCredits = (data.credits || []).filter((c: Credit & { status: string; expiresAt: string | null }) => 
-          c.status === 'CONFIRMED' && 
+        const activeCredits = (data.credits || []).filter((c: Credit & { status: string; expiresAt: string | null }) =>
+          c.status === 'CONFIRMED' &&
           c.remainingAmount > 0 &&
           (!c.expiresAt || new Date(c.expiresAt) > new Date())
         ).map((c: Credit & { room?: { name: string } }) => ({
@@ -179,7 +181,7 @@ export default function NovaReservaPage() {
         // Verificar se horário selecionado está disponível
         const startH = Number(formData.startHour);
         const endH = Number(formData.endHour);
-        const isAvailable = slots.every(s => 
+        const isAvailable = slots.every(s =>
           s.hour < startH || s.hour >= endH || s.available
         );
 
@@ -254,6 +256,7 @@ export default function NovaReservaPage() {
         payload.userPhone = newUserData.phone;
         payload.userName = newUserData.name;
         payload.userEmail = newUserData.email || undefined;
+        payload.professionalRegister = newUserData.professionalRegister || undefined;
       }
 
       // Tipo de reserva
@@ -327,6 +330,11 @@ export default function NovaReservaPage() {
                       <p className="font-semibold text-green-800">{selectedUser.name}</p>
                       <p className="text-sm text-green-600">{selectedUser.phone}</p>
                       <p className="text-sm text-green-600">{selectedUser.email}</p>
+                      {selectedUser.professionalRegister && (
+                        <p className="text-sm text-green-600 font-medium mt-1">
+                          Registro: {selectedUser.professionalRegister}
+                        </p>
+                      )}
                     </div>
                     <Button
                       type="button"
@@ -363,13 +371,17 @@ export default function NovaReservaPage() {
                         }}
                       />
                       {searchResults.length > 0 && (
-                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                           {searchResults.map((user) => (
                             <button
                               key={user.id}
                               type="button"
-                              onClick={() => handleSelectUser(user)}
-                              className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-0"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleSelectUser(user);
+                              }}
+                              className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-0 cursor-pointer"
                             >
                               <p className="font-medium text-gray-800">{user.name}</p>
                               <p className="text-sm text-gray-500">{user.phone}</p>
@@ -412,6 +424,12 @@ export default function NovaReservaPage() {
                         type="email"
                         value={newUserData.email}
                         onChange={(e) => setNewUserData(d => ({ ...d, email: e.target.value }))}
+                      />
+                      <Input
+                        label="Registro Profissional (CRM/CRP...)"
+                        value={newUserData.professionalRegister}
+                        onChange={(e) => setNewUserData(d => ({ ...d, professionalRegister: e.target.value.toUpperCase() }))}
+                        placeholder="Ex: CRM-SP 123456"
                       />
                     </div>
                   ) : (

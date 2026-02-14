@@ -163,10 +163,10 @@ export default function Home({ dbRooms }: HomeProps) {
         <section className="relative min-h-[100svh] flex items-center pt-20 pb-8 overflow-hidden">
           {/* Background Image */}
           <Image 
-            src="/images/espaco/Recepcao.jpeg" 
-            alt="Recepção do Espaço Arthemi"
+            src="/images/hero/banner.jpeg" 
+            alt="Espaço Arthemi"
             fill
-            className="object-cover object-center"
+            className="object-cover object-top"
             priority
             quality={90}
             sizes="100vw"

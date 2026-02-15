@@ -5,7 +5,7 @@
 // Inclui seletor de parcelas quando cartão é selecionado
 // ===========================================================
 
-import { CreditCard, QrCode, Shield } from 'lucide-react';
+import { CreditCard, QrCode, Shield, Info } from 'lucide-react';
 import { InstallmentSelector } from './InstallmentSelector';
 
 export type PaymentMethod = 'PIX' | 'CARD';
@@ -43,11 +43,10 @@ export function PaymentMethodSelector({
             if (onInstallmentChange) onInstallmentChange(1);
           }}
           disabled={disabled}
-          className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${
-            selected === 'PIX'
+          className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${selected === 'PIX'
               ? 'border-green-500 bg-green-50'
               : 'border-gray-200 hover:border-gray-300'
-          } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <QrCode className={`w-8 h-8 mb-2 ${selected === 'PIX' ? 'text-green-600' : 'text-gray-500'}`} />
           <span className={`font-medium ${selected === 'PIX' ? 'text-green-700' : 'text-gray-700'}`}>
@@ -61,11 +60,10 @@ export function PaymentMethodSelector({
           type="button"
           onClick={() => onSelect('CARD')}
           disabled={disabled}
-          className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${
-            selected === 'CARD'
+          className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${selected === 'CARD'
               ? 'border-primary-500 bg-primary-50'
               : 'border-gray-200 hover:border-gray-300'
-          } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <CreditCard className={`w-8 h-8 mb-2 ${selected === 'CARD' ? 'text-primary-600' : 'text-gray-500'}`} />
           <span className={`font-medium ${selected === 'CARD' ? 'text-primary-700' : 'text-gray-700'}`}>
@@ -86,14 +84,13 @@ export function PaymentMethodSelector({
       )}
 
       {/* Aviso de redirecionamento para checkout seguro */}
-      <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-        <p className="text-sm text-blue-700 flex items-start gap-2">
-          <Shield className="w-4 h-4 mt-0.5 flex-shrink-0" />
-          <span>
-            {selected === 'CARD' 
-              ? 'Você será direcionado ao checkout seguro Asaas para finalizar o pagamento.'
-              : 'Você será direcionado para um ambiente seguro para finalizar o pagamento.'}
-          </span>
+      {/* Aviso de redirecionamento para checkout seguro */}
+      <div className="mt-4 p-4 bg-blue-50 rounded-lg flex items-start gap-3 border border-blue-100">
+        <Info className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+        <p className="text-sm text-blue-700">
+          {selected === 'CARD'
+            ? 'O valor das parcelas e os juros aplicados serão exibidos e processados diretamente no checkout seguro do Asaas antes da sua confirmação final.'
+            : 'Você será direcionado para um ambiente seguro para finalizar o pagamento.'}
         </p>
       </div>
     </div>

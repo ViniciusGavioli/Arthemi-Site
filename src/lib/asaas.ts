@@ -493,8 +493,17 @@ export async function createPayment(
     input.installmentCount >= 2
   ) {
     paymentPayload.installmentCount = input.installmentCount;
-    // Calcular valor da parcela (arredondado para 2 casas decimais)
-    paymentPayload.installmentValue = Math.round((input.value / input.installmentCount) * 100) / 100;
+    // Usar installmentValue pré-calculado se fornecido (sincronizado pela utility)
+    // Caso contrário, calcular aqui (fallback)
+    paymentPayload.installmentValue = input.installmentValue
+      ?? Math.round((input.value / input.installmentCount) * 100) / 100;
+  }
+
+  // Juros de mora e multa (PIX/BOLETO parcelado)
+  const shouldAddMora = (input.billingType === 'BOLETO' || input.billingType === 'PIX') && input.installmentCount && input.installmentCount > 1;
+  if (shouldAddMora) {
+    paymentPayload.fine = { value: 2.0, type: 'PERCENTAGE' };
+    paymentPayload.interest = { value: 1.0, type: 'PERCENTAGE' };
   }
 
   const payment = await asaasRequest<AsaasPayment>('/payments', {
@@ -863,6 +872,7 @@ export interface CreateBookingCardPaymentInput {
   description: string;
   dueDate?: string;
   installmentCount?: number; // 1 = à vista, 2-12 = parcelado
+  installmentValueCents?: number; // Valor da parcela em centavos (pré-calculado pela utility)
 }
 
 export interface CardPaymentResult {
@@ -932,7 +942,7 @@ export async function createBookingCardPayment(
     }
   }
 
-  // 7. Criar cobrança (installmentValue calculado automaticamente pelo Asaas)
+  // 7. Criar cobrança (installmentValue sincronizado pela utility se fornecido)
   const payment = await createPayment({
     customerId: customer.id,
     value: valueInReais,
@@ -941,7 +951,10 @@ export async function createBookingCardPayment(
     externalReference: buildExternalReference(input.bookingId),
     billingType, // Sempre CREDIT_CARD
     installmentCount,
-    // NÃO enviar installmentValue - Asaas calcula automaticamente
+    // Converter installmentValueCents → reais se fornecido pela utility
+    installmentValue: input.installmentValueCents
+      ? centsToReal(input.installmentValueCents)
+      : undefined,
   });
 
   console.log('💳 [Asaas] Cobrança CARTÃO criada:', payment.id, {

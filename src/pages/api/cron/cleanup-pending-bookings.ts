@@ -158,8 +158,7 @@ export default async function handler(
 
           // Restaurar cupom APENAS se cupoms estão habilitados
           // wasPaid=false pois cleanup só processa bookings PENDING (não pagos)
-          // NÃO restaura cupom em operações de override (TESTE5) pois não registra CouponUsage
-          if (areCouponsEnabled() && booking.couponCode && !booking.couponCode.startsWith('TESTE')) {
+          if (areCouponsEnabled() && booking.couponCode) {
             const restoreResult = await restoreCouponUsage(tx, booking.id, undefined, false);
             couponRestored = restoreResult.restored;
             if (couponRestored) {

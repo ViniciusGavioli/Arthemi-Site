@@ -161,12 +161,8 @@ export const VALID_COUPONS: Record<string, CouponConfig> = {
   'PRIMEIRACOMPRA': { discountType: 'percent', value: 15, description: '15% primeira compra', singleUsePerUser: true },
 
   // === CUPONS DE DESENVOLVIMENTO (uso infinito) ===
-  'TESTE50': { discountType: 'fixed', value: 500, description: 'DEV: R$5 desconto', singleUsePerUser: false, isDevCoupon: true },
   'DEVTEST': { discountType: 'percent', value: 50, description: 'DEV: 50% desconto', singleUsePerUser: false, isDevCoupon: true },
   'A95': { discountType: 'percent', value: 95, description: 'DEV: 95% desconto', singleUsePerUser: false, isDevCoupon: true },
-
-  // === CUPOM DE PAGAMENTO TESTE (força valor R$5,00) ===
-  'TESTE5': { discountType: 'priceOverride', value: 500, description: 'TESTE: Força R$5,00', singleUsePerUser: false, isDevCoupon: true },
 };
 
 /**

@@ -14,6 +14,7 @@ import { gtag } from '@/lib/gtag';
 import { PaymentMethodSelector } from '@/components/booking';
 import { getPricingInfoForUI } from '@/lib/pricing';
 import { getHourOptionsForDate, getBusinessHoursForDate, isClosedDay } from '@/lib/business-hours';
+import { calculatePaymentTotals } from '@/utils/financial';
 
 // Registrar locale português
 registerLocale('pt-BR', ptBR);
@@ -213,6 +214,19 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
   const [cpfError, setCpfError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+  // Estado auxiliar para profissão (controla label dinâmico do registro)
+  const [profession, setProfession] = useState('Médico');
+
+  // Mapeamento de Labels e Placeholders
+  const professionConfigs: Record<string, { label: string; placeholder: string }> = {
+    'Médico': { label: 'CRM', placeholder: 'Ex: 123456-SP' },
+    'Psicólogo': { label: 'CRP', placeholder: 'Ex: 06/123456' },
+    'Nutricionista': { label: 'CRN', placeholder: 'Ex: 12345' },
+    'Fisioterapeuta': { label: 'CREFITO', placeholder: 'Ex: 12345-F' },
+    'Fonoaudiólogo': { label: 'CRFa', placeholder: 'Ex: 12345' },
+    'Outros': { label: 'Registro Profissional', placeholder: 'Seu registro profissional' },
+  };
 
   // Cooldown para evitar múltiplos cliques no botão
   const [buttonCooldown, setButtonCooldown] = useState(false);
@@ -643,6 +657,14 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
           installmentCount: formData.paymentMethod === 'CARD' && formData.installmentCount > 1
             ? formData.installmentCount
             : undefined,
+          // Valores sincronizados pela utility financial.ts
+          ...(formData.paymentMethod === 'CARD' && formData.installmentCount > 1 ? (() => {
+            const calc = calculatePaymentTotals(getTotalPrice(), formData.installmentCount);
+            return {
+              adjustedTotalCents: calc.adjustedTotalCents,
+              installmentValueCents: calc.installmentValueCents,
+            };
+          })() : {}),
         }),
       });
 
@@ -848,6 +870,46 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
             {cpfError && (
               <p className="mt-1 text-sm text-red-600">{cpfError}</p>
             )}
+          </div>
+
+          {/* PROFISSÃO E REGISTRO */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {/* Seleção de Profissão */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Qual sua profissão? *
+              </label>
+              <select
+                value={profession}
+                onChange={(e) => setProfession(e.target.value)}
+                disabled={submitting}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${submitting
+                    ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                    : 'border-gray-300'
+                  }`}
+              >
+                {Object.keys(professionConfigs).map((prof) => (
+                  <option key={prof} value={prof}>{prof}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Registro Profissional Dinâmico */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {professionConfigs[profession].label} *
+              </label>
+              <input
+                type="text"
+                value={formData.professionalRegister}
+                onChange={(e) => setFormData({ ...formData, professionalRegister: e.target.value })}
+                disabled={submitting}
+                placeholder={professionConfigs[profession].placeholder}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${submitting ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300'
+                  }`}
+                required
+              />
+            </div>
           </div>
 
           {/* Tipo de Reserva - PRIMEIRO para clareza */}
@@ -1150,58 +1212,6 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
             </>
           )}
 
-          {/* MVP: Campo de cupom OCULTO para usuários comuns
-              Cupons comerciais desabilitados. Campo mantido apenas para testes internos.
-              Para usar override de teste: ativar via ENV e digitar TESTE5 */}
-          {/* 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Cupom de Desconto (opcional)
-            </label>
-            <input
-              type="text"
-              value={formData.couponCode}
-              onChange={(e) => setFormData({ ...formData, couponCode: e.target.value.toUpperCase() })}
-              disabled={submitting}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                submitting
-                  ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
-                  : 'border-gray-300'
-              }`}
-              placeholder="Digite seu cupom (validado no pagamento)"
-            />
-            {formData.couponCode.trim() && (
-              <p className="mt-1 text-xs text-gray-500">
-                Cupom será validado na finalização do pagamento
-              </p>
-            )}
-          </div>
-          */}
-
-          {/* Campo de código de teste - APENAS para equipe (NEXT_PUBLIC_ENABLE_TEST_OVERRIDE=true) */}
-          {process.env.NEXT_PUBLIC_ENABLE_TEST_OVERRIDE === 'true' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Código de teste (apenas equipe)
-              </label>
-              <input
-                type="text"
-                value={formData.couponCode}
-                onChange={(e) => setFormData({ ...formData, couponCode: e.target.value.toUpperCase() })}
-                disabled={submitting}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${submitting
-                  ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
-                  : 'border-gray-300'
-                  }`}
-                placeholder="Ex: TESTE5"
-              />
-              {formData.couponCode.trim() && (
-                <p className="mt-1 text-xs text-amber-600">
-                  ⚠️ Código de teste será validado no servidor
-                </p>
-              )}
-            </div>
-          )}
 
           {/* Observações */}
           <div>
@@ -1256,7 +1266,14 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
             <div className="flex justify-between items-center pt-2 border-t mt-4">
               <span className="font-semibold">Total</span>
               <span className="text-xl font-bold text-primary-600">
-                {formatCurrency(getTotalPrice())}
+                {(() => {
+                  const base = getTotalPrice();
+                  if (formData.paymentMethod === 'CARD' && formData.installmentCount > 1) {
+                    const calc = calculatePaymentTotals(base, formData.installmentCount);
+                    return formatCurrency(calc.adjustedTotalCents);
+                  }
+                  return formatCurrency(base);
+                })()}
               </span>
             </div>
 

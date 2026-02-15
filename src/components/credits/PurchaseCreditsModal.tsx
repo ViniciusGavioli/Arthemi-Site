@@ -63,7 +63,7 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
   // Seleções
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  
+
   // Método de pagamento (PIX default, CARD opcional)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX');
 
@@ -85,8 +85,6 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
     message: string;
   } | null>(null);
 
-  // Código de teste (override R$5) - apenas para equipe
-  const [testCode, setTestCode] = useState('');
 
   // Gera produtos dinamicamente baseado na sala selecionada
   // USA PRICES_V3 como fonte única de verdade
@@ -94,15 +92,15 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
   // Turnos (SHIFT_FIXED, SATURDAY_SHIFT) são tratados manualmente via WhatsApp/Admin
   const products = useMemo<Product[]>(() => {
     if (!selectedRoom) return [];
-    
+
     // Mapear slug para roomKey
     const roomKey = ROOM_SLUG_MAP[selectedRoom.slug] as RoomKey | undefined;
     if (!roomKey) return [];
-    
+
     const roomPrices = PRICES_V3[roomKey].prices;
     const pricePerHourReais = roomPrices.HOURLY_RATE; // Em reais
     const pricePerHourCents = Math.round(pricePerHourReais * 100); // Em centavos
-    
+
     // Horas avulsas (preço cheio)
     const avulsas: Product[] = AVULSA_OPTIONS.map(hours => ({
       id: `avulsa-${hours}h`,
@@ -113,7 +111,7 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
       type: 'avulsa' as const,
       productType: 'HOURLY_RATE',
     }));
-    
+
     // Pacotes com preços do PRICES_V3 (NÃO calculados dinamicamente)
     const packages = getPackagesForRoom(roomKey);
     const pacotes: Product[] = packages.map(pkg => ({
@@ -125,26 +123,26 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
       type: 'pacote' as const,
       productType: pkg.type,
     }));
-    
+
     // REMOVIDO: Turno fixo seg-sex (tratado manualmente)
     // REMOVIDO: Sábado hora/turno (tratado manualmente)
-    
+
     return [...avulsas, ...pacotes];
   }, [selectedRoom]);
 
   // Limpa seleção de produto E cupom quando muda sala
   // Usar ref para rastrear a sala anterior e evitar reset desnecessário
   const previousRoomIdRef = useRef<string | null>(null);
-  
+
   useEffect(() => {
     // Só resetar se a sala realmente mudou (comparar por ID)
     const currentRoomId = selectedRoom?.id || null;
     if (previousRoomIdRef.current !== currentRoomId) {
       // Sala mudou - resetar produto e cupom
-    setSelectedProduct(null);
-    // Invalidar cupom - preço diferente por sala
-    setCouponApplied(null);
-    setCouponError(null);
+      setSelectedProduct(null);
+      // Invalidar cupom - preço diferente por sala
+      setCouponApplied(null);
+      setCouponError(null);
       previousRoomIdRef.current = currentRoomId;
     }
   }, [selectedRoom]);
@@ -163,10 +161,10 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
     if (isOpen) {
       document.addEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'hidden';
-      
+
       // Buscar salas apenas uma vez quando modal abre
       if (!hasFetchedRoomsRef.current) {
-      fetchRooms();
+        fetchRooms();
         hasFetchedRoomsRef.current = true;
       }
       // NÃO resetar paymentMethod aqui - manter a seleção do usuário
@@ -180,7 +178,7 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
       // Reset flag para permitir buscar salas novamente na próxima abertura
       hasFetchedRoomsRef.current = false;
     }
-    
+
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
@@ -191,13 +189,13 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
   // Usar useRef para evitar loop infinito
   const previousProductIdRef = useRef<string | null>(null);
   const isApplyingCouponRef = useRef(false);
-  
+
   useEffect(() => {
     // Se está aplicando cupom, não fazer nada (evitar loop)
     if (isApplyingCouponRef.current) {
       return;
     }
-    
+
     // Se não há produto selecionado, limpar cupom
     if (!selectedProduct) {
       setCouponApplied(null);
@@ -205,7 +203,7 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
       previousProductIdRef.current = null;
       return;
     }
-    
+
     // Se o produto mudou (ID diferente) E há cupom aplicado, limpar cupom para revalidação
     // IMPORTANTE: Não incluir couponApplied nas dependências para evitar loop
     if (previousProductIdRef.current && previousProductIdRef.current !== selectedProduct.id && couponApplied) {
@@ -213,7 +211,7 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
       setCouponApplied(null);
       setCouponError(null);
     }
-    
+
     // Atualizar referência do produto anterior
     previousProductIdRef.current = selectedProduct.id;
   }, [selectedProduct]); // Removido couponApplied das dependências para evitar loop
@@ -225,7 +223,7 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
         const data = await res.json();
         const newRooms = data.rooms || [];
         setRooms(newRooms);
-        
+
         // Preservar seleção atual se a sala ainda existir
         if (selectedRoom) {
           const roomStillExists = newRooms.find((r: Room) => r.id === selectedRoom.id);
@@ -354,12 +352,11 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
     try {
       // Determinar se é hora avulsa ou produto específico
       const isAvulsa = selectedProduct.type === 'avulsa';
-      
+
       // BLINDAGEM: Só enviar cupom se foi APLICADO com sucesso
       // Não confiar no input - exigir validação prévia
-      // EXCEÇÃO: código de teste (testCode) é enviado direto para validação no servidor
-      const couponToSend = testCode.trim() || (couponApplied ? couponApplied.code : undefined);
-      
+      const couponToSend = couponApplied ? couponApplied.code : undefined;
+
       const res = await fetch('/api/credits/purchase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -390,20 +387,20 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
             return;
           }
         }
-        
+
         // Verificar se é erro de CPF
         if (data.code === 'INVALID_CPF') {
           setError(data.error || 'CPF inválido.');
           return;
         }
-        
+
         // Fallback: detecção por texto (compatibilidade) - APENAS se não identificado pelo código
         const errorMsg = (data.error || '').toLowerCase();
-        const isCouponError = 
-          (errorMsg.includes('coupon') || errorMsg.includes('cupom')) && 
+        const isCouponError =
+          (errorMsg.includes('coupon') || errorMsg.includes('cupom')) &&
           !errorMsg.includes('cpf') &&
           couponToSend;
-        
+
         if (isCouponError) {
           setCouponError(data.error || 'Cupom inválido ou não aplicável.');
         } else {
@@ -482,11 +479,10 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                     <button
                       key={room.id}
                       onClick={() => setSelectedRoom(room)}
-                      className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all text-left ${
-                        selectedRoom?.id === room.id
+                      className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all text-left ${selectedRoom?.id === room.id
                           ? 'border-primary-500 bg-primary-50'
                           : 'border-gray-200 hover:border-gray-300'
-                      }`}
+                        }`}
                     >
                       <span className="font-medium text-gray-900">{room.name}</span>
                       <span className="text-sm text-gray-500">
@@ -511,11 +507,10 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                         <button
                           key={product.id}
                           onClick={() => setSelectedProduct(product)}
-                          className={`flex flex-col items-center p-3 rounded-xl border-2 transition-all ${
-                            selectedProduct?.id === product.id
+                          className={`flex flex-col items-center p-3 rounded-xl border-2 transition-all ${selectedProduct?.id === product.id
                               ? 'border-primary-500 bg-primary-50'
                               : 'border-gray-200 hover:border-gray-300'
-                          }`}
+                            }`}
                         >
                           <span className="font-semibold text-gray-900">{product.hours}h</span>
                           <span className="text-sm text-primary-600 font-medium">
@@ -537,11 +532,10 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                         <button
                           key={product.id}
                           onClick={() => setSelectedProduct(product)}
-                          className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all text-left ${
-                            selectedProduct?.id === product.id
+                          className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all text-left ${selectedProduct?.id === product.id
                               ? 'border-primary-500 bg-primary-50'
                               : 'border-gray-200 hover:border-gray-300'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
@@ -622,9 +616,8 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                         setCouponError(null);
                         if (couponApplied) setCouponApplied(null);
                       }}
-                      className={`flex-1 px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
-                        couponError ? 'border-red-400' : couponApplied ? 'border-green-400 bg-green-50' : 'border-gray-300'
-                      }`}
+                      className={`flex-1 px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${couponError ? 'border-red-400' : couponApplied ? 'border-green-400 bg-green-50' : 'border-gray-300'
+                        }`}
                       placeholder="Ex: ARTHEMI10"
                       disabled={submitting || couponValidating || !!couponApplied}
                     />
@@ -664,29 +657,7 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                   )}
                 </div>
 
-                {/* Campo de código de teste - APENAS para equipe (NEXT_PUBLIC_ENABLE_TEST_OVERRIDE=true) */}
-                {process.env.NEXT_PUBLIC_ENABLE_TEST_OVERRIDE === 'true' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Código de teste (apenas equipe)
-                    </label>
-                    <input
-                      type="text"
-                      value={testCode}
-                      onChange={(e) => setTestCode(e.target.value.toUpperCase())}
-                      disabled={submitting}
-                      className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
-                        submitting ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300'
-                      }`}
-                      placeholder="Ex: TESTE5"
-                    />
-                    {testCode.trim() && (
-                      <p className="mt-1 text-xs text-amber-600">
-                        ⚠️ Código de teste será validado no servidor
-                      </p>
-                    )}
-                  </div>
-                )}
+
               </div>
 
               {/* Método de Pagamento */}
@@ -739,14 +710,14 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                     </span>
                   </div>
                   {/* Aviso PIX mínimo R$1,00 */}
-                  {paymentMethod === 'PIX' && 
-                   (couponApplied ? couponApplied.netAmount : selectedProduct.price) < 100 && (
-                    <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                      <p className="text-sm text-amber-800">
-                        ⚠️ PIX exige mínimo de R$ 1,00. Escolha cartão ou aumente o valor.
-                      </p>
-                    </div>
-                  )}
+                  {paymentMethod === 'PIX' &&
+                    (couponApplied ? couponApplied.netAmount : selectedProduct.price) < 100 && (
+                      <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                        <p className="text-sm text-amber-800">
+                          ⚠️ PIX exige mínimo de R$ 1,00. Escolha cartão ou aumente o valor.
+                        </p>
+                      </div>
+                    )}
                 </div>
               )}
             </>
@@ -758,9 +729,9 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
           <button
             onClick={handleSubmit}
             disabled={
-              !selectedRoom || 
-              !selectedProduct || 
-              submitting || 
+              !selectedRoom ||
+              !selectedProduct ||
+              submitting ||
               loading ||
               (paymentMethod === 'PIX' && (couponApplied ? couponApplied.netAmount : selectedProduct?.price ?? 0) < 100)
             }

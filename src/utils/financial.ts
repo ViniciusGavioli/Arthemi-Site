@@ -68,7 +68,7 @@ export function calculatePaymentTotals(
     const adjustedTotalCents = installmentValueCents * installments;
     const adjustmentCents = adjustedTotalCents - netValueCents;
 
-    // Validação: Parcela mínima de R$ 30,00
+    // Validação: Parcela mínima de R$ 30,00 (3000 centavos)
     const isValid = installmentValueCents >= 3000;
 
     return {

@@ -599,7 +599,7 @@ export async function consumeCreditsForBooking(
       SET 
         "remainingAmount" = "remainingAmount" - ${toConsume},
         "usedAt" = CASE WHEN "remainingAmount" - ${toConsume} = 0 THEN NOW() ELSE "usedAt" END,
-        "status" = CASE WHEN "remainingAmount" - ${toConsume} = 0 THEN 'USED' ELSE 'CONFIRMED' END,
+        "status" = CASE WHEN "remainingAmount" - ${toConsume} = 0 THEN 'USED'::"CreditStatus" ELSE 'CONFIRMED'::"CreditStatus" END,
         "updatedAt" = NOW()
       WHERE id = ${credit.id}
         AND "remainingAmount" >= ${toConsume}

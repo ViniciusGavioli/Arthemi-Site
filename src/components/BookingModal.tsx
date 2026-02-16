@@ -659,7 +659,10 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
             : undefined,
           // Valores sincronizados pela utility financial.ts
           ...(formData.paymentMethod === 'CARD' && formData.installmentCount > 1 ? (() => {
-            const calc = calculatePaymentTotals(getTotalPrice(), formData.installmentCount);
+            // FIX: Usar preço BASE (sem desconto) e passar o desconto explicitamente
+            const basePrice = getTotalPrice(false);
+            const discount = couponApplied?.discountAmount || 0;
+            const calc = calculatePaymentTotals(basePrice, formData.installmentCount, discount);
             return {
               adjustedTotalCents: calc.adjustedTotalCents,
               installmentValueCents: calc.installmentValueCents,
@@ -872,8 +875,8 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
             )}
           </div>
 
-          {/* PROFISSÃO E REGISTRO */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          {/* PROFISSÃO E REGISTRO PROFISSIONAL (OBRIGATÓRIOS) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
             {/* Seleção de Profissão */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -884,8 +887,8 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                 onChange={(e) => setProfession(e.target.value)}
                 disabled={submitting}
                 className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${submitting
-                    ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
-                    : 'border-gray-300'
+                  ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                  : 'border-gray-300'
                   }`}
               >
                 {Object.keys(professionConfigs).map((prof) => (
@@ -905,7 +908,11 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
                 onChange={(e) => setFormData({ ...formData, professionalRegister: e.target.value })}
                 disabled={submitting}
                 placeholder={professionConfigs[profession].placeholder}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${submitting ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300'
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${submitting
+                  ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                  : (!formData.professionalRegister && !submitting) // Visual hint if empty
+                    ? 'border-gray-300'
+                    : 'border-gray-300'
                   }`}
                 required
               />

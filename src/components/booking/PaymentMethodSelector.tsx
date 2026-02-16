@@ -17,6 +17,7 @@ interface PaymentMethodSelectorProps {
   totalAmount?: number; // Valor total em centavos (para calcular parcelas)
   selectedInstallments?: number; // Número de parcelas selecionadas
   onInstallmentChange?: (installments: number) => void; // Callback quando parcelas mudam
+  discountCents?: number; // Valor do desconto em centavos
 }
 
 export function PaymentMethodSelector({
@@ -26,6 +27,7 @@ export function PaymentMethodSelector({
   totalAmount = 0,
   selectedInstallments = 1,
   onInstallmentChange,
+  discountCents = 0,
 }: PaymentMethodSelectorProps) {
   return (
     <div className="space-y-4">
@@ -44,8 +46,8 @@ export function PaymentMethodSelector({
           }}
           disabled={disabled}
           className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${selected === 'PIX'
-              ? 'border-green-500 bg-green-50'
-              : 'border-gray-200 hover:border-gray-300'
+            ? 'border-green-500 bg-green-50'
+            : 'border-gray-200 hover:border-gray-300'
             } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <QrCode className={`w-8 h-8 mb-2 ${selected === 'PIX' ? 'text-green-600' : 'text-gray-500'}`} />
@@ -61,8 +63,8 @@ export function PaymentMethodSelector({
           onClick={() => onSelect('CARD')}
           disabled={disabled}
           className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${selected === 'CARD'
-              ? 'border-primary-500 bg-primary-50'
-              : 'border-gray-200 hover:border-gray-300'
+            ? 'border-primary-500 bg-primary-50'
+            : 'border-gray-200 hover:border-gray-300'
             } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <CreditCard className={`w-8 h-8 mb-2 ${selected === 'CARD' ? 'text-primary-600' : 'text-gray-500'}`} />
@@ -80,6 +82,7 @@ export function PaymentMethodSelector({
           selectedInstallments={selectedInstallments}
           onSelect={onInstallmentChange}
           disabled={disabled}
+          discountCents={discountCents}
         />
       )}
 

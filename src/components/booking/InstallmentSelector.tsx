@@ -14,6 +14,7 @@ export interface InstallmentSelectorProps {
   onSelect: (installments: number) => void;
   disabled?: boolean;
   minInstallmentValue?: number; // Valor mínimo por parcela em centavos (default: 500 = R$ 5,00)
+  discountCents?: number; // Desconto em centavos (default: 0)
 }
 
 export function InstallmentSelector({

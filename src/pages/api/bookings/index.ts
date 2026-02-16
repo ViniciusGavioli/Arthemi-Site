@@ -238,6 +238,7 @@ export default async function handler(
     }
 
     // TRANSACTION ATÔMICA - Previne race condition
+    // Timeout aumentado para 15 segundos devido à complexidade das operações (validações, créditos, cupons)
     const result = await prisma.$transaction(async (tx) => {
       // 3.1. [HIJACK_FIX] Limpeza de reservas PENDENTES antigas (> 15 min)
       // Se houver reservas PENDENTES antigas conflitando, cancelamos elas antes de verificar disponibilidade
@@ -529,6 +530,9 @@ export default async function handler(
       }
 
       return { booking, userId, amountCents, amountToPayCents, creditsUsedCents, hours, isAnonymousCheckout, grossAmountCents, discountAmountCents, couponApplied };
+    }, {
+      maxWait: 15000, // 15 segundos - tempo máximo de espera para iniciar a transação
+      timeout: 15000, // 15 segundos - timeout aumentado para operações complexas (validações, créditos, cupons)
     });
 
     // ATIVAÇÃO DE CONTA (best-effort) - Apenas checkout anônimo

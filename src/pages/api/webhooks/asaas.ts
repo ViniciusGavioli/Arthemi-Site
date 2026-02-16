@@ -25,6 +25,8 @@ import {
 import { sendBookingConfirmationNotification } from '@/lib/booking-notifications';
 import { triggerAccountActivation } from '@/lib/account-activation';
 import { sendCapiPurchase, isCapiEventSent } from '@/lib/meta';
+import { recordCouponUsageIdempotent } from '@/lib/coupons';
+import { restoreCouponUsage } from '@/lib/coupons';
 
 
 // Idempotência via banco de dados (WebhookEvent table)
@@ -253,13 +255,39 @@ export default async function handler(
           });
 
           if (credit && credit.status !== 'CONFIRMED') {
-            await prisma.credit.update({
-              where: { id: actualBookingId },
-              data: {
-                status: 'CONFIRMED',
-                // updatedAt é atualizado automaticamente pelo Prisma
-              },
+            await prisma.$transaction(async (tx) => {
+              // Atualizar status do crédito
+              await tx.credit.update({
+                where: { id: actualBookingId },
+                data: {
+                  status: 'CONFIRMED',
+                  remainingAmount: credit.amount, // Libera as horas compradas
+                },
+              });
+
+              // ========== MARCAR CUPOM COMO USADO (apenas quando pagamento confirmado) ==========
+              if (credit.couponCode) {
+                // Verificar se é cupom DEV (não marca como usado)
+                const isDevCoupon = credit.couponCode.toUpperCase().startsWith('DEV');
+                
+                if (!isDevCoupon) {
+                  const couponResult = await recordCouponUsageIdempotent(tx, {
+                    userId: credit.userId,
+                    couponCode: credit.couponCode,
+                    context: 'CREDIT_PURCHASE',
+                    creditId: credit.id,
+                    isDevCoupon: false,
+                  });
+
+                  if (couponResult.ok) {
+                    console.log(`🎫 [Asaas Webhook] Cupom ${credit.couponCode} marcado como usado para crédito ${actualBookingId}`);
+                  } else {
+                    console.warn(`⚠️ [Asaas Webhook] Cupom ${credit.couponCode} já estava marcado como usado para crédito ${actualBookingId}`);
+                  }
+                }
+              }
             });
+
             console.log(`💳 [Asaas Webhook] Crédito confirmado via checkout: ${actualBookingId} (checkout: ${checkoutId})`);
           }
         } else {
@@ -321,8 +349,30 @@ export default async function handler(
         });
       }
 
-      // Outros eventos de checkout (EXPIRED, CANCELED, etc) - apenas logar
-      console.log(`ℹ️ [Asaas Webhook] Evento de checkout ignorado: ${event}`);
+      // Outros eventos de checkout (EXPIRED, CANCELED, etc) - restaurar cupom se necessário
+      console.log(`ℹ️ [Asaas Webhook] Evento de checkout: ${event}`);
+      
+      // Se checkout expirou ou foi cancelado, restaurar cupom se o crédito ainda está PENDING
+      if (event === 'CHECKOUT_EXPIRED' || event === 'CHECKOUT_CANCELED') {
+        const parsed = parseExternalReference(externalRef);
+        if (parsed && parsed.type === 'purchase') {
+          const credit = await prisma.credit.findUnique({
+            where: { id: parsed.id },
+            select: { id: true, status: true, couponCode: true, userId: true },
+          });
+
+          // Se crédito ainda está PENDING e tem cupom, restaurar o cupom (caso tenha sido marcado antes)
+          if (credit && credit.status === 'PENDING' && credit.couponCode) {
+            await prisma.$transaction(async (tx) => {
+              const restoreResult = await restoreCouponUsage(tx, undefined, credit.id, false);
+              if (restoreResult.restored) {
+                console.log(`♻️ [Asaas Webhook] Cupom ${credit.couponCode} restaurado após ${event} do checkout ${checkoutId}`);
+              }
+            });
+          }
+        }
+      }
+
       await prisma.webhookEvent.update({
         where: { eventId },
         data: { status: 'PROCESSED' },
@@ -527,13 +577,31 @@ export default async function handler(
         // Extrair ID do crédito (suporta todos os formatos)
         const creditId = parsed.id;
 
-        await prisma.credit.updateMany({
-          where: { id: creditId },
-          data: {
-            status: 'REFUNDED',
-            remainingAmount: 0,
-          },
+        await prisma.$transaction(async (tx) => {
+          // Buscar crédito para obter informações do cupom
+          const credit = await tx.credit.findUnique({
+            where: { id: creditId },
+            select: { id: true, couponCode: true, userId: true },
+          });
+
+          // Atualizar status do crédito
+          await tx.credit.updateMany({
+            where: { id: creditId },
+            data: {
+              status: 'REFUNDED',
+              remainingAmount: 0,
+            },
+          });
+
+          // ========== RESTAURAR CUPOM quando pagamento for estornado ==========
+          if (credit && credit.couponCode) {
+            const restoreResult = await restoreCouponUsage(tx, undefined, creditId, false);
+            if (restoreResult.restored) {
+              console.log(`♻️ [Asaas Webhook] Cupom ${credit.couponCode} restaurado após estorno do crédito ${creditId}`);
+            }
+          }
         });
+
         console.log(`💸 [Asaas Webhook] Crédito estornado: ${creditId}`);
 
         await logAudit({
@@ -842,12 +910,37 @@ export default async function handler(
       }
 
       // Ativar crédito - IMPORTANTE: setar remainingAmount para liberar as horas
-      await prisma.credit.update({
-        where: { id: creditId },
-        data: {
-          status: 'CONFIRMED',
-          remainingAmount: credit.amount, // Libera as horas compradas
-        },
+      await prisma.$transaction(async (tx) => {
+        // Atualizar status do crédito
+        await tx.credit.update({
+          where: { id: creditId },
+          data: {
+            status: 'CONFIRMED',
+            remainingAmount: credit.amount, // Libera as horas compradas
+          },
+        });
+
+        // ========== MARCAR CUPOM COMO USADO (apenas quando pagamento confirmado) ==========
+        if (credit.couponCode) {
+          // Verificar se é cupom DEV (não marca como usado)
+          const isDevCoupon = credit.couponCode.toUpperCase().startsWith('DEV');
+          
+          if (!isDevCoupon) {
+            const couponResult = await recordCouponUsageIdempotent(tx, {
+              userId: credit.userId,
+              couponCode: credit.couponCode,
+              context: 'CREDIT_PURCHASE',
+              creditId: credit.id,
+              isDevCoupon: false,
+            });
+
+            if (couponResult.ok) {
+              console.log(`🎫 [Asaas Webhook] Cupom ${credit.couponCode} marcado como usado para crédito ${creditId}`);
+            } else {
+              console.warn(`⚠️ [Asaas Webhook] Cupom ${credit.couponCode} já estava marcado como usado para crédito ${creditId}`);
+            }
+          }
+        }
       });
 
       console.log(`✅ [Asaas Webhook] Crédito confirmado: ${creditId} (${credit.amount} centavos liberados)`);

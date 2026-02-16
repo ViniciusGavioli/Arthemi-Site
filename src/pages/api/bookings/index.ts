@@ -239,6 +239,37 @@ export default async function handler(
 
     // TRANSACTION ATÔMICA - Previne race condition
     const result = await prisma.$transaction(async (tx) => {
+      // 3.1. [HIJACK_FIX] Limpeza de reservas PENDENTES antigas (> 15 min)
+      // Se houver reservas PENDENTES antigas conflitando, cancelamos elas antes de verificar disponibilidade
+      const toleranceTime = new Date(Date.now() - 15 * 60 * 1000);
+
+      const staleBookings = await tx.booking.findMany({
+        where: {
+          roomId: realRoomId,
+          status: 'PENDING',
+          createdAt: { lt: toleranceTime }, // Criadas antes do limite de tolerância
+          OR: [
+            { startTime: { lt: endAt, gte: startAt } },
+            { endTime: { gt: startAt, lte: endAt } },
+            { AND: [{ startTime: { lte: startAt } }, { endTime: { gte: endAt } }] },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (staleBookings.length > 0) {
+        console.log(`🧹 [HIJACK_FIX] Cancelando ${staleBookings.length} reservas PENDENTES antigas para liberar horário.`);
+        await tx.booking.updateMany({
+          where: {
+            id: { in: staleBookings.map((b) => b.id) },
+          },
+          data: {
+            status: 'CANCELLED',
+            cancelReason: 'System: Expired (Hijack Protection)',
+          },
+        });
+      }
+
       // 4. Verificar disponibilidade com lock (FOR UPDATE)
       const conflictingBooking = await tx.booking.findFirst({
         where: {
@@ -640,56 +671,33 @@ export default async function handler(
         let isCheckoutFlow = false;
 
         if (data.paymentMethod === 'CARD') {
-          // CARTÃO: Se tem installmentCount específico, usar createBookingCardPayment
-          // Caso contrário, usar Checkout Asaas (cliente escolhe parcelas no checkout)
-          if (data.installmentCount && data.installmentCount > 1) {
-            // Parcelas específicas: usar createBookingCardPayment
-            const cardResult = await withTimeout(
-              createBookingCardPayment({
-                bookingId: result.booking.id,
-                customerName: data.userName,
-                customerEmail: data.userEmail || `${data.userPhone}@placeholder.com`,
-                customerPhone: data.userPhone,
-                customerCpf: data.userCpf,
-                // Usar valor ajustado se disponível (sincronizado pela utility)
-                value: data.adjustedTotalCents ?? result.amountToPayCents,
-                description: `Reserva ${room.name} - ${result.hours}h`,
-                installmentCount: data.installmentCount,
-                installmentValueCents: data.installmentValueCents,
-              }),
-              TIMEOUTS.PAYMENT_CREATE,
-              'criação de pagamento cartão parcelado'
-            );
-            paymentResult = {
-              paymentId: cardResult.paymentId,
-              invoiceUrl: cardResult.invoiceUrl,
-            };
-            paymentMethod = 'CREDIT_CARD';
-            console.log(`💳 [BOOKING] Pagamento CARTÃO ${data.installmentCount}x criado: ${cardResult.paymentId}`);
-          } else {
-            // Sem parcelas específicas: usar Checkout Asaas (cliente escolhe no checkout)
-            const checkoutResult = await withTimeout(
-              createAsaasCheckoutForBooking({
-                bookingId: result.booking.id,
-                customerName: data.userName,
-                customerEmail: data.userEmail || `${data.userPhone}@placeholder.com`,
-                customerPhone: data.userPhone,
-                customerCpf: data.userCpf,
-                value: result.amountToPayCents,
-                itemName: `Reserva ${room.name}`.substring(0, 30),
-                itemDescription: `${result.hours}h - ${new Date(data.startAt).toLocaleDateString('pt-BR')}`,
-              }),
-              TIMEOUTS.PAYMENT_CREATE,
-              'criação de checkout cartão'
-            );
-            paymentResult = {
-              checkoutId: checkoutResult.checkoutId,
-              checkoutUrl: checkoutResult.checkoutUrl,
-            };
-            paymentMethod = 'CREDIT_CARD';
-            isCheckoutFlow = true;
-            console.log(`🛒 [BOOKING] Checkout CARTÃO criado: ${checkoutResult.checkoutId}`);
-          }
+          // CARTÃO: Sempre usar createBookingCardPayment para forçar parcelas/valores
+          // Isso evita que o cliente altere as parcelas no checkout do Asaas
+          // Se installmentCount=1 (ou undefined), será cobrado à vista
+          const cardResult = await withTimeout(
+            createBookingCardPayment({
+              bookingId: result.booking.id,
+              customerName: data.userName,
+              customerEmail: data.userEmail || `${data.userPhone}@placeholder.com`,
+              customerPhone: data.userPhone,
+              customerCpf: data.userCpf,
+              // Usar valor ajustado se disponível (com juros), senão valor normal (net)
+              value: data.adjustedTotalCents ?? result.amountToPayCents,
+              description: `Reserva ${room.name} - ${result.hours}h`,
+              installmentCount: data.installmentCount || 1,
+              installmentValueCents: data.installmentValueCents,
+            }),
+            TIMEOUTS.PAYMENT_CREATE,
+            'criação de pagamento cartão'
+          );
+
+          paymentResult = {
+            paymentId: cardResult.paymentId,
+            invoiceUrl: cardResult.invoiceUrl,
+          };
+          paymentMethod = 'CREDIT_CARD';
+          isCheckoutFlow = false; // Agora sempre usamos invoice direta (/payments)
+          console.log(`💳 [BOOKING] Pagamento CARTÃO criado (Force Strict): ${cardResult.paymentId} | ${data.installmentCount || 1}x`);
         } else {
           // Pagamento por PIX (default) (com timeout)
           const pixResult = await withTimeout(

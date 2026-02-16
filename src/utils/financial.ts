@@ -24,40 +24,52 @@
  */
 export function calculatePaymentTotals(
     baseCents: number,
-    installments: number
+    installments: number,
+    discountCents: number = 0
 ): {
     installmentValueCents: number;
     adjustedTotalCents: number;
     installmentCount: number;
-    /** Diferença em centavos entre ajustado e original (pode ser +1, 0 ou -1) */
-    adjustmentCents: number;
-    /** Valor total com juros (alias para adjustedTotalCents) */
-    totalWithInterest: number;
-    /** Se a opção é válida (parcela mínima R$ 30,00) */
-    isValid: boolean;
+    adjustmentCents: number; // Diferença em centavos entre ajustado e original/líquido
+    totalWithInterest: number; // Alias para adjustedTotalCents
+    isValid: boolean; // Se a opção é válida (parcela mínima R$ 30,00)
 } {
-    // À vista: sem ajuste
-    if (installments <= 1) {
+    // Calcular valor líquido (Base - Desconto)
+    const netValueCents = Math.max(0, baseCents - discountCents);
+
+    // 1x a 3x: Sem juros sobre o valor líquido
+    if (installments <= 3) {
+        const installmentValueCents = Math.round(netValueCents / installments);
+        const adjustedTotalCents = installmentValueCents * installments;
+
         return {
-            installmentValueCents: baseCents,
-            adjustedTotalCents: baseCents,
-            totalWithInterest: baseCents,
-            installmentCount: 1,
+            installmentValueCents,
+            adjustedTotalCents: netValueCents, // Mantém valor líquido como total (sem juros)
+            totalWithInterest: netValueCents,
+            installmentCount: installments,
             adjustmentCents: 0,
             isValid: true,
         };
     }
 
-    // Parcelado: calcular markup e parcela
-    // Markup: 2% a cada parcela acima de 3x (4x=2%, 5x=4%... 10x=14%)
-    const markupRate = installments > 3 ? (installments - 3) * 0.02 : 0;
-    const totalWithMarkupCents = Math.round(baseCents * (1 + markupRate));
+    // 4x a 10x: Regra do Marcelo
+    // Markup: 2% a cada parcela acima de 3 (ex: 4x=+2%, 6x=+6%, 10x=+14%)
+    // INCIDÊNCIA: Sobre o valor com desconto (líquido)
+    const markupPercentage = (installments - 3) * 2; // 2% por parcela extra
+    const markupRate = markupPercentage / 100;
 
+    // Total com juros (Base = Net Value)
+    const totalWithMarkupCents = Math.round(netValueCents * (1 + markupRate));
+
+    // Valor da parcela
     const installmentValueCents = Math.round(totalWithMarkupCents / installments);
-    const adjustedTotalCents = installmentValueCents * installments;
-    const adjustmentCents = adjustedTotalCents - baseCents;
 
-    const isValid = installmentValueCents >= 3000 || installments === 1;
+    // Recalcular total ajustado baseado na parcela arredondada
+    const adjustedTotalCents = installmentValueCents * installments;
+    const adjustmentCents = adjustedTotalCents - netValueCents;
+
+    // Validação: Parcela mínima de R$ 30,00
+    const isValid = installmentValueCents >= 3000;
 
     return {
         installmentValueCents,

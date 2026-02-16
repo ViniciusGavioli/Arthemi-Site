@@ -84,27 +84,43 @@ export default async function handler(
     // Buscar reservas do dia para esta sala
     const startOfDay = new Date(dateObj);
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date(dateObj);
     endOfDay.setHours(23, 59, 59, 999);
+
+    // Data limite para considerar reservas PENDENTES (15 minutos atrás)
+    // Reservas PENDENTES antigas são ignoradas (libera o horário)
+    const toleranceTime = new Date(Date.now() - 15 * 60 * 1000);
 
     const bookings = await prisma.booking.findMany({
       where: {
         roomId: realRoomId,
-        status: { in: ['PENDING', 'CONFIRMED'] },
-        OR: [
-          // Reserva começa neste dia
+        AND: [
           {
-            startTime: { gte: startOfDay, lte: endOfDay },
+            OR: [
+              // Reserva começa neste dia
+              {
+                startTime: { gte: startOfDay, lte: endOfDay },
+              },
+              // Reserva termina neste dia
+              {
+                endTime: { gte: startOfDay, lte: endOfDay },
+              },
+              // Reserva engloba o dia inteiro
+              {
+                startTime: { lte: startOfDay },
+                endTime: { gte: endOfDay },
+              },
+            ],
           },
-          // Reserva termina neste dia
           {
-            endTime: { gte: startOfDay, lte: endOfDay },
-          },
-          // Reserva engloba o dia inteiro
-          {
-            startTime: { lte: startOfDay },
-            endTime: { gte: endOfDay },
+            OR: [
+              { status: 'CONFIRMED' },
+              {
+                status: 'PENDING',
+                createdAt: { gt: toleranceTime }, // Só considera PENDING recentes (< 15 min)
+              },
+            ],
           },
         ],
       },
@@ -117,7 +133,7 @@ export default async function handler(
 
     // Buscar horários de funcionamento para esta data (fonte única)
     const businessHours = getBusinessHoursForDate(dateObj);
-    
+
     // Se fechado (domingo), retorna sem slots
     if (!businessHours) {
       return res.status(200).json({
@@ -127,14 +143,14 @@ export default async function handler(
         slots: [],
       });
     }
-    
+
     const slots: Slot[] = [];
     const now = new Date();
 
     for (let hour = businessHours.start; hour < businessHours.end; hour++) {
       const slotStart = new Date(dateObj);
       slotStart.setHours(hour, 0, 0, 0);
-      
+
       const slotEnd = new Date(dateObj);
       slotEnd.setHours(hour + 1, 0, 0, 0);
 

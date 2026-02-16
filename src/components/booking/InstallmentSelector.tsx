@@ -22,6 +22,7 @@ export function InstallmentSelector({
   onSelect,
   disabled = false,
   minInstallmentValue = 500, // R$ 5,00 mínimo por parcela
+  discountCents = 0,
 }: InstallmentSelectorProps) {
   // Calcular número máximo de parcelas baseado no valor mínimo
   const maxInstallments = Math.min(
@@ -34,6 +35,9 @@ export function InstallmentSelector({
 
   // Calcular valores sincronizados usando utility centralizada
 
+
+  // Calcular valores para a opção selecionada
+  const selectedDetails = calculatePaymentTotals(totalAmount, selectedInstallments, discountCents);
 
   // Formatar valor em BRL
   const formatCurrency = (cents: number): string => {
@@ -50,27 +54,25 @@ export function InstallmentSelector({
         Parcelamento
       </label>
 
+      {/* Grid de Opções */}
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
         {installmentOptions
           .filter(installments => {
-            // Filtro de Parcela Mínima R$ 30,00 (usando regra centralizada)
-            return calculatePaymentTotals(totalAmount, installments).isValid;
+            // Filtro de Parcela Mínima R$ 30,00
+            return calculatePaymentTotals(totalAmount, installments, discountCents).isValid;
           })
           .map((installments) => {
             const isSelected = selectedInstallments === installments;
-            const isValid = installments <= maxInstallments;
 
             return (
               <button
                 key={installments}
                 type="button"
                 onClick={() => onSelect(installments)}
-                disabled={disabled || !isValid}
+                disabled={disabled}
                 className={`h-12 w-full rounded-lg border-2 text-sm font-medium transition-all flex items-center justify-center ${isSelected
                   ? 'border-primary-500 bg-primary-50 text-primary-700'
-                  : isValid
-                    ? 'border-gray-200 hover:border-gray-300 text-gray-700'
-                    : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+                  : 'border-gray-200 hover:border-gray-300 text-gray-700'
                   } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {installments}x
@@ -79,11 +81,20 @@ export function InstallmentSelector({
           })}
       </div>
 
-
+      {/* Box de Simulação Azul */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-900 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <span className="font-semibold">Simulação:</span> {selectedInstallments}x de {formatCurrency(selectedDetails.installmentValueCents)}
+        </div>
+        <div className="text-blue-700 text-xs sm:text-sm">
+          Total: {formatCurrency(selectedDetails.totalWithInterest)}
+          {selectedInstallments <= 3 ? ' (Sem juros)' : ''}
+        </div>
+      </div>
 
       {maxInstallments < 12 && totalAmount > 0 && (
         <p className="text-xs text-amber-600">
-          Valor mínimo por parcela: {formatCurrency(minInstallmentValue)}
+          * Algumas opções indisponíveis (parcela mínima {formatCurrency(3000)})
         </p>
       )}
     </div>

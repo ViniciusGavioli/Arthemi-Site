@@ -43,6 +43,7 @@ import { requireEmailVerifiedForBooking } from '@/lib/email-verification';
 import { getBookingTotalByDate } from '@/lib/pricing';
 import { toCents, assertIntegerCents } from '@/lib/money';
 import { respondError, isOverbookingPrismaError, BusinessError } from '@/lib/errors';
+import { calculatePaymentTotals, formatBRL } from '@/utils/financial';
 
 
 // Schema de validação com Zod
@@ -640,6 +641,31 @@ export default async function handler(
             paymentMethod: paymentMethodType,
           },
         } as ApiResponse);
+      }
+
+      // NOVO: Validação de parcela mínima para Cartão (R$ 30,00)
+      if (data.paymentMethod === 'CARD') {
+        const installments = data.installmentCount || 1;
+        const paymentCalc = calculatePaymentTotals(result.amountToPayCents, installments, 0);
+
+        if (!paymentCalc.isValid) {
+          // Cancelar booking
+          await prisma.booking.update({
+            where: { id: result.booking.id },
+            data: { status: 'CANCELLED', cancelReason: 'Parcela abaixo do mínimo permitido (R$ 30,00)' },
+          });
+
+          return res.status(400).json({
+            success: false,
+            error: `Valor da parcela (${formatBRL(paymentCalc.installmentValueCents)}) inferior ao mínimo permitido de R$ 30,00.`,
+            code: 'INVALID_INSTALLMENT_AMOUNT',
+            details: {
+              installments,
+              installmentValueCents: paymentCalc.installmentValueCents,
+              minInstallmentValueCents: 3000
+            }
+          });
+        }
       }
 
       try {

@@ -12,9 +12,9 @@ import { logAudit } from '@/lib/audit';
 import { logPaymentConfirmed, logWebhookReceived } from '@/lib/operation-logger';
 import { generateRequestId, REQUEST_ID_HEADER } from '@/lib/request-id';
 import { recordPaymentConfirmed, recordWebhookReceived } from '@/lib/audit-event';
-import { 
-  AsaasWebhookPayload, 
-  validateWebhookToken, 
+import {
+  AsaasWebhookPayload,
+  validateWebhookToken,
   isPaymentConfirmed,
   isPaymentRefundedOrChargeback,
   isCardCaptureRefused,
@@ -33,7 +33,7 @@ import { sendCapiPurchase, isCapiEventSent } from '@/lib/meta';
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation: string): Promise<T> {
   return Promise.race([
     promise,
-    new Promise<T>((_, reject) => 
+    new Promise<T>((_, reject) =>
       setTimeout(() => reject(new Error(`Timeout: ${operation} excedeu ${timeoutMs}ms`)), timeoutMs)
     )
   ]);
@@ -69,27 +69,27 @@ function sanitizeWebhookPayload(payload: AsaasWebhookPayload): AsaasWebhookPaylo
 // Retorna: { type: 'booking' | 'purchase', id: string }
 function parseExternalReference(ref: string | null | undefined): { type: 'booking' | 'purchase'; id: string } | null {
   if (!ref) return null;
-  
+
   // booking:purchase:<id> => purchase (legado com prefixo duplicado)
   if (ref.startsWith('booking:purchase:')) {
     return { type: 'purchase', id: ref.replace('booking:purchase:', '') };
   }
-  
+
   // purchase:<id> => purchase
   if (ref.startsWith('purchase:')) {
     return { type: 'purchase', id: ref.replace('purchase:', '') };
   }
-  
+
   // credit_<id> => purchase (legado)
   if (ref.startsWith('credit_')) {
     return { type: 'purchase', id: ref.replace('credit_', '') };
   }
-  
+
   // booking:<id> => booking
   if (ref.startsWith('booking:')) {
     return { type: 'booking', id: ref.replace('booking:', '') };
   }
-  
+
   // ID puro => booking (retrocompatibilidade)
   return { type: 'booking', id: ref };
 }
@@ -146,7 +146,7 @@ export default async function handler(
 
     // 1. Validar token de autenticação
     const token = req.headers['asaas-access-token'] as string | null;
-    
+
     if (!validateWebhookToken(token)) {
       console.error('❌ [Asaas Webhook] Token inválido');
       return res.status(401).json({ error: 'Token inválido' });
@@ -155,10 +155,10 @@ export default async function handler(
     // 2. Parsear e sanitizar payload
     // NOTA: Checkout events têm estrutura diferente de Payment events
     const rawPayload = req.body;
-    
+
     // Detectar se é evento de checkout (estrutura diferente)
     const isCheckout = rawPayload?.event?.startsWith('CHECKOUT_');
-    
+
     if (isCheckout) {
       // ===================================================================
       // CHECKOUT EVENT (CHECKOUT_PAID, CHECKOUT_EXPIRED, etc)
@@ -226,7 +226,7 @@ export default async function handler(
       if (isCheckoutPaid(event)) {
         // Extrair bookingId do externalReference
         const parsed = parseExternalReference(externalRef);
-        
+
         if (!parsed) {
           console.log(`⚠️ [Asaas Webhook] CHECKOUT_PAID sem externalReference válido`);
           await prisma.webhookEvent.update({
@@ -289,7 +289,7 @@ export default async function handler(
 
             // Enviar notificação de confirmação
             // sendBookingConfirmationNotification busca os dados internamente via bookingId
-            sendBookingConfirmationNotification(actualBookingId).catch(err => 
+            sendBookingConfirmationNotification(actualBookingId).catch(err =>
               console.error('⚠️ Erro ao enviar notificação:', err)
             );
 
@@ -299,7 +299,7 @@ export default async function handler(
                 userId: booking.user.id,
                 userEmail: booking.user.email,
                 userName: booking.user.name || 'Cliente',
-              }).catch(err => 
+              }).catch(err =>
                 console.error('⚠️ Erro ao ativar conta:', err)
               );
             }
@@ -313,8 +313,8 @@ export default async function handler(
           data: { status: 'PROCESSED' },
         });
 
-        return res.status(200).json({ 
-          received: true, 
+        return res.status(200).json({
+          received: true,
           event,
           action: 'checkout_paid_processed',
           bookingId: actualBookingId,
@@ -334,7 +334,7 @@ export default async function handler(
     // PAYMENT EVENT (fluxo original)
     // ===================================================================
     const rawPaymentPayload = rawPayload as AsaasWebhookPayload;
-    
+
     if (!rawPaymentPayload || !rawPaymentPayload.event || !rawPaymentPayload.payment) {
       console.error('❌ [Asaas Webhook] Payload inválido');
       return res.status(400).json({ error: 'Payload inválido' });
@@ -346,9 +346,9 @@ export default async function handler(
     const bookingId = payment.externalReference;
 
     // LOG DE OPERAÇÃO - Webhook recebido
-    const webhookIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || 
-                      (req.headers['x-real-ip'] as string) || 
-                      req.socket?.remoteAddress || 'unknown';
+    const webhookIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0] ||
+      (req.headers['x-real-ip'] as string) ||
+      req.socket?.remoteAddress || 'unknown';
     logWebhookReceived({
       externalId: payment.id,
       event,
@@ -384,15 +384,15 @@ export default async function handler(
       // P-006: Se status é PROCESSED ou IGNORED_*, skip (já processado com sucesso)
       // Se status é PROCESSING ou FAILED, reprocessar
       const shouldReprocess = existingEvent.status === 'PROCESSING' || existingEvent.status === 'FAILED';
-      
+
       if (!shouldReprocess) {
         console.log(`⏭️ [Asaas Webhook] Evento já processado: ${eventId} (status: ${existingEvent.status})`);
         return res.status(200).json({ received: true, skipped: true, processedAt: existingEvent.processedAt });
       }
-      
+
       // Reprocessar evento que falhou ou ficou travado
       console.log(`🔄 [Asaas Webhook] Reprocessando evento: ${eventId} (status anterior: ${existingEvent.status})`);
-      
+
       // Atualizar para PROCESSING antes de reprocessar
       await withTimeout(
         prisma.webhookEvent.update({
@@ -423,7 +423,7 @@ export default async function handler(
     // 4. Verificar se é evento de pagamento confirmado, estorno/chargeback ou recusa de cartão
     if (!isPaymentConfirmed(event) && !isPaymentRefundedOrChargeback(event) && !isCardCaptureRefused(event)) {
       console.log(`ℹ️ [Asaas Webhook] Evento ignorado: ${event}`);
-      
+
       // Marcar evento como processado mesmo sendo ignorado
       await withTimeout(
         prisma.webhookEvent.update({
@@ -433,7 +433,7 @@ export default async function handler(
         5000,
         'atualização de status de webhook event'
       );
-      
+
       return res.status(200).json({ received: true, event });
     }
 
@@ -450,7 +450,7 @@ export default async function handler(
         // Normalizar externalReference para detectar tipo
         const parsed = parseExternalReference(bookingId);
         const isPurchase = parsed?.type === 'purchase';
-        
+
         if (isPurchase && parsed) {
           // Crédito: marcar como falha (mantém PENDING, não ativa)
           const creditId = parsed.id;
@@ -466,7 +466,7 @@ export default async function handler(
         } else {
           // Booking: extrair ID (suporta "booking:xxx" ou ID direto para legado)
           const actualBookingId = bookingId.replace('booking:', '');
-          
+
           // SOMENTE atualizar paymentStatus - NÃO tocar em status ou financialStatus
           await prisma.booking.updateMany({
             where: { id: actualBookingId },
@@ -494,8 +494,8 @@ export default async function handler(
         data: { status: 'PROCESSED' },
       });
 
-      return res.status(200).json({ 
-        received: true, 
+      return res.status(200).json({
+        received: true,
         event,
         action: 'capture_refused_processed',
       });
@@ -522,11 +522,11 @@ export default async function handler(
       // Normalizar externalReference para detectar tipo
       const parsed = parseExternalReference(bookingId);
       const isPurchase = parsed?.type === 'purchase';
-      
+
       if (isPurchase && parsed) {
         // Extrair ID do crédito (suporta todos os formatos)
         const creditId = parsed.id;
-        
+
         await prisma.credit.updateMany({
           where: { id: creditId },
           data: {
@@ -546,14 +546,14 @@ export default async function handler(
       } else {
         // É uma booking - extrair ID (suporta "booking:xxx" ou ID direto para retrocompatibilidade)
         const actualBookingId = bookingId.replace('booking:', '');
-        
+
         const booking = await prisma.booking.findUnique({
           where: { id: actualBookingId },
-          select: { 
-            id: true, 
+          select: {
+            id: true,
             userId: true,
-            status: true, 
-            creditIds: true, 
+            status: true,
+            creditIds: true,
             creditsUsed: true,
             netAmount: true,
             amountPaid: true,
@@ -584,7 +584,7 @@ export default async function handler(
             } else {
               console.log(`⏭️ [Asaas Webhook] Refund já existe para booking ${actualBookingId} (status: ${existingRefund.status}) - ignorando duplicata`);
             }
-            
+
             // Atualizar booking para REFUNDED se ainda não estiver
             if (booking.status !== 'CANCELLED' || !['REFUNDED'].includes(booking.status)) {
               await prisma.booking.update({
@@ -601,8 +601,8 @@ export default async function handler(
               data: { status: 'PROCESSED' },
             });
 
-            return res.status(200).json({ 
-              received: true, 
+            return res.status(200).json({
+              received: true,
               event,
               action: 'refund_already_exists',
               refundId: existingRefund.id,
@@ -612,13 +612,13 @@ export default async function handler(
           // ===============================================================
           // Nenhum Refund interno - criar idempotente (gateway iniciou refund)
           // ===============================================================
-          
+
           // Calcular valor esperado = netAmount (valor total da reserva após cupom)
           // IMPORTANTE: netAmount JÁ INCLUI créditos + dinheiro, NÃO somar com creditsUsed
           const creditsUsedAmount = booking.creditsUsed ?? 0;
           // expectedAmount = total da reserva (NET), NÃO netAmount + creditsUsed
           const expectedAmount = booking.netAmount ?? ((booking.amountPaid ?? 0) + creditsUsedAmount);
-          
+
           // Obter valor efetivamente estornado do payload
           // Prioridade: refundedValue > chargebackValue > value > fallback para esperado
           let refundedAmount: number;
@@ -632,7 +632,7 @@ export default async function handler(
           } else {
             // Último fallback: buscar do Payment table no banco
             const dbPayment = await prisma.payment.findFirst({
-              where: { 
+              where: {
                 OR: [
                   { externalId: payment.id },
                   { purchaseId: actualBookingId },
@@ -640,7 +640,7 @@ export default async function handler(
               },
               select: { amount: true },
             });
-            
+
             if (dbPayment?.amount) {
               refundedAmount = dbPayment.amount;
             } else {
@@ -650,16 +650,16 @@ export default async function handler(
               refundedAmount = 0; // Valor desconhecido
             }
           }
-          
+
           // Flag para indicar que o valor é desconhecido (precisa revisão manual)
           const isAmountUnknown = refundedAmount === 0 && expectedAmount > 0;
-          
+
           // Determinar se é refund parcial (tolerância de 1% para arredondamentos)
           const tolerance = Math.max(100, expectedAmount * 0.01); // mínimo R$1 ou 1%
           const isPartial = isAmountUnknown || refundedAmount < (expectedAmount - tolerance);
-          
+
           console.log(`📊 [Asaas Webhook] Refund analysis: expected=${expectedAmount}, refunded=${refundedAmount}, isPartial=${isPartial}, isAmountUnknown=${isAmountUnknown}`);
-          
+
           // Calcular distribuição: créditos vs dinheiro
           // Prioridade: primeiro restaura créditos, depois dinheiro
           const creditsRestored = Math.min(creditsUsedAmount, refundedAmount);
@@ -682,8 +682,8 @@ export default async function handler(
               status: isPartial ? 'PENDING' : 'COMPLETED',
               reason: isAmountUnknown
                 ? `Gateway ${event}: Valor DESCONHECIDO - payload sem refundedValue/chargebackValue - REVISÃO MANUAL`
-                : isPartial 
-                  ? `Gateway ${event}: Refund PARCIAL (${refundedAmount}/${expectedAmount} centavos)` 
+                : isPartial
+                  ? `Gateway ${event}: Refund PARCIAL (${refundedAmount}/${expectedAmount} centavos)`
                   : `Gateway ${event}: ${payment.id}`,
               processedAt: isPartial ? null : new Date(),
             },
@@ -698,7 +698,7 @@ export default async function handler(
               // status: mantém o valor atual (CONFIRMED, etc) para histórico
               financialStatus: isPartial ? 'PARTIAL_REFUND' : 'REFUNDED', // P-007: Estado final de estorno
               paymentStatus: 'REFUNDED',
-              notes: isPartial 
+              notes: isPartial
                 ? `⚠️ Estorno PARCIAL em ${new Date().toISOString()} - Evento: ${event} - Valor: ${refundedAmount}/${expectedAmount} centavos`
                 : `⚠️ Estorno/Chargeback em ${new Date().toISOString()} - Evento: ${event}`,
             },
@@ -710,32 +710,32 @@ export default async function handler(
           // IMPORTANTE: Se refund parcial, restaurar proporcionalmente ao valor estornado
           if (booking.creditIds && booking.creditIds.length > 0 && creditsRestored > 0) {
             console.log(`🔄 [Asaas Webhook] Restaurando créditos para booking ${actualBookingId} (${creditsRestored} centavos)...`);
-            
+
             // Calcular valor a restaurar por crédito (proporcionalmente)
             // Usa creditsRestored (calculado baseado no refundedAmount, não booking.creditsUsed)
             const amountPerCredit = Math.floor(creditsRestored / booking.creditIds.length);
             let remaining = creditsRestored - (amountPerCredit * booking.creditIds.length);
-            
+
             for (const creditId of booking.creditIds) {
               // Valor a restaurar para este crédito (último recebe o restante)
               const restoreAmount = amountPerCredit + (remaining > 0 ? 1 : 0);
               if (remaining > 0) remaining--;
-              
+
               const credit = await prisma.credit.findUnique({
                 where: { id: creditId },
                 select: { id: true, status: true, remainingAmount: true, amount: true },
               });
-              
+
               // P0-3: Restaurar crédito se USED OU parcialmente consumido (remainingAmount < amount)
               const isUsed = credit?.status === 'USED';
               const isPartiallyConsumed = credit && credit.remainingAmount < credit.amount;
-              
+
               if (credit && (isUsed || isPartiallyConsumed)) {
                 // Calcular quanto foi realmente usado deste crédito
                 const usedAmount = credit.amount - credit.remainingAmount;
                 // Não restaurar mais do que foi usado
                 const actualRestore = Math.min(restoreAmount, usedAmount);
-                
+
                 if (actualRestore > 0) {
                   // Restaurar crédito: status volta para CONFIRMED, remainingAmount aumenta
                   await prisma.credit.update({
@@ -746,14 +746,14 @@ export default async function handler(
                     },
                   });
                   console.log(`✅ [Asaas Webhook] Crédito ${creditId} restaurado: +${actualRestore} centavos (usedAmount=${usedAmount}, wasPartial=${isPartiallyConsumed})`);
-                  
+
                   await logAudit({
                     action: 'CREDIT_REFUNDED',
                     source: 'SYSTEM',
                     targetType: 'Credit',
                     targetId: creditId,
-                    metadata: { 
-                      event, 
+                    metadata: {
+                      event,
                       bookingId: actualBookingId,
                       restoredAmount: actualRestore,
                       reason: 'booking_refunded',
@@ -770,9 +770,9 @@ export default async function handler(
             source: 'SYSTEM',
             targetType: 'Booking',
             targetId: actualBookingId,
-            metadata: { 
-              event, 
-              paymentId: payment.id, 
+            metadata: {
+              event,
+              paymentId: payment.id,
               reason: 'chargeback_or_refund',
               originalBookingStatus: booking.status,
               creditsRestored: booking.creditIds?.length || 0,
@@ -787,8 +787,8 @@ export default async function handler(
         data: { status: 'PROCESSED' },
       });
 
-      return res.status(200).json({ 
-        received: true, 
+      return res.status(200).json({
+        received: true,
         event,
         action: 'refund_processed',
       });
@@ -808,11 +808,11 @@ export default async function handler(
     // Aceita: booking:<id>, purchase:<id>, booking:purchase:<id> (legado), credit_<id>, <id> puro
     const parsed = parseExternalReference(bookingId);
     const isPurchase = parsed?.type === 'purchase';
-    
+
     if (isPurchase && parsed) {
       // Processar confirmação de compra de crédito
       const creditId = parsed.id;
-      
+
       const credit = await prisma.credit.findUnique({
         where: { id: creditId },
         include: {
@@ -907,8 +907,8 @@ export default async function handler(
         data: { status: 'PROCESSED' },
       });
 
-      return res.status(200).json({ 
-        received: true, 
+      return res.status(200).json({
+        received: true,
         event,
         creditId,
         action: 'credit_confirmed',
@@ -919,19 +919,26 @@ export default async function handler(
     // Se chegou aqui, parsed.type === 'booking'
     const actualBookingId = parsed?.id || bookingId.replace('booking:', '');
 
-    // 6. Buscar booking para determinar tipo de processamento
-    const booking = await withTimeout(
-      prisma.booking.findUnique({
-        where: { id: actualBookingId },
-        include: { 
-          user: true,
-          room: true,
-          product: true,
-        },
-      }),
-      5000,
-      'busca de booking'
-    );
+    // 6. Buscar booking para determinar tipo de processamento (FIX: Suporte a Short Code displayId)
+    // Usamos findFirst com OR para buscar tanto por ID (UUID) quanto por displayId (Código curto ex: CML04D96)
+    // 6. Buscar booking para determinar tipo de processamento (FIX: Suporte a Short Code displayId)
+    // Usamos findFirst com OR para buscar tanto por ID (UUID) quanto por displayId (Código curto ex: CML04D96)
+    // TypeScript: Removemos withTimeout para garantir inferência correta de tipos (product, room, user)
+    // WORKAROUND: Cast explícito para any devido a falha na geração do cliente Prisma (coluna displayId faltante nos tipos)
+    const booking: any = await prisma.booking.findFirst({
+      where: {
+        OR: [
+          { id: actualBookingId },
+          // @ts-ignore - Assumindo que a coluna displayId existe ou será criada conforme solicitado
+          { displayId: actualBookingId }
+        ]
+      },
+      include: {
+        user: true,
+        room: true,
+        product: true,
+      },
+    });
 
     if (!booking) {
       // Fallback: tentar encontrar como crédito (externalReference legado sem prefixo)
@@ -942,34 +949,38 @@ export default async function handler(
       if (creditFallback) {
         // É um crédito com ID legado - processar como purchase
         console.log(`🔄 [Asaas Webhook] Fallback: encontrado como crédito: ${actualBookingId}`);
-        
+
         if (creditFallback.status === 'CONFIRMED') {
           await prisma.webhookEvent.update({
             where: { eventId },
             data: { status: 'PROCESSED' },
           });
-          return res.status(200).json({ received: true, alreadyConfirmed: true });
+          return res.status(200).json({ received: true, status: 'already_processed' });
         }
 
-        await prisma.credit.update({
-          where: { id: actualBookingId },
-          data: {
-            status: 'CONFIRMED',
-            remainingAmount: creditFallback.amount,
-          },
-        });
+        if (event === 'PAYMENT_CONFIRMED' || event === 'PAYMENT_RECEIVED') {
+          await prisma.credit.update({
+            where: { id: creditFallback.id },
+            data: { status: 'CONFIRMED' },
+          });
+          console.log(`✅ [Asaas Webhook] Crédito (legado) confirmado: ${creditFallback.id}`);
+        }
 
         await prisma.webhookEvent.update({
           where: { eventId },
           data: { status: 'PROCESSED' },
         });
 
-        console.log(`✅ [Asaas Webhook] Crédito confirmado (fallback): ${actualBookingId}`);
-        return res.status(200).json({ received: true, creditId: actualBookingId, action: 'credit_confirmed_fallback' });
+        return res.status(200).json({
+          received: true,
+          event,
+          creditId: creditFallback.id,
+          action: 'credit_confirmed_fallback',
+        });
       }
 
       // Não é booking nem crédito - ignorar (legado/deletado)
-      console.warn(`⚠️ [Asaas Webhook] Entidade não encontrada (legado/deletado): ${actualBookingId}`);
+      console.warn(`⚠️ [Asaas Webhook] Entidade não encontrada (nem booking UUID, nem displayId, nem crédito): ${actualBookingId}`);
       await prisma.webhookEvent.update({
         where: { eventId },
         data: { status: 'IGNORED_NOT_FOUND' },
@@ -977,11 +988,6 @@ export default async function handler(
       return res.status(200).json({ ok: true, ignored: 'entity_not_found', id: actualBookingId });
     }
 
-    // ================================================================
-    // PROTEÇÕES CONTRA ESTADOS INVÁLIDOS (P-007)
-    // ================================================================
-    
-    // Proteção 1: Booking já CONFIRMED - não processar novamente
     if (booking.status === 'CONFIRMED' && booking.financialStatus === 'PAID') {
       console.log(`⏭️ [Asaas Webhook] Booking já confirmado e pago: ${actualBookingId}`);
       await withTimeout(
@@ -1026,16 +1032,16 @@ export default async function handler(
         source: 'SYSTEM',
         targetType: 'Booking',
         targetId: actualBookingId,
-        metadata: { 
-          event, 
-          paymentId: payment.id, 
+        metadata: {
+          event,
+          paymentId: payment.id,
           reason: 'booking_cancelled',
           message: 'Pagamento recebido para booking cancelado. Requer análise manual.',
         },
       });
-      return res.status(200).json({ 
-        received: true, 
-        blocked: true, 
+      return res.status(200).json({
+        received: true,
+        blocked: true,
         reason: 'BOOKING_CANCELLED',
         message: 'Booking cancelado não pode ser reativado via webhook. Análise manual necessária.',
       });
@@ -1052,9 +1058,9 @@ export default async function handler(
         5000,
         'atualização de status webhook - refunded bloqueado'
       );
-      return res.status(200).json({ 
-        received: true, 
-        blocked: true, 
+      return res.status(200).json({
+        received: true,
+        blocked: true,
         reason: 'BOOKING_REFUNDED',
         message: 'Booking já estornado não pode receber novos pagamentos.',
       });
@@ -1066,14 +1072,14 @@ export default async function handler(
     if (booking.product && isPackageProduct(booking.product.type)) {
       const hoursIncluded = booking.product.hoursIncluded || getPackageHours(booking.product.type);
       const creditAmount = hoursIncluded * (booking.room?.hourlyRate || booking.product.price / hoursIncluded);
-      
+
       // Calcular expiração (90 dias padrão para pacotes)
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + (booking.product.validityDays || 90));
-      
+
       // Determinar usageType baseado no tipo do produto
       const usageType = getUsageTypeFromProduct(booking.product.type);
-      
+
       // Criar crédito
       const credit = await withTimeout(
         prisma.credit.create({
@@ -1093,14 +1099,14 @@ export default async function handler(
         5000,
         'criação de crédito'
       );
-      
+
       console.log(`💳 [Asaas Webhook] Crédito criado: ${creditAmount} centavos para user ${booking.userId} (usageType: ${usageType})`);
-      
+
       // Atualizar Payment table se existir
       try {
         await withTimeout(
           prisma.payment.updateMany({
-            where: { 
+            where: {
               OR: [
                 { externalId: payment.id },
                 { bookingId: bookingId },
@@ -1117,7 +1123,7 @@ export default async function handler(
       } catch (paymentError) {
         console.warn('⚠️ [Asaas Webhook] Erro ao atualizar Payment (pacote):', paymentError);
       }
-      
+
       // Log de auditoria para crédito
       await withTimeout(
         logAudit({
@@ -1215,7 +1221,7 @@ export default async function handler(
             10000,
             'envio de email de confirmação - pacote'
           );
-          
+
           if (emailSuccess) {
             await prisma.booking.update({
               where: { id: actualBookingId },
@@ -1244,7 +1250,7 @@ export default async function handler(
         'atualização de status de webhook event'
       );
 
-      return res.status(200).json({ 
+      return res.status(200).json({
         received: true,
         type: 'PACKAGE',
         creditId: credit.id,
@@ -1256,7 +1262,7 @@ export default async function handler(
     // ================================================================
     // CASO 2: HORA AVULSA - Atualizar booking com estados corretos
     // ================================================================
-    
+
     // Atualizar booking com todos os campos necessários
     const updatedBooking = await withTimeout(
       prisma.booking.update({
@@ -1344,7 +1350,7 @@ export default async function handler(
     try {
       await withTimeout(
         prisma.payment.updateMany({
-          where: { 
+          where: {
             OR: [
               { externalId: payment.id },
               { bookingId: bookingId },
@@ -1395,7 +1401,7 @@ export default async function handler(
           10000,
           'envio de email de confirmação'
         );
-        
+
         if (emailSuccess) {
           // Marcar email como enviado
           await prisma.booking.update({
@@ -1427,7 +1433,7 @@ export default async function handler(
     );
 
     // Responder sucesso
-    return res.status(200).json({ 
+    return res.status(200).json({
       received: true,
       type: 'HOURLY',
       bookingId,
@@ -1438,7 +1444,7 @@ export default async function handler(
 
   } catch (error) {
     console.error('❌ [Asaas Webhook] Erro:', error);
-    
+
     // Tentar marcar evento como falho
     try {
       const payload = req.body as AsaasWebhookPayload;
@@ -1456,10 +1462,10 @@ export default async function handler(
     } catch {
       // Ignora erro ao atualizar status
     }
-    
+
     // Retornar 200 para evitar retry infinito em erros de código
     // Em produção, enviar para fila de reprocessamento
-    return res.status(200).json({ 
+    return res.status(200).json({
       received: true,
       error: error instanceof Error ? error.message : 'Erro interno',
     });

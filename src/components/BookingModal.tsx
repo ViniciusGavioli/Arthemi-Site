@@ -652,17 +652,21 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
           payNow: true,
           useCredits: true, // FIX: Sempre tentar usar créditos no modo "Agendar horário"
           couponCode: formData.couponCode || undefined,
+          discountAmount: couponApplied?.discountAmount || 0, // Enviar valor do desconto explicitamente
           notes: formData.notes || undefined,
           paymentMethod: formData.paymentMethod,
           installmentCount: formData.paymentMethod === 'CARD' && formData.installmentCount > 1
             ? formData.installmentCount
             : undefined,
-          // Valores sincronizados pela utility financial.ts
+          // Valores sincronizados pela utility financial.ts (FIX: Usar Valor Líquido)
           ...(formData.paymentMethod === 'CARD' && formData.installmentCount > 1 ? (() => {
-            // FIX: Usar preço BASE (sem desconto) e passar o desconto explicitamente
-            const basePrice = getTotalPrice(false);
+            const basePrice = getTotalPrice(false); // Valor Bruto
             const discount = couponApplied?.discountAmount || 0;
-            const calc = calculatePaymentTotals(basePrice, formData.installmentCount, discount);
+            const netPrice = Math.max(0, basePrice - discount); // Valor Líquido
+
+            // Aplica Markup do Marcelo sobre o Valor LÍQUIDO (discount=0 pois já foi subtraído)
+            const calc = calculatePaymentTotals(netPrice, formData.installmentCount, 0);
+
             return {
               adjustedTotalCents: calc.adjustedTotalCents,
               installmentValueCents: calc.installmentValueCents,

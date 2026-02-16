@@ -12,14 +12,15 @@ import RoomDetailsModal from '@/components/RoomDetailsModal';
 import BookingModal from '@/components/BookingModal';
 import { prisma } from '@/lib/prisma';
 import { PAGE_SEO, BUSINESS_INFO } from '@/constants/seo';
-import { PRICES_V3, formatPrice, getPackagesForRoom, type RoomKey } from '@/constants/prices';
-import { 
-  Sparkles, 
-  Clock, 
-  Shield, 
-  Wifi, 
-  Coffee, 
-  CheckCircle2, 
+import { formatCurrency } from '@/lib/utils';
+import { getPackagesForRoom, type RoomKey } from '@/constants/prices';
+import {
+  Sparkles,
+  Clock,
+  Shield,
+  Wifi,
+  Coffee,
+  CheckCircle2,
   ArrowRight,
   MapPin,
   Calendar,
@@ -32,67 +33,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 
-// Helper para calcular menor preço por hora de uma sala
-function getLowestHourlyPrice(salaKey: 'SALA_A' | 'SALA_B' | 'SALA_C'): number {
-  const prices = PRICES_V3[salaKey].prices;
-  
-  // Calcular preço por hora de cada opção
-  const hourlyOptions = [
-    prices.HOURLY_RATE,                    // Hora avulsa
-    prices.PACKAGE_10H / 10,               // Pacote 10h
-    prices.PACKAGE_20H / 20,               // Pacote 20h
-    prices.PACKAGE_40H / 40,               // Pacote 40h
-  ];
-  
-  return Math.min(...hourlyOptions);
-}
 
-// Dados das salas para o modal (com preço calculado dinamicamente)
-const roomsData = [
-  {
-    name: 'Consultório 1 | Prime',
-    slug: 'sala-a',
-    description: 'Espaço premium',
-    features: ['Espaço premium', 'Consultório amplo', 'Maca com circulação livre (360º)', 'Ar-condicionado', 'Lavatório', 'Armário', 'Iluminação'],
-    price: formatPrice(getLowestHourlyPrice('SALA_A')),
-  },
-  {
-    name: 'Consultório 2 | Executive',
-    slug: 'sala-b',
-    description: 'Consultório amplo',
-    features: ['Consultório amplo', 'Maca com circulação livre (360º)', 'Ar-condicionado', 'Lavatório', 'Armário', 'Iluminação'],
-    price: formatPrice(getLowestHourlyPrice('SALA_B')),
-  },
-  {
-    name: 'Consultório 3 | Essential',
-    slug: 'sala-c',
-    description: 'Consultório acolhedor',
-    features: ['Consultório acolhedor', 'Espaço intimista', 'Poltronas', 'Ar-condicionado', 'Lavatório', 'Iluminação'],
-    price: formatPrice(getLowestHourlyPrice('SALA_C')),
-  },
-];
-
-// Helper para gerar products a partir do PRICES_V3
-function getProductsForRoom(roomKey: RoomKey): Array<{
-  id: string;
-  name: string;
-  slug: string;
-  price: number;
-  hoursIncluded: number;
-  type: string;
-  roomId: string | null;
-}> {
-  const packages = getPackagesForRoom(roomKey);
-  return packages.map(pkg => ({
-    id: `${pkg.type.toLowerCase()}-${roomKey.toLowerCase()}`,
-    name: pkg.name,
-    slug: `${pkg.type.toLowerCase().replace(/_/g, '-')}-${roomKey.toLowerCase().replace('_', '-')}`,
-    price: pkg.priceCents, // Em centavos para compatibilidade com BookingModal
-    hoursIncluded: pkg.hours,
-    type: pkg.type,
-    roomId: null,
-  }));
-}
 
 // Dados estáticos das salas para o BookingModal (buscaremos do banco via SSR)
 // Interface para as salas vindas do banco
@@ -121,16 +62,11 @@ interface HomeProps {
 }
 
 export default function Home({ dbRooms }: HomeProps) {
-  const [selectedRoom, setSelectedRoom] = useState<typeof roomsData[0] | null>(null);
+  const [selectedRoom, setSelectedRoom] = useState<any | null>(null);
   const [bookingRoom, setBookingRoom] = useState<DBRoom | null>(null);
   const whatsappLink = `https://wa.me/${BUSINESS_INFO.whatsapp}`;
 
-  // Preços calculados dinamicamente (menor preço por hora de cada sala)
-  const lowestPrices = {
-    salaA: formatPrice(getLowestHourlyPrice('SALA_A')),
-    salaB: formatPrice(getLowestHourlyPrice('SALA_B')),
-    salaC: formatPrice(getLowestHourlyPrice('SALA_C')),
-  };
+
 
   // Handler para abrir o modal de reserva
   const handleOpenBooking = () => {
@@ -162,8 +98,8 @@ export default function Home({ dbRooms }: HomeProps) {
         {/* Hero Section - Full Impact */}
         <section className="relative min-h-[100svh] flex items-center pt-20 pb-8 overflow-hidden">
           {/* Background Image */}
-          <Image 
-            src="/images/hero/banner.jpeg" 
+          <Image
+            src="/images/hero/banner.jpeg"
             alt="Espaço Arthemi"
             fill
             className="object-cover object-top"
@@ -173,7 +109,7 @@ export default function Home({ dbRooms }: HomeProps) {
           />
           <div className="absolute inset-0 bg-gradient-to-br from-primary-950/85 via-secondary-900/75 to-primary-950/85" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-          
+
           {/* Floating Elements */}
           <div className="absolute top-32 left-[10%] animate-bounce hidden lg:block" style={{ animationDuration: '3s' }}>
             <div className="bg-warm-100 shadow-xl rounded-2xl p-4 rotate-[-5deg]">
@@ -293,36 +229,36 @@ export default function Home({ dbRooms }: HomeProps) {
                 Sem custos extras, sem surpresas. O valor que você vê já inclui tudo isso:
               </p>
             </div>
-            
+
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
-                { 
+                {
                   color: 'from-primary-500 to-primary-600',
                   icon: <Sparkles className="w-6 h-6" />,
-                  title: 'Consultórios completos', 
-                  desc: 'Ambiente agradável, mobiliário profissional, ar-condicionado e iluminação adequada.' 
+                  title: 'Consultórios completos',
+                  desc: 'Ambiente agradável, mobiliário profissional, ar-condicionado e iluminação adequada.'
                 },
-                { 
+                {
                   color: 'from-secondary-500 to-secondary-600',
                   icon: <Users className="w-6 h-6" />,
-                  title: 'Recepção dedicada', 
-                  desc: 'Secretária profissional, acolhimento dos pacientes e comunicação da chegada.' 
+                  title: 'Recepção dedicada',
+                  desc: 'Secretária profissional, acolhimento dos pacientes e comunicação da chegada.'
                 },
-                { 
+                {
                   color: 'from-accent-500 to-accent-600',
                   icon: <Leaf className="w-6 h-6" />,
-                  title: 'Limpeza completa', 
-                  desc: 'Higienização do espaço e descarte dos resíduos seguindo as normas técnicas.' 
+                  title: 'Limpeza completa',
+                  desc: 'Higienização do espaço e descarte dos resíduos seguindo as normas técnicas.'
                 },
-                { 
+                {
                   color: 'from-primary-600 to-primary-700',
                   icon: <Wifi className="w-6 h-6" />,
-                  title: 'Internet ultrarrápida', 
-                  desc: 'Wi-fi de alta velocidade adequado para teleconsultas e chamadas.' 
+                  title: 'Internet ultrarrápida',
+                  desc: 'Wi-fi de alta velocidade adequado para teleconsultas e chamadas.'
                 },
               ].map((item, i) => (
-                <div 
-                  key={i} 
+                <div
+                  key={i}
                   className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border border-warm-200 group"
                 >
                   <div className={`w-12 h-12 bg-gradient-to-br ${item.color} rounded-2xl flex items-center justify-center text-white mb-5 group-hover:scale-110 transition-transform`}>
@@ -343,7 +279,7 @@ export default function Home({ dbRooms }: HomeProps) {
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-warm-100 mb-8">
                 Para quem é o Espaço Arthemi?
               </h2>
-              
+
               {/* Pills de profissionais */}
               <div className="flex flex-wrap justify-center gap-3 mb-10">
                 {[
@@ -366,7 +302,7 @@ export default function Home({ dbRooms }: HomeProps) {
                 Que desejam:
               </p>
             </div>
-            
+
             {/* Cards com desejos */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
               {[
@@ -402,132 +338,68 @@ export default function Home({ dbRooms }: HomeProps) {
                 Três layouts pensados para diferentes necessidades
               </p>
             </div>
-            
+
             <div className="grid md:grid-cols-3 gap-8">
-              {/* Consultório 1 | Prime */}
-              <div 
-                className="group relative rounded-3xl overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white border border-warm-200 cursor-pointer"
-                onClick={() => setSelectedRoom(roomsData[0])}
-              >
-                <div className="relative w-full h-48 sm:h-56">
-                  <Image 
-                    src="/images/sala-a/foto-4.jpeg" 
-                    alt="Consultório 1 | Prime"
-                    fill
-                    className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                    quality={85}
-                    sizes="(max-width: 768px) 100vw, 33vw"
-                  />
-                  {/* Overlay com botão Ver Fotos */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white text-primary-800 px-4 py-2 rounded-full font-semibold flex items-center gap-2">
-                      <Eye className="w-4 h-4" />
-                      Ver fotos
-                    </span>
-                  </div>
-                </div>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="bg-accent-100 text-accent-700 px-3 py-1 rounded-full text-sm font-medium">Espaço premium</span>
-                  </div>
-                  <h3 className="text-xl sm:text-2xl font-bold text-primary-900 mb-2">Consultório 1 | Prime</h3>
-                  <p className="text-secondary-600 text-sm mb-4">
-                    Consultório amplo com maca e circulação livre 360º.
-                  </p>
-                  <div className="border-t border-warm-200 pt-4">
-                    <div className="text-secondary-500 text-sm">A partir de</div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-2xl sm:text-3xl font-bold text-accent-600">{lowestPrices.salaA}</span>
-                      <span className="text-secondary-500">/hora</span>
+              {dbRooms.map((room) => {
+                const isFeatured = room.slug === 'sala-b';
+
+                return (
+                  <div
+                    key={room.id}
+                    className={`group relative rounded-3xl overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white ${isFeatured ? 'md:scale-105 border-2 border-accent-500 shadow-accent-500/30' : 'border border-warm-200'
+                      } cursor-pointer`}
+                    onClick={() => setSelectedRoom({ ...room, features: room.amenities, price: formatCurrency(room.hourlyRate / 100) })}
+                  >
+                    {isFeatured && (
+                      <div className="absolute -top-px left-1/2 -translate-x-1/2 bg-accent-600 text-white px-4 py-1 rounded-b-lg text-sm font-bold z-10">
+                        Mais popular
+                      </div>
+                    )}
+
+                    <div className="relative w-full h-48 sm:h-56">
+                      <Image
+                        src={room.imageUrl || '/images/hero/banner.jpeg'}
+                        alt={room.name}
+                        fill
+                        className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                        quality={85}
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white text-primary-800 px-4 py-2 rounded-full font-semibold flex items-center gap-2">
+                          <Eye className="w-4 h-4" />
+                          Ver fotos
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-6">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${isFeatured ? 'bg-accent-100 text-accent-700' : 'bg-warm-100 text-primary-700'
+                          }`}>
+                          {room.slug === 'sala-a' ? 'Espaço premium' : room.slug === 'sala-b' ? 'Consultório amplo' : 'Espaço intimista'}
+                        </span>
+                      </div>
+
+                      <h3 className="text-xl sm:text-2xl font-bold text-primary-900 mb-2">{room.name}</h3>
+                      <p className="text-secondary-600 text-sm mb-4 line-clamp-2">
+                        {room.description}
+                      </p>
+
+                      <div className="border-t border-warm-200 pt-4">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-2xl sm:text-3xl font-bold text-accent-600">
+                            {formatCurrency(room.hourlyRate / 100)}
+                          </span>
+                          <span className="text-secondary-500">/hora</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-              
-              {/* Consultório 2 | Executive - Featured */}
-              <div 
-                className="group relative rounded-3xl overflow-hidden hover:shadow-2xl hover:shadow-accent-500/30 transition-all duration-500 hover:-translate-y-2 md:scale-105 bg-white border-2 border-accent-500 cursor-pointer"
-                onClick={() => setSelectedRoom(roomsData[1])}
-              >
-                <div className="absolute -top-px left-1/2 -translate-x-1/2 bg-accent-600 text-white px-4 py-1 rounded-b-lg text-sm font-bold z-10">
-                  Mais popular
-                </div>
-                <div className="relative w-full h-48 sm:h-56">
-                  <Image 
-                    src="/images/sala-b/02-3.jpeg" 
-                    alt="Consultório 2 | Executive"
-                    fill
-                    className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                    quality={85}
-                    sizes="(max-width: 768px) 100vw, 33vw"
-                  />
-                  {/* Overlay com botão Ver Fotos */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white text-primary-800 px-4 py-2 rounded-full font-semibold flex items-center gap-2">
-                      <Eye className="w-4 h-4" />
-                      Ver fotos
-                    </span>
-                  </div>
-                </div>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="bg-accent-100 text-accent-700 px-3 py-1 rounded-full text-sm font-medium">Consultório amplo</span>
-                  </div>
-                  <h3 className="text-xl sm:text-2xl font-bold text-primary-900 mb-2">Consultório 2 | Executive</h3>
-                  <p className="text-secondary-600 text-sm mb-4">
-                    Consultório amplo com maca e circulação livre 360º.
-                  </p>
-                  <div className="border-t border-warm-200 pt-4">
-                    <div className="text-secondary-500 text-sm">A partir de</div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-2xl sm:text-3xl font-bold text-accent-600">{lowestPrices.salaB}</span>
-                      <span className="text-secondary-500">/hora</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Consultório 3 | Essential */}
-              <div 
-                className="group relative rounded-3xl overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white border border-warm-200 cursor-pointer"
-                onClick={() => setSelectedRoom(roomsData[2])}
-              >
-                <div className="relative w-full h-48 sm:h-56">
-                  <Image 
-                    src="/images/sala-c/03-1.jpeg" 
-                    alt="Consultório 3 | Essential"
-                    fill
-                    className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                    quality={85}
-                    sizes="(max-width: 768px) 100vw, 33vw"
-                  />
-                  {/* Overlay com botão Ver Fotos */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white text-primary-800 px-4 py-2 rounded-full font-semibold flex items-center gap-2">
-                      <Eye className="w-4 h-4" />
-                      Ver fotos
-                    </span>
-                  </div>
-                </div>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="bg-warm-100 text-primary-700 px-3 py-1 rounded-full text-sm font-medium">Espaço intimista</span>
-                  </div>
-                  <h3 className="text-xl sm:text-2xl font-bold text-primary-900 mb-2">Consultório 3 | Essential</h3>
-                  <p className="text-secondary-600 text-sm mb-4">
-                    Consultório acolhedor com poltronas confortáveis.
-                  </p>
-                  <div className="border-t border-warm-200 pt-4">
-                    <div className="text-secondary-500 text-sm">A partir de</div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-2xl sm:text-3xl font-bold text-accent-600">{lowestPrices.salaC}</span>
-                      <span className="text-secondary-500">/hora</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                );
+              })}
             </div>
-            
+
             <div className="text-center mt-12">
               <Link
                 href="/lp"
@@ -554,7 +426,7 @@ export default function Home({ dbRooms }: HomeProps) {
                 Veja como é o Espaço Arthemi por dentro
               </p>
             </div>
-            
+
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {[
                 '/images/sala-a/foto-4.jpeg',
@@ -566,12 +438,12 @@ export default function Home({ dbRooms }: HomeProps) {
                 '/images/espaco/Recepcao.jpeg',
                 '/images/espaco/Recepcao-01.jpeg',
               ].map((src, i) => (
-                <div 
-                  key={i} 
+                <div
+                  key={i}
                   className="relative overflow-hidden rounded-2xl group cursor-pointer aspect-square"
                 >
-                  <Image 
-                    src={src} 
+                  <Image
+                    src={src}
                     alt={`Espaço Arthemi ${i + 1}`}
                     fill
                     className="object-cover group-hover:scale-110 transition-transform duration-500"
@@ -598,8 +470,8 @@ export default function Home({ dbRooms }: HomeProps) {
               Um espaço que funciona para você
             </h2>
             <p className="text-xl text-warm-300 mb-8 leading-relaxed">
-              A gente sabe que montar consultório é caro, burocrático e trabalhoso. 
-              Por isso criamos o Espaço Arthemi: para você ter estrutura profissional 
+              A gente sabe que montar consultório é caro, burocrático e trabalhoso.
+              Por isso criamos o Espaço Arthemi: para você ter estrutura profissional
               sem precisar lidar com tudo isso.
             </p>
             <div className="flex flex-wrap justify-center gap-4 mb-10">
@@ -647,7 +519,7 @@ export default function Home({ dbRooms }: HomeProps) {
                 <h3 className="text-xl font-bold text-primary-900 mb-6">
                   Como chegar
                 </h3>
-                
+
                 <div className="space-y-6">
                   <div className="flex items-start gap-4">
                     <div className="w-10 h-10 bg-accent-100 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -681,8 +553,8 @@ export default function Home({ dbRooms }: HomeProps) {
                     </div>
                     <div>
                       <p className="font-semibold text-primary-900">WhatsApp</p>
-                      <a 
-                        href={whatsappLink} 
+                      <a
+                        href={whatsappLink}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-accent-600 hover:text-accent-700 transition"
@@ -749,10 +621,10 @@ export default function Home({ dbRooms }: HomeProps) {
 // Busca as salas do banco com IDs reais
 export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
   const requestId = `ssr-home-${Date.now()}`;
-  
+
   try {
     console.log(`[${requestId}] SSR /home iniciado`);
-    
+
     const rooms = await prisma.room.findMany({
       where: { isActive: true },
       orderBy: { tier: 'asc' }, // Ordenar por tier (1=sala-a, 2=sala-b, 3=sala-c)

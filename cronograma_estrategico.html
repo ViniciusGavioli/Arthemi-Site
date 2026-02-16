@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plano Estratégico Arthemi</title>
+
+    <!-- Fonts: Montserrat (Authority) & Inter (Cleanliness) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Montserrat:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <style>
+        /* 
+         * Paleta Arthemi - Light Corporate Luxury
+         * Extraída diretamente do tailwind.config.ts
+         */
+        :root {
+            /* Backgrounds */
+            --bg-body: #FAFAFA;
+            --bg-card: #FFFFFF;
+
+            /* Typography */
+            --text-primary: #2e2420;
+            /* secondary-950 */
+            --text-secondary: #5d4d3e;
+            /* primary-900 */
+            --text-tertiary: #8a7259;
+            /* primary-700 */
+
+            /* Accents */
+            --gold-main: #d4a96a;
+            /* accent-500 */
+            --gold-dark: #a47642;
+            /* accent-700 */
+            --gold-light: #f4e9d4;
+            /* accent-200 */
+
+            /* UI Elements */
+            --border-subtle: #e6ddd4;
+            /* secondary-200 */
+            --shadow-card: 0 10px 30px -10px rgba(93, 77, 62, 0.08);
+            --shadow-hover: 0 20px 40px -12px rgba(93, 77, 62, 0.15);
+
+            --container-width: 1280px;
+            --radius-default: 16px;
+        }
+
+        /* Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-image: radial-gradient(circle at top center, #fff 0%, var(--bg-body) 60%);
+        }
+
+        h1,
+        h2,
+        h3 {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            padding: 5rem 1.5rem 3rem;
+        }
+
+        .header-pretitle {
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 3px;
+            color: var(--gold-dark);
+            font-weight: 700;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        h1 {
+            font-size: clamp(2rem, 4vw, 3rem);
+            margin-bottom: 1rem;
+            line-height: 1.2;
+            color: var(--text-primary);
+        }
+
+        h1 span {
+            color: var(--gold-main);
+        }
+
+        .header-desc {
+            max-width: 600px;
+            margin: 0 auto;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            width: 100%;
+            max-width: var(--container-width);
+            margin: 0 auto;
+            padding: 0 2rem 4rem;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            align-items: stretch;
+        }
+
+        /* Card Component */
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius-default);
+            border: 1px solid var(--border-subtle);
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            box-shadow: var(--shadow-card);
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--shadow-hover);
+            border-color: var(--gold-light);
+        }
+
+        /* Top Color Bar */
+        .card-top-bar {
+            height: 6px;
+            width: 100%;
+            background: linear-gradient(90deg, var(--gold-light), var(--gold-main));
+        }
+
+        .card-content {
+            padding: 2.5rem 2rem;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .phase-badge {
+            display: inline-block;
+            background-color: var(--bg-body);
+            border: 1px solid var(--border-subtle);
+            padding: 0.4rem 1rem;
+            border-radius: 100px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 1.25rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            align-self: flex-start;
+        }
+
+        .card-title {
+            font-size: 1.4rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+            line-height: 1.3;
+            min-height: 3.6em;
+            /* Helps align headers */
+        }
+
+        .card-status {
+            font-size: 0.85rem;
+            color: var(--gold-dark);
+            background-color: #FFF9F0;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            display: inline-block;
+            border: 1px solid rgba(212, 169, 106, 0.2);
+        }
+
+        /* Sub-sections within card */
+        .section-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-tertiary);
+            font-weight: 700;
+            margin-top: 1rem;
+            margin-bottom: 0.75rem;
+            display: block;
+        }
+
+        /* Action List */
+        .action-list {
+            list-style: none;
+            margin-bottom: 1.5rem;
+        }
+
+        .action-list li {
+            position: relative;
+            padding-left: 1.25rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .action-list li::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            color: var(--gold-main);
+            font-weight: bold;
+            font-size: 1.2rem;
+            line-height: 1rem;
+            top: 2px;
+        }
+
+        .description-text {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Card Footer / Objective */
+        .card-footer {
+            background-color: #fdfaf6;
+            padding: 1.5rem 2rem;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .value-label {
+            display: block;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            color: var(--gold-dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .value-text {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Page Footer */
+        footer {
+            text-align: center;
+            padding: 4rem 2rem;
+            font-size: 0.875rem;
+            color: var(--text-tertiary);
+            border-top: 1px solid var(--border-subtle);
+            margin-top: auto;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .cards-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .card:last-child {
+                grid-column: span 2;
+                max-width: 600px;
+                margin: 0 auto;
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .cards-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .card:last-child {
+                grid-column: auto;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .card-title {
+                min-height: auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <span class="header-pretitle">Cronograma de Aceleração</span>
+        <h1>Plano Estratégico <span>Arthemi</span></h1>
+        <p class="header-desc">
+            Roteiro exclusivo de tráfego pago focado em autoridade e captação qualificada.
+        </p>
+    </header>
+
+    <main>
+        <div class="cards-grid">
+
+            <!-- CARD 1 -->
+            <article class="card">
+                <div class="card-top-bar"></div>
+                <div class="card-content">
+                    <span class="phase-badge">Fase 01</span>
+                    <h2 class="card-title">Captação de Demanda Reprimida & Inteligência</h2>
+                    <div class="card-status">Status: Ativação Imediata</div>
+
+                    <span class="section-title">Ações Técnicas</span>
+                    <ul class="action-list">
+                        <li><strong>Google Ads:</strong> Rede de Pesquisa (Fundo de Funil).</li>
+                        <li><strong>Meta Ads:</strong> Video Views de alta retenção.</li>
+                    </ul>
+
+                    <span class="section-title">O que faremos</span>
+                    <p class="description-text">
+                        Mapeamento de palavras-chave com alta intenção de conversão. Configuração avançada do Pixel da
+                        Meta e Google Tag Manager para rastreamento de eventos (cliques no WhatsApp, tempo de página).
+                    </p>
+                </div>
+                <div class="card-footer">
+                    <span class="value-label">O Valor para a Arthemi</span>
+                    <p class="value-text">
+                        Não gastamos orçamento com curiosos. Interceptamos quem já busca a solução exata, capturando
+                        100% desses dados.
+                    </p>
+                </div>
+            </article>
+
+            <!-- CARD 2 -->
+            <article class="card">
+                <div class="card-top-bar"></div>
+                <div class="card-content">
+                    <span class="phase-badge">Fase 02</span>
+                    <h2 class="card-title">Qualificação de Público & Autoridade</h2>
+                    <div class="card-status">Status: Ativação no Dia 4</div>
+
+                    <span class="section-title">Ações Técnicas</span>
+                    <ul class="action-list">
+                        <li><strong>Meta Ads:</strong> Distribuição de Conteúdo Estratégico.</li>
+                        <li><strong>Foco:</strong> Engajamento e educação do lead.</li>
+                    </ul>
+
+                    <span class="section-title">O que faremos</span>
+                    <p class="description-text">
+                        Criação de públicos personalizados de quem visualizou >50% dos vídeos da Fase 1 ou interagiu com
+                        o perfil. Impulsionamento dos melhores materiais para essa base qualificada.
+                    </p>
+                </div>
+                <div class="card-footer">
+                    <span class="value-label">O Valor para a Arthemi</span>
+                    <p class="value-text">
+                        Redução drástica do CPA. O prospecto chega para negociar "quente", confiando na marca e sem
+                        brigar por preço.
+                    </p>
+                </div>
+            </article>
+
+            <!-- CARD 3 -->
+            <article class="card">
+                <div class="card-top-bar"></div>
+                <div class="card-content">
+                    <span class="phase-badge">Fase 03</span>
+                    <h2 class="card-title">O "Cerco" de Conversão (Remarketing)</h2>
+                    <div class="card-status">Status: Ativação no Dia 8</div>
+
+                    <span class="section-title">Ações Técnicas</span>
+                    <ul class="action-list">
+                        <li><strong>Meta Ads:</strong> Campanhas de Conversão (Remarketing).</li>
+                        <li><strong>Blindagem:</strong> Exclusão de quem já converteu.</li>
+                    </ul>
+
+                    <span class="section-title">O que faremos</span>
+                    <p class="description-text">
+                        Impacto exclusivo em visitantes recentes e engajados, com anúncios de quebra de objeções e
+                        provas sociais. Um efeito de "onipresença" até a tomada de decisão.
+                    </p>
+                </div>
+                <div class="card-footer">
+                    <span class="value-label">O Valor para a Arthemi</span>
+                    <p class="value-text">
+                        Ninguém esquece a marca. Cercamos o usuário até a conversão, recuperando o investimento de quem
+                        quase fechou.
+                    </p>
+                </div>
+            </article>
+
+        </div>
+    </main>
+
+    <footer>
+        <p>© 2024 Arthemi Strategies. Desenvolvido para aceleração de resultados.</p>
+    </footer>
+
+</body>
+
+</html>

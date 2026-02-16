@@ -18,20 +18,7 @@ import { PRICES_V3, formatPrice, getAllProductsForRoom } from '@/constants/price
 import { Lightbulb, CheckCircle2, Eye } from 'lucide-react';
 import { analytics } from '@/lib/analytics';
 
-// Helper para calcular menor preço por hora de um consultório
-function getLowestHourlyPrice(salaKey: 'SALA_A' | 'SALA_B' | 'SALA_C'): number {
-  const prices = PRICES_V3[salaKey].prices;
 
-  // Calcular preço por hora de cada opção
-  const hourlyOptions = [
-    prices.HOURLY_RATE,                    // Hora avulsa
-    prices.PACKAGE_10H / 10,               // Pacote 10h
-    prices.PACKAGE_20H / 20,               // Pacote 20h
-    prices.PACKAGE_40H / 40,               // Pacote 40h
-  ];
-
-  return Math.min(...hourlyOptions);
-}
 
 interface Product {
   id: string;
@@ -67,27 +54,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
   // Track de ViewContent: evita disparo duplicado para a mesma sala na mesma sessão
   const viewedRoomsRef = useRef<Set<string>>(new Set());
 
-  // Dados para modal de galeria e cards (com preço calculado dinamicamente)
-  const roomsGalleryData = [
-    {
-      name: 'Consultório 1 | Prime',
-      slug: 'sala-a',
-      description: 'Espaço premium',
-      price: formatPrice(getLowestHourlyPrice('SALA_A')),
-    },
-    {
-      name: 'Consultório 2 | Executive',
-      slug: 'sala-b',
-      description: 'Consultório amplo',
-      price: formatPrice(getLowestHourlyPrice('SALA_B')),
-    },
-    {
-      name: 'Consultório 3 | Essential',
-      slug: 'sala-c',
-      description: 'Espaço intimista',
-      price: formatPrice(getLowestHourlyPrice('SALA_C')),
-    },
-  ];
+
 
   const handleReservar = (room: Room) => {
     setSelectedRoom(room);
@@ -110,12 +77,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
       // Encontrar o room para obter o ID
       const room = rooms.find(r => r.slug === galleryData.slug);
       if (room) {
-        // Calcular menor preço para enviar como value
-        const roomKey = galleryData.slug === 'sala-a' ? 'SALA_A' :
-          galleryData.slug === 'sala-b' ? 'SALA_B' : 'SALA_C';
-        const lowestPrice = getLowestHourlyPrice(roomKey);
-
-        analytics.roomViewed(room.id, galleryData.name, lowestPrice * 100); // value em centavos
+        analytics.roomViewed(room.id, galleryData.name, room.hourlyRate); // value em centavos
       }
     }
   };
@@ -186,11 +148,14 @@ export default function SalasPage({ rooms }: SalasPageProps) {
           {/* Cards dos Consultórios com imagens clicáveis */}
           <div data-cards-section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16 scroll-mt-20">
             {rooms.length > 0 ? (
-              rooms.map((room, index) => {
-                const galleryData = roomsGalleryData[index];
-                const imageUrl = room.slug === 'sala-a' ? '/images/sala-a/foto-4.jpeg' :
-                  room.slug === 'sala-b' ? '/images/sala-b/02-3.jpeg' :
-                    '/images/sala-c/03-1.jpeg';
+              rooms.map((room) => {
+                // Seleciona a imagem (fallback para hardcoded se não tiver no banco por enquanto)
+                const imageUrl = room.imageUrl || (
+                  room.slug === 'sala-a' ? '/images/sala-a/foto-4.jpeg' :
+                    room.slug === 'sala-b' ? '/images/sala-b/02-3.jpeg' :
+                      '/images/sala-c/03-1.jpeg'
+                );
+
                 return (
                   <div
                     key={room.id}
@@ -198,11 +163,11 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                   >
                     <div
                       className="relative w-full h-48 sm:h-56 cursor-pointer"
-                      onClick={() => handleOpenGallery(galleryData)}
+                      onClick={() => handleOpenGallery({ name: room.name, slug: room.slug })}
                     >
                       <Image
                         src={imageUrl}
-                        alt={galleryData.name}
+                        alt={room.name}
                         fill
                         className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
                         sizes="(max-width: 768px) 100vw, 33vw"
@@ -215,13 +180,14 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                       </div>
                     </div>
                     <div className="p-5">
-                      <h3 className="text-lg font-bold text-primary-900 mb-1">{galleryData.name}</h3>
-                      <p className="text-sm text-accent-600 font-medium mb-3">{galleryData.description}</p>
+                      <h3 className="text-lg font-bold text-primary-900 mb-1">{room.name}</h3>
+                      <p className="text-sm text-accent-600 font-medium mb-3">{room.description}</p>
                       <div className="flex items-center justify-between">
                         <div>
-                          <span className="text-sm text-secondary-500">A partir de</span>
                           <div className="flex items-baseline gap-1">
-                            <span className="text-xl font-bold text-accent-600">{galleryData.price}</span>
+                            <span className="text-xl font-bold text-accent-600">
+                              {formatCurrency(room.hourlyRate / 100)}
+                            </span>
                             <span className="text-secondary-500 text-sm">/hora</span>
                           </div>
                         </div>
@@ -237,58 +203,9 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                 );
               })
             ) : (
-              /* Fallback quando rooms está vazio */
-              roomsGalleryData.map((galleryData, index) => {
-                const imageUrl = galleryData.slug === 'sala-a' ? '/images/sala-a/foto-4.jpeg' :
-                  galleryData.slug === 'sala-b' ? '/images/sala-b/02-3.jpeg' :
-                    '/images/sala-c/03-1.jpeg';
-                return (
-                  <div
-                    key={galleryData.slug}
-                    className="group relative rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 bg-white border border-warm-200"
-                  >
-                    <div
-                      className="relative w-full h-48 sm:h-56 cursor-pointer"
-                      onClick={() => handleOpenGallery(galleryData)}
-                    >
-                      <Image
-                        src={imageUrl}
-                        alt={galleryData.name}
-                        fill
-                        className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                        sizes="(max-width: 768px) 100vw, 33vw"
-                      />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
-                        <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white text-primary-800 px-4 py-2 rounded-full font-semibold flex items-center gap-2">
-                          <Eye className="w-4 h-4" />
-                          Ver fotos
-                        </span>
-                      </div>
-                    </div>
-                    <div className="p-5">
-                      <h3 className="text-lg font-bold text-primary-900 mb-1">{galleryData.name}</h3>
-                      <p className="text-sm text-accent-600 font-medium mb-3">{galleryData.description}</p>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="text-sm text-secondary-500">A partir de</span>
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-xl font-bold text-accent-600">{galleryData.price}</span>
-                            <span className="text-secondary-500 text-sm">/hora</span>
-                          </div>
-                        </div>
-                        <a
-                          href="https://wa.me/5531999923910?text=Ol%C3%A1!%20Gostaria%20de%20fazer%20uma%20reserva."
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="bg-accent-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-accent-700 transition-colors"
-                        >
-                          Reservar
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
+              <div className="col-span-3 text-center py-12 text-secondary-500">
+                Nenhum consultório disponível no momento.
+              </div>
             )}
           </div>
 

@@ -246,12 +246,16 @@ export default async function handler(
         });
       }
 
-      // 3. OBRIGATÓRIO: mínimo de 48 horas de antecedência
+      // 3. OBRIGATÓRIO: mínimo de 48 horas de antecedência (APENAS PARA CONFIRMED/PAID)
+      // Se for PENDING, permite cancelar a qualquer momento (liberar agenda)
       const hoursUntilStart = (startTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+      const isPending = booking.status === 'PENDING';
 
-      if (hoursUntilStart < MIN_CANCELLATION_HOURS) {
+      // Regra de 48h só se aplica se NÃO for PENDING (ou seja, CONFIRMED/PAID)
+      // Se for PENDING, pode cancelar mesmo em cima da hora
+      if (!isPending && hoursUntilStart < MIN_CANCELLATION_HOURS) {
         return res.status(400).json({
-          error: `Cancelamentos só são permitidos com no mínimo ${MIN_CANCELLATION_HOURS} horas de antecedência.`,
+          error: `Cancelamentos confirmados só são permitidos com no mínimo ${MIN_CANCELLATION_HOURS} horas de antecedência.`,
           code: 'TOO_LATE',
           hoursRemaining: Math.floor(hoursUntilStart),
           minHoursRequired: MIN_CANCELLATION_HOURS

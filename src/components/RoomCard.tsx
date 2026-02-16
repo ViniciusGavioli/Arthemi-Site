@@ -69,6 +69,8 @@ const getRoomImage = (slug: string): string => {
   }
 };
 
+
+
 export default function RoomCard({ room, onReservar }: RoomCardProps) {
   // Pega o preço da hora avulsa do produto ou do hourlyRate da sala
   const hourlyProduct = room.products?.find(p => p.type === 'HOURLY_RATE');
@@ -93,7 +95,7 @@ export default function RoomCard({ room, onReservar }: RoomCardProps) {
           <h3 className="text-lg sm:text-xl font-bold text-primary-900">{getRoomName(room.slug)}</h3>
           <p className="text-sm text-accent-600 font-medium">{getSubtitle(room.slug)}</p>
         </div>
-        
+
         <p className="text-secondary-600 text-sm mb-4 line-clamp-2">
           {room.description || getDescription(room.slug)}
         </p>
@@ -118,15 +120,12 @@ export default function RoomCard({ room, onReservar }: RoomCardProps) {
         {/* Preço e Botão */}
         <div className="flex items-center justify-between pt-4 border-t border-warm-200">
           <div>
-            <span className="text-sm text-secondary-500">A partir de</span>
             <div>
-              <span className="text-2xl font-bold text-accent-600">
-                {formatCurrency(hourlyPrice)}
-              </span>
+              {formatCurrency(room.hourlyRate / 100)}
               <span className="text-secondary-500 text-sm">/hora</span>
             </div>
           </div>
-          
+
           <button
             onClick={onReservar}
             className="bg-accent-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-accent-700 transition-colors"

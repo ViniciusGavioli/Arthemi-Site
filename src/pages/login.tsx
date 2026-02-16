@@ -81,9 +81,8 @@ export default function LoginPage({ successMessage, isFromRegistration }: LoginP
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || 'Erro ao fazer login');
-        setLoading(false);
-        return;
+        // Lança erro para cair no catch e ser tratado unificadamente
+        throw new Error(data.error || 'Erro ao fazer login');
       }
 
       // Login OK - redirecionar
@@ -95,13 +94,17 @@ export default function LoginPage({ successMessage, isFromRegistration }: LoginP
         if (navigated === false) {
           window.location.href = destination;
         }
-      } catch {
+      } catch (navError) {
+        console.error('Erro de navegação:', navError);
         // Fallback: hard redirect se router.push falhar
         window.location.href = destination;
       }
-
-    } catch {
-      setError('Erro de conexão. Tente novamente.');
+    } catch (err: any) {
+      console.error('Erro no login:', err);
+      // Exibe mensagem visual de erro
+      setError(err.message || 'Erro de conexão. Tente novamente.');
+    } finally {
+      // Garante que o estado de loading seja resetado sempre
       setLoading(false);
     }
   }

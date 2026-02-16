@@ -98,7 +98,7 @@ export async function restoreCreditsFromCancelledBooking(
       SET 
         "remainingAmount" = "remainingAmount" + ${toRestore},
         "status" = CASE 
-          WHEN "remainingAmount" + ${toRestore} > 0 THEN 'CONFIRMED' 
+          WHEN "remainingAmount" + ${toRestore} > 0 THEN 'CONFIRMED'::"CreditStatus" 
           ELSE "status" 
         END,
         "usedAt" = NULL,

@@ -172,8 +172,8 @@ export function validateSaturdayCredit(credit: Credit, bookingDate: Date): boole
 // ===========================================================
 
 // Re-import das funções de business-hours para validação de blocos
-import { 
-  isValidShiftBlock, 
+import {
+  isValidShiftBlock,
   isValidHourlyBooking,
   isSaturdayDay,
   getHourInBrazil,
@@ -210,27 +210,27 @@ export function validateCreditUsage(
 ): CreditUsageValidation {
   const usageType = credit.usageType;
   const isSaturdayBooking = isSaturdayDay(startTime);
-  
+
   // CRÉDITO LEGADO (sem usageType): Mantém comportamento atual
   // Não força regras novas, apenas valida sábado se for crédito SATURDAY
   if (!usageType) {
     return validateLegacyCreditUsage(credit, startTime, endTime);
   }
-  
+
   // NOVOS CRÉDITOS: Validação estrita por usageType
   switch (usageType) {
     case 'HOURLY':
       return validateHourlyUsage(startTime, endTime, isSaturdayBooking);
-      
+
     case 'SHIFT':
       return validateShiftUsage(startTime, endTime, isSaturdayBooking);
-      
+
     case 'SATURDAY_HOURLY':
       return validateSaturdayHourlyUsage(startTime, endTime, isSaturdayBooking);
-      
+
     case 'SATURDAY_SHIFT':
       return validateSaturdayShiftUsage(startTime, endTime, isSaturdayBooking);
-      
+
     default:
       // Fallback seguro: permite (não bloqueia créditos desconhecidos)
       return { valid: true };
@@ -249,7 +249,7 @@ function validateLegacyCreditUsage(
   endTime: Date
 ): CreditUsageValidation {
   const isSaturdayBooking = isSaturdayDay(startTime);
-  
+
   // Crédito SATURDAY (legado) só pode ser usado em sábado
   if (credit.type === 'SATURDAY') {
     if (!isSaturdayBooking) {
@@ -270,7 +270,7 @@ function validateLegacyCreditUsage(
       };
     }
   }
-  
+
   // LEGADO: Não força 1h fixa, permite comportamento atual (1-8h)
   return { valid: true };
 }
@@ -291,7 +291,7 @@ function validateHourlyUsage(
       code: 'HOURLY_NOT_ON_SATURDAY',
     };
   }
-  
+
   // HOURLY deve ser exatamente 1 hora
   if (!isValidHourlyBooking(startTime, endTime)) {
     return {
@@ -300,7 +300,7 @@ function validateHourlyUsage(
       code: 'HOURLY_MUST_BE_1H',
     };
   }
-  
+
   return { valid: true };
 }
 
@@ -320,7 +320,7 @@ function validateShiftUsage(
       code: 'SHIFT_NOT_ON_SATURDAY',
     };
   }
-  
+
   // SHIFT deve ser bloco fixo de 4h (08-12, 12-16, 16-20)
   if (!isValidShiftBlock(startTime, endTime)) {
     return {
@@ -329,7 +329,7 @@ function validateShiftUsage(
       code: 'SHIFT_INVALID_BLOCK',
     };
   }
-  
+
   return { valid: true };
 }
 
@@ -349,7 +349,7 @@ function validateSaturdayHourlyUsage(
       code: 'SATURDAY_HOURLY_WRONG_DAY',
     };
   }
-  
+
   // SATURDAY_HOURLY deve ser exatamente 1 hora
   if (!isValidHourlyBooking(startTime, endTime)) {
     return {
@@ -358,7 +358,7 @@ function validateSaturdayHourlyUsage(
       code: 'SATURDAY_HOURLY_MUST_BE_1H',
     };
   }
-  
+
   return { valid: true };
 }
 
@@ -378,7 +378,7 @@ function validateSaturdayShiftUsage(
       code: 'SATURDAY_SHIFT_WRONG_DAY',
     };
   }
-  
+
   // SATURDAY_SHIFT deve ser bloco fixo 08-12
   if (!isValidShiftBlock(startTime, endTime)) {
     return {
@@ -387,7 +387,7 @@ function validateSaturdayShiftUsage(
       code: 'SATURDAY_SHIFT_INVALID_BLOCK',
     };
   }
-  
+
   return { valid: true };
 }
 
@@ -407,7 +407,7 @@ export function isCreditCompatibleWithBooking(
 ): boolean {
   const usageType = credit.usageType;
   const isSaturdayBooking = isSaturdayDay(bookingDate);
-  
+
   // CRÉDITO LEGADO: Comportamento atual
   if (!usageType) {
     // Crédito SATURDAY (tipo) só pode em sábado
@@ -417,25 +417,25 @@ export function isCreditCompatibleWithBooking(
     // Demais créditos: só em dias úteis (comportamento atual)
     return !isSaturdayBooking;
   }
-  
+
   // NOVOS CRÉDITOS: Verificar compatibilidade
   switch (usageType) {
     case 'HOURLY':
       // Só seg-sex, só hora
       return !isSaturdayBooking && !isShiftBooking;
-      
+
     case 'SHIFT':
       // Só seg-sex, só turno
       return !isSaturdayBooking && isShiftBooking;
-      
+
     case 'SATURDAY_HOURLY':
       // Só sábado, só hora
       return isSaturdayBooking && !isShiftBooking;
-      
+
     case 'SATURDAY_SHIFT':
       // Só sábado, só turno
       return isSaturdayBooking && isShiftBooking;
-      
+
     default:
       return true;
   }
@@ -570,16 +570,16 @@ export async function consumeCreditsForBooking(
 ): Promise<{ creditIds: string[]; totalConsumed: number }> {
   // Usar transação passada ou prisma global (fallback)
   const db = tx ?? prisma;
-  
+
   // Buscar créditos disponíveis (usa db para consistência na transação)
   const credits = await getAvailableCreditsForRoomWithTx(db, userId, roomId, bookingDate, startTime, endTime);
-  
+
   // Verificar saldo total antes de consumir
   const totalAvailable = credits.reduce((sum, c) => sum + c.remainingAmount, 0);
   if (totalAvailable < amount) {
     throw new Error(`INSUFFICIENT_CREDITS:${totalAvailable}:${amount}`);
   }
-  
+
   let remaining = amount;
   const usedCreditIds: string[] = [];
   let totalConsumed = 0;
@@ -590,7 +590,7 @@ export async function consumeCreditsForBooking(
     const toConsume = Math.min(credit.remainingAmount, remaining);
     const newRemaining = credit.remainingAmount - toConsume;
     const isFullyConsumed = newRemaining === 0;
-    
+
     // UPDATE CONDICIONAL ATÔMICO - P-002
     // Só atualiza se remainingAmount ainda é >= toConsume
     // Previne double-spend em concorrência
@@ -599,12 +599,12 @@ export async function consumeCreditsForBooking(
       SET 
         "remainingAmount" = "remainingAmount" - ${toConsume},
         "usedAt" = CASE WHEN "remainingAmount" - ${toConsume} = 0 THEN NOW() ELSE "usedAt" END,
-        "status" = CASE WHEN "remainingAmount" - ${toConsume} = 0 THEN 'USED' ELSE 'CONFIRMED' END,
+        "status" = CASE WHEN "remainingAmount" - ${toConsume} = 0 THEN 'USED'::"CreditStatus" ELSE 'CONFIRMED'::"CreditStatus" END,
         "updatedAt" = NOW()
       WHERE id = ${credit.id}
         AND "remainingAmount" >= ${toConsume}
     `;
-    
+
     // Verificar se o update afetou exatamente 1 linha
     if (result !== 1) {
       // Crédito foi consumido por outra requisição concorrente
@@ -817,7 +817,7 @@ export async function getUserCreditsSummary(userId: string): Promise<{
     const key = credit.roomId ?? 'generic';
     const hourlyRate = credit.room?.hourlyRate ?? 6000; // Fallback: R$ 60/h
     const existing = byRoomMap.get(key);
-    
+
     if (existing) {
       existing.amount += credit.remainingAmount;
       existing.hours += credit.remainingAmount / existing.hourlyRate;
@@ -834,7 +834,7 @@ export async function getUserCreditsSummary(userId: string): Promise<{
   }
 
   const total = credits.reduce((sum, c) => sum + c.remainingAmount, 0);
-  
+
   // Calcular horas totais por sala (cada sala tem seu próprio hourlyRate)
   let totalHours = 0;
   const byRoom = Array.from(byRoomMap.values())
@@ -897,7 +897,7 @@ export async function checkAvailability({
     const bookingStart = new Date(booking.startTime).getTime();
     // endTime + BUFFER_MINUTES = tempo total bloqueado pela reserva
     const bookingEndWithBuffer = addBufferToEndTime(new Date(booking.endTime)).getTime();
-    
+
     const newStart = startTime.getTime();
     const newEnd = endTime.getTime();
 
@@ -1053,7 +1053,7 @@ export const calculatePackageExpiry = applyValidity;
  */
 export async function getValidUserPackages(userId: string) {
   const now = new Date();
-  
+
   return prisma.userPackage.findMany({
     where: {
       userId,

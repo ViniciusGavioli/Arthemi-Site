@@ -145,7 +145,8 @@ export default function SalasPage({ rooms }: SalasPageProps) {
           <div data-cards-section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16 scroll-mt-20">
             {rooms.length > 0 ? (
               rooms.map((room) => {
-                // HARDCODED ASSETS FOR PREMIUM DESIGN
+                // HARDCODED ASSETS FOR PREMIUM DESIGN - Strict Mode
+                // Ignoramos o DB para garantir o visual premium que o usuário quer
                 let imageUrl = room.imageUrl;
                 let shortDescription = room.description;
 

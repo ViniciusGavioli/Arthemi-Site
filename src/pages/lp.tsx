@@ -9,38 +9,15 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { prisma } from '@/lib/prisma';
 import RoomGalleryModal from '@/components/RoomGalleryModal';
-import BookingModal from '@/components/BookingModal';
+import LeadFormModal from '@/components/LeadFormModal'; // Changed from BookingModal
 import SEO, { BreadcrumbSchema } from '@/components/SEO';
 import Layout from '@/components/Layout';
 import { PAGE_SEO } from '@/constants/seo';
 import { formatCurrency } from '@/lib/utils';
-import { PRICES_V3, formatPrice, getAllProductsForRoom } from '@/constants/prices';
+import { PRICES_V3, formatPrice } from '@/constants/prices';
 import { Lightbulb, CheckCircle2, Eye } from 'lucide-react';
 import { analytics } from '@/lib/analytics';
 import { WHATSAPP_NUMBER } from '@/config/contact';
-
-// ============================================================
-// FUNÇÃO PARA CONSTRUIR URL WHATSAPP COM UTMs
-// ============================================================
-function buildWhatsAppUrl(roomName: string, utmParams: Record<string, string | undefined>): string {
-  const baseMessage = `Oi! Quero reservar a sala ${roomName} no Espaço Arthemi. Pode me passar horários disponíveis e valores?`;
-
-  // Adiciona UTMs se existirem
-  const utmParts: string[] = [];
-  if (utmParams.utm_source) utmParts.push(`utm_source: ${utmParams.utm_source}`);
-  if (utmParams.utm_medium) utmParts.push(`utm_medium: ${utmParams.utm_medium}`);
-  if (utmParams.utm_campaign) utmParts.push(`utm_campaign: ${utmParams.utm_campaign}`);
-  if (utmParams.utm_content) utmParts.push(`utm_content: ${utmParams.utm_content}`);
-  if (utmParams.utm_term) utmParts.push(`utm_term: ${utmParams.utm_term}`);
-
-  const fullMessage = utmParts.length > 0
-    ? `${baseMessage}\n\n[${utmParts.join(' | ')}]`
-    : baseMessage;
-
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(fullMessage)}`;
-}
-
-
 
 interface Product {
   id: string;
@@ -71,38 +48,25 @@ interface LPPageProps {
 export default function LPPage({ rooms }: LPPageProps) {
   const router = useRouter();
   const [galleryRoom, setGalleryRoom] = useState<{ name: string; slug: string } | null>(null);
-  const [bookingRoom, setBookingRoom] = useState<Room | null>(null);
-  // Captura UTMs da URL
-  const utmParams = {
-    utm_source: router.query.utm_source as string | undefined,
-    utm_medium: router.query.utm_medium as string | undefined,
-    utm_campaign: router.query.utm_campaign as string | undefined,
-    utm_content: router.query.utm_content as string | undefined,
-    utm_term: router.query.utm_term as string | undefined,
-  };
+
+  // Lead Form State (Replaces BookingModal state)
+  const [isLeadFormOpen, setIsLeadFormOpen] = useState(false);
+  const [selectedRoomName, setSelectedRoomName] = useState('');
+
   // Track de ViewContent: evita disparo duplicado para a mesma sala na mesma sessão
   const viewedRoomsRef = useRef<Set<string>>(new Set());
 
-
-
-  // Handler para abrir modal de reserva (igual à página inicial)
-  const handleOpenBooking = (roomSlug: string) => {
-    // Busca a sala do banco pelo slug
-    const dbRoom = rooms.find(r => r.slug === roomSlug);
-    if (dbRoom) {
-      setBookingRoom(dbRoom);
-    } else {
-      // Fallback: se não encontrou a sala no banco, redireciona para WhatsApp
-      const whatsappUrl = buildWhatsAppUrl('Espaço Arthemi', utmParams);
-      window.open(whatsappUrl, '_blank');
-    }
+  // Handler para abrir modal de reserva (LeadFormModal)
+  const handleOpenBooking = (roomName: string) => {
+    setSelectedRoomName(roomName);
+    setIsLeadFormOpen(true);
   };
 
-  // Handler para abrir WhatsApp (mantido para outros casos)
-  const handleReservar = (roomName: string) => {
-    const whatsappUrl = buildWhatsAppUrl(roomName, utmParams);
-    window.open(whatsappUrl, '_blank');
+  const handleCloseModal = () => {
+    setIsLeadFormOpen(false);
+    setSelectedRoomName('');
   };
+
   // Handler para abrir galeria de fotos (dispara ViewContent)
   const handleOpenGallery = (galleryData: { name: string; slug: string }) => {
     setGalleryRoom(galleryData);
@@ -117,8 +81,6 @@ export default function LPPage({ rooms }: LPPageProps) {
       }
     }
   };
-
-
 
   return (
     <>
@@ -190,11 +152,20 @@ export default function LPPage({ rooms }: LPPageProps) {
           <div data-cards-section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16 scroll-mt-20">
             {rooms.length > 0 ? (
               rooms.map((room) => {
-                const imageUrl = room.imageUrl || (
-                  room.slug === 'sala-a' ? '/images/sala-a/foto-4.jpeg' :
-                    room.slug === 'sala-b' ? '/images/sala-b/02-3.jpeg' :
-                      '/images/sala-c/03-1.jpeg'
-                );
+                // HARDCODED ASSETS FOR PREMIUM DESIGN - Strict Mode
+                let imageUrl = room.imageUrl;
+                let shortDescription = room.description;
+
+                if (room.slug === 'sala-a') {
+                  imageUrl = '/images/sala-a/foto-4.jpeg';
+                  shortDescription = 'Espaço premium';
+                } else if (room.slug === 'sala-b') {
+                  imageUrl = '/images/sala-b/02-3.jpeg';
+                  shortDescription = 'Consultório amplo';
+                } else if (room.slug === 'sala-c') {
+                  imageUrl = '/images/sala-c/03-1.jpeg';
+                  shortDescription = 'Espaço intimista';
+                }
 
                 return (
                   <div
@@ -206,7 +177,7 @@ export default function LPPage({ rooms }: LPPageProps) {
                       onClick={() => handleOpenGallery({ name: room.name, slug: room.slug })}
                     >
                       <Image
-                        src={imageUrl}
+                        src={imageUrl || '/images/hero/banner.jpeg'}
                         alt={room.name}
                         fill
                         className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
@@ -221,7 +192,7 @@ export default function LPPage({ rooms }: LPPageProps) {
                     </div>
                     <div className="p-5">
                       <h3 className="text-lg font-bold text-primary-900 mb-1">{room.name}</h3>
-                      <p className="text-sm text-accent-600 font-medium mb-3">{room.description}</p>
+                      <p className="text-sm text-accent-600 font-medium mb-3">{shortDescription}</p>
                       <div>
                         <div className="flex items-baseline gap-1">
                           <span className="text-xl font-bold text-accent-600">
@@ -234,7 +205,7 @@ export default function LPPage({ rooms }: LPPageProps) {
                       {/* Botão de Reserva */}
                       <div className="mt-4 pt-4 border-t border-gray-100">
                         <button
-                          onClick={() => handleOpenBooking(room.slug)}
+                          onClick={() => handleOpenBooking(room.name)}
                           className="bg-accent-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-accent-700 transition-colors"
                         >
                           Reservar agora
@@ -340,7 +311,7 @@ export default function LPPage({ rooms }: LPPageProps) {
                           Quer reservar? Clique no botão abaixo!
                         </p>
                         <button
-                          onClick={() => handleOpenBooking(roomData.slug)}
+                          onClick={() => handleOpenBooking(roomData.name)}
                           className="bg-accent-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-accent-700 transition-colors text-sm"
                         >
                           Reservar
@@ -380,20 +351,18 @@ export default function LPPage({ rooms }: LPPageProps) {
           onClose={() => setGalleryRoom(null)}
           onReservar={() => {
             setGalleryRoom(null);
-            handleOpenBooking(galleryRoom.slug);
+            handleOpenBooking(galleryRoom.name);
           }}
           room={galleryRoom}
         />
       )}
 
-      {/* Modal de Reserva */}
-      {bookingRoom && (
-        <BookingModal
-          room={bookingRoom}
-          products={bookingRoom.products}
-          onClose={() => setBookingRoom(null)}
-        />
-      )}
+      {/* Modal de Qualificação de Lead (Substitui BookingModal) */}
+      <LeadFormModal
+        isOpen={isLeadFormOpen}
+        onClose={handleCloseModal}
+        initialRoomName={selectedRoomName}
+      />
     </>
   );
 }

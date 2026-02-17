@@ -10,7 +10,7 @@ import { X, ChevronLeft, ChevronRight, Play, CheckCircle2 } from 'lucide-react';
 interface RoomDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onReservar?: () => void;
+  onReservar?: (room: any) => void;
   room: {
     name: string;
     slug: string;
@@ -135,7 +135,7 @@ export default function RoomDetailsModal({ isOpen, onClose, onReservar, room }: 
       {/* MODAL DE DETALHES */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         {/* Overlay */}
-        <div 
+        <div
           className="absolute inset-0 bg-black/70"
           onClick={onClose}
         />
@@ -154,7 +154,7 @@ export default function RoomDetailsModal({ isOpen, onClose, onReservar, room }: 
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto">
             {/* Imagem Principal - Clicável para abrir galeria */}
-            <div 
+            <div
               className="relative w-full aspect-[16/10] bg-warm-100 cursor-pointer group"
               onClick={() => openGallery(currentIndex)}
             >
@@ -169,7 +169,7 @@ export default function RoomDetailsModal({ isOpen, onClose, onReservar, room }: 
                     priority
                     quality={85}
                   />
-                  
+
                   {/* Overlay hover */}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
                     <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 text-primary-800 px-4 py-2 rounded-full font-medium text-sm">
@@ -193,11 +193,10 @@ export default function RoomDetailsModal({ isOpen, onClose, onReservar, room }: 
                     key={idx}
                     onClick={() => openGallery(idx)}
                     aria-label={`Ver foto ${idx + 1}`}
-                    className={`relative flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${
-                      currentIndex === idx
-                        ? 'border-accent-500'
-                        : 'border-transparent hover:border-warm-300'
-                    }`}
+                    className={`relative flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${currentIndex === idx
+                      ? 'border-accent-500'
+                      : 'border-transparent hover:border-warm-300'
+                      }`}
                   >
                     <Image
                       src={img}
@@ -208,7 +207,7 @@ export default function RoomDetailsModal({ isOpen, onClose, onReservar, room }: 
                     />
                   </button>
                 ))}
-                
+
                 {/* Video Thumbnail */}
                 {video && (
                   <button
@@ -260,7 +259,7 @@ export default function RoomDetailsModal({ isOpen, onClose, onReservar, room }: 
                 <span className="text-xl font-bold text-accent-600">{room.price}</span>
                 <span className="text-sm text-secondary-500">/hora</span>
               </div>
-              
+
               {/* CTA Buttons */}
               <div className="flex gap-3">
                 <Link
@@ -273,7 +272,7 @@ export default function RoomDetailsModal({ isOpen, onClose, onReservar, room }: 
                 <button
                   onClick={() => {
                     onClose();
-                    onReservar?.();
+                    onReservar?.(room);
                   }}
                   className="flex-1 bg-gradient-to-r from-accent-600 to-accent-700 text-white text-center py-3 px-4 rounded-xl font-semibold hover:shadow-lg transition-all active:scale-[0.98]"
                 >
@@ -289,7 +288,7 @@ export default function RoomDetailsModal({ isOpen, onClose, onReservar, room }: 
       {isGalleryOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center">
           {/* Overlay escuro */}
-          <div 
+          <div
             className="absolute inset-0 bg-black/95"
             onClick={closeGallery}
           />
@@ -350,11 +349,10 @@ export default function RoomDetailsModal({ isOpen, onClose, onReservar, room }: 
                 key={idx}
                 onClick={() => setGalleryIndex(idx)}
                 aria-label={`Ver foto ${idx + 1}`}
-                className={`relative w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${
-                  galleryIndex === idx
-                    ? 'border-white'
-                    : 'border-white/30 hover:border-white/60'
-                }`}
+                className={`relative w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${galleryIndex === idx
+                  ? 'border-white'
+                  : 'border-white/30 hover:border-white/60'
+                  }`}
               >
                 <Image
                   src={img}

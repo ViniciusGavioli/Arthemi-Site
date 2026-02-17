@@ -38,7 +38,7 @@ export default function LeadFormModal({ isOpen, onClose, initialRoomName }: Lead
             setFormData(prev => ({
                 ...prev,
                 roomName: initialRoomName || prev.roomName,
-                objective: 'doubt' // Reset objective to default or maybe based on context? Let's keep default.
+                objective: 'doubt'
             }));
         }
     }, [isOpen, initialRoomName]);
@@ -161,8 +161,8 @@ export default function LeadFormModal({ isOpen, onClose, initialRoomName }: Lead
                                         type="button"
                                         onClick={() => handleObjectiveSelect('doubt')}
                                         className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${formData.objective === 'doubt'
-                                                ? 'border-accent-500 bg-accent-50 text-accent-700'
-                                                : 'border-warm-100 hover:border-accent-200 text-secondary-600'
+                                            ? 'border-accent-500 bg-accent-50 text-accent-700'
+                                            : 'border-warm-100 hover:border-accent-200 text-secondary-600'
                                             }`}
                                     >
                                         <MessageCircle className={`w-6 h-6 mb-1 ${formData.objective === 'doubt' ? 'text-accent-600' : 'text-secondary-400'}`} />
@@ -172,8 +172,8 @@ export default function LeadFormModal({ isOpen, onClose, initialRoomName }: Lead
                                         type="button"
                                         onClick={() => handleObjectiveSelect('reserve')}
                                         className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${formData.objective === 'reserve'
-                                                ? 'border-accent-500 bg-accent-50 text-accent-700'
-                                                : 'border-warm-100 hover:border-accent-200 text-secondary-600'
+                                            ? 'border-accent-500 bg-accent-50 text-accent-700'
+                                            : 'border-warm-100 hover:border-accent-200 text-secondary-600'
                                             }`}
                                     >
                                         <CheckCircle2 className={`w-6 h-6 mb-1 ${formData.objective === 'reserve' ? 'text-accent-600' : 'text-secondary-400'}`} />

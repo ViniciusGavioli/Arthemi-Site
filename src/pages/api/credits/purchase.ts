@@ -465,21 +465,10 @@ export default async function handler(
         },
       });
 
-      // ========== REGISTRAR USO DO CUPOM (Idempotente - Anti-fraude) ==========
-      // Cupom DEV (isDevCoupon=true) → NÃO registra uso (uso infinito)
-      if (couponApplied) {
-        const couponResult = await recordCouponUsageIdempotent(tx, {
-          userId,
-          couponCode: couponApplied,
-          context: 'CREDIT_PURCHASE',
-          creditId: credit.id,
-          isDevCoupon, // Se true, skip registro (cupom DEV)
-        });
-
-        if (!couponResult.ok) {
-          throw new Error(`COUPON_ALREADY_USED:${couponApplied}`);
-        }
-      }
+      // ========== CUPOM: NÃO marcar como usado aqui ==========
+      // O cupom será marcado como usado APENAS quando o pagamento for confirmado
+      // no webhook do Asaas (CHECKOUT_PAID ou PAYMENT_CONFIRMED)
+      // Isso evita que o cupom seja consumido se o usuário cancelar o pagamento
 
       return { userId, credit, isAnonymousCheckout, isDevCoupon };
     });

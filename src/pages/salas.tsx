@@ -8,7 +8,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { prisma } from '@/lib/prisma';
 import RoomCard from '@/components/RoomCard';
-import BookingModal from '@/components/BookingModal';
+import LeadFormModal from '@/components/LeadFormModal';
 import RoomGalleryModal from '@/components/RoomGalleryModal';
 import SEO, { BreadcrumbSchema } from '@/components/SEO';
 import Layout from '@/components/Layout';
@@ -47,8 +47,8 @@ interface SalasPageProps {
 }
 
 export default function SalasPage({ rooms }: SalasPageProps) {
-  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLeadFormOpen, setIsLeadFormOpen] = useState(false);
+  const [selectedRoomName, setSelectedRoomName] = useState('');
   const [galleryRoom, setGalleryRoom] = useState<{ name: string; slug: string } | null>(null);
 
   // Track de ViewContent: evita disparo duplicado para a mesma sala na mesma sessão
@@ -56,14 +56,14 @@ export default function SalasPage({ rooms }: SalasPageProps) {
 
 
 
-  const handleReservar = (room: Room) => {
-    setSelectedRoom(room);
-    setIsModalOpen(true);
+  const handleReservar = (roomName: string) => {
+    setSelectedRoomName(roomName);
+    setIsLeadFormOpen(true);
   };
 
   const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedRoom(null);
+    setIsLeadFormOpen(false);
+    setSelectedRoomName('');
   };
 
   // Handler para abrir galeria de fotos (dispara ViewContent)
@@ -85,12 +85,8 @@ export default function SalasPage({ rooms }: SalasPageProps) {
   // Handler para reservar direto da galeria
   const handleReservarFromGallery = () => {
     if (galleryRoom) {
-      const room = rooms.find(r => r.slug === galleryRoom.slug);
-      if (room) {
-        setGalleryRoom(null); // Fecha galeria
-        setSelectedRoom(room);
-        setIsModalOpen(true); // Abre modal de reserva
-      }
+      setGalleryRoom(null); // Fecha galeria
+      handleReservar(galleryRoom.name);
     }
   };
 
@@ -149,12 +145,20 @@ export default function SalasPage({ rooms }: SalasPageProps) {
           <div data-cards-section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16 scroll-mt-20">
             {rooms.length > 0 ? (
               rooms.map((room) => {
-                // Seleciona a imagem (fallback para hardcoded se não tiver no banco por enquanto)
-                const imageUrl = room.imageUrl || (
-                  room.slug === 'sala-a' ? '/images/sala-a/foto-4.jpeg' :
-                    room.slug === 'sala-b' ? '/images/sala-b/02-3.jpeg' :
-                      '/images/sala-c/03-1.jpeg'
-                );
+                // HARDCODED ASSETS FOR PREMIUM DESIGN
+                let imageUrl = room.imageUrl;
+                let shortDescription = room.description;
+
+                if (room.slug === 'sala-a') {
+                  imageUrl = '/images/sala-a/foto-4.jpeg';
+                  shortDescription = 'Espaço premium';
+                } else if (room.slug === 'sala-b') {
+                  imageUrl = '/images/sala-b/02-3.jpeg';
+                  shortDescription = 'Consultório amplo';
+                } else if (room.slug === 'sala-c') {
+                  imageUrl = '/images/sala-c/03-1.jpeg';
+                  shortDescription = 'Espaço intimista';
+                }
 
                 return (
                   <div
@@ -166,7 +170,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                       onClick={() => handleOpenGallery({ name: room.name, slug: room.slug })}
                     >
                       <Image
-                        src={imageUrl}
+                        src={imageUrl || '/images/hero/banner.jpeg'}
                         alt={room.name}
                         fill
                         className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
@@ -181,7 +185,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                     </div>
                     <div className="p-5">
                       <h3 className="text-lg font-bold text-primary-900 mb-1">{room.name}</h3>
-                      <p className="text-sm text-accent-600 font-medium mb-3">{room.description}</p>
+                      <p className="text-sm text-accent-600 font-medium mb-3">{shortDescription}</p>
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="flex items-baseline gap-1">
@@ -192,7 +196,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                           </div>
                         </div>
                         <button
-                          onClick={() => handleReservar(room)}
+                          onClick={() => handleReservar(room.name)}
                           className="bg-accent-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-accent-700 transition-colors"
                         >
                           Reservar
@@ -333,17 +337,12 @@ export default function SalasPage({ rooms }: SalasPageProps) {
         </div>
       </Layout>
 
-      {/* Modal de Reserva */}
-      {isModalOpen && selectedRoom && (
-        <BookingModal
-          room={selectedRoom}
-          products={getAllProductsForRoom(
-            selectedRoom.slug === 'sala-a' ? 'SALA_A' :
-              selectedRoom.slug === 'sala-b' ? 'SALA_B' : 'SALA_C'
-          )}
-          onClose={handleCloseModal}
-        />
-      )}
+      {/* Modal de Qualificação de Lead */}
+      <LeadFormModal
+        isOpen={isLeadFormOpen}
+        onClose={handleCloseModal}
+        initialRoomName={selectedRoomName}
+      />
 
       {/* Modal de Galeria */}
       {galleryRoom && (
@@ -378,8 +377,8 @@ export const getServerSideProps: GetServerSideProps<SalasPageProps> = async (con
     };
   }
 
-  // Se não passou token ou token não bate, redireciona
-  if (!queryKey || queryKey !== accessKey) {
+  // Se não passou token ou token não bate, redireciona (APENAS EM PRODUÇÃO)
+  if (process.env.NODE_ENV === 'production' && (!queryKey || queryKey !== accessKey)) {
     console.log(`[${requestId}] 🚫 Acesso a /salas bloqueado - token inválido ou ausente`);
     return {
       redirect: {

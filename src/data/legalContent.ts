@@ -1,14 +1,20 @@
-import { PRICES_V3 } from '@/constants/prices';
 import { BUSINESS_INFO } from '@/constants/seo';
 
-// Helper to get raw text for potential future use or simple rendering
+// Updated: 17 de Fevereiro de 2026
+// Source: Official Documents + User Correction (48h rule, 20% fee, Concierge Model)
+
 export const LAST_UPDATE = '17 de Fevereiro de 2026';
+
+// Correct WhatsApp Number as per user request
+const WHATSAPP_SUPPORT = '(31) 99992-3910';
 
 export const TERMS_OF_USE = [
     {
         id: 'aceitacao',
         title: '1. Aceitação dos termos',
-        content: `Ao utilizar o site e os serviços do **Espaço Arthemi**, você concorda com estes Termos de Uso. Se você não concordar com qualquer parte destes termos, por favor, não utilize nossos serviços. Estes termos constituem um acordo legal entre você e o Espaço Arthemi para a locação de consultórios por hora.`
+        content: `Ao utilizar o site e os serviços do **Espaço Arthemi**, você concorda com estes Termos de Uso. Se você não concordar com qualquer parte destes termos, por favor, não utilize nossos serviços.
+    
+    Estes termos constituem um acordo legal entre você e o Espaço Arthemi para a locação de consultórios por hora.`
     },
     {
         id: 'servico',
@@ -17,79 +23,104 @@ export const TERMS_OF_USE = [
     
     *   Uso do consultório pelo período reservado
     *   Mobiliário básico (mesa, cadeiras, maca quando aplicável)
-    *   Ar condicionado e Wi-Fi
+    *   Ar condicionado
+    *   Wi-Fi
     *   Acesso às áreas comuns (recepção, banheiro, copa)
     
     **Não estão inclusos:** materiais de consumo, equipamentos especializados, secretária ou recepcionista exclusiva.`
     },
     {
         id: 'reservas',
-        title: '3. Solicitação de Reservas e Pagamento',
+        title: '3. Reservas e pagamento',
         content: `**3.1 Como reservar**
     As solicitações de reserva são iniciadas através do formulário disponível no site. Após o preenchimento, nossa equipe entrará em contato via WhatsApp para confirmar a disponibilidade do consultório desejado, realizar o agendamento e fornecer as instruções de pagamento. A reserva só é confirmada após a validação do pagamento pelo nosso atendimento.
     
     **3.2 Valores**
-    Os valores para locação avulsa e pacotes são informados no site e confirmados pelo atendimento no momento da reserva. Os valores podem sofrer alterações sem aviso prévio, mas reservas já confirmadas e pagas terão seu valor preservado.
+    Os valores praticados são informados no site e confirmados pelo atendimento. Os valores podem ser alterados a qualquer momento, mas reservas já confirmadas mantêm o valor pago.
     
     **3.3 Pagamento**
-    O pagamento é realizado diretamente com nossa equipe de atendimento via WhatsApp. Aceitamos pagamentos via PIX ou link de pagamento seguro. Não realizamos cobranças automáticas ou processamento de cartões diretamente através do site.`
+    O pagamento é realizado diretamente com nossa equipe de atendimento via WhatsApp (PIX ou link de pagamento). Não realizamos cobranças automáticas ou salvamento de dados bancários no site.`
     },
     {
         id: 'cancelamento',
-        title: '4. Cancelamento e Reembolso',
-        content: `Consulte a aba **Política de Reembolso** para detalhes completos sobre prazos, condições e procedimentos para cancelamento e estorno de valores.`
+        title: '4. Cancelamento e reembolso',
+        content: `**4.1 Cancelamento pelo cliente**
+    *   **Com mais de 48 horas de antecedência:** cancelamento permitido mediante solicitação via WhatsApp. Reembolso integral do valor pago.
+    *   **Com menos de 48 horas de antecedência:** não é possível cancelar com reembolso. O valor pago não será devolvido.
+    *   **Após o início da reserva:** não há reembolso.
+    
+    **4.2 Cancelamento pelo Espaço Arthemi**
+    Em casos excepcionais (manutenção emergencial, força maior), podemos cancelar uma reserva. Neste caso, oferecemos reembolso integral ou reagendamento sem custo adicional.
+    
+    **4.3 Não comparecimento (no-show)**
+    Se você não comparecer e não cancelar com antecedência (prazo de 48 horas), a reserva será considerada utilizada e não haverá reembolso.`
     },
     {
-        id: 'regras',
+        id: 'uso',
         title: '5. Regras de uso dos consultórios',
         content: `**5.1 Horário**
     *   Chegue com alguns minutos de antecedência para se acomodar.
-    *   Libere o consultório pontualmente ao fim do período reservado para não prejudicar o próximo profissional.
+    *   Libere o consultório pontualmente ao fim do período reservado.
+    *   Atrasos podem comprometer a próxima reserva.
     
-    **5.2 Conservação e Comportamento**
+    **5.2 Conservação**
     *   Mantenha o consultório limpo e organizado.
     *   Não fume nas dependências.
-    *   Respeite o silêncio e a privacidade dos demais profissionais e pacientes.
-    *   Não remova ou altere a disposição do mobiliário sem autorização prévia.
+    *   Comunique imediatamente qualquer dano ou problema.
+    *   Não remova ou altere a disposição do mobiliário sem autorização.
     
-    **5.3 Danos**
-    O profissional é responsável por quaisquer danos causados ao consultório, mobiliário ou equipamentos durante o período de sua reserva, devendo arcar com os custos de reparo ou reposição.`
+    **5.3 Comportamento**
+    *   Respeite os demais profissionais e pacientes.
+    *   Mantenha volume de voz adequado.
+    *   Não realize atividades ilegais ou antiéticas.
+    
+    **5.4 Danos**
+    O usuário é responsável por danos causados ao consultório ou equipamentos durante o período de sua reserva, devendo arcar com os custos de reparo ou reposição.`
     },
     {
         id: 'responsabilidades',
-        title: '6. Responsabilidades',
-        content: `**6.1 Do Espaço Arthemi**
-    Garantir o acesso ao consultório reservado em condições adequadas de uso, limpeza e funcionamento durante o horário contratado.
+        title: '6. Responsabilidades e limitações',
+        content: `**6.1 Responsabilidade do Espaço Arthemi**
+    *   Fornecer o consultório reservado em condições adequadas de uso.
+    *   Manter as instalações limpas e funcionais.
+    *   Garantir acesso durante o horário reservado.
     
-    **6.2 Do Profissional**
-    Você é integralmente responsável por sua atuação profissional, incluindo registro em conselho de classe, prontuários, sigilo de pacientes e cumprimento das normas sanitárias. O Espaço Arthemi não se responsabiliza pelos atendimentos prestados pelos profissionais locatários aos seus pacientes.`
+    **6.2 O que NÃO nos responsabilizamos**
+    *   Objetos pessoais esquecidos ou furtados.
+    *   Atendimentos realizados pelos profissionais (você é responsável por seus pacientes).
+    *   Questões entre você e seus pacientes ou clientes.
+    *   Interrupções por força maior (falta de energia, internet, etc.).
+    *   Dados armazenados em equipamentos pessoais.
+    
+    **6.3 Responsabilidade profissional**
+    Você é integralmente responsável por sua atuação profissional, incluindo registro em conselho, seguros, prontuários e sigilo de seus pacientes.`
     },
     {
         id: 'propriedade',
-        title: '7. Propriedade Intelectual',
-        content: `Todo o conteúdo do site (textos, imagens, logotipos, design) é propriedade do Espaço Arthemi. É proibida a reprodução parcial ou total sem autorização expressa.`
+        title: '7. Propriedade intelectual',
+        content: `Todo o conteúdo do site (textos, imagens, logotipos, design) é propriedade do Espaço Arthemi ou licenciado para nosso uso. É proibida a reprodução sem autorização prévia.`
     },
     {
         id: 'privacidade',
         title: '8. Privacidade',
-        content: `O tratamento dos seus dados pessoais é regido pela nossa **Política de Privacidade**, disponível na aba correspondente nesta página.`
+        content: `O tratamento dos seus dados pessoais é regido pela nossa **Política de Privacidade**, que faz parte integrante destes Termos de Uso e pode ser consultada na aba específica desta página.`
     },
     {
         id: 'alteracoes',
-        title: '9. Alterações',
+        title: '9. Alterações nos termos',
         content: `Podemos atualizar estes Termos de Uso a qualquer momento. Alterações significativas serão comunicadas. O uso continuado dos serviços após alterações constitui aceitação dos novos termos.`
     },
     {
         id: 'foro',
-        title: '10. Legislação e Foro',
-        content: `Estes termos são regidos pelas leis brasileiras. Fica eleito o foro da Comarca de Belo Horizonte/MG para dirimir quaisquer controvérsias.`
+        title: '10. Legislação e foro',
+        content: `Estes Termos de Uso são regidos pelas leis da República Federativa do Brasil. Fica eleito o foro da Comarca de Belo Horizonte/MG para dirimir quaisquer controvérsias, com exclusão de qualquer outro, por mais privilegiado que seja.`
     },
     {
         id: 'contato',
         title: '11. Contato',
-        content: `Em caso de dúvidas, entre em contato:
+        content: `Se você tiver dúvidas sobre estes Termos de Uso, entre em contato:
     
-    *   **WhatsApp:** ${BUSINESS_INFO.phone}
+    *   **WhatsApp Official:** ${WHATSAPP_SUPPORT}
     *   **E-mail:** ${BUSINESS_INFO.email}
     *   **Endereço:** ${BUSINESS_INFO.address.street} — ${BUSINESS_INFO.address.neighborhood}, ${BUSINESS_INFO.address.city}/${BUSINESS_INFO.address.stateCode}`
     }
@@ -97,81 +128,106 @@ export const TERMS_OF_USE = [
 
 export const REFUND_POLICY = [
     {
-        id: 'intro',
-        title: 'Política de Reembolso',
-        content: `Esta política estabelece as condições para cancelamento de reservas e reembolso de valores pagos ao Espaço Arthemi, garantindo transparência em nossa relação comercial.`
+        id: 'cancelamento',
+        title: '1. Cancelamento de Reservas',
+        content: `Para garantir a melhor organização dos atendimentos e disponibilidade dos espaços, solicitamos que cancelamentos sejam realizados com no mínimo **48 horas de antecedência** do horário agendado.
+    
+    O pedido de cancelamento deve ser feito exclusivamente através do nosso WhatsApp de atendimento: **${WHATSAPP_SUPPORT}**.
+    
+    **Cancelamentos dentro do prazo (mais de 48h):**
+    *   Elegíveis para reembolso integral do valor efetivamente pago.
+    *   Processamento em até 5 dias úteis.
+    
+    **Cancelamentos fora do prazo (menos de 48h):**
+    *   **Não elegíveis para reembolso.**
+    *   O horário reservado ficará bloqueado para o profissional e não poderá ser realocado, gerando custo de oportunidade para o espaço.`
     },
     {
-        id: 'prazos',
-        title: '1. Prazos para Cancelamento',
-        content: `**1.1 Cancelamento com antecedência (mais de 2 horas)**
-    Solicitações de cancelamento feitas com mais de 2 horas de antecedência ao horário agendado dão direito ao reembolso integral do valor pago ou crédito para reagendamento, sem custos adicionais.
-    
-    **1.2 Cancelamento de última hora (menos de 2 horas)**
-    Cancelamentos solicitados com menos de 2 horas de antecedência não são elegíveis para reembolso, devido à reserva da sala e impossibilidade de realocação para outro profissional.
-    
-    **1.3 Não comparecimento (No-Show)**
-    O não comparecimento no horário agendado, sem aviso prévio nos prazos estabelecidos, não dá direito a reembolso.`
-    },
-    {
-        id: 'comprovante',
+        id: 'reembolso',
         title: '2. Procedimento de Reembolso',
-        content: `Para solicitar um reembolso, entre em contato com nosso atendimento via WhatsApp.
+        content: `O valor do reembolso corresponde ao montante efetivamente pago no momento da reserva.
     
-    **Importante:** É obrigatória a apresentação do comprovante da transação de pagamento original para a validação e processamento do estorno. O reembolso será realizado preferencialmente via PIX, na mesma conta de origem do pagamento, em até 5 dias úteis após a aprovação da solicitação.`
+    **Formas de reembolso:**
+    *   **Créditos para uso futuro:** Disponíveis imediatamente para novas reservas.
+    *   **Estorno financeiro (PIX):** Realizado na mesma conta de origem do pagamento, em até 5 dias úteis após a aprovação da solicitação e envio do comprovante da transação original.
+    
+    **Importante:** É obrigatória a apresentação do comprovante da transação de pagamento para validação do estorno.`
     },
     {
-        id: 'excecoes',
-        title: '3. Casos Excepcionais',
-        content: `Em casos de cancelamento por iniciativa do Espaço Arthemi (manutenção emergencial, falta de energia ou força maior), o valor será integralmente reembolsado ou, se preferir, a reserva será reagendada sem custo algum.`
+        id: 'pacotes',
+        title: '3. Reembolso de Pacotes de Horas',
+        content: `Para o cancelamento e reembolso de Pacotes de Horas não utilizados ou parcialmente utilizados, aplicam-se as seguintes regras:
+    
+    *   **Cálculo do valor utilizado:** As horas já utilizadas serão descontadas do valor total do pacote com base no **preço da hora avulsa vigente** (sem o desconto promocional do pacote).
+    *   **Taxa Administrativa:** Sobre o saldo restante a ser reembolsado, será aplicada uma **taxa administrativa de 20% (vinte por cento)** para cobrir custos operacionais e financeiros.
+    *   **Prazo:** A solicitação deve ser feita dentro do prazo de validade do pacote.`
+    },
+    {
+        id: 'cupons',
+        title: '4. Cupons e Promoções',
+        content: `Cupons promocionais são benefícios de uso único, válidos exclusivamente para a transação em que foram aplicados.
+    
+    **Regras:**
+    *   Cupons promocionais NÃO são restaurados após cancelamento.
+    *   O desconto obtido não é convertido em crédito ou reembolso.
+    *   O reembolso será sempre sobre o valor líquido efetivamente pago pelo cliente.`
     }
 ];
 
 export const PRIVACY_POLICY = [
     {
         id: 'intro',
-        title: 'Política de Privacidade',
-        content: `O **Espaço Arthemi** respeita a sua privacidade. Esta política descreve como coletamos e utilizamos suas informações, limitando-nos ao estritamente necessário para o atendimento e prestação de serviço, conforme a Lei Geral de Proteção de Dados (LGPD).`
+        title: '1. Quem somos',
+        content: `O **Espaço Arthemi** é um coworking de saúde localizado em Belo Horizonte, MG. Esta Política de Privacidade explica como coletamos, usamos e protegemos seus dados pessoais.`
     },
     {
         id: 'coleta',
-        title: '1. Dados que Coletamos',
-        content: `Para viabilizar seu atendimento e solicitação de reserva, coletamos através do nosso formulário apenas os seguintes dados:
+        title: '2. Quais dados coletamos',
+        content: `Coletamos apenas os dados estritamente necessários para iniciar o atendimento e direcionar sua solicitação para o WhatsApp:
     
     *   **Nome completo:** Para identificação.
-    *   **Telefone (WhatsApp):** Para contato, confirmação e envio de informações.
-    *   **Profissão:** Para melhor adequação do atendimento às suas necessidades.
-    *   **Intenção:** Se deseja tirar dúvidas ou solicitar uma reserva.
+    *   **Telefone (WhatsApp):** Para contato e prosseguimento da reserva.
+    *   **Profissão:** Para adequação do espaço às suas necessidades.
+    *   **Intenção:** (Tirar dúvidas ou Reservar).
     
-    **Atenção:** Não coletamos números de documentos (CPF/RG) ou endereço no formulário inicial. Estes dados podem ser solicitados pontualmente no WhatsApp apenas para emissão de Nota Fiscal, se necessário.`
+    **Não coletamos dados sensíveis** ou financeiros através do formulário do site.`
     },
     {
         id: 'pagamento',
-        title: '2. Dados de Pagamento',
-        content: `**Não coletamos, armazenamos ou processamos dados financeiros (cartão de crédito, dados bancários) em nosso site.**
+        title: '3. Dados de Pagamento',
+        content: `**Não coletamos ou armazenamos dados de cartão de crédito ou bancários em nosso site.**
     
-    Todo o processo de pagamento é realizado externamente durante o atendimento via WhatsApp, através de links seguros de pagamento ou transferência bancária (PIX). Nenhuma informação financeira sensível transita por nossos servidores.`
+    Todo o processo de pagamento é realizado externamente durante o atendimento via WhatsApp, através de transações seguras (PIX ou Link de Pagamento). Os dados financeiros são processados diretamente pelas instituições financeiras envolvidas, sem trânsito ou armazenamento em nossos servidores.`
     },
     {
         id: 'finalidade',
-        title: '3. Como Usamos seus Dados',
-        content: `Utilizamos as informações coletadas exclusivamente para:
+        title: '4. Para que usamos seus dados',
+        content: `Utilizamos seus dados para:
+    *   Iniciar o atendimento via WhatsApp.
+    *   Processar solicitações de reserva.
+    *   Enviar confirmações de agendamento.
+    *   Cumprir obrigações legais e fiscais.
     
-    *   Entrar em contato via WhatsApp para responder dúvidas.
-    *   Processar sua solicitação de reserva de consultório.
-    *   Confirmar agendamentos.
-    *   Cumprir obrigações legais e fiscais (emissão de NF).
-    
-    Não compartilhamos seus dados com terceiros para fins de marketing.`
+    **Não vendemos ou compartilhamos seus dados com terceiros para fins de marketing.**`
+    },
+    {
+        id: 'compartilhamento',
+        title: '5. Compartilhamento de Dados',
+        content: `Seus dados podem ser compartilhados apenas com prestadores de serviço essenciais para a operação (ex: sistema de agendamento, contabilidade) ou quando exigido por lei.`
     },
     {
         id: 'seguranca',
-        title: '4. Segurança',
-        content: `Adotamos medidas de segurança técnicas e administrativas para proteger seus dados pessoais contra acessos não autorizados e situações acidentais ou ilícitas de destruição, perda, alteração, comunicação ou difusão.`
+        title: '6. Segurança',
+        content: `Adotamos medidas técnicas e administrativas adequadas para proteger seus dados pessoais contra acessos não autorizados e situações acidentais ou ilícitas.`
     },
     {
         id: 'direitos',
-        title: '5. Seus Direitos',
-        content: `Você tem o direito de solicitar, a qualquer momento, o acesso, correção ou exclusão dos seus dados pessoais de nossa base de contatos. Para isso, basta enviar uma solicitação através do nosso canal de atendimento no WhatsApp ou E-mail.`
+        title: '7. Seus direitos (LGPD)',
+        content: `Você tem direito de confirmar a existência, acessar, corrigir e solicitar a exclusão de seus dados pessoais. Para exercer seus direitos, entre em contato pelo nosso canal oficial de atendimento.`
+    },
+    {
+        id: 'contato',
+        title: '8. Contato',
+        content: `Dúvidas sobre privacidade podem ser tratadas através do nosso WhatsApp oficial: **${WHATSAPP_SUPPORT}** ou e-mail: **${BUSINESS_INFO.email}**.`
     }
 ];

@@ -79,6 +79,15 @@ export default function LeadFormModal({ isOpen, onClose, initialRoomName }: Lead
             message = `Olá! Me chamo ${formData.name}, sou ${formData.profession} e gostaria de reservar o ${room} por ${hoursText}. Meu número de contato é ${formData.phone}.`;
         }
 
+        // Dispara conversão do Google Ads (Contato via WhatsApp)
+        if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+            window.gtag('event', 'conversion', {
+                'send_to': 'AW-17960843080/w5GcCK2pyfobEMjusvRC',
+                'value': 1.0,
+                'currency': 'BRL'
+            });
+        }
+
         const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
         window.open(url, '_blank');
         onClose();

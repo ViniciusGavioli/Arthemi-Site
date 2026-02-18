@@ -114,7 +114,7 @@ export default function LPPage({ rooms }: LPPageProps) {
             style={{ background: 'linear-gradient(135deg, rgba(180,150,130,0.55) 0%, rgba(160,130,110,0.65) 100%)' }}
           />
           <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h1 className="text-3xl sm:text-4xl font-bold mb-4">Consultórios e investimento</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold mb-4">Ver Preços e Fotos</h1>
             <p className="text-lg sm:text-xl text-white/80 max-w-2xl mx-auto mb-6">
               Valores claros e sem surpresas. Transparência total em relação aos preços praticados.
             </p>

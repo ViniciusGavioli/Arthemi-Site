@@ -178,16 +178,19 @@ export default function Home({ rooms }: HomeProps) {
                                     }}
                                     className="group bg-gradient-to-r from-accent-600 to-accent-700 text-white px-8 py-4 min-h-[52px] rounded-full font-bold text-lg hover:shadow-2xl hover:shadow-accent-500/30 transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] flex items-center justify-center gap-2"
                                 >
-                                    Ver consultórios e investimento
+                                    Ver Preços e Fotos
                                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                                 </button>
-                                <Link
-                                    href="/como-funciona"
+                                <button
+                                    onClick={() => {
+                                        const locSection = document.getElementById('localizacao');
+                                        if (locSection) locSection.scrollIntoView({ behavior: 'smooth' });
+                                    }}
                                     className="bg-warm-100 text-primary-800 px-8 py-4 min-h-[52px] rounded-full font-bold text-lg border-2 border-warm-300 hover:border-accent-400 hover:text-accent-700 transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-2"
                                 >
-                                    <Calendar className="w-5 h-5" />
-                                    Como funciona
-                                </Link>
+                                    <MapPin className="w-5 h-5" />
+                                    Ver Localização
+                                </button>
                             </div>
                         </div>
                     </div>

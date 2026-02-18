@@ -135,7 +135,7 @@ export default function App({ Component, pageProps }: AppProps) {
             </>
           )}
 
-          {/* Google Analytics 4 - gtag.js */}
+          {/* Google Analytics 4 + Google Ads - gtag.js */}
           {process.env.NODE_ENV === 'production' && (
             <>
               <Script
@@ -151,9 +151,15 @@ export default function App({ Component, pageProps }: AppProps) {
                     window.dataLayer = window.dataLayer || [];
                     function gtag(){dataLayer.push(arguments);}
                     gtag('js', new Date());
+                    
+                    // GA4 Config
                     gtag('config', '${GA4_MEASUREMENT_ID}', {
                       page_path: window.location.pathname,
                     });
+
+                    // Google Ads Config (Remarketing + Conversions)
+                    // AW-17960843080
+                    gtag('config', 'AW-17960843080');
                   `,
                 }}
               />

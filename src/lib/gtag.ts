@@ -46,14 +46,14 @@ interface GtagEventParams {
     price?: number;
     quantity?: number;
   }>;
-  
+
   // Customizados
   event_category?: string;
   event_label?: string;
   method?: string;
   content_type?: string;
   content_id?: string;
-  
+
   // Qualquer outro parâmetro
   [key: string]: unknown;
 }
@@ -97,11 +97,11 @@ function debugLog(eventName: string, params?: GtagEventParams): void {
  */
 export function gtagEvent(eventName: string, params?: GtagEventParams): void {
   debugLog(eventName, params);
-  
+
   if (!isGtagAvailable()) {
     return;
   }
-  
+
   try {
     window.gtag!('event', eventName, params);
   } catch (error) {
@@ -117,7 +117,7 @@ export function pageview(url: string): void {
     debugLog('page_view', { page_path: url });
     return;
   }
-  
+
   try {
     window.gtag!('config', GA4_MEASUREMENT_ID, {
       page_path: url,
@@ -224,7 +224,7 @@ export function trackPurchase(params: {
       quantity: 1,
     }],
   });
-  
+
   // Se tiver Google Ads configurado, enviar conversão
   if (GOOGLE_ADS_ID && isGtagAvailable()) {
     try {
@@ -265,6 +265,9 @@ export function trackSignUp(method: string = 'email'): void {
   });
 }
 
+// Google Ads Conversion Label for 'Contato' (WhatsApp)
+const GOOGLE_ADS_CONTACT_LABEL = 'w5GcCK2pyfobEMjusvRC';
+
 /**
  * Clique em contato (WhatsApp, telefone, email)
  */
@@ -276,12 +279,26 @@ export function trackContact(params: {
     method: params.method,
     event_label: params.location,
   });
-  
+
   // Também como evento personalizado para facilitar
   gtagEvent('click_contact', {
     contact_method: params.method,
     page_location: params.location,
   });
+
+  // Se for WhatsApp e tiver ID do Google Ads, envia conversão
+  if (params.method === 'whatsapp' && GOOGLE_ADS_ID && isGtagAvailable()) {
+    try {
+      window.gtag!('event', 'conversion', {
+        send_to: `${GOOGLE_ADS_ID}/${GOOGLE_ADS_CONTACT_LABEL}`,
+        value: 1.0,
+        currency: 'BRL',
+      });
+      debugLog('conversion (Google Ads)', { label: GOOGLE_ADS_CONTACT_LABEL });
+    } catch (error) {
+      console.error('[gtag] Erro ao enviar conversão Google Ads:', error);
+    }
+  }
 }
 
 // ============================================================
@@ -293,19 +310,19 @@ export function trackContact(params: {
  */
 export function getUtmParams(): Record<string, string> {
   if (typeof window === 'undefined') return {};
-  
+
   const params = new URLSearchParams(window.location.search);
   const utmParams: Record<string, string> = {};
-  
+
   const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'gclid', 'fbclid'];
-  
+
   utmKeys.forEach(key => {
     const value = params.get(key);
     if (value) {
       utmParams[key] = value;
     }
   });
-  
+
   return utmParams;
 }
 
@@ -314,9 +331,9 @@ export function getUtmParams(): Record<string, string> {
  */
 export function saveUtmParams(): void {
   if (typeof window === 'undefined') return;
-  
+
   const utmParams = getUtmParams();
-  
+
   if (Object.keys(utmParams).length > 0) {
     try {
       sessionStorage.setItem('utm_params', JSON.stringify(utmParams));
@@ -331,7 +348,7 @@ export function saveUtmParams(): void {
  */
 export function getSavedUtmParams(): Record<string, string> {
   if (typeof window === 'undefined') return {};
-  
+
   try {
     const saved = sessionStorage.getItem('utm_params');
     return saved ? JSON.parse(saved) : {};

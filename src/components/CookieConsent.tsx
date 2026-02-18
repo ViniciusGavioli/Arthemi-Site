@@ -44,7 +44,7 @@ export default function CookieConsent() {
                         <p className="text-secondary-600 text-sm leading-relaxed">
                             Utilizamos cookies para melhorar sua experiência e analisar o tráfego do site.
                             As informações sobre o seu uso do site são compartilhadas com nossos parceiros de publicidade e análise.
-                            Ao clicar em "Aceitar", você concorda com nossa{' '}
+                            Ao clicar em &quot;Aceitar&quot;, você concorda com nossa{' '}
                             <Link href="/privacidade" className="text-accent-600 hover:underline font-medium">
                                 Política de Privacidade
                             </Link>.

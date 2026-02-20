@@ -171,16 +171,13 @@ export default function Home({ rooms }: HomeProps) {
 
                             {/* CTA Buttons */}
                             <div className="flex flex-col sm:flex-row gap-4 justify-center px-4">
-                                <button
-                                    onClick={() => {
-                                        const cardsSection = document.querySelector('[data-cards-section]');
-                                        if (cardsSection) cardsSection.scrollIntoView({ behavior: 'smooth' });
-                                    }}
+                                <Link
+                                    href="/salas"
                                     className="group bg-gradient-to-r from-accent-600 to-accent-700 text-white px-8 py-4 min-h-[52px] rounded-full font-bold text-lg hover:shadow-2xl hover:shadow-accent-500/30 transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] flex items-center justify-center gap-2"
                                 >
                                     Ver Preços e Fotos
                                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                                </button>
+                                </Link>
                                 <button
                                     onClick={() => {
                                         const locSection = document.getElementById('localizacao');
@@ -369,11 +366,11 @@ export default function Home({ rooms }: HomeProps) {
                                 }
 
                                 return (
-                                    <div
+                                    <Link
                                         key={room.id}
+                                        href={`/salas?room=${room.slug}`}
                                         className={`group relative rounded-3xl overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white ${isFeatured ? 'md:scale-105 border-2 border-accent-500 shadow-accent-500/30' : 'border border-warm-200'
-                                            } cursor-pointer`}
-                                        onClick={() => handleOpenBooking(room.name)}
+                                            } cursor-pointer block`}
                                     >
                                         {isFeatured && (
                                             <div className="absolute -top-px left-1/2 -translate-x-1/2 bg-accent-600 text-white px-4 py-1 rounded-b-lg text-sm font-bold z-10">
@@ -420,7 +417,7 @@ export default function Home({ rooms }: HomeProps) {
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    </Link>
                                 );
                             })}
                         </div>

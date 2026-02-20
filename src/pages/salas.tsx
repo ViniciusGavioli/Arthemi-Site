@@ -3,6 +3,7 @@
 // ===========================================================
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/router';
 import { GetServerSideProps } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -51,8 +52,23 @@ export default function SalasPage({ rooms }: SalasPageProps) {
   const [selectedRoomName, setSelectedRoomName] = useState('');
   const [galleryRoom, setGalleryRoom] = useState<{ name: string; slug: string } | null>(null);
 
+  const router = useRouter();
   // Track de ViewContent: evita disparo duplicado para a mesma sala na mesma sessão
   const viewedRoomsRef = useRef<Set<string>>(new Set());
+
+  // Auto-abrir galeria se houver slug na URL (?room=slug)
+  useEffect(() => {
+    if (router.isReady && router.query.room && rooms.length > 0) {
+      const roomSlug = router.query.room as string;
+      const room = rooms.find(r => r.slug === roomSlug);
+      if (room) {
+        handleOpenGallery({ name: room.name, slug: room.slug });
+        // Limpar query param para não reabrir ao navegar/recarregar
+        const { room: _, ...restQuery } = router.query;
+        router.replace({ pathname: router.pathname, query: restQuery }, undefined, { shallow: true });
+      }
+    }
+  }, [router.isReady, router.query.room, rooms]);
 
 
 

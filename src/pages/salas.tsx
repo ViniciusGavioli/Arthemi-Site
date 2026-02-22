@@ -177,12 +177,18 @@ export default function SalasPage({ rooms }: SalasPageProps) {
                         className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
                         sizes="(max-width: 768px) 100vw, 33vw"
                       />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+                      {/* Hint hover — desktop only */}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all hidden md:flex items-center justify-center">
                         <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white text-primary-800 px-4 py-2 rounded-full font-semibold flex items-center gap-2">
                           <Eye className="w-4 h-4" />
                           Ver fotos
                         </span>
                       </div>
+                      {/* Badge fixo — mobile only (sem hover disponível) */}
+                      <span className="md:hidden absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm text-white text-[13px] font-semibold px-3 py-1.5 rounded-full z-10 pointer-events-none">
+                        <Eye className="w-3.5 h-3.5" />
+                        Ver fotos
+                      </span>
                     </div>
                     <div className="p-5">
                       <h3 className="text-lg font-bold text-primary-900 mb-1">{room.name}</h3>

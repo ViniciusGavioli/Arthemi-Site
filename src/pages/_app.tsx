@@ -8,6 +8,7 @@ import Head from 'next/head';
 import Script from 'next/script';
 import { LocalBusinessSchema, WebSiteSchema } from '@/components/SEO';
 import { SITE_CONFIG, BUSINESS_INFO, getOgImageUrl } from '@/constants/seo';
+import MetaPixel from '@/components/MetaPixel';
 import '../styles/globals.css';
 
 const GA_ID = 'G-6M5655B2Q5';
@@ -72,6 +73,9 @@ export default function App({ Component, pageProps }: AppProps) {
           gtag('config', '${GA_ID}');
         `}
       </Script>
+
+      {/* Meta Pixel */}
+      <MetaPixel />
 
       <Component {...pageProps} />
     </>

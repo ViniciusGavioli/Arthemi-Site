@@ -353,16 +353,20 @@ export default function Home({ rooms }: HomeProps) {
                                 // HARDCODED ASSETS FOR PREMIUM DESIGN - Strict Mode
                                 let imageUrl = room.imageUrl;
                                 let shortDescription = room.description;
+                                let displayName = room.name;
 
                                 if (room.slug === 'sala-a') {
                                     imageUrl = '/images/sala-a/foto-4.jpeg';
                                     shortDescription = 'Espaço premium';
+                                    displayName = 'Consultório 1 | Prime';
                                 } else if (room.slug === 'sala-b') {
                                     imageUrl = '/images/sala-b/02-3.jpeg';
                                     shortDescription = 'Consultório amplo';
+                                    displayName = 'Consultório 2 | Executive';
                                 } else if (room.slug === 'sala-c') {
                                     imageUrl = '/images/sala-c/03-1.jpeg';
                                     shortDescription = 'Espaço intimista';
+                                    displayName = 'Consultório 3 | Essential';
                                 }
 
                                 return (
@@ -403,7 +407,7 @@ export default function Home({ rooms }: HomeProps) {
                                                 </span>
                                             </div>
 
-                                            <h3 className="text-xl sm:text-2xl font-bold text-primary-900 mb-2">{room.name}</h3>
+                                            <h3 className="text-xl sm:text-2xl font-bold text-primary-900 mb-2">{displayName}</h3>
                                             <p className="text-secondary-600 text-sm mb-4 line-clamp-2">
                                                 {room.description}
                                             </p>
@@ -566,7 +570,7 @@ export default function Home({ rooms }: HomeProps) {
                                         <div>
                                             <p className="font-semibold text-primary-900">Horário</p>
                                             <p className="text-secondary-600">
-                                                Seg a Sex: 8h às 18h<br />
+                                                Seg a Sex: 8h às 20h<br />
                                                 Sáb: 8h às 12h
                                             </p>
                                         </div>

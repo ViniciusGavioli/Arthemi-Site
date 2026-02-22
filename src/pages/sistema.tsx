@@ -381,7 +381,9 @@ export default function Home({ dbRooms }: HomeProps) {
                         </span>
                       </div>
 
-                      <h3 className="text-xl sm:text-2xl font-bold text-primary-900 mb-2">{room.name}</h3>
+                      <h3 className="text-xl sm:text-2xl font-bold text-primary-900 mb-2">
+                        {room.slug === 'sala-a' ? 'Consultório 1 | Prime' : room.slug === 'sala-b' ? 'Consultório 2 | Executive' : 'Consultório 3 | Essential'}
+                      </h3>
                       <p className="text-secondary-600 text-sm mb-4 line-clamp-2">
                         {room.description}
                       </p>
@@ -541,7 +543,7 @@ export default function Home({ dbRooms }: HomeProps) {
                     <div>
                       <p className="font-semibold text-primary-900">Horário</p>
                       <p className="text-secondary-600">
-                        Seg a Sex: 8h às 18h<br />
+                        Seg a Sex: 8h às 20h<br />
                         Sáb: 8h às 12h
                       </p>
                     </div>

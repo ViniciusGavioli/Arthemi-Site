@@ -2,62 +2,19 @@
 // _app.tsx - Componente raiz do Next.js
 // ===========================================================
 
-import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import type { AppProps } from 'next/app';
 import Head from 'next/head';
 import Script from 'next/script';
 import { LocalBusinessSchema, WebSiteSchema } from '@/components/SEO';
-import { SITE_CONFIG, BUSINESS_INFO, getFullUrl, getOgImageUrl } from '@/constants/seo';
-import { getMetaPixelScript, getMetaPixelId, trackPageView } from '@/lib/meta-pixel';
-import { pageview as gtagPageview, saveUtmParams, GA4_MEASUREMENT_ID } from '@/lib/gtag';
-import CookieConsent, { COOKIE_CONSENT_KEY } from '@/components/CookieConsent';
+import { SITE_CONFIG, BUSINESS_INFO, getOgImageUrl } from '@/constants/seo';
 import '../styles/globals.css';
 
-// Domínio do Plausible (configurável via env)
-const PLAUSIBLE_DOMAIN = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || 'arthemisaude.com';
-const PLAUSIBLE_SCRIPT = process.env.NEXT_PUBLIC_PLAUSIBLE_SCRIPT || 'https://plausible.io/js/script.js';
-
-// Meta Pixel ID e Script
-const META_PIXEL_ID = getMetaPixelId();
-const META_PIXEL_SCRIPT = getMetaPixelScript();
-
-// Container GTM - Produção
-const GTM_ID = 'GTM-K4T74F6W';
+const GA_ID = 'G-6M5655B2Q5';
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
-  const [consentGiven, setConsentGiven] = useState(false);
-
-  // Verifica consentimento ao carregar
-  useEffect(() => {
-    const consent = localStorage.getItem(COOKIE_CONSENT_KEY);
-    if (consent === 'accepted') {
-      setConsentGiven(true);
-    }
-  }, []);
-
-  // Salva UTMs na primeira visita (para atribuição de conversão)
-  useEffect(() => {
-    saveUtmParams();
-  }, []);
-
-  // Dispara PageView em cada navegação (SPA) - APENAS SE TIVER CONSENTIMENTO
-  useEffect(() => {
-    if (!consentGiven) return;
-
-    const handleRouteChange = (url: string) => {
-      // GA4 pageview
-      gtagPageview(url);
-      // Meta Pixel PageView
-      trackPageView();
-    };
-
-    router.events.on('routeChangeComplete', handleRouteChange);
-    return () => {
-      router.events.off('routeChangeComplete', handleRouteChange);
-    };
-  }, [router.events, consentGiven]);
+  void router;
 
   return (
     <>
@@ -102,101 +59,21 @@ export default function App({ Component, pageProps }: AppProps) {
       <LocalBusinessSchema />
       <WebSiteSchema />
 
-      {/* RASTREAMENTO CONDICIONAL (Só carrega se consentGiven for true) */}
-      {consentGiven && (
-        <>
-          {/* Plausible Analytics - Privacy-first */}
-          {process.env.NODE_ENV === 'production' && (
-            <Script
-              defer
-              data-domain={PLAUSIBLE_DOMAIN}
-              src={PLAUSIBLE_SCRIPT}
-              strategy="afterInteractive"
-            />
-          )}
-
-          {/* Meta Pixel */}
-          {process.env.NODE_ENV === 'production' && META_PIXEL_ID && META_PIXEL_SCRIPT && (
-            <>
-              <Script
-                id="meta-pixel"
-                strategy="afterInteractive"
-                dangerouslySetInnerHTML={{ __html: META_PIXEL_SCRIPT }}
-              />
-              <noscript>
-                <img
-                  height="1"
-                  width="1"
-                  style={{ display: 'none' }}
-                  src={`https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1`}
-                  alt=""
-                />
-              </noscript>
-            </>
-          )}
-
-          {/* Google Analytics 4 + Google Ads - gtag.js */}
-          {process.env.NODE_ENV === 'production' && (
-            <>
-              <Script
-                async
-                src={`https://www.googletagmanager.com/gtag/js?id=${GA4_MEASUREMENT_ID}`}
-                strategy="afterInteractive"
-              />
-              <Script
-                id="google-analytics"
-                strategy="afterInteractive"
-                dangerouslySetInnerHTML={{
-                  __html: `
-                    window.dataLayer = window.dataLayer || [];
-                    function gtag(){dataLayer.push(arguments);}
-                    gtag('js', new Date());
-                    
-                    // GA4 Config
-                    gtag('config', '${GA4_MEASUREMENT_ID}', {
-                      page_path: window.location.pathname,
-                    });
-
-                    // Google Ads Config (Remarketing + Conversions)
-                    // AW-17960843080
-                    gtag('config', 'AW-17960843080');
-                  `,
-                }}
-              />
-            </>
-          )}
-
-          {/* Google Tag Manager - Script (HEAD) */}
-          {process.env.NODE_ENV === 'production' && (
-            <Script
-              id="google-tag-manager"
-              strategy="afterInteractive"
-              dangerouslySetInnerHTML={{
-                __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-          new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-          j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-          'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-          })(window,document,'script','dataLayer','${GTM_ID}');`,
-              }}
-            />
-          )}
-        </>
-      )}
-
-      {/* GTM NoScript (Body) - Só se consentido */}
-      {consentGiven && process.env.NODE_ENV === 'production' && (
-        <noscript>
-          <iframe
-            src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID}`}
-            height="0"
-            width="0"
-            style={{ display: 'none', visibility: 'hidden' }}
-          />
-        </noscript>
-      )}
+      {/* Google Analytics 4 */}
+      <Script
+        src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+        strategy="afterInteractive"
+      />
+      <Script id="google-analytics" strategy="afterInteractive">
+        {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', '${GA_ID}');
+        `}
+      </Script>
 
       <Component {...pageProps} />
-      <CookieConsent />
     </>
   );
 }

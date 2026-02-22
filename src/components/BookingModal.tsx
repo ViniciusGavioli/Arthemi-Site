@@ -9,8 +9,7 @@ import { ptBR } from 'date-fns/locale';
 import { format, addHours, setHours, setMinutes } from 'date-fns';
 import { formatCurrency, maskPhone, getPhoneError } from '@/lib/utils';
 import Link from 'next/link';
-import { analytics } from '@/lib/analytics';
-import { gtag } from '@/lib/gtag';
+
 import { PaymentMethodSelector } from '@/components/booking';
 import { getPricingInfoForUI } from '@/lib/pricing';
 import { getHourOptionsForDate, getBusinessHoursForDate, isClosedDay } from '@/lib/business-hours';
@@ -284,10 +283,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
     }
   }, [formData.date, fetchAvailability]);
 
-  // Rastrear abertura do modal (booking_started)
-  useEffect(() => {
-    analytics.bookingStarted(room.name);
-  }, [room.name]);
+
 
   // Obter informações de preço usando helper unificado (weekday vs saturday)
   const pricingInfo = getPricingInfoForUI(room.id, formData.date, room.slug);
@@ -576,15 +572,7 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
 
     setSubmitting(true);
 
-    // Rastrear tentativa de reserva
-    analytics.bookingSubmitted(room.name, getTotalPrice());
 
-    // GA4 begin_checkout event (importante para tráfego pago)
-    gtag.beginCheckout({
-      itemId: room.id,
-      itemName: room.name,
-      value: getTotalPrice(),
-    });
 
     try {
       // Se é PACOTE/CRÉDITO → usa endpoint de crédito (sem criar booking)

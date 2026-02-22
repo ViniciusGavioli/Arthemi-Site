@@ -6,8 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { MapPin, Phone, MessageCircle } from 'lucide-react';
 import { BUSINESS_INFO } from '@/constants/seo';
-import { analytics } from '@/lib/analytics';
-import { gtag } from '@/lib/gtag';
+
 
 interface FooterProps {
   /** Usa versão compacta (menos colunas) */
@@ -19,17 +18,8 @@ export default function Footer({ compact = false }: FooterProps) {
   const googleMapsLink = 'https://www.google.com/maps/place/Espa%C3%A7o+Arthemi+-+Coworking+de+Sa%C3%BAde+em+BH/@-19.9245428,-43.922652,17z';
   const whatsappLink = `https://wa.me/${BUSINESS_INFO.whatsapp}`;
 
-  // Handler para tracking de clique no WhatsApp
-  const handleWhatsAppClick = () => {
-    analytics.contactClicked('whatsapp', 'footer');
-    gtag.contact({ method: 'whatsapp', location: 'footer' });
-  };
-
-  // Handler para tracking de clique no telefone
-  const handlePhoneClick = () => {
-    analytics.contactClicked('phone', 'footer');
-    gtag.contact({ method: 'phone', location: 'footer' });
-  };
+  const handleWhatsAppClick = () => { };
+  const handlePhoneClick = () => { };
 
   if (compact) {
     return (
@@ -41,7 +31,7 @@ export default function Footer({ compact = false }: FooterProps) {
               <p className="text-sm mb-2">
                 Coworking de saúde em Belo Horizonte. Consultórios prontos para você atender com profissionalismo e praticidade.
               </p>
-              <a 
+              <a
                 href={googleMapsLink}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -61,7 +51,7 @@ export default function Footer({ compact = false }: FooterProps) {
             <div>
               <h3 className="text-warm-100 font-bold text-lg mb-4">Contato</h3>
               <div className="flex flex-col gap-2 text-sm">
-                <a 
+                <a
                   href={whatsappLink}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -71,7 +61,7 @@ export default function Footer({ compact = false }: FooterProps) {
                   <MessageCircle className="w-4 h-4" />
                   WhatsApp
                 </a>
-                <a 
+                <a
                   href="tel:+5531999923910"
                   className="flex items-center gap-2 hover:text-warm-100 transition"
                   onClick={handlePhoneClick}
@@ -97,9 +87,9 @@ export default function Footer({ compact = false }: FooterProps) {
           {/* Logo e descrição */}
           <div className="md:col-span-2">
             <div className="mb-4">
-              <Image 
-                src="/images/Logo/logo.webp" 
-                alt="Espaço Arthemi" 
+              <Image
+                src="/images/Logo/logo.webp"
+                alt="Espaço Arthemi"
                 width={160}
                 height={64}
                 className="h-14 w-auto brightness-0 invert"
@@ -108,7 +98,7 @@ export default function Footer({ compact = false }: FooterProps) {
             <p className="text-warm-500 mb-4 max-w-md">
               Coworking de saúde em Belo Horizonte. Consultórios prontos para você atender com profissionalismo e praticidade.
             </p>
-            <a 
+            <a
               href={googleMapsLink}
               target="_blank"
               rel="noopener noreferrer"
@@ -118,7 +108,7 @@ export default function Footer({ compact = false }: FooterProps) {
               Área Hospitalar, Belo Horizonte – MG
             </a>
           </div>
-          
+
           {/* Links */}
           <div>
             <h3 className="text-warm-100 font-bold mb-4">Links</h3>
@@ -128,12 +118,12 @@ export default function Footer({ compact = false }: FooterProps) {
               <Link href="/faq" className="hover:text-warm-100 transition">Perguntas frequentes</Link>
             </div>
           </div>
-          
+
           {/* Contato */}
           <div>
             <h3 className="text-warm-100 font-bold mb-4">Contato</h3>
             <div className="flex flex-col gap-3">
-              <a 
+              <a
                 href={whatsappLink}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -143,8 +133,8 @@ export default function Footer({ compact = false }: FooterProps) {
                 <MessageCircle className="w-4 h-4" />
                 WhatsApp
               </a>
-              <a 
-                href="tel:+5531999923910" 
+              <a
+                href="tel:+5531999923910"
                 className="flex items-center gap-2 hover:text-warm-100 transition"
                 onClick={handlePhoneClick}
               >
@@ -154,7 +144,7 @@ export default function Footer({ compact = false }: FooterProps) {
             </div>
           </div>
         </div>
-        
+
         {/* Bottom bar */}
         <div className="border-t border-primary-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm">© {currentYear} Espaço Arthemi. Todos os direitos reservados.</p>

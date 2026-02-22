@@ -2,7 +2,7 @@
 // Página /lp - Landing Page de Conversão
 // ===========================================================
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { GetServerSideProps } from 'next';
 import Link from 'next/link';
@@ -16,7 +16,7 @@ import { PAGE_SEO } from '@/constants/seo';
 import { formatCurrency } from '@/lib/utils';
 import { PRICES_V3, formatPrice } from '@/constants/prices';
 import { Lightbulb, CheckCircle2, Eye } from 'lucide-react';
-import { analytics } from '@/lib/analytics';
+
 import { WHATSAPP_NUMBER } from '@/config/contact';
 
 interface Product {
@@ -53,10 +53,6 @@ export default function LPPage({ rooms }: LPPageProps) {
   const [isLeadFormOpen, setIsLeadFormOpen] = useState(false);
   const [selectedRoomName, setSelectedRoomName] = useState('');
 
-  // Track de ViewContent: evita disparo duplicado para a mesma sala na mesma sessão
-  const viewedRoomsRef = useRef<Set<string>>(new Set());
-
-  // Handler para abrir modal de reserva (LeadFormModal)
   const handleOpenBooking = (roomName: string) => {
     setSelectedRoomName(roomName);
     setIsLeadFormOpen(true);
@@ -67,19 +63,8 @@ export default function LPPage({ rooms }: LPPageProps) {
     setSelectedRoomName('');
   };
 
-  // Handler para abrir galeria de fotos (dispara ViewContent)
   const handleOpenGallery = (galleryData: { name: string; slug: string }) => {
     setGalleryRoom(galleryData);
-
-    // Disparar ViewContent apenas 1x por sala por sessão
-    if (!viewedRoomsRef.current.has(galleryData.slug)) {
-      viewedRoomsRef.current.add(galleryData.slug);
-
-      const room = rooms.find(r => r.slug === galleryData.slug);
-      if (room) {
-        analytics.roomViewed(room.id, galleryData.name, room.hourlyRate);
-      }
-    }
   };
 
   return (

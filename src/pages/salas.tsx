@@ -2,7 +2,7 @@
 // Página /salas - Lista de Consultórios com RoomCard
 // ===========================================================
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { GetServerSideProps } from 'next';
 import Link from 'next/link';
@@ -17,7 +17,7 @@ import { PAGE_SEO } from '@/constants/seo';
 import { formatCurrency } from '@/lib/utils';
 import { PRICES_V3, formatPrice, getAllProductsForRoom } from '@/constants/prices';
 import { Lightbulb, CheckCircle2, Eye } from 'lucide-react';
-import { analytics } from '@/lib/analytics';
+
 
 
 
@@ -53,8 +53,6 @@ export default function SalasPage({ rooms }: SalasPageProps) {
   const [galleryRoom, setGalleryRoom] = useState<{ name: string; slug: string } | null>(null);
 
   const router = useRouter();
-  // Track de ViewContent: evita disparo duplicado para a mesma sala na mesma sessão
-  const viewedRoomsRef = useRef<Set<string>>(new Set());
 
   // Auto-abrir galeria se houver slug na URL (?room=slug)
   useEffect(() => {
@@ -70,8 +68,6 @@ export default function SalasPage({ rooms }: SalasPageProps) {
     }
   }, [router.isReady, router.query.room, rooms]);
 
-
-
   const handleReservar = (roomName: string) => {
     setSelectedRoomName(roomName);
     setIsLeadFormOpen(true);
@@ -82,20 +78,8 @@ export default function SalasPage({ rooms }: SalasPageProps) {
     setSelectedRoomName('');
   };
 
-  // Handler para abrir galeria de fotos (dispara ViewContent)
   const handleOpenGallery = (galleryData: { name: string; slug: string }) => {
     setGalleryRoom(galleryData);
-
-    // Disparar ViewContent apenas 1x por sala por sessão
-    if (!viewedRoomsRef.current.has(galleryData.slug)) {
-      viewedRoomsRef.current.add(galleryData.slug);
-
-      // Encontrar o room para obter o ID
-      const room = rooms.find(r => r.slug === galleryData.slug);
-      if (room) {
-        analytics.roomViewed(room.id, galleryData.name, room.hourlyRate); // value em centavos
-      }
-    }
   };
 
   // Handler para reservar direto da galeria

@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
-import { analytics } from '@/lib/analytics';
+
 import { MICROCOPY, POLICY_CONSTANTS } from '@/lib/policies';
 
 // ============================================================
@@ -201,7 +201,7 @@ export default function BookingDetailsPage() {
 
       <div className="min-h-screen bg-warm-50 py-8 px-4">
         <div className="max-w-lg mx-auto">
-          
+
           {/* Header */}
           <div className="text-center mb-6">
             <Link href="/" className="text-primary-600 hover:text-primary-700 text-sm">
@@ -214,13 +214,12 @@ export default function BookingDetailsPage() {
 
           {/* Card Principal */}
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-            
+
             {/* Status Banner */}
-            <div className={`px-6 py-4 ${
-              booking.status === 'CONFIRMED' ? 'bg-green-500' :
-              booking.status === 'CANCELLED' ? 'bg-red-500' :
-              'bg-yellow-500'
-            }`}>
+            <div className={`px-6 py-4 ${booking.status === 'CONFIRMED' ? 'bg-green-500' :
+                booking.status === 'CANCELLED' ? 'bg-red-500' :
+                  'bg-yellow-500'
+              }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-white">
                   <span className="text-2xl">{statusConfig.icon}</span>
@@ -234,7 +233,7 @@ export default function BookingDetailsPage() {
 
             {/* Conteúdo */}
             <div className="p-6 space-y-6">
-              
+
               {/* Consultório */}
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -270,7 +269,7 @@ export default function BookingDetailsPage() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm text-gray-500">Resumo do Pagamento</p>
-                  
+
                   {/* PRICE_OVERRIDE: Mostrar preço administrativo */}
                   {booking.pricingMode === 'OVERRIDE' ? (
                     <div className="space-y-1 mt-1">
@@ -306,7 +305,7 @@ export default function BookingDetailsPage() {
                       {formatCurrency(booking.amountPaid)}
                     </p>
                   )}
-                  
+
                   {booking.paymentMethod && (
                     <p className="text-sm text-gray-400 mt-1">via {booking.paymentMethod}</p>
                   )}
@@ -351,7 +350,7 @@ export default function BookingDetailsPage() {
 
             {/* Ações - P0-3: Apenas WhatsApp, sem cancelamento direto */}
             <div className="px-6 pb-6 space-y-3">
-              
+
               {/* Aviso sobre reembolso - aparece apenas se não está cancelado */}
               {booking.status !== 'CANCELLED' && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
@@ -361,7 +360,7 @@ export default function BookingDetailsPage() {
                   </p>
                 </div>
               )}
-              
+
               {/* Link WhatsApp para cancelamento */}
               {booking.status !== 'CANCELLED' && (
                 <a

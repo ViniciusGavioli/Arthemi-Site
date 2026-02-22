@@ -10,7 +10,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { Menu, X, MessageCircle, User } from 'lucide-react';
 import { BUSINESS_INFO } from '@/constants/seo';
-import { analytics } from '@/lib/analytics';
+
 import LeadFormModal from '@/components/LeadFormModal';
 
 interface NavLink {
@@ -42,10 +42,7 @@ export default function Header({ variant = 'sticky' }: HeaderProps) {
 
   const whatsappLink = `https://wa.me/${BUSINESS_INFO.whatsapp}?text=Olá! Gostaria de saber mais sobre o Espaço Arthemi.`;
 
-  // Handler para tracking de clique no WhatsApp
-  const handleWhatsAppClick = (location: 'header' | 'header-mobile') => {
-    analytics.contactClicked('whatsapp', location);
-  };
+  const handleWhatsAppClick = (_location: 'header' | 'header-mobile') => { };
 
   const handleOpenLeadForm = () => {
     setIsLeadFormOpen(true);

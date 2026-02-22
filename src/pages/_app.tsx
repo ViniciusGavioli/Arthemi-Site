@@ -9,6 +9,7 @@ import Script from 'next/script';
 import { LocalBusinessSchema, WebSiteSchema } from '@/components/SEO';
 import { SITE_CONFIG, BUSINESS_INFO, getOgImageUrl } from '@/constants/seo';
 import MetaPixel from '@/components/MetaPixel';
+import { useWhatsAppTracking } from '@/utils/whatsapp-tracking';
 import '../styles/globals.css';
 
 const GA_ID = 'G-6M5655B2Q5';
@@ -16,6 +17,9 @@ const GA_ID = 'G-6M5655B2Q5';
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   void router;
+
+  // Rastreia cliques em links WhatsApp → evento GA4 generate_lead
+  useWhatsAppTracking();
 
   return (
     <>

@@ -77,9 +77,9 @@ Estes Termos constituem acordo legal vinculante entre o usuário e o Arthemi Cow
     {
         id: 'cancelamento-reagendamento',
         title: '6. Cancelamento, Reagendamento e Reembolso',
-        content: `**6.1.** Cancelamentos ou solicitações de reagendamento realizados com antecedência mínima de **24 (vinte e quatro) horas** em relação ao horário reservado permitem o reagendamento sem perda das horas contratadas, observadas as condições de validade previstas na Cláusula 4 destes Termos.
+        content: `**6.1.** Cancelamentos ou solicitações de reagendamento realizados com antecedência mínima de **48 (quarenta e oito) horas** em relação ao horário reservado permitem o reagendamento sem perda das horas contratadas, observadas as condições de validade previstas na Cláusula 4 destes Termos.
 
-**6.2.** Cancelamentos ou solicitações de reagendamento realizados com **menos de 24 (vinte e quatro) horas** de antecedência, bem como o não comparecimento (no-show), implicam o débito da hora reservada, não gerando direito a crédito, reposição ou compensação.
+**6.2.** Cancelamentos ou solicitações de reagendamento realizados com **menos de 48 (quarenta e oito) horas** de antecedência, bem como o não comparecimento (no-show), implicam o débito da hora reservada, não gerando direito a crédito, reposição ou compensação.
 
 **6.3.** As solicitações deverão ser realizadas exclusivamente pelo WhatsApp oficial ou pelo sistema de agendamento disponibilizado.
 
@@ -185,9 +185,9 @@ Em nenhuma hipótese será utilizado como base de cálculo:
     {
         id: 'cancelamento-reagendamento',
         title: '3. Cancelamento, Reagendamento e Validade das Horas',
-        content: `**3.1.** Cancelamentos ou solicitações de reagendamento realizados com antecedência mínima de **24 (vinte e quatro) horas** em relação ao horário reservado permitem o reagendamento sem perda das horas contratadas.
+        content: `**3.1.** Cancelamentos ou solicitações de reagendamento realizados com antecedência mínima de **48 (quarenta e oito) horas** em relação ao horário reservado permitem o reagendamento sem perda das horas contratadas.
 
-**3.2.** Cancelamentos ou solicitações de reagendamento realizados com **menos de 24 (vinte e quatro) horas** de antecedência, bem como o não comparecimento (no-show), **não geram direito a reembolso, crédito ou compensação futura**, independentemente do motivo alegado.
+**3.2.** Cancelamentos ou solicitações de reagendamento realizados com **menos de 48 (quarenta e oito) horas** de antecedência, bem como o não comparecimento (no-show), **não geram direito a reembolso, crédito ou compensação futura**, independentemente do motivo alegado.
 
 **3.3.** As horas adquiridas, seja em modalidade avulsa ou por meio de pacotes, possuem validade de **6 (seis) meses**, contados da data da confirmação do pagamento.
 

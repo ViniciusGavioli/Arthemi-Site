@@ -226,6 +226,7 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
 
                                 <div className="flex flex-col sm:flex-row gap-4 mb-12 lg:mb-0">
                                     <button
+                                        id="cta-hero-availability"
                                         onClick={() => handleOpenWhatsApp('hero_disponibilidade')}
                                         className="bg-accent-600 text-white px-8 py-5 rounded-2xl font-bold text-lg shadow-xl shadow-accent-600/20 hover:bg-accent-700 transition-all hover:-translate-y-1 flex items-center justify-center gap-2"
                                     >
@@ -233,6 +234,7 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                                         <ArrowRight className="w-5 h-5" />
                                     </button>
                                     <button
+                                        id="cta-hero-reserve"
                                         onClick={() => handleOpenWhatsApp('hero_agendar')}
                                         className="bg-white text-secondary-800 border-2 border-warm-200 px-8 py-5 rounded-2xl font-bold text-lg hover:bg-warm-50 transition-all flex items-center justify-center gap-2"
                                     >
@@ -353,6 +355,120 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                     </div>
                 </section>
 
+                {/* 2) NEW: Preview Rooms Section */}
+                <section className="py-20 bg-white">
+                    <div className="max-w-6xl mx-auto px-4">
+                        <div className="text-center mb-12">
+                            <h2 className="text-3xl sm:text-4xl font-black text-primary-950 mb-4">Nossos consultórios (reserve por hora)</h2>
+                            <p className="text-secondary-600 text-lg">Escolha o ambiente ideal e veja horários disponíveis agora.</p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                            {[
+                                {
+                                    title: "Consultório Premium (Mais completo)",
+                                    price: "59,99",
+                                    ideal: "Ideal para atendimentos que pedem mais estrutura e presença.",
+                                    tag: "SALA A"
+                                },
+                                {
+                                    title: "Consultório Premium (Melhor custo-benefício)",
+                                    price: "49,99",
+                                    ideal: "Equilíbrio perfeito entre conforto e economia.",
+                                    tag: "SALA B"
+                                },
+                                {
+                                    title: "Consultório Premium (Mais reservado)",
+                                    price: "39,99",
+                                    ideal: "Ambiente discreto e acolhedor para atendimentos individuais.",
+                                    tag: "SALA C"
+                                }
+                            ].map((card, i) => (
+                                <div key={i} className="bg-warm-50 border border-warm-200 rounded-[2rem] p-8 flex flex-col h-full hover:shadow-xl transition-all group">
+                                    <span className="text-accent-600 text-[10px] font-black tracking-[0.2em] uppercase mb-4">{card.tag}</span>
+                                    <h3 className="text-xl font-bold text-primary-950 mb-3">{card.title}</h3>
+                                    <div className="flex items-baseline gap-1 mb-4">
+                                        <span className="text-3xl font-black text-primary-900">R$ {card.price}</span>
+                                        <span className="text-secondary-400 font-medium">/hora</span>
+                                    </div>
+                                    <p className="text-secondary-600 text-sm leading-relaxed mb-8 flex-1">
+                                        {card.ideal}
+                                    </p>
+                                    <button
+                                        id={`cta-preview-${card.tag.toLowerCase().replace(' ', '-')}`}
+                                        onClick={() => handleOpenWhatsApp('preview_sala')}
+                                        className="w-full bg-primary-950 text-white py-4 rounded-xl font-bold hover:bg-black transition-all flex items-center justify-center gap-2 group"
+                                    >
+                                        Consultar disponibilidade
+                                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        <p className="text-center text-accent-700 font-bold text-sm flex items-center justify-center gap-2 bg-accent-50 py-3 rounded-full md:w-fit md:mx-auto md:px-8">
+                            <Clock className="w-4 h-4" />
+                            Horários mais disputados: manhã e fim da tarde. Consulte agora.
+                        </p>
+                    </div>
+                </section>
+
+                {/* 3) Provas rápidas + depoimentos */}
+                <section className="py-24 bg-warm-50/50">
+                    <div className="max-w-6xl mx-auto px-4">
+                        <div className="text-center mb-16">
+                            <div className="flex items-center justify-center gap-1.5 mb-4">
+                                <div className="flex text-yellow-500">
+                                    <Star className="w-6 h-6 fill-current" />
+                                    <Star className="w-6 h-6 fill-current" />
+                                    <Star className="w-6 h-6 fill-current" />
+                                    <Star className="w-6 h-6 fill-current" />
+                                    <Star className="w-6 h-6 fill-current" />
+                                </div>
+                                <span className="text-xl font-black text-primary-950">4.9/5 no Google</span>
+                            </div>
+                            <span className="text-accent-600 font-bold text-sm tracking-widest uppercase mb-4 block underline decoration-accent-200 underline-offset-4">O QUE DIZEM NOSSOS PROFISSIONAIS</span>
+                            <h2 className="text-3xl sm:text-4xl font-black text-primary-950 mb-4">Quem atende, aprova o modelo Arthemi</h2>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                            {[
+                                {
+                                    name: "Dr. Ricardo Silva",
+                                    role: "Psicólogo",
+                                    text: "A localização é estratégica e o ambiente é excelente. Meus pacientes sempre elogiam a recepção e o café. Para mim, a flexibilidade foi o divisor de águas.",
+                                    time: "Atende há 8 meses"
+                                },
+                                {
+                                    name: "Dra. Ana Carolina",
+                                    role: "Nutricionista",
+                                    text: "Saí de um aluguel fixo que me prendia muito. Hoje só pago o que uso e minha margem de lucro aumentou 40% logo no primeiro mês.",
+                                    time: "Atende há 1 ano"
+                                },
+                                {
+                                    name: "Felipe Santos",
+                                    role: "Fisioterapeuta",
+                                    text: "As salas são amplas e já vêm com tudo pronto. Chego, atendo e vou embora sem me preocupar com limpeza ou manutenção. Sensacional.",
+                                    time: "Atende há 6 meses"
+                                }
+                            ].map((item, i) => (
+                                <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-warm-200 shadow-sm relative h-full">
+                                    <p className="text-secondary-600 mb-8 italic leading-relaxed">&quot;{item.text}&quot;</p>
+                                    <div className="flex items-center gap-4 mt-auto">
+                                        <div className="w-12 h-12 rounded-full bg-accent-100 flex items-center justify-center font-bold text-accent-700">
+                                            {item.name[0]}
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-primary-950">{item.name}</p>
+                                            <p className="text-xs text-secondary-500 font-medium">{item.role} • {item.time}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
 
                 {/* How it Works Section */}
                 <section className="py-24 bg-white border-y border-warm-100">
@@ -383,7 +499,7 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                     </div>
                 </section>
 
-                {/* Benefits Section */}
+                {/* 5) Benefits Section */}
                 <section className="py-24 bg-white">
                     <div className="max-w-6xl mx-auto px-4">
                         <div className="text-center mb-16">
@@ -410,70 +526,25 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                     </div>
                 </section>
 
-                {/* Testimonials Section (Moved here as requested) */}
-                <section className="py-24 bg-warm-50/50">
-                    <div className="max-w-6xl mx-auto px-4">
-                        <div className="text-center mb-16">
-                            <span className="text-accent-600 font-bold text-sm tracking-widest uppercase mb-4 block underline decoration-accent-200 underline-offset-4">O QUE DIZEM NOSSOS PROFISSIONAIS</span>
-                            <h2 className="text-3xl sm:text-4xl font-black text-primary-950 mb-4">Quem atende, aprova o modelo Arthemi</h2>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                            {[
-                                {
-                                    name: "Dr. Ricardo Silva",
-                                    role: "Psicólogo",
-                                    text: "A localização é estratégica e o ambiente é excelente. Meus pacientes sempre elogiam a recepção e o café. Para mim, a flexibilidade foi o divisor de águas.",
-                                    time: "Atende há 8 meses"
-                                },
-                                {
-                                    name: "Dra. Ana Carolina",
-                                    role: "Nutricionista",
-                                    text: "Saí de um aluguel fixo que me prendia muito. Hoje só pago o que uso e minha margem de lucro aumentou 40% logo no primeiro mês.",
-                                    time: "Atende há 1 ano"
-                                },
-                                {
-                                    name: "Felipe Santos",
-                                    role: "Fisioterapeuta",
-                                    text: "As salas são amplas e já vêm com tudo pronto. Chego, atendo e vou embora sem me preocupar com limpeza ou manutenção. Sensacional.",
-                                    time: "Atende há 6 meses"
-                                }
-                            ].map((item, i) => (
-                                <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-warm-200 shadow-sm relative">
-                                    <div className="flex text-yellow-500 mb-4">
-                                        {[1, 2, 3, 4, 5].map(s => <Star key={s} className="w-4 h-4 fill-current" />)}
-                                    </div>
-                                    <p className="text-secondary-600 mb-8 italic leading-relaxed">&quot;{item.text}&quot;</p>
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-full bg-accent-100 flex items-center justify-center font-bold text-accent-700">
-                                            {item.name[0]}
-                                        </div>
-                                        <div>
-                                            <p className="font-bold text-primary-950">{item.name}</p>
-                                            <p className="text-xs text-secondary-500 font-medium">{item.role} • {item.time}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </section>
-
-                {/* Incentive Section */}
-                <section className="bg-primary-950 py-12">
-                    <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-8">
+                {/* 6) Visita Guiada (Incentive Section) */}
+                <section className="bg-primary-950 py-16">
+                    <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-10">
                         <div className="text-white">
-                            <h3 className="text-2xl font-bold mb-2">Primeira vez na Arthemi?</h3>
-                            <p className="text-primary-200">Ganhe uma visita guiada com café e tour pelo espaço antes da sua primeira reserva.</p>
+                            <span className="text-accent-400 font-black text-sm uppercase tracking-widest mb-4 block">OFERTA PARA QUEM ESTÁ INSEGURO</span>
+                            <h3 className="text-3xl sm:text-4xl font-black mb-4">Primeira vez na Arthemi?</h3>
+                            <p className="text-primary-200 text-lg leading-relaxed max-w-xl">Venha conhecer pessoalmente. Ganhe uma visita guiada com café e tour pelo espaço antes da sua primeira reserva.</p>
                         </div>
                         <button
-                            onClick={handleOpenWhatsApp}
-                            className="bg-white text-primary-950 px-8 py-4 rounded-xl font-bold hover:bg-primary-50 transition-colors whitespace-nowrap"
+                            id="cta-visita-guiada"
+                            onClick={() => handleOpenWhatsApp('visita_guiada')}
+                            className="bg-accent-600 text-white px-10 py-5 rounded-2xl font-bold text-lg hover:bg-accent-700 transition-all flex items-center gap-3 shadow-2xl shadow-accent-600/30 group"
                         >
-                            Quero agendar uma visita
+                            Agendar Visita Gratuita
+                            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                         </button>
                     </div>
                 </section>
+
 
                 {/* Rooms Section */}
                 <section className="py-24 bg-warm-50">
@@ -694,14 +765,15 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                         </div>
 
                         <div className="mt-12 p-8 rounded-[2rem] bg-accent-600 text-white text-center">
-                            <h3 className="text-2xl font-bold mb-4">Ainda tem alguma pergunta?</h3>
-                            <p className="mb-8 text-accent-100">Nosso time responde em menos de 5 minutos no WhatsApp.</p>
+                            <h3 className="text-2xl font-bold mb-4">Pronto para começar?</h3>
+                            <p className="mb-8 text-accent-100 text-lg">Consulte a disponibilidade em tempo real e garanta sua reserva em minutos.</p>
                             <button
-                                onClick={() => handleOpenWhatsApp('disponibilidade')}
-                                className="bg-white text-accent-700 px-8 py-4 rounded-xl font-bold hover:bg-warm-50 transition-all flex items-center justify-center gap-2 mx-auto"
+                                id="cta-final-whatsapp"
+                                onClick={() => handleOpenWhatsApp('cta_final')}
+                                className="bg-white text-accent-700 px-10 py-5 rounded-2xl font-black text-xl hover:bg-warm-50 transition-all flex items-center justify-center gap-2 mx-auto shadow-2xl"
                             >
-                                Consultar disponibilidade agora
-                                <MessageCircle className="w-5 h-5" />
+                                Ver horários disponíveis agora no WhatsApp
+                                <MessageCircle className="w-6 h-6" />
                             </button>
                         </div>
                     </div>
@@ -771,33 +843,40 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                 {/* Floating Mobile CTA */}
                 <div className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-md border-t border-warm-100 p-4 grid grid-cols-2 gap-3 shadow-[0_-10px_20px_rgba(0,0,0,0.1)]">
                     <button
-                        onClick={() => handleOpenWhatsApp('disponibilidade')}
+                        id="mobile-cta-availability"
+                        onClick={() => handleOpenWhatsApp('mobile_disponibilidade')}
                         className="flex items-center justify-center gap-2 bg-green-100 text-green-700 py-4 rounded-xl font-bold text-sm"
                     >
                         <MessageCircle className="w-5 h-5" />
-                        Disponibilidade
+                        Ver Horários
                     </button>
                     <button
-                        onClick={() => handleOpenBooking('')}
+                        id="mobile-cta-consult"
+                        onClick={() => handleOpenWhatsApp('mobile_consultar')}
                         className="bg-accent-600 text-white py-4 rounded-xl font-bold text-sm shadow-lg shadow-accent-600/20"
                     >
-                        Reservar Agora
+                        Consultar Agora
                     </button>
                 </div>
-            </Layout>
+            </Layout >
 
             {/* Modal de Galeria */}
-            {galleryRoom && (
-                <RoomGalleryModal
-                    isOpen={!!galleryRoom}
-                    onClose={() => setGalleryRoom(null)}
-                    onReservar={() => {
-                        setGalleryRoom(null);
-                        handleOpenBooking(galleryRoom.name);
-                    }}
-                    room={galleryRoom}
-                />
-            )}
+            {
+                galleryRoom && (
+                    <RoomGalleryModal
+                        isOpen={!!galleryRoom}
+                        onClose={() => setGalleryRoom(null)}
+                        onReservar={() => {
+                            if (galleryRoom) {
+                                const name = galleryRoom.name;
+                                setGalleryRoom(null);
+                                handleOpenBooking(name);
+                            }
+                        }}
+                        room={galleryRoom}
+                    />
+                )
+            }
 
             {/* Modal de Lead */}
             <LeadFormModal

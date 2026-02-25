@@ -155,16 +155,21 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
 
             <Layout noHeader noFooter className="bg-white">
                 {/* Minimal Header */}
-                <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-xl border-b border-warm-100 overflow-hidden">
+                <header className="sticky top-0 z-50 bg-warm-50/90 backdrop-blur-xl border-b border-warm-200 overflow-hidden relative">
+                    {/* Header Texture Layer */}
+                    <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#000 0.5px, transparent 0.5px)', backgroundSize: '10px 10px' }}></div>
+                    <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-accent-500/20 to-transparent"></div>
+
                     {/* Header BG Image (Mobile Only) */}
-                    <div className="md:hidden absolute inset-0 -z-10 opacity-15">
+                    <div className="md:hidden absolute inset-0 -z-10 opacity-20">
                         <Image
                             src="/images/hero/banner.jpeg"
                             alt=""
                             fill
-                            className="object-cover blur-md scale-110"
+                            className="object-cover blur-xl scale-120"
                         />
                     </div>
+
                     <div className="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between relative z-10">
                         <Image
                             src="/images/Logo/logo.webp"

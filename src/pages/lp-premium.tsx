@@ -144,7 +144,7 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
     const faqs = [
         { q: "Precisa contrato longo?", a: "Não. Reserva por hora, sem fidelidade e sem burocracia." },
         { q: "Tem taxa de adesão?", a: "Não. Você paga apenas pelo tempo reservado." },
-        { q: "Posso cancelar ou remarcar?", a: "Sim, seguindo as regras de agenda (ex: até 48h antes)." },
+        { q: "Posso cancelar ou remarcar?", a: "Sim, você pode cancelar ou remarcar sem custos, respeitando o prazo de 48h antes de cada reserva." },
         { q: "Tem recepção e limpeza inclusos?", a: "Sim. Inclusos em todas as reservas." },
         { q: "Serve para minha profissão?", a: "Sim — psicologia, nutrição, fisioterapia, medicina e outras áreas da saúde." },
     ];
@@ -359,7 +359,7 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                 <section className="py-20 bg-white">
                     <div className="max-w-6xl mx-auto px-4">
                         <div className="text-center mb-12">
-                            <h2 className="text-3xl sm:text-4xl font-black text-primary-950 mb-4">Nossos consultórios (reserve por hora)</h2>
+                            <h2 className="text-3xl sm:text-4xl font-black text-primary-950 mb-4">Nossos Consultórios</h2>
                             <p className="text-secondary-600 text-lg">Escolha o ambiente ideal e veja horários disponíveis agora.</p>
                         </div>
 
@@ -451,20 +451,31 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                                     text: "As salas são amplas e já vêm com tudo pronto. Chego, atendo e vou embora sem me preocupar com limpeza ou manutenção. Sensacional.",
                                     time: "Atende há 6 meses"
                                 }
-                            ].map((item, i) => (
-                                <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-warm-200 shadow-sm relative h-full">
-                                    <p className="text-secondary-600 mb-8 italic leading-relaxed">&quot;{item.text}&quot;</p>
-                                    <div className="flex items-center gap-4 mt-auto">
-                                        <div className="w-12 h-12 rounded-full bg-accent-100 flex items-center justify-center font-bold text-accent-700">
-                                            {item.name[0]}
-                                        </div>
-                                        <div>
-                                            <p className="font-bold text-primary-950">{item.name}</p>
-                                            <p className="text-xs text-secondary-500 font-medium">{item.role} • {item.time}</p>
+                            ].map((item, i) => {
+                                // Extrair iniciais ignorando Dr/Dra
+                                const initials = item.name
+                                    .replace(/Dr\.|Dra\./g, '')
+                                    .trim()
+                                    .split(' ')
+                                    .map(n => n[0])
+                                    .join('')
+                                    .slice(0, 2);
+
+                                return (
+                                    <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-warm-200 shadow-sm relative h-full">
+                                        <p className="text-secondary-600 mb-8 italic leading-relaxed">&quot;{item.text}&quot;</p>
+                                        <div className="flex items-center gap-4 mt-auto">
+                                            <div className="w-12 h-12 rounded-full bg-accent-100 flex items-center justify-center font-bold text-accent-700">
+                                                {initials}
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-primary-950">{item.name}</p>
+                                                <p className="text-xs text-secondary-500 font-medium">{item.role} • {item.time}</p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
                 </section>
@@ -551,7 +562,7 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                     <div className="max-w-6xl mx-auto px-4">
                         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
                             <div>
-                                <h2 className="text-3xl sm:text-4xl font-black text-primary-950 mb-4">Nossos Consultórios</h2>
+                                <h2 className="text-3xl sm:text-4xl font-black text-primary-950 mb-4">Conheça cada ambiente</h2>
                                 <p className="text-secondary-600 text-lg">Valores transparentes e indicações de uso para facilitar sua escolha.</p>
                                 <p className="text-accent-700 font-bold text-sm mt-3 flex items-center gap-2">
                                     <Sparkles className="w-4 h-4" />
@@ -560,7 +571,7 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                             </div>
                             <div className="bg-green-100 text-green-700 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2">
                                 <Clock className="w-4 h-4" />
-                                Responda em minutos via WhatsApp
+                                Em até 5 minutos via WhatsApp
                             </div>
                         </div>
 
@@ -717,8 +728,11 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                         <div className="bg-primary-950 rounded-[3rem] p-8 md:p-16 text-center text-white relative overflow-hidden">
                             <Sparkles className="absolute top-8 right-8 w-24 h-24 text-white/5" />
                             <h2 className="text-3xl font-black mb-6">Quer economizar ainda mais?</h2>
-                            <p className="text-primary-200 text-lg mb-12 max-w-2xl mx-auto">
+                            <p className="text-primary-200 text-lg mb-4 max-w-2xl mx-auto">
                                 Temos pacotes de horas (10h, 20h ou mais) com valores reduzidos para quem atende com recorrência.
+                            </p>
+                            <p className="text-white font-bold text-xl mb-12">
+                                Pra quem atende toda semana e quer reduzir o custo/hora.
                             </p>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto mb-12">
                                 <div className="bg-white/10 backdrop-blur-sm border border-white/20 p-6 rounded-2xl">
@@ -766,7 +780,7 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
 
                         <div className="mt-12 p-8 rounded-[2rem] bg-accent-600 text-white text-center">
                             <h3 className="text-2xl font-bold mb-4">Pronto para começar?</h3>
-                            <p className="mb-8 text-accent-100 text-lg">Consulte a disponibilidade em tempo real e garanta sua reserva em minutos.</p>
+                            <p className="mb-8 text-accent-100 text-lg">Nosso time responde em até 5 minutos no WhatsApp.</p>
                             <button
                                 id="cta-final-whatsapp"
                                 onClick={() => handleOpenWhatsApp('cta_final')}

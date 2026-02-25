@@ -355,61 +355,98 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                     </div>
                 </section>
 
-                {/* 2) NEW: Preview Rooms Section */}
-                <section className="py-20 bg-white">
+                {/* 2) Nossos Consultórios Section (Moved from bottom) */}
+                <section className="py-24 bg-white">
                     <div className="max-w-6xl mx-auto px-4">
-                        <div className="text-center mb-12">
-                            <h2 className="text-3xl sm:text-4xl font-black text-primary-950 mb-4">Nossos Consultórios</h2>
-                            <p className="text-secondary-600 text-lg">Escolha o ambiente ideal e veja horários disponíveis agora.</p>
+                        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+                            <div>
+                                <h2 className="text-3xl sm:text-4xl font-black text-primary-950 mb-4">Nossos Consultórios</h2>
+                                <p className="text-secondary-600 text-lg">Valores transparentes e indicações de uso para facilitar sua escolha.</p>
+                                <p className="text-accent-700 font-bold text-sm mt-3 flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4" />
+                                    Horários mais disputados: manhã e fim da tarde. Garanta o seu.
+                                </p>
+                            </div>
+                            <div className="bg-green-100 text-green-700 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2">
+                                <Clock className="w-4 h-4" />
+                                Em até 5 minutos via WhatsApp
+                            </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                            {[
-                                {
-                                    title: "Consultório Premium (Mais completo)",
-                                    price: "59,99",
-                                    ideal: "Ideal para atendimentos que pedem mais estrutura e presença.",
-                                    tag: "SALA A"
-                                },
-                                {
-                                    title: "Consultório Premium (Melhor custo-benefício)",
-                                    price: "49,99",
-                                    ideal: "Equilíbrio perfeito entre conforto e economia.",
-                                    tag: "SALA B"
-                                },
-                                {
-                                    title: "Consultório Premium (Mais reservado)",
-                                    price: "39,99",
-                                    ideal: "Ambiente discreto e acolhedor para atendimentos individuais.",
-                                    tag: "SALA C"
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                            {rooms.map((room) => {
+                                let badge = "";
+                                let badgeColor = "bg-accent-600";
+                                let imageUrl = room.imageUrl;
+                                let indication = "";
+
+                                if (room.slug === 'sala-a') {
+                                    imageUrl = '/images/sala-a/foto-4.jpeg';
+                                    badge = "O MAIS COMPLETO";
+                                    indication = "Ideal para procedimentos / maca";
+                                } else if (room.slug === 'sala-b') {
+                                    imageUrl = '/images/sala-b/02-3.jpeg';
+                                    badge = "MELHOR CUSTO-BENEFÍCIO";
+                                    indication = "Consultório amplo e versátil";
+                                } else if (room.slug === 'sala-c') {
+                                    imageUrl = '/images/sala-c/03-1.jpeg';
+                                    badge = "O MAIS RESERVADO";
+                                    indication = "Ideal para psicoterapia e nutrição";
                                 }
-                            ].map((card, i) => (
-                                <div key={i} className="bg-warm-50 border border-warm-200 rounded-[2rem] p-8 flex flex-col h-full hover:shadow-xl transition-all group">
-                                    <span className="text-accent-600 text-[10px] font-black tracking-[0.2em] uppercase mb-4">{card.tag}</span>
-                                    <h3 className="text-xl font-bold text-primary-950 mb-3">{card.title}</h3>
-                                    <div className="flex items-baseline gap-1 mb-4">
-                                        <span className="text-3xl font-black text-primary-900">R$ {card.price}</span>
-                                        <span className="text-secondary-400 font-medium">/hora</span>
-                                    </div>
-                                    <p className="text-secondary-600 text-sm leading-relaxed mb-8 flex-1">
-                                        {card.ideal}
-                                    </p>
-                                    <button
-                                        id={`cta-preview-${card.tag.toLowerCase().replace(' ', '-')}`}
-                                        onClick={() => handleOpenWhatsApp('preview_sala')}
-                                        className="w-full bg-primary-950 text-white py-4 rounded-xl font-bold hover:bg-black transition-all flex items-center justify-center gap-2 group"
-                                    >
-                                        Consultar disponibilidade
-                                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
 
-                        <p className="text-center text-accent-700 font-bold text-sm flex items-center justify-center gap-2 bg-accent-50 py-3 rounded-full md:w-fit md:mx-auto md:px-8">
-                            <Clock className="w-4 h-4" />
-                            Horários mais disputados: manhã e fim da tarde. Consulte agora.
-                        </p>
+                                return (
+                                    <div key={room.id} className="bg-white rounded-[2rem] overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 border border-warm-200 group">
+                                        <div className="relative h-64 cursor-pointer overflow-hidden" onClick={() => handleOpenGallery({ name: room.name, slug: room.slug })}>
+                                            <Image
+                                                src={imageUrl || '/images/hero/banner.jpeg'}
+                                                alt={room.name}
+                                                fill
+                                                className="object-cover group-hover:scale-110 transition-transform duration-700"
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
+                                                <span className="text-white font-bold flex items-center gap-2">
+                                                    <Eye className="w-5 h-5" /> Ver todas as fotos
+                                                </span>
+                                            </div>
+                                            {badge && (
+                                                <div className={`absolute top-4 left-4 ${badgeColor} text-white text-[10px] font-black tracking-widest px-3 py-1 rounded-full`}>
+                                                    {badge}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="p-8">
+                                            <div className="mb-4">
+                                                <span className="text-accent-600 text-xs font-bold uppercase tracking-wider">{indication}</span>
+                                                <h3 className="text-2xl font-bold text-primary-950 mt-1">{room.name}</h3>
+                                            </div>
+
+                                            <div className="flex items-baseline gap-1 mb-8">
+                                                <span className="text-4xl font-black text-primary-900">{formatCurrency(room.hourlyRate / 100)}</span>
+                                                <span className="text-secondary-400 font-medium">/hora</span>
+                                            </div>
+
+                                            <div className="space-y-3 mb-8">
+                                                {room.amenities.slice(0, 4).map((amenity, i) => (
+                                                    <div key={i} className="flex items-center gap-2 text-sm text-secondary-600">
+                                                        <CheckCircle2 className="w-4 h-4 text-accent-500" />
+                                                        {amenity}
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <button
+                                                onClick={() => handleOpenWhatsApp('disponibilidade')}
+                                                className="w-full bg-primary-950 text-white py-4 rounded-xl font-bold hover:bg-black transition-all flex items-center justify-center gap-2 group"
+                                            >
+                                                Consultar disponibilidade
+                                                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                            </button>
+                                            <p className="text-[10px] text-center text-secondary-400 mt-2 font-medium">Sábados costumam esgotar primeiro</p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 </section>
 
@@ -557,100 +594,6 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                 </section>
 
 
-                {/* Rooms Section */}
-                <section className="py-24 bg-warm-50">
-                    <div className="max-w-6xl mx-auto px-4">
-                        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
-                            <div>
-                                <h2 className="text-3xl sm:text-4xl font-black text-primary-950 mb-4">Conheça cada ambiente</h2>
-                                <p className="text-secondary-600 text-lg">Valores transparentes e indicações de uso para facilitar sua escolha.</p>
-                                <p className="text-accent-700 font-bold text-sm mt-3 flex items-center gap-2">
-                                    <Sparkles className="w-4 h-4" />
-                                    Horários mais disputados: manhã e fim da tarde. Garanta o seu.
-                                </p>
-                            </div>
-                            <div className="bg-green-100 text-green-700 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2">
-                                <Clock className="w-4 h-4" />
-                                Em até 5 minutos via WhatsApp
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                            {rooms.map((room) => {
-                                let badge = "";
-                                let badgeColor = "bg-accent-600";
-                                let imageUrl = room.imageUrl;
-                                let indication = "";
-
-                                if (room.slug === 'sala-a') {
-                                    imageUrl = '/images/sala-a/foto-4.jpeg';
-                                    badge = "O MAIS COMPLETO";
-                                    indication = "Ideal para procedimentos / maca";
-                                } else if (room.slug === 'sala-b') {
-                                    imageUrl = '/images/sala-b/02-3.jpeg';
-                                    badge = "MELHOR CUSTO-BENEFÍCIO";
-                                    indication = "Consultório amplo e versátil";
-                                } else if (room.slug === 'sala-c') {
-                                    imageUrl = '/images/sala-c/03-1.jpeg';
-                                    badge = "O MAIS RESERVADO";
-                                    indication = "Ideal para psicoterapia e nutrição";
-                                }
-
-                                return (
-                                    <div key={room.id} className="bg-white rounded-[2rem] overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 border border-warm-200 group">
-                                        <div className="relative h-64 cursor-pointer overflow-hidden" onClick={() => handleOpenGallery({ name: room.name, slug: room.slug })}>
-                                            <Image
-                                                src={imageUrl || '/images/hero/banner.jpeg'}
-                                                alt={room.name}
-                                                fill
-                                                className="object-cover group-hover:scale-110 transition-transform duration-700"
-                                            />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
-                                                <span className="text-white font-bold flex items-center gap-2">
-                                                    <Eye className="w-5 h-5" /> Ver todas as fotos
-                                                </span>
-                                            </div>
-                                            {badge && (
-                                                <div className={`absolute top-4 left-4 ${badgeColor} text-white text-[10px] font-black tracking-widest px-3 py-1 rounded-full`}>
-                                                    {badge}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="p-8">
-                                            <div className="mb-4">
-                                                <span className="text-accent-600 text-xs font-bold uppercase tracking-wider">{indication}</span>
-                                                <h3 className="text-2xl font-bold text-primary-950 mt-1">{room.name}</h3>
-                                            </div>
-
-                                            <div className="flex items-baseline gap-1 mb-8">
-                                                <span className="text-4xl font-black text-primary-900">{formatCurrency(room.hourlyRate / 100)}</span>
-                                                <span className="text-secondary-400 font-medium">/hora</span>
-                                            </div>
-
-                                            <div className="space-y-3 mb-8">
-                                                {room.amenities.slice(0, 4).map((amenity, i) => (
-                                                    <div key={i} className="flex items-center gap-2 text-sm text-secondary-600">
-                                                        <CheckCircle2 className="w-4 h-4 text-accent-500" />
-                                                        {amenity}
-                                                    </div>
-                                                ))}
-                                            </div>
-
-                                            <button
-                                                onClick={() => handleOpenWhatsApp('disponibilidade')}
-                                                className="w-full bg-primary-950 text-white py-4 rounded-xl font-bold hover:bg-black transition-all flex items-center justify-center gap-2 group"
-                                            >
-                                                Consultar disponibilidade
-                                                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                                            </button>
-                                            <p className="text-[10px] text-center text-secondary-400 mt-2 font-medium">Sábados costumam esgotar primeiro</p>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </section>
 
                 {/* Ideal for Section */}
                 <section className="py-24 bg-white border-t border-warm-100">

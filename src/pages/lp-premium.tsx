@@ -142,11 +142,11 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
     };
 
     const faqs = [
-        { q: "Precisa contrato longo?", a: "Não. Aqui você reserva por hora ou pacote de horas, sem fidelidade e sem burocracia." },
-        { q: "Tem taxa de adesão?", a: "Absolutamente não. R$0 de taxa de adesão. Você só paga pelo que usar." },
-        { q: "Posso cancelar ou remarcar?", a: "Sim! Com até 48h de antecedência você pode cancelar ou remarcar sem custos profissionais." },
-        { q: "Tem recepção e limpeza inclusos?", a: "Sim, estrutura completa: recepção para seus pacientes, limpeza impecável, café, água e internet fibra." },
-        { q: "Serve para minha profissão?", a: "Atendemos Psicólogos, Nutricionistas, Fisioterapeutas, Médicos e diversos outros profissionais da saúde e bem-estar." },
+        { q: "Precisa contrato longo?", a: "Não. Reserva por hora, sem fidelidade e sem burocracia." },
+        { q: "Tem taxa de adesão?", a: "Não. Você paga apenas pelo tempo reservado." },
+        { q: "Posso cancelar ou remarcar?", a: "Sim, seguindo as regras de agenda (ex: até 48h antes)." },
+        { q: "Tem recepção e limpeza inclusos?", a: "Sim. Inclusos em todas as reservas." },
+        { q: "Serve para minha profissão?", a: "Sim — psicologia, nutrição, fisioterapia, medicina e outras áreas da saúde." },
     ];
 
     return (
@@ -184,7 +184,7 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                             priority
                         />
                         <button
-                            onClick={handleOpenWhatsApp}
+                            onClick={() => handleOpenWhatsApp('header')}
                             className="hidden sm:flex items-center gap-2 text-accent-700 font-semibold text-sm hover:underline"
                         >
                             <MessageCircle className="w-4 h-4" />
@@ -226,18 +226,18 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
 
                                 <div className="flex flex-col sm:flex-row gap-4 mb-12 lg:mb-0">
                                     <button
-                                        onClick={() => handleOpenBooking('')}
+                                        onClick={() => handleOpenWhatsApp('hero_disponibilidade')}
                                         className="bg-accent-600 text-white px-8 py-5 rounded-2xl font-bold text-lg shadow-xl shadow-accent-600/20 hover:bg-accent-700 transition-all hover:-translate-y-1 flex items-center justify-center gap-2"
                                     >
-                                        Consultar disponibilidade agora
+                                        Ver horários disponíveis agora
                                         <ArrowRight className="w-5 h-5" />
                                     </button>
                                     <button
-                                        onClick={() => handleOpenWhatsApp('disponibilidade')}
+                                        onClick={() => handleOpenWhatsApp('hero_agendar')}
                                         className="bg-white text-secondary-800 border-2 border-warm-200 px-8 py-5 rounded-2xl font-bold text-lg hover:bg-warm-50 transition-all flex items-center justify-center gap-2"
                                     >
                                         <MessageCircle className="w-6 h-6 text-green-600" />
-                                        Falar com a recepção
+                                        Quero reservar hoje
                                     </button>
                                 </div>
 
@@ -338,76 +338,21 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                             </div>
                         </div>
 
-                        {/* Mobile Micro-proofs - replacing repeated social proof */}
-                        <div className="lg:hidden mt-8 grid grid-cols-2 gap-4 border-t border-warm-200 pt-8 animate-fade-in">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                                    <MessageCircle className="w-4 h-4 text-green-600" />
-                                </div>
-                                <span className="text-[11px] font-bold text-secondary-700 leading-tight">
-                                    Resposta em minutos no WhatsApp
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-accent-100 flex items-center justify-center flex-shrink-0">
-                                    <ShieldCheck className="w-4 h-4 text-accent-700" />
-                                </div>
-                                <span className="text-[11px] font-bold text-secondary-700 leading-tight">
-                                    Sem taxa de adesão ou fidelidade
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                {/* Testimonials Section */}
-                <section className="py-24 bg-warm-50/50">
-                    <div className="max-w-6xl mx-auto px-4">
-                        <div className="text-center mb-16">
-                            <span className="text-accent-600 font-bold text-sm tracking-widest uppercase mb-4 block underline decoration-accent-200 underline-offset-4">O QUE DIZEM NOSSOS PROFISSIONAIS</span>
-                            <h2 className="text-3xl sm:text-4xl font-black text-primary-950 mb-4">Quem atende, aprova o modelo Arthemi</h2>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        {/* Mobile Micro-proofs - Fixed Style */}
+                        <div className="lg:hidden mt-8 grid grid-cols-1 gap-3 border-t border-warm-200 pt-8 animate-fade-in">
                             {[
-                                {
-                                    name: "Dr. Ricardo Silva",
-                                    role: "Psicólogo",
-                                    text: "A localização é estratégica e o ambiente é excelente. Meus pacientes sempre elogiam a recepção e o café. Para mim, a flexibilidade foi o divisor de águas.",
-                                    time: "Atende há 8 meses"
-                                },
-                                {
-                                    name: "Dra. Ana Carolina",
-                                    role: "Nutricionista",
-                                    text: "Saí de um aluguel fixo que me prendia muito. Hoje só pago o que uso e minha margem de lucro aumentou 40% logo no primeiro mês.",
-                                    time: "Atende há 1 ano"
-                                },
-                                {
-                                    name: "Felipe Santos",
-                                    role: "Fisioterapeuta",
-                                    text: "As salas são amplas e já vêm com tudo pronto. Chego, atendo e vou embora sem me preocupar com limpeza ou manutenção. Sensacional.",
-                                    time: "Atende há 6 meses"
-                                }
-                            ].map((item, i) => (
-                                <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-warm-200 shadow-sm relative">
-                                    <div className="flex text-yellow-500 mb-4">
-                                        {[1, 2, 3, 4, 5].map(s => <Star key={s} className="w-4 h-4 fill-current" />)}
-                                    </div>
-                                    <p className="text-secondary-600 mb-8 italic leading-relaxed">&quot;{item.text}&quot;</p>
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-full bg-accent-100 flex items-center justify-center font-bold text-accent-700">
-                                            {item.name[0]}
-                                        </div>
-                                        <div>
-                                            <p className="font-bold text-primary-950">{item.name}</p>
-                                            <p className="text-xs text-secondary-500 font-medium">{item.role} • {item.time}</p>
-                                        </div>
-                                    </div>
+                                "✅ Sem taxa de adesão",
+                                "✅ Sem fidelidade",
+                                "✅ Recepção + limpeza inclusas"
+                            ].map((text, i) => (
+                                <div key={i} className="flex items-center gap-2 text-primary-900/80 font-bold text-sm">
+                                    {text}
                                 </div>
                             ))}
                         </div>
                     </div>
                 </section>
+
 
                 {/* How it Works Section */}
                 <section className="py-24 bg-white border-y border-warm-100">
@@ -459,6 +404,55 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                                     </div>
                                     <h3 className="text-xl font-bold text-primary-950 mb-3">{item.title}</h3>
                                     <p className="text-secondary-600 leading-relaxed text-sm">{item.desc}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                {/* Testimonials Section (Moved here as requested) */}
+                <section className="py-24 bg-warm-50/50">
+                    <div className="max-w-6xl mx-auto px-4">
+                        <div className="text-center mb-16">
+                            <span className="text-accent-600 font-bold text-sm tracking-widest uppercase mb-4 block underline decoration-accent-200 underline-offset-4">O QUE DIZEM NOSSOS PROFISSIONAIS</span>
+                            <h2 className="text-3xl sm:text-4xl font-black text-primary-950 mb-4">Quem atende, aprova o modelo Arthemi</h2>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                            {[
+                                {
+                                    name: "Dr. Ricardo Silva",
+                                    role: "Psicólogo",
+                                    text: "A localização é estratégica e o ambiente é excelente. Meus pacientes sempre elogiam a recepção e o café. Para mim, a flexibilidade foi o divisor de águas.",
+                                    time: "Atende há 8 meses"
+                                },
+                                {
+                                    name: "Dra. Ana Carolina",
+                                    role: "Nutricionista",
+                                    text: "Saí de um aluguel fixo que me prendia muito. Hoje só pago o que uso e minha margem de lucro aumentou 40% logo no primeiro mês.",
+                                    time: "Atende há 1 ano"
+                                },
+                                {
+                                    name: "Felipe Santos",
+                                    role: "Fisioterapeuta",
+                                    text: "As salas são amplas e já vêm com tudo pronto. Chego, atendo e vou embora sem me preocupar com limpeza ou manutenção. Sensacional.",
+                                    time: "Atende há 6 meses"
+                                }
+                            ].map((item, i) => (
+                                <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-warm-200 shadow-sm relative">
+                                    <div className="flex text-yellow-500 mb-4">
+                                        {[1, 2, 3, 4, 5].map(s => <Star key={s} className="w-4 h-4 fill-current" />)}
+                                    </div>
+                                    <p className="text-secondary-600 mb-8 italic leading-relaxed">&quot;{item.text}&quot;</p>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-full bg-accent-100 flex items-center justify-center font-bold text-accent-700">
+                                            {item.name[0]}
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-primary-950">{item.name}</p>
+                                            <p className="text-xs text-secondary-500 font-medium">{item.role} • {item.time}</p>
+                                        </div>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -683,16 +677,18 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                             <p className="text-secondary-600">Transparência total para você começar hoje mesmo.</p>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {faqs.map((faq, i) => (
-                                <div key={i} className="bg-white rounded-2xl border border-warm-200 p-8 shadow-sm flex flex-col h-full">
+                                <div key={i} className="bg-white rounded-2xl border border-warm-200 p-8 shadow-sm flex flex-col h-full border-b-[6px] border-b-accent-100">
                                     <h3 className="text-lg font-bold text-primary-950 mb-3 flex items-start gap-2">
                                         <div className="w-1.5 h-1.5 rounded-full bg-accent-400 mt-2.5 flex-shrink-0" />
                                         {faq.q}
                                     </h3>
-                                    <p className="text-secondary-600 leading-relaxed text-sm mt-auto">
-                                        {faq.a}
-                                    </p>
+                                    <div className="bg-warm-50 p-4 rounded-xl">
+                                        <p className="text-primary-900 font-medium leading-relaxed text-sm">
+                                            {faq.a}
+                                        </p>
+                                    </div>
                                 </div>
                             ))}
                         </div>

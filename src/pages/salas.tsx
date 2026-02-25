@@ -66,7 +66,7 @@ export default function SalasPage({ rooms }: SalasPageProps) {
         router.replace({ pathname: router.pathname, query: restQuery }, undefined, { shallow: true });
       }
     }
-  }, [router.isReady, router.query.room, rooms]);
+  }, [router.isReady, router.query, rooms, router]);
 
   const handleReservar = (roomName: string) => {
     setSelectedRoomName(roomName);

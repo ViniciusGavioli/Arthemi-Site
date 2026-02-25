@@ -147,6 +147,32 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
     }
   }, [selectedRoom]);
 
+  const fetchRooms = useCallback(async () => {
+    try {
+      const res = await fetch('/api/rooms');
+      if (res.ok) {
+        const data = await res.json();
+        const newRooms = data.rooms || [];
+        setRooms(newRooms);
+
+        if (selectedRoom) {
+          const roomStillExists = newRooms.find((r: Room) => r.id === selectedRoom.id);
+          if (roomStillExists) {
+            setSelectedRoom(roomStillExists);
+          } else if (newRooms.length > 0) {
+            setSelectedRoom(newRooms[0]);
+          }
+        } else if (newRooms.length > 0) {
+          setSelectedRoom(newRooms[0]);
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao buscar salas:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedRoom]);
+
   // Fecha com ESC
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -183,8 +209,7 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
     };
-  }, [isOpen, handleKeyDown]);
-
+  }, [isOpen, handleKeyDown, fetchRooms]);
   // Revalidar cupom quando muda produto (preço diferente)
   // Usar useRef para evitar loop infinito
   const previousProductIdRef = useRef<string | null>(null);
@@ -205,7 +230,6 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
     }
 
     // Se o produto mudou (ID diferente) E há cupom aplicado, limpar cupom para revalidação
-    // IMPORTANTE: Não incluir couponApplied nas dependências para evitar loop
     if (previousProductIdRef.current && previousProductIdRef.current !== selectedProduct.id && couponApplied) {
       // Limpar cupom aplicado - usuário precisará reaplicar se quiser
       setCouponApplied(null);
@@ -214,37 +238,7 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
 
     // Atualizar referência do produto anterior
     previousProductIdRef.current = selectedProduct.id;
-  }, [selectedProduct]); // Removido couponApplied das dependências para evitar loop
-
-  async function fetchRooms() {
-    try {
-      const res = await fetch('/api/rooms');
-      if (res.ok) {
-        const data = await res.json();
-        const newRooms = data.rooms || [];
-        setRooms(newRooms);
-
-        // Preservar seleção atual se a sala ainda existir
-        if (selectedRoom) {
-          const roomStillExists = newRooms.find((r: Room) => r.id === selectedRoom.id);
-          if (roomStillExists) {
-            // Atualizar referência do objeto mantendo a seleção
-            setSelectedRoom(roomStillExists);
-          } else if (newRooms.length > 0) {
-            // Sala não existe mais, selecionar primeira
-            setSelectedRoom(newRooms[0]);
-          }
-        } else if (newRooms.length > 0) {
-          // Nenhuma sala selecionada, selecionar primeira
-          setSelectedRoom(newRooms[0]);
-        }
-      }
-    } catch (err) {
-      console.error('Erro ao buscar salas:', err);
-    } finally {
-      setLoading(false);
-    }
-  }
+  }, [selectedProduct, couponApplied]);
 
   function formatCurrency(cents: number): string {
     return (cents / 100).toLocaleString('pt-BR', {
@@ -315,11 +309,20 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
   }
 
   // Remover cupom aplicado
-  function handleRemoveCoupon() {
+  const handleRemoveCoupon = useCallback(() => {
     setCouponCode('');
     setCouponApplied(null);
     setCouponError(null);
-  }
+    // setFormData(prev => ({ ...prev, couponCode: '' })); // This line is not present in the original context, so I'm not adding it.
+  }, []);
+
+  // Resetar cupom quando muda produto/duração (pois o preço muda)
+  // This useEffect is not present in the original context, so I'm not adding it.
+  // useEffect(() => {
+  //   if (couponApplied) {
+  //     handleRemoveCoupon();
+  //   }
+  // }, [formData.productType, formData.productId, formData.duration, formData.date, couponApplied, handleRemoveCoupon]);
 
   async function handleSubmit() {
     if (!selectedRoom || !selectedProduct) {
@@ -480,8 +483,8 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                       key={room.id}
                       onClick={() => setSelectedRoom(room)}
                       className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all text-left ${selectedRoom?.id === room.id
-                          ? 'border-primary-500 bg-primary-50'
-                          : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-primary-500 bg-primary-50'
+                        : 'border-gray-200 hover:border-gray-300'
                         }`}
                     >
                       <span className="font-medium text-gray-900">{room.name}</span>
@@ -508,8 +511,8 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                           key={product.id}
                           onClick={() => setSelectedProduct(product)}
                           className={`flex flex-col items-center p-3 rounded-xl border-2 transition-all ${selectedProduct?.id === product.id
-                              ? 'border-primary-500 bg-primary-50'
-                              : 'border-gray-200 hover:border-gray-300'
+                            ? 'border-primary-500 bg-primary-50'
+                            : 'border-gray-200 hover:border-gray-300'
                             }`}
                         >
                           <span className="font-semibold text-gray-900">{product.hours}h</span>
@@ -533,8 +536,8 @@ export function PurchaseCreditsModal({ isOpen, onClose, user }: PurchaseCreditsM
                           key={product.id}
                           onClick={() => setSelectedProduct(product)}
                           className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all text-left ${selectedProduct?.id === product.id
-                              ? 'border-primary-500 bg-primary-50'
-                              : 'border-gray-200 hover:border-gray-300'
+                            ? 'border-primary-500 bg-primary-50'
+                            : 'border-gray-200 hover:border-gray-300'
                             }`}
                         >
                           <div className="flex items-center gap-3">

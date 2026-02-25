@@ -291,30 +291,26 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
   // Produtos filtrados para esta sala - apenas pacotes de horas
   // Turnos (SHIFT_FIXED, SATURDAY_SHIFT) são tratados manualmente via WhatsApp/Admin
   // Excluídos: DAY_PASS, SATURDAY_5H (descontinuados)
-  const officialTypes = ['PACKAGE_10H', 'PACKAGE_20H', 'PACKAGE_40H'];
-  const filteredProducts = products
-    .filter((p) => officialTypes.includes(p.type))
-    .map((p) => {
-      // CORREÇÃO: Se o preço parece estar incorreto (muito alto), corrigir automaticamente
-      // Valores acima de 1000000 centavos (R$ 10.000,00) são suspeitos para pacotes
-      // Pacotes normalmente custam entre R$ 300 e R$ 2.000 (30000 a 200000 centavos)
-      if (p.price > 1000000 && p.type.startsWith('PACKAGE_')) {
-        // Tentar detectar se está multiplicado por 10 ou 100
-        // Se dividir por 10 resulta em um valor razoável (entre 30000 e 200000), usar esse valor
-        const dividedBy10 = Math.round(p.price / 10);
-        if (dividedBy10 >= 30000 && dividedBy10 <= 200000) {
-          console.warn(`⚠️ [BookingModal] Corrigindo preço de ${p.name}: ${p.price} → ${dividedBy10} centavos (estava multiplicado por 10)`);
-          return { ...p, price: dividedBy10 };
+  const filteredProducts = useMemo(() => {
+    const officialTypes = ['PACKAGE_10H', 'PACKAGE_20H', 'PACKAGE_40H'];
+    return products
+      .filter((p) => officialTypes.includes(p.type))
+      .map((p) => {
+        if (p.price > 1000000 && p.type.startsWith('PACKAGE_')) {
+          const dividedBy10 = Math.round(p.price / 10);
+          if (dividedBy10 >= 30000 && dividedBy10 <= 200000) {
+            console.warn(`⚠️ [BookingModal] Corrigindo preço de ${p.name}: ${p.price} → ${dividedBy10} centavos (estava multiplicado por 10)`);
+            return { ...p, price: dividedBy10 };
+          }
+          const dividedBy100 = Math.round(p.price / 100);
+          if (dividedBy100 >= 30000 && dividedBy100 <= 200000) {
+            console.warn(`⚠️ [BookingModal] Corrigindo preço de ${p.name}: ${p.price} → ${dividedBy100} centavos (estava multiplicado por 100)`);
+            return { ...p, price: dividedBy100 };
+          }
         }
-        // Se dividir por 100 resulta em um valor razoável, usar esse valor
-        const dividedBy100 = Math.round(p.price / 100);
-        if (dividedBy100 >= 30000 && dividedBy100 <= 200000) {
-          console.warn(`⚠️ [BookingModal] Corrigindo preço de ${p.name}: ${p.price} → ${dividedBy100} centavos (estava multiplicado por 100)`);
-          return { ...p, price: dividedBy100 };
-        }
-      }
-      return p;
-    });
+        return p;
+      });
+  }, [products]);
 
   // Estado de cupom
   const [couponCode, setCouponCode] = useState('');
@@ -331,15 +327,13 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
   const getBasePrice = useCallback(() => {
     let basePrice: number;
     if (formData.productType === 'package' && formData.productId) {
-      // Usar filteredProducts para obter o produto corrigido
       const product = filteredProducts.find((p) => p.id === formData.productId);
       basePrice = product?.price || 0;
     } else {
-      // Usar preço da sala conforme data (helper unificado)
       basePrice = pricingInfo.hourlyPrice * formData.duration;
     }
-    return basePrice; // EM CENTAVOS
-  }, [formData.productType, formData.productId, formData.duration, products, pricingInfo]);
+    return basePrice;
+  }, [formData.productType, formData.productId, formData.duration, filteredProducts, pricingInfo]);
 
   // Validar cupom via API
   const handleApplyCoupon = async () => {
@@ -387,19 +381,19 @@ export default function BookingModal({ room, products, onClose }: BookingModalPr
   };
 
   // Remover cupom
-  const handleRemoveCoupon = () => {
+  const handleRemoveCoupon = useCallback(() => {
     setCouponCode('');
     setCouponApplied(null);
     setCouponError(null);
     setFormData(prev => ({ ...prev, couponCode: '' }));
-  };
+  }, []);
 
   // Resetar cupom quando muda produto/duração (pois o preço muda)
   useEffect(() => {
     if (couponApplied) {
       handleRemoveCoupon();
     }
-  }, [formData.productType, formData.productId, formData.duration, formData.date]);
+  }, [formData.productType, formData.productId, formData.duration, formData.date, couponApplied, handleRemoveCoupon]);
 
   // Calcular valor total (com ou sem desconto)
   // Se applyDiscount = false, retorna o preço cheio (para subtotal)

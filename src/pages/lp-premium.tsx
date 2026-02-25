@@ -428,7 +428,7 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                                 { step: "03", title: "Chegue e Atenda", desc: "Estrutura pronta: ar ligado, café pronto e recepcionista aguardando seu paciente." },
                             ].map((item, i) => (
                                 <div key={i} className="relative group text-center">
-                                    <div className="text-7xl font-black text-warm-100 absolute -top-8 left-1/2 -translate-x-1/2 group-hover:text-accent-100/50 transition-colors -z-0">
+                                    <div className="text-7xl font-black text-accent-600/10 absolute -top-8 left-1/2 -translate-x-1/2 group-hover:text-accent-600/20 transition-colors -z-0">
                                         {item.step}
                                     </div>
                                     <div className="relative z-10 pt-8">

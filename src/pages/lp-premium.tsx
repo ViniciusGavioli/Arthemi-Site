@@ -126,9 +126,10 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
         setIsLeadFormOpen(true);
     };
 
-    const handleOpenWhatsApp = (ctaContext = '') => {
-        trackEvent('clique_whatsapp', { context: ctaContext });
-        const text = ctaContext === 'disponibilidade'
+    const handleOpenWhatsApp = (ctaContext: any = '') => {
+        const contextStr = typeof ctaContext === 'string' ? ctaContext : '';
+        trackEvent('clique_whatsapp', { context: contextStr });
+        const text = contextStr === 'disponibilidade'
             ? 'Olá! Vi o site e gostaria de consultar a disponibilidade dos consultórios para hoje.'
             : 'Olá! Gostaria de saber mais sobre o Espaço Arthemi.';
         const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
@@ -396,10 +397,10 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                                     <div className="flex text-yellow-500 mb-4">
                                         {[1, 2, 3, 4, 5].map(s => <Star key={s} className="w-4 h-4 fill-current" />)}
                                     </div>
-                                    <p className="text-secondary-600 mb-8 italic leading-relaxed">"{item.text}"</p>
+                                    <p className="text-secondary-600 mb-8 italic leading-relaxed">&quot;{item.text}&quot;</p>
                                     <div className="flex items-center gap-4">
                                         <div className="w-12 h-12 rounded-full bg-accent-100 flex items-center justify-center font-bold text-accent-700">
-                                            {item.name[4]}
+                                            {item.name[0]}
                                         </div>
                                         <div>
                                             <p className="font-bold text-primary-950">{item.name}</p>

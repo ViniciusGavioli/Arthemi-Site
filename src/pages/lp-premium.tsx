@@ -338,26 +338,22 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                             </div>
                         </div>
 
-                        {/* Mobile Social Proof - specifically moved here to be visible after the image on smaller screens */}
-                        <div className="lg:hidden mt-8 flex flex-col sm:flex-row gap-6 items-start sm:items-center border-t border-warm-200 pt-8 animate-fade-in">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-accent-100 flex items-center justify-center">
-                                    <Users className="w-5 h-5 text-accent-700" />
+                        {/* Mobile Micro-proofs - replacing repeated social proof */}
+                        <div className="lg:hidden mt-8 grid grid-cols-2 gap-4 border-t border-warm-200 pt-8 animate-fade-in">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                                    <MessageCircle className="w-4 h-4 text-green-600" />
                                 </div>
-                                <span className="text-sm font-medium text-secondary-600">
-                                    <strong className="text-primary-950">Referência</strong> na área hospitalar de BH
+                                <span className="text-[11px] font-bold text-secondary-700 leading-tight">
+                                    Resposta em minutos no WhatsApp
                                 </span>
                             </div>
-                            <div className="flex items-center gap-1.5">
-                                <div className="flex text-yellow-500">
-                                    <Star className="w-4 h-4 fill-current" />
-                                    <Star className="w-4 h-4 fill-current" />
-                                    <Star className="w-4 h-4 fill-current" />
-                                    <Star className="w-4 h-4 fill-current" />
-                                    <Star className="w-4 h-4 fill-current" />
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full bg-accent-100 flex items-center justify-center flex-shrink-0">
+                                    <ShieldCheck className="w-4 h-4 text-accent-700" />
                                 </div>
-                                <span className="text-xs font-medium text-secondary-600">
-                                    <strong>4.9/5</strong> no Google
+                                <span className="text-[11px] font-bold text-secondary-700 leading-tight">
+                                    Sem taxa de adesão ou fidelidade
                                 </span>
                             </div>
                         </div>
@@ -687,21 +683,16 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                             <p className="text-secondary-600">Transparência total para você começar hoje mesmo.</p>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {faqs.map((faq, i) => (
-                                <div key={i} className="bg-white rounded-2xl border border-warm-200 overflow-hidden">
-                                    <button
-                                        onClick={() => setActiveFaq(activeFaq === i ? null : i)}
-                                        className="w-full px-8 py-6 text-left flex items-center justify-between hover:bg-warm-50 transition-colors"
-                                    >
-                                        <span className="text-lg font-bold text-primary-900">{faq.q}</span>
-                                        <ChevronDown className={`w-5 h-5 text-secondary-400 transition-transform ${activeFaq === i ? 'rotate-180' : ''}`} />
-                                    </button>
-                                    {activeFaq === i && (
-                                        <div className="px-8 pb-6 text-secondary-600 leading-relaxed border-t border-warm-50 pt-4 animate-in slide-in-from-top-4">
-                                            {faq.a}
-                                        </div>
-                                    )}
+                                <div key={i} className="bg-white rounded-2xl border border-warm-200 p-8 shadow-sm flex flex-col h-full">
+                                    <h3 className="text-lg font-bold text-primary-950 mb-3 flex items-start gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-accent-400 mt-2.5 flex-shrink-0" />
+                                        {faq.q}
+                                    </h3>
+                                    <p className="text-secondary-600 leading-relaxed text-sm mt-auto">
+                                        {faq.a}
+                                    </p>
                                 </div>
                             ))}
                         </div>

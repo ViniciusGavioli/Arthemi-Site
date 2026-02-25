@@ -44,6 +44,15 @@ const roomImages: Record<string, { images: string[]; video?: string }> = {
     ],
     video: '/images/sala-c/03-1.mp4',
   },
+  'espaco': {
+    images: [
+      '/images/espaco/Recepcao-01.jpeg',
+      '/images/sala-a/foto-4.jpeg',
+      '/images/sala-b/02-3.jpeg',
+      '/images/sala-c/03-1.jpeg',
+      '/images/hero/banner.jpeg',
+    ],
+  },
 };
 
 export default function RoomGalleryModal({ isOpen, onClose, onReservar, room }: RoomGalleryModalProps) {
@@ -103,7 +112,7 @@ export default function RoomGalleryModal({ isOpen, onClose, onReservar, room }: 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Overlay */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/95"
         onClick={onClose}
       />
@@ -141,7 +150,7 @@ export default function RoomGalleryModal({ isOpen, onClose, onReservar, room }: 
                   priority
                   quality={90}
                 />
-                
+
                 {/* Navigation Arrows - Over Image */}
                 {images.length > 1 && (
                   <>
@@ -185,11 +194,10 @@ export default function RoomGalleryModal({ isOpen, onClose, onReservar, room }: 
                     setShowVideo(false);
                   }}
                   aria-label={`Ver foto ${idx + 1}`}
-                  className={`relative flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border-2 transition-all ${
-                    currentIndex === idx && !showVideo
+                  className={`relative flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border-2 transition-all ${currentIndex === idx && !showVideo
                       ? 'border-accent-500 ring-2 ring-accent-500/50'
                       : 'border-white/20 hover:border-white/50'
-                  }`}
+                    }`}
                 >
                   <Image
                     src={img}
@@ -200,17 +208,16 @@ export default function RoomGalleryModal({ isOpen, onClose, onReservar, room }: 
                   />
                 </button>
               ))}
-              
+
               {/* Video Thumbnail */}
               {video && (
                 <button
                   onClick={() => setShowVideo(true)}
                   aria-label="Ver vídeo do consultório"
-                  className={`relative flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border-2 transition-all bg-primary-800 flex items-center justify-center ${
-                    showVideo
+                  className={`relative flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border-2 transition-all bg-primary-800 flex items-center justify-center ${showVideo
                       ? 'border-accent-500 ring-2 ring-accent-500/50'
                       : 'border-white/20 hover:border-white/50'
-                  }`}
+                    }`}
                 >
                   <Play className="w-8 h-8 text-white" />
                 </button>

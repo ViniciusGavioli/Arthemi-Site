@@ -45,6 +45,16 @@ const nextConfig = {
       },
     ];
   },
+  // Redirecionamento da Home para a nova LP Premium
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/lp-premium',
+        permanent: false, // Usando temporary para caso queira voltar atrás fácil
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

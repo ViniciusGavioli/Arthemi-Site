@@ -18,6 +18,8 @@ import {
     Eye,
     MessageCircle,
     ChevronDown,
+    ChevronLeft,
+    ChevronRight,
     ShieldCheck,
     Clock,
     Coffee,
@@ -64,6 +66,32 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
     const [isLeadFormOpen, setIsLeadFormOpen] = useState(false);
     const [selectedRoomName, setSelectedRoomName] = useState('');
     const [activeFaq, setActiveFaq] = useState<number | null>(null);
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+    const heroImages = [
+        { src: "/images/espaco/Recepcao-01.jpeg", alt: "Recepção do Espaço Arthemi" },
+        { src: "/images/sala-a/foto-4.jpeg", alt: "Consultório Prime" },
+        { src: "/images/sala-b/02-3.jpeg", alt: "Consultório Executive" },
+        { src: "/images/sala-c/03-1.jpeg", alt: "Consultório Essential" }
+    ];
+
+    // Carousel Logic
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentImageIndex((prev) => (prev + 1) % heroImages.length);
+        }, 3000);
+        return () => clearInterval(timer);
+    }, [heroImages.length]);
+
+    const nextImage = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setCurrentImageIndex((prev) => (prev + 1) % heroImages.length);
+    };
+
+    const prevImage = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setCurrentImageIndex((prev) => (prev - 1 + heroImages.length) % heroImages.length);
+    };
 
     // Tracking Scroll
     useEffect(() => {
@@ -127,8 +155,17 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
 
             <Layout noHeader noFooter className="bg-white">
                 {/* Minimal Header */}
-                <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-warm-100">
-                    <div className="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between">
+                <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-xl border-b border-warm-100 overflow-hidden">
+                    {/* Header BG Image (Mobile Only) */}
+                    <div className="md:hidden absolute inset-0 -z-10 opacity-15">
+                        <Image
+                            src="/images/hero/banner.jpeg"
+                            alt=""
+                            fill
+                            className="object-cover blur-md scale-110"
+                        />
+                    </div>
+                    <div className="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between relative z-10">
                         <Image
                             src="/images/Logo/logo.webp"
                             alt="Espaço Arthemi"
@@ -204,20 +241,63 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                                 </div>
                             </div>
 
-                            {/* Hero Image Container */}
+                            {/* Hero Image Slider Container */}
                             <div className="relative">
-                                <div className="relative aspect-[4/3] lg:aspect-square w-full rounded-2xl sm:rounded-[3rem] overflow-hidden shadow-2xl lg:rotate-2 group">
-                                    <Image
-                                        src="/images/espaco/Recepcao-01.jpeg"
-                                        alt="Recepção Espaço Arthemi"
-                                        fill
-                                        className="object-cover transition-transform duration-700 group-hover:scale-110"
-                                        priority
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60"></div>
+                                <div
+                                    className="relative aspect-[4/3] lg:aspect-square w-full rounded-2xl sm:rounded-[3rem] overflow-hidden shadow-2xl lg:rotate-2 group cursor-zoom-in"
+                                    onClick={() => handleOpenGallery({ name: 'Espaço Arthemi', slug: 'espaco' })}
+                                >
+                                    {heroImages.map((img, idx) => (
+                                        <div
+                                            key={idx}
+                                            className={`absolute inset-0 transition-opacity duration-1000 ${currentImageIndex === idx ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
+                                        >
+                                            <Image
+                                                src={img.src}
+                                                alt={img.alt}
+                                                fill
+                                                className="object-cover"
+                                                priority={idx === 0}
+                                            />
+                                        </div>
+                                    ))}
+
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-60 z-20"></div>
+
+                                    {/* Navigation Arrows */}
+                                    <button
+                                        onClick={nextImage}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/40 transition-all opacity-0 group-hover:opacity-100 hidden sm:flex"
+                                    >
+                                        <ChevronRight className="w-6 h-6" />
+                                    </button>
+                                    <button
+                                        onClick={prevImage}
+                                        className="absolute left-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/40 transition-all opacity-0 group-hover:opacity-100 hidden sm:flex"
+                                    >
+                                        <ChevronLeft className="w-6 h-6" />
+                                    </button>
+
+                                    {/* Click Hint */}
+                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex flex-col items-center gap-2">
+                                        <div className="bg-white/90 text-primary-950 px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2 shadow-xl">
+                                            <Eye className="w-4 h-4" />
+                                            Ver em tamanho real
+                                        </div>
+                                    </div>
+
+                                    {/* Carousel Indicators */}
+                                    <div className="absolute bottom-6 right-6 lg:right-auto lg:left-1/2 lg:-translate-x-1/2 z-30 flex gap-1.5 bg-black/20 backdrop-blur-md px-3 py-2 rounded-full">
+                                        {heroImages.map((_, idx) => (
+                                            <div
+                                                key={idx}
+                                                className={`w-1.5 h-1.5 rounded-full transition-all ${currentImageIndex === idx ? 'bg-white w-4' : 'bg-white/50'}`}
+                                            />
+                                        ))}
+                                    </div>
 
                                     {/* Mobile Floating Badge */}
-                                    <div className="absolute bottom-6 left-6 lg:hidden bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-xl flex items-center gap-3">
+                                    <div className="absolute bottom-6 left-6 lg:hidden bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-xl flex items-center gap-3 z-30">
                                         <div className="w-10 h-10 rounded-full bg-accent-100 flex items-center justify-center">
                                             <MapPin className="w-5 h-5 text-accent-700" />
                                         </div>

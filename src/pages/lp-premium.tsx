@@ -148,70 +148,114 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                 </header>
 
                 {/* Hero Section */}
-                <section className="relative pt-12 pb-20 sm:pt-20 sm:pb-32 overflow-hidden bg-gradient-to-b from-warm-50 to-white">
+                <section className="relative pt-10 pb-16 sm:pt-20 sm:pb-32 overflow-hidden bg-gradient-to-b from-warm-50 to-white">
                     <div className="max-w-6xl mx-auto px-4 relative z-10">
-                        <div className="max-w-3xl">
-                            <span className="inline-block px-4 py-1.5 rounded-full bg-accent-100 text-accent-700 text-sm font-bold mb-6 animate-fade-in">
-                                SOLUÇÃO PREMIUM PARA PROFISSIONAIS DE SAÚDE
-                            </span>
-                            <h1 className="text-4xl sm:text-6xl font-black text-primary-950 leading-[1.1] mb-6">
-                                Atenda em consultório premium na área hospitalar de BH <span className="text-accent-600">sem aluguel fixo</span>.
-                            </h1>
-                            <p className="text-xl text-secondary-600 mb-10 leading-relaxed max-w-xl">
-                                Reserve por hora, atenda com estrutura completa e sem burocracia <br className="hidden md:block" /> — recepção, limpeza e internet inclusos.
-                            </p>
+                        <div className="grid lg:grid-cols-2 gap-12 items-center">
+                            <div className="max-w-3xl">
+                                <span className="inline-block px-4 py-1.5 rounded-full bg-accent-100 text-accent-700 text-sm font-bold mb-6 animate-fade-in uppercase tracking-wider">
+                                    Solução Premium em Saúde
+                                </span>
+                                <h1 className="text-4xl sm:text-6xl font-black text-primary-950 leading-[1.1] mb-6 tracking-tight">
+                                    Atenda em consultório premium em BH <span className="text-accent-600">sem aluguel fixo</span>.
+                                </h1>
+                                <p className="text-lg sm:text-xl text-secondary-600 mb-10 leading-relaxed max-w-xl">
+                                    Reserve por hora, atenda com estrutura completa e sem burocracia <br className="hidden md:block" /> — recepção, limpeza e internet inclusos.
+                                </p>
 
-                            <div className="flex flex-col sm:flex-row gap-4">
-                                <button
-                                    onClick={() => handleOpenBooking('')}
-                                    className="bg-accent-600 text-white px-8 py-5 rounded-2xl font-bold text-lg shadow-xl shadow-accent-600/20 hover:bg-accent-700 transition-all hover:-translate-y-1 flex items-center justify-center gap-2"
-                                >
-                                    Quero reservar meu consultório
-                                    <ArrowRight className="w-5 h-5" />
-                                </button>
-                                <button
-                                    onClick={handleOpenWhatsApp}
-                                    className="bg-white text-secondary-800 border-2 border-warm-200 px-8 py-5 rounded-2xl font-bold text-lg hover:bg-warm-50 transition-all flex items-center justify-center gap-2"
-                                >
-                                    <MessageCircle className="w-6 h-6 text-green-600" />
-                                    Falar no WhatsApp agora
-                                </button>
+                                <div className="flex flex-col sm:flex-row gap-4 mb-12 lg:mb-0">
+                                    <button
+                                        onClick={() => handleOpenBooking('')}
+                                        className="bg-accent-600 text-white px-8 py-5 rounded-2xl font-bold text-lg shadow-xl shadow-accent-600/20 hover:bg-accent-700 transition-all hover:-translate-y-1 flex items-center justify-center gap-2"
+                                    >
+                                        Quero reservar agora
+                                        <ArrowRight className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                        onClick={handleOpenWhatsApp}
+                                        className="bg-white text-secondary-800 border-2 border-warm-200 px-8 py-5 rounded-2xl font-bold text-lg hover:bg-warm-50 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <MessageCircle className="w-6 h-6 text-green-600" />
+                                        Falar no WhatsApp
+                                    </button>
+                                </div>
+
+                                {/* Quick Proof */}
+                                <div className="hidden lg:flex mt-12 flex-wrap gap-8 items-center border-t border-warm-200 pt-8">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-accent-100 flex items-center justify-center">
+                                            <Users className="w-5 h-5 text-accent-700" />
+                                        </div>
+                                        <span className="text-sm font-medium text-secondary-600">
+                                            <strong className="text-primary-950">Referência</strong> na área hospitalar de BH
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="flex text-yellow-500">
+                                            <Star className="w-5 h-5 fill-current" />
+                                            <Star className="w-5 h-5 fill-current" />
+                                            <Star className="w-5 h-5 fill-current" />
+                                            <Star className="w-5 h-5 fill-current" />
+                                            <Star className="w-5 h-5 fill-current" />
+                                        </div>
+                                        <span className="text-sm font-medium text-secondary-600">
+                                            <strong>4.9/5</strong> no Google
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Quick Proof */}
-                            <div className="mt-12 flex flex-wrap gap-8 items-center border-t border-warm-200 pt-8">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-accent-100 flex items-center justify-center">
-                                        <Users className="w-5 h-5 text-accent-700" />
+                            {/* Hero Image Container */}
+                            <div className="relative">
+                                <div className="relative aspect-[4/3] lg:aspect-square w-full rounded-2xl sm:rounded-[3rem] overflow-hidden shadow-2xl lg:rotate-2 group">
+                                    <Image
+                                        src="/images/espaco/Recepcao-01.jpeg"
+                                        alt="Recepção Espaço Arthemi"
+                                        fill
+                                        className="object-cover transition-transform duration-700 group-hover:scale-110"
+                                        priority
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60"></div>
+
+                                    {/* Mobile Floating Badge */}
+                                    <div className="absolute bottom-6 left-6 lg:hidden bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-xl flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-accent-100 flex items-center justify-center">
+                                            <MapPin className="w-5 h-5 text-accent-700" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-bold text-primary-950">Área Hospitalar</p>
+                                            <p className="text-[10px] text-secondary-500 uppercase tracking-widest">Belo Horizonte</p>
+                                        </div>
                                     </div>
-                                    <span className="text-sm font-medium text-secondary-600">
-                                        <strong className="text-primary-950">Referência</strong> na área hospitalar de BH
-                                    </span>
                                 </div>
-                                <div className="flex items-center gap-1.5">
-                                    <div className="flex text-yellow-500">
-                                        <Star className="w-5 h-5 fill-current" />
-                                        <Star className="w-5 h-5 fill-current" />
-                                        <Star className="w-5 h-5 fill-current" />
-                                        <Star className="w-5 h-5 fill-current" />
-                                        <Star className="w-5 h-5 fill-current" />
-                                    </div>
-                                    <span className="text-sm font-medium text-secondary-600">
-                                        <strong>4.9/5</strong> no Google
-                                    </span>
-                                </div>
+
+                                {/* Decorative shape behind image on desktop */}
+                                <div className="hidden lg:block absolute -z-10 -top-6 -right-6 w-full h-full border-2 border-accent-200 rounded-[3rem] rotate-1"></div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Hero Decorative Image (Desktop) */}
-                    <div className="hidden lg:block absolute top-20 right-[-10%] w-[50%] h-[80%] rounded-3xl overflow-hidden shadow-2xl rotate-2">
-                        <Image
-                            src="/images/espaco/Recepcao-01.jpeg"
-                            alt="Espaço Arthemi"
-                            fill
-                            className="object-cover"
-                        />
+                        {/* Mobile Social Proof - specifically moved here to be visible after the image on smaller screens */}
+                        <div className="lg:hidden mt-8 flex flex-col sm:flex-row gap-6 items-start sm:items-center border-t border-warm-200 pt-8 animate-fade-in">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-accent-100 flex items-center justify-center">
+                                    <Users className="w-5 h-5 text-accent-700" />
+                                </div>
+                                <span className="text-sm font-medium text-secondary-600">
+                                    <strong className="text-primary-950">Referência</strong> na área hospitalar de BH
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <div className="flex text-yellow-500">
+                                    <Star className="w-4 h-4 fill-current" />
+                                    <Star className="w-4 h-4 fill-current" />
+                                    <Star className="w-4 h-4 fill-current" />
+                                    <Star className="w-4 h-4 fill-current" />
+                                    <Star className="w-4 h-4 fill-current" />
+                                </div>
+                                <span className="text-xs font-medium text-secondary-600">
+                                    <strong>4.9/5</strong> no Google
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </section>
 

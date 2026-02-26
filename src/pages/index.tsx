@@ -557,8 +557,8 @@ export default function Home({ rooms }: HomeProps) {
                                         <div>
                                             <p className="font-semibold text-primary-900">Endereço</p>
                                             <p className="text-secondary-600">
-                                                Av. Brasil, n. 248, sala 215<br />
-                                                Santa Efigênia – Belo Horizonte/MG
+                                                Avenida Brasil, 248 - Santa Efigênia<br />
+                                                Belo Horizonte - MG, 30.140-900
                                             </p>
                                         </div>
                                     </div>

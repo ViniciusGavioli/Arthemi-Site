@@ -114,9 +114,24 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    const trackEvent = (eventName: string, params = {}) => {
+    const trackEvent = (eventName: string, params: any = {}) => {
+        // 1. Google Analytics (gtag)
         if (typeof window !== 'undefined' && (window as any).gtag) {
             (window as any).gtag('event', eventName, params);
+        }
+
+        // 2. Meta Pixel (fbq)
+        // Mapeamos alguns eventos específicos para eventos padrão do Facebook se necessário
+        if (typeof window !== 'undefined' && (window as any).fbq) {
+            if (eventName === 'clique_whatsapp' || eventName === 'clique_reservar') {
+                (window as any).fbq('track', 'Contact', {
+                    content_name: params.room || 'Geral',
+                    content_category: 'WhatsApp Click',
+                    ...params
+                });
+            } else {
+                (window as any).fbq('trackCustom', eventName, params);
+            }
         }
     };
 
@@ -474,19 +489,19 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                                     name: "Dr. Ricardo Silva",
                                     role: "Psicólogo",
                                     text: "A localização é estratégica e o ambiente é excelente. Meus pacientes sempre elogiam a recepção e o café. Para mim, a flexibilidade foi o divisor de águas.",
-                                    time: "Atende há 8 meses"
+                                    time: "Avaliado há 2 dias"
                                 },
                                 {
                                     name: "Dra. Ana Carolina",
                                     role: "Nutricionista",
                                     text: "Saí de um aluguel fixo que me prendia muito. Hoje só pago o que uso e minha margem de lucro aumentou 40% logo no primeiro mês.",
-                                    time: "Atende há 1 ano"
+                                    time: "Avaliado há 5 dias"
                                 },
                                 {
                                     name: "Felipe Santos",
                                     role: "Fisioterapeuta",
                                     text: "As salas são amplas e já vêm com tudo pronto. Chego, atendo e vou embora sem me preocupar com limpeza ou manutenção. Sensacional.",
-                                    time: "Atende há 6 meses"
+                                    time: "Avaliado na última semana"
                                 }
                             ].map((item, i) => {
                                 // Extrair iniciais ignorando Dr/Dra
@@ -677,15 +692,8 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                             <p className="text-white font-bold text-xl mb-12">
                                 Pra quem atende toda semana e quer reduzir o custo/hora.
                             </p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto mb-12">
-                                <div className="bg-white/10 backdrop-blur-sm border border-white/20 p-6 rounded-2xl">
-                                    <p className="text-sm font-bold uppercase tracking-widest text-accent-300 mb-2">Pacote 10h</p>
-                                    <p className="text-2xl font-black">Consulte Desconto</p>
-                                </div>
-                                <div className="bg-white/10 backdrop-blur-sm border border-white/20 p-6 rounded-2xl">
-                                    <p className="text-sm font-bold uppercase tracking-widest text-accent-300 mb-2">Pacote 20h</p>
-                                    <p className="text-2xl font-black">Maior Economia</p>
-                                </div>
+                            <div className="bg-white/10 backdrop-blur-sm border border-white/20 p-8 rounded-2xl max-w-lg mx-auto mb-12">
+                                <p className="text-2xl font-black">Consulte condições especiais após conhecer o espaço</p>
                             </div>
                             <button
                                 onClick={() => handleOpenWhatsApp('disponibilidade')}
@@ -757,20 +765,24 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                                         </div>
                                         <div>
                                             <p className="font-bold text-primary-900">Endereço</p>
-                                            <p className="text-secondary-600">Rua Padre Rolim, 815 - Santa Efigênia, Belo Horizonte/MG</p>
+                                            <p className="text-secondary-600">
+                                                Avenida Brasil, 248 - Santa Efigênia<br />
+                                                Belo Horizonte - MG, 30.140-900
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             <div className="h-[400px] rounded-[3rem] overflow-hidden shadow-2xl border-4 border-white">
                                 <iframe
-                                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3750.963240212001!2d-43.9248451241165!3d-19.925954380922886!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTnCsDU1JzMzLjQiUyA0M8KwNTUnMjEuNSJX!5e0!3m2!1spt-BR!2sbr!4v1704380601234!5m2!1spt-BR!2sbr"
+                                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1875.4!2d-43.922652!3d-19.9245428!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xa699518a3297b3%3A0xff0a67224623033e!2sEspa%C3%A7o%20Arthemi%20-%20Coworking%20de%20Sa%C3%BAde%20em%20BH!5e0!3m2!1spt-BR!2sbr!4v1702857600000!5m2!1spt-BR!2sbr"
                                     width="100%"
                                     height="100%"
                                     style={{ border: 0 }}
                                     allowFullScreen
                                     loading="lazy"
                                     referrerPolicy="no-referrer-when-downgrade"
+                                    title="Localização do Espaço Arthemi - Av. Brasil, 248, Santa Efigênia, Belo Horizonte"
                                 />
                             </div>
                         </div>

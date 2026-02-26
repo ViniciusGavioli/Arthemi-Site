@@ -70,6 +70,7 @@ export default function LeadFormModal({ isOpen, onClose, initialRoomName }: Lead
 
     const redirectToWhatsApp = () => {
         let message = '';
+        const isReserve = formData.objective === 'reserve';
 
         if (formData.objective === 'doubt') {
             message = `Olá! Me chamo ${formData.name}, sou ${formData.profession} e tenho algumas dúvidas sobre os consultórios.`;
@@ -79,7 +80,30 @@ export default function LeadFormModal({ isOpen, onClose, initialRoomName }: Lead
             message = `Olá! Me chamo ${formData.name}, sou ${formData.profession} e gostaria de reservar o ${room} por ${hoursText}. Meu número de contato é ${formData.phone}.`;
         }
 
+        // --- Rastreamento de Conversão ---
+        if (typeof window !== 'undefined') {
+            const eventLabel = isReserve ? 'generate_lead_reserve' : 'generate_lead_doubt';
 
+            // 1. Google Analytics 4
+            if ((window as any).gtag) {
+                (window as any).gtag('event', 'generate_lead', {
+                    event_category: 'conversion',
+                    event_label: eventLabel,
+                    room: formData.roomName,
+                    profession: formData.profession
+                });
+            }
+
+            // 2. Meta Pixel (Facebook)
+            if ((window as any).fbq) {
+                (window as any).fbq('track', 'Lead', {
+                    content_name: formData.roomName || 'Geral',
+                    content_category: isReserve ? 'Reserva' : 'Dúvida',
+                    profession: formData.profession
+                });
+            }
+        }
+        // ---------------------------------
 
         const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
         window.open(url, '_blank');

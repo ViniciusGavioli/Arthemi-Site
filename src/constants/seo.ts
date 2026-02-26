@@ -8,18 +8,18 @@ export const SITE_CONFIG = {
   name: 'Espaço Arthemi',
   shortName: 'Arthemi',
   tagline: 'Coworking de Saúde em Belo Horizonte',
-  
+
   // URL do site (sem barra no final) - sanitiza \r\n de ENVs corrompidas
   url: (process.env.NEXT_PUBLIC_APP_URL || 'https://www.arthemisaude.com').replace(/[\r\n]+/g, '').replace(/\/$/, ''),
-  
+
   // Imagem padrão para Open Graph (1200x630 recomendado)
   // TODO: Criar imagem og-image.jpg (1200x630) com logo + tagline
   // Por enquanto usa uma foto do espaço
   ogImage: '/images/hero/banner.jpeg',
-  
+
   // Cores da marca
   themeColor: '#8B7355',
-  
+
   // Idioma
   locale: 'pt_BR',
   language: 'pt-BR',
@@ -30,30 +30,30 @@ export const BUSINESS_INFO = {
   name: 'Espaço Arthemi',
   legalName: 'Espaço Arthemi Coworking de Saúde',
   description: 'Coworking de saúde em Belo Horizonte. Salas prontas para atendimento com recepção, limpeza e internet inclusos. Ideal para psicólogos, nutricionistas, fisioterapeutas e profissionais de saúde.',
-  
+
   // Endereço
   address: {
-    street: 'Santa Efigênia', // TODO: Atualizar com endereço completo
+    street: 'Avenida Brasil, 248',
     neighborhood: 'Santa Efigênia',
     city: 'Belo Horizonte',
     state: 'MG',
     stateCode: 'MG',
-    postalCode: '30260-000', // CEP aproximado da região
+    postalCode: '30.140-900',
     country: 'BR',
   },
-  
+
   // Contato
   phone: '+55 31 9992-3910',
   whatsapp: '5531999923910',
   email: 'contato@arthemisaude.com',
-  
+
   // Redes sociais
   social: {
     instagram: 'https://instagram.com/arthemisaude',
     facebook: 'https://facebook.com/arthemisaude',
     // whatsapp link gerado dinamicamente
   },
-  
+
   // Horário de funcionamento
   openingHours: [
     { days: 'Monday', hours: '08:00-20:00' },
@@ -63,16 +63,16 @@ export const BUSINESS_INFO = {
     { days: 'Friday', hours: '08:00-20:00' },
     { days: 'Saturday', hours: '08:00-14:00' },
   ],
-  
+
   // Coordenadas (Santa Efigênia, BH)
   geo: {
     latitude: -19.920000,
     longitude: -43.930618,
   },
-  
+
   // Faixa de preço
   priceRange: 'R$ 30 - R$ 150',
-  
+
   // Palavras-chave do negócio
   keywords: [
     'coworking saúde',

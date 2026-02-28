@@ -75,17 +75,20 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
     useEffect(() => {
         let shown = false;
 
-        const timer = setTimeout(() => {
-            if (!shown && window.innerWidth <= 768) {
+        const showIt = () => {
+            if (!shown) {
                 setShowPopup(true);
                 shown = true;
             }
-        }, 30000);
+        };
 
+        // Mostra o popup para todo mundo depois de 10 segundos na página (não só no mobile)
+        const timer = setTimeout(showIt, 10000);
+
+        // Intenção de saída para desktop continua
         const handleMouseLeave = (e: MouseEvent) => {
-            if (e.clientY <= 0 && !shown && window.innerWidth > 768) {
-                setShowPopup(true);
-                shown = true;
+            if (e.clientY <= 5 && !shown) {
+                showIt();
             }
         };
 
@@ -285,7 +288,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                         data-event="whatsapp_click"
                                         data-intent="lancamento"
                                         onClick={() => handleOpenWhatsApp('lancamento', 'lancamento')}
-                                        className="bg-accent-600 text-white px-8 py-5 rounded-2xl font-bold text-lg shadow-xl shadow-accent-600/20 hover:bg-accent-700 transition-all hover:-translate-y-1 flex items-center justify-center gap-2"
+                                        className="bg-primary-950 text-white px-8 py-5 rounded-2xl font-bold text-lg shadow-xl shadow-primary-900/20 hover:bg-black transition-all hover:-translate-y-1 flex items-center justify-center gap-2"
                                     >
                                         Garantir preço de lançamento
                                     </button>
@@ -367,11 +370,11 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                         <ChevronLeft className="w-6 h-6" />
                                     </button>
 
-                                    {/* Click Hint */}
-                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex flex-col items-center gap-2">
-                                        <div className="bg-white/90 text-primary-950 px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2 shadow-xl">
+                                    {/* Click Hint - Always visible to be clear */}
+                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-2 pointer-events-none">
+                                        <div className="bg-primary-950/90 backdrop-blur-md text-white px-5 py-2.5 rounded-full font-bold text-sm flex items-center gap-2 shadow-xl animate-pulse">
                                             <Eye className="w-4 h-4" />
-                                            Ver em tamanho real
+                                            Toque para ampliar
                                         </div>
                                     </div>
 
@@ -500,7 +503,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                     <div key={room.id} className="bg-white rounded-[2rem] overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 border border-warm-200 group flex flex-col relative">
 
                                         {/* Card OFF Badge */}
-                                        <div className="absolute top-4 right-4 z-20 bg-green-500 text-white text-xs font-black tracking-widest px-3 py-1.5 rounded-full shadow-lg border-2 border-white">
+                                        <div className="absolute top-4 right-4 z-20 bg-primary-950 text-white text-xs font-black tracking-widest px-3 py-1.5 rounded-full shadow-lg border border-white/20">
                                             {discountText}
                                         </div>
 
@@ -511,9 +514,10 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                                 fill
                                                 className="object-cover group-hover:scale-110 transition-transform duration-700"
                                             />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
-                                                <span className="text-white font-bold flex items-center gap-2">
-                                                    <Eye className="w-5 h-5" /> Ver todas as fotos
+                                            {/* Hint semi-transparente sempre visível em baixo e mais forte no hover */}
+                                            <div className="absolute inset-0 bg-gradient-to-t from-primary-950/80 via-black/10 to-transparent flex items-end justify-center p-6 group-hover:from-primary-950/90 transition-all">
+                                                <span className="text-white font-medium text-sm flex items-center gap-2 bg-white/20 backdrop-blur-md px-4 py-2 rounded-full border border-white/30 shadow-lg">
+                                                    <Eye className="w-4 h-4" /> Toque para ver fotos
                                                 </span>
                                             </div>
                                             {badge && (

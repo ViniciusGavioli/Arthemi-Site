@@ -84,8 +84,30 @@ export default function LeadFormModal({ isOpen, onClose, initialRoomName }: Lead
         if (typeof window !== 'undefined') {
             const eventLabel = isReserve ? 'generate_lead_reserve' : 'generate_lead_doubt';
 
-            // 1. Google Analytics 4
+            // 1. Google Analytics 4 & Google Ads (Enhanced Conversions)
             if ((window as any).gtag) {
+                // Formatação simples de telefone para o padrão E.164 esperado pelo Google (+55...)
+                let formattedPhone = formData.phone.replace(/\D/g, '');
+                if (formattedPhone.length >= 10 && formattedPhone.length <= 11) {
+                    formattedPhone = '+55' + formattedPhone;
+                } else if (!formattedPhone.startsWith('+')) {
+                    formattedPhone = '+' + formattedPhone;
+                }
+
+                // Nome e Sobrenome separados
+                const nameParts = formData.name.trim().split(' ');
+                const firstName = nameParts[0];
+                const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined;
+
+                // Definir os dados do usuário para conversões otimizadas
+                (window as any).gtag('set', 'user_data', {
+                    phone_number: formattedPhone,
+                    address: {
+                        first_name: firstName,
+                        last_name: lastName
+                    }
+                });
+
                 (window as any).gtag('event', 'generate_lead', {
                     event_category: 'conversion',
                     event_label: eventLabel,

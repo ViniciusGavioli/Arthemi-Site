@@ -589,140 +589,146 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 {/* ============= 6) VALORES E CONSULTÓRIOS ============= */}
                 <section className="py-20 bg-white">
                     <div className="max-w-6xl mx-auto px-4">
-                        {/* Explicação + simulador de custo */}
-                        <div className="max-w-3xl mx-auto text-center mb-14">
-                            <h2 className="text-3xl sm:text-4xl font-extrabold text-primary-950 mb-4">Consultórios e valores</h2>
-                            <p className="text-secondary-600 text-lg mb-8 leading-relaxed">
-                                Você paga apenas pelas horas que utilizar o consultório, sem aluguel mensal fixo e sem precisar montar estrutura própria.
-                            </p>
 
-                            {/* Simulador de custo mensal */}
-                            <div className="bg-warm-50 border border-warm-200 rounded-2xl p-6">
-                                <p className="text-sm font-bold text-secondary-500 uppercase tracking-widest mb-5">Simulação de custo mensal — Consultório 3</p>
-                                <div className="grid grid-cols-3 gap-3">
-                                    {[
-                                        { freq: "1 turno/semana", valor: "R$ 640" },
-                                        { freq: "2 turnos/semana", valor: "R$ 1.280" },
-                                        { freq: "3 turnos/semana", valor: "R$ 1.920" },
-                                    ].map((ex, i) => (
-                                        <div key={i} className={`rounded-xl p-4 text-center border ${i === 1 ? 'bg-primary-950 border-primary-950 text-white' : 'bg-white border-warm-200 text-primary-950'}`}>
-                                            <p className={`text-xs font-medium mb-2 ${i === 1 ? 'text-white/70' : 'text-secondary-500'}`}>{ex.freq}</p>
-                                            <p className="text-xl font-extrabold">{ex.valor}</p>
-                                            <p className={`text-[10px] mt-1 ${i === 1 ? 'text-white/60' : 'text-secondary-400'}`}>/mês</p>
-                                        </div>
-                                    ))}
-                                </div>
-                                <p className="text-xs text-secondary-400 mt-4">
-                                    Assim, você consegue comparar com o custo de manter uma sala própria — com mais flexibilidade no início.
-                                </p>
-                            </div>
+                        {/* Introdução editorial */}
+                        <div className="max-w-2xl mx-auto text-center mb-14">
+                            <h2 className="text-3xl sm:text-4xl font-extrabold text-primary-950 mb-4">
+                                Escolha o consultório ideal para a sua rotina
+                            </h2>
+                            <p className="text-secondary-600 text-lg leading-relaxed mb-4">
+                                A Arthemi oferece 3 opções de consultório, com valores por hora, pacotes e turnos fixos. Assim, você pode começar com flexibilidade e escolher o formato mais adequado para sua agenda.
+                            </p>
+                            <p className="text-sm text-accent-700 font-medium flex items-center justify-center gap-2">
+                                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                                Todos os valores já incluem recepção, limpeza entre atendimentos, Wi-Fi, café e água.
+                            </p>
                         </div>
 
                         {/* Cards de consultório */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                             {rooms.map((room) => {
-                                let badge = "";
-                                let badgeColor = "bg-accent-600";
                                 let imageUrl = room.imageUrl;
-                                let indication = "";
-                                let discountText = "";
+                                let roomTitle = room.name;
+                                let roomSubtitle = '';
+                                let badge = '';
+                                let pkg10h = '';
+                                let pkg20h = '';
+                                let shiftFixed = '';
 
                                 if (room.slug === 'sala-a') {
                                     imageUrl = '/images/sala-a/foto-4.jpeg';
-                                    badge = "O MAIS COMPLETO";
-                                    indication = "Com maca profissional";
-                                    discountText = "25% OFF";
+                                    roomTitle = 'Consultório 1 — Grande com maca';
+                                    roomSubtitle = 'Mais espaço para atendimentos com apoio de maca';
+                                    badge = 'Mais completo';
+                                    pkg10h = 'R$ 559,90';
+                                    pkg20h = 'R$ 1.039,80';
+                                    shiftFixed = 'R$ 189,99';
                                 } else if (room.slug === 'sala-b') {
                                     imageUrl = '/images/sala-b/02-3.jpeg';
-                                    badge = "MELHOR CUSTO-BENEFÍCIO";
-                                    indication = "Amplo e versátil, com maca";
-                                    discountText = "23% OFF";
+                                    roomTitle = 'Consultório 2 — Médio com maca';
+                                    roomSubtitle = 'Equilíbrio entre conforto e custo';
+                                    badge = 'Mais versátil';
+                                    pkg10h = 'R$ 459,90';
+                                    pkg20h = 'R$ 839,80';
+                                    shiftFixed = 'R$ 159,99';
                                 } else if (room.slug === 'sala-c') {
                                     imageUrl = '/images/sala-c/03-1.jpeg';
-                                    badge = "O MAIS RESERVADO";
-                                    indication = "Ideal para psicoterapia e nutrição";
-                                    discountText = "38% OFF";
+                                    roomTitle = 'Consultório 3 — Compacto sem maca';
+                                    roomSubtitle = 'Ideal para psicologia, nutrição e atendimentos individuais';
+                                    badge = 'Melhor custo-benefício';
+                                    pkg10h = 'R$ 359,90';
+                                    pkg20h = 'R$ 659,80';
+                                    shiftFixed = 'R$ 129,99';
                                 }
 
+                                const waMessage = encodeURIComponent(`Olá! Tenho interesse em conhecer o ${roomTitle.split('—')[0].trim()}. Gostaria de saber mais sobre disponibilidade.`);
+                                const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${waMessage}`;
+
                                 return (
-                                    <div key={room.id} className="bg-white rounded-[2rem] overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 border border-warm-200 group flex flex-col relative">
-                                        <div className="absolute top-4 right-4 z-20 bg-primary-950 text-white text-xs font-black tracking-widest px-3 py-1.5 rounded-full shadow-lg border border-white/20">
-                                            {discountText}
-                                        </div>
-                                        <div className="relative h-56 cursor-pointer overflow-hidden flex-shrink-0" onClick={() => handleOpenGallery({ name: room.name, slug: room.slug })}>
+                                    <div key={room.id} className="bg-white rounded-[2rem] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 border border-warm-200 group flex flex-col">
+
+                                        {/* Foto */}
+                                        <div className="relative h-52 cursor-pointer overflow-hidden flex-shrink-0" onClick={() => handleOpenGallery({ name: room.name, slug: room.slug })}>
                                             <Image
-                                                src={imageUrl || '/images/hero/banner.jpeg'}
-                                                alt={room.name}
+                                                src={imageUrl || '/images/espaco/Recepcao-01.jpeg'}
+                                                alt={roomTitle}
                                                 fill
                                                 loading="lazy"
                                                 sizes="(max-width: 768px) 100vw, 33vw"
                                                 quality={90}
-                                                className="object-cover group-hover:scale-110 transition-transform duration-700"
+                                                className="object-cover group-hover:scale-105 transition-transform duration-700"
                                             />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-primary-950/80 via-black/10 to-transparent flex items-end justify-center p-5 group-hover:from-primary-950/90 transition-all">
-                                                <span className="text-white font-medium text-sm flex items-center gap-2 bg-white/20 backdrop-blur-md px-4 py-2 rounded-full border border-white/30 shadow-lg">
-                                                    <Eye className="w-4 h-4" /> Ver fotos
-                                                </span>
-                                            </div>
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                                            {/* Badge sóbrio */}
                                             {badge && (
-                                                <div className={`absolute top-4 left-4 ${badgeColor} text-white text-[10px] font-black tracking-widest px-3 py-1 rounded-full z-20`}>
+                                                <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm text-primary-950 text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full shadow-sm border border-warm-200">
                                                     {badge}
                                                 </div>
                                             )}
-                                        </div>
-                                        <div className="p-7 flex-1 flex flex-col">
-                                            <div className="mb-3">
-                                                <span className="text-accent-600 text-xs font-bold uppercase tracking-wider">{indication}</span>
-                                                <h3 className="text-xl font-bold text-primary-950 mt-1">{room.name}</h3>
+                                            <div className="absolute bottom-4 right-4 flex items-center gap-1.5 text-white/90 text-xs font-medium bg-black/30 backdrop-blur-sm px-3 py-1.5 rounded-full">
+                                                <Eye className="w-3.5 h-3.5" /> Ver fotos
                                             </div>
-                                            <div className="mb-6">
+                                        </div>
+
+                                        {/* Conteúdo */}
+                                        <div className="p-6 flex-1 flex flex-col">
+                                            <div className="mb-5">
+                                                <h3 className="text-lg font-extrabold text-primary-950 leading-tight mb-1">{roomTitle}</h3>
+                                                <p className="text-sm text-secondary-500 leading-relaxed">{roomSubtitle}</p>
+                                            </div>
+
+                                            {/* Preço principal */}
+                                            <div className="mb-5 pb-5 border-b border-warm-100">
+                                                <p className="text-xs text-secondary-400 font-medium mb-1">A partir de</p>
                                                 <div className="flex items-baseline gap-1">
-                                                    <span className="text-4xl font-black text-primary-900">{formatCurrency(room.hourlyRate / 100)}</span>
-                                                    <span className="text-secondary-400 font-medium">/hora</span>
+                                                    <span className="text-3xl font-black text-primary-950">{formatCurrency(room.hourlyRate / 100)}</span>
+                                                    <span className="text-secondary-400 font-medium text-sm">/ hora</span>
                                                 </div>
                                             </div>
-                                            <div className="space-y-2.5 mb-7 flex-1">
-                                                {room.amenities.slice(0, 4).map((amenity: string, i: number) => (
-                                                    <div key={i} className="flex items-center gap-2 text-sm text-secondary-600">
-                                                        <CheckCircle2 className="w-4 h-4 text-accent-500 flex-shrink-0" />
-                                                        {amenity.replace('Pia com água quente', 'Sala ampla e iluminada')}
-                                                    </div>
-                                                ))}
+
+                                            {/* Tabela de pacotes */}
+                                            <div className="space-y-2 mb-6 flex-1">
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-secondary-500">Pacote 10h</span>
+                                                    <span className="font-semibold text-primary-950">{pkg10h}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-secondary-500">Pacote 20h</span>
+                                                    <span className="font-semibold text-primary-950">{pkg20h}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-secondary-500">Turno fixo 4h</span>
+                                                    <span className="font-semibold text-primary-950">{shiftFixed}</span>
+                                                </div>
                                             </div>
+
+                                            {/* CTA com pré-preenchimento */}
                                             <button
-                                                id={`cta-whatsapp-horarios-${room.slug}`}
+                                                id={`cta-preco-${room.slug}`}
                                                 data-event="whatsapp_click"
                                                 data-intent="horarios"
-                                                onClick={() => handleOpenWhatsApp('horarios', 'mid')}
-                                                className="w-full bg-primary-950 text-white py-3.5 rounded-xl font-bold hover:bg-black transition-all flex items-center justify-center gap-2 group mt-auto"
+                                                onClick={() => {
+                                                    trackEvent('whatsapp_click', { intent: 'horarios', room: roomTitle, location: 'precos' });
+                                                    setTimeout(() => window.open(waUrl, '_blank'), 200);
+                                                }}
+                                                className="w-full bg-primary-950 text-white py-3.5 rounded-xl font-bold text-sm hover:bg-black transition-all flex items-center justify-center gap-2 group/btn mt-auto"
                                             >
                                                 Consultar disponibilidade
-                                                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                                <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
                                             </button>
-                                            <p className="text-[10px] text-center text-secondary-400 mt-2 font-medium">Sábados costumam esgotar primeiro</p>
                                         </div>
                                     </div>
                                 );
                             })}
                         </div>
 
-                        {/* Oferta de lançamento — após entender o produto */}
-                        <div className="mt-16 p-8 sm:p-12 rounded-[2.5rem] bg-warm-50 border border-warm-200 text-center relative overflow-hidden">
-                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-100/60 border border-red-200 text-red-700 rounded-full text-xs font-bold tracking-widest uppercase mb-5 shadow-sm">
-                                <span className="relative flex h-2.5 w-2.5">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
-                                </span>
-                                Oferta de Lançamento
-                            </div>
-                            <h3 className="text-2xl sm:text-3xl font-extrabold text-primary-950 mb-3">Valores reduzidos até o reajuste</h3>
-                            <p className="text-secondary-600 mb-4">Vagas na manhã e fim de tarde são as mais disputadas e podem esgotar antes.</p>
-                            <p className="text-sm text-secondary-500 flex items-center justify-center gap-2">
-                                <Clock className="w-4 h-4 text-accent-500" /> Desconto por tempo limitado, válido enquanto durarem as vagas.
-                            </p>
-                        </div>
+                        {/* Nota de rodapé */}
+                        <p className="text-center text-sm text-secondary-400 mt-10">
+                            Valores para dias úteis (seg–sex). Atendimentos aos sábados têm tabela específica — consulte pelo WhatsApp.
+                        </p>
                     </div>
                 </section>
+
 
                 {/* ============= 7) DEPOIMENTOS ============= */}
                 <section className="py-20 bg-warm-50/50">

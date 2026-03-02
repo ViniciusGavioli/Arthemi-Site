@@ -661,57 +661,12 @@ export default function Home({ rooms }: HomeProps) {
 
 // Busca as salas do banco com IDs reais
 export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
-    const requestId = `ssr-home-${Date.now()}`;
-
-    try {
-        console.log(`[${requestId}] SSR /home iniciado`);
-
-        const rooms = await prisma.room.findMany({
-            where: { isActive: true },
-            orderBy: { tier: 'asc' }, // Ordenar por tier (1=sala-a, 2=sala-b, 3=sala-c)
-            select: {
-                id: true,
-                name: true,
-                slug: true,
-                description: true,
-                imageUrl: true,
-                capacity: true,
-                amenities: true,
-                hourlyRate: true,
-                products: {
-                    where: { isActive: true },
-                    orderBy: { sortOrder: 'asc' },
-                    select: {
-                        id: true,
-                        name: true,
-                        slug: true,
-                        price: true,
-                        hoursIncluded: true,
-                        type: true,
-                        roomId: true,
-                    },
-                },
-            },
-        });
-
-        // Log estruturado para debug
-        console.log(`[${requestId}] roomsCount: ${rooms.length}`);
-
-        return {
-            props: {
-                rooms: rooms.map(room => ({
-                    ...room,
-                    hourlyRate: room.hourlyRate || 0,
-                })),
-            },
-        };
-    } catch (error) {
-        console.error(`[${requestId}] ERRO no SSR /home:`, error);
-        // Retorna array vazio para não quebrar a página
-        return {
-            props: {
-                rooms: [],
-            },
-        };
-    }
+    return {
+        redirect: {
+            destination: '/lp-promo',
+            permanent: true, // 308 — indica ao Google que é permanente
+        },
+    };
 };
+
+

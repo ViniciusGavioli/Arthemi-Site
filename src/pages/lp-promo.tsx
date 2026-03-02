@@ -614,6 +614,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 let pkg10h = '';
                                 let pkg20h = '';
                                 let shiftFixed = '';
+                                let savings = '';
 
                                 if (room.slug === 'sala-a') {
                                     imageUrl = '/images/sala-a/foto-4.jpeg';
@@ -623,6 +624,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                     pkg10h = 'R$ 559,90';
                                     pkg20h = 'R$ 1.039,80';
                                     shiftFixed = 'R$ 189,99';
+                                    savings = 'Pacotes com vantagem progressiva — até 18% de economia';
                                 } else if (room.slug === 'sala-b') {
                                     imageUrl = '/images/sala-b/02-3.jpeg';
                                     roomTitle = 'Consultório 2 — Médio com maca';
@@ -631,6 +633,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                     pkg10h = 'R$ 459,90';
                                     pkg20h = 'R$ 839,80';
                                     shiftFixed = 'R$ 159,99';
+                                    savings = 'Pacotes com vantagem progressiva — até 22% de economia';
                                 } else if (room.slug === 'sala-c') {
                                     imageUrl = '/images/sala-c/03-1.jpeg';
                                     roomTitle = 'Consultório 3 — Compacto sem maca';
@@ -639,6 +642,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                     pkg10h = 'R$ 359,90';
                                     pkg20h = 'R$ 659,80';
                                     shiftFixed = 'R$ 129,99';
+                                    savings = 'Pacotes com vantagem progressiva — até 25% de economia';
                                 }
 
                                 const waMessage = encodeURIComponent(`Olá! Tenho interesse em conhecer o ${roomTitle.split('—')[0].trim()}. Gostaria de saber mais sobre disponibilidade.`);
@@ -690,7 +694,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                             </div>
 
                                             {/* Tabela de pacotes */}
-                                            <div className="space-y-2 mb-6 flex-1">
+                                            <div className="space-y-2 mb-4 flex-1">
                                                 <div className="flex justify-between text-sm">
                                                     <span className="text-secondary-500">Pacote 10h</span>
                                                     <span className="font-semibold text-primary-950">{pkg10h}</span>
@@ -704,6 +708,14 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                                     <span className="font-semibold text-primary-950">{shiftFixed}</span>
                                                 </div>
                                             </div>
+
+                                            {/* Microcopy de vantagem por volume */}
+                                            {savings && (
+                                                <p className="text-[11px] text-secondary-400 mb-5 flex items-center gap-1.5">
+                                                    <span className="inline-block w-3 h-[1px] bg-secondary-300 flex-shrink-0" />
+                                                    {savings}
+                                                </p>
+                                            )}
 
                                             {/* CTA com pré-preenchimento */}
                                             <button

@@ -186,38 +186,45 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
 
     const faqs = [
         {
-            q: "Preciso ter CNPJ?",
-            a: "Não é obrigatório para começar. Profissionais autônomos (CPF) também podem reservar. Se você já tem CNPJ, pode emitir nota fiscal normalmente."
+            q: "Preciso ter CNPJ para usar o espaço?",
+            a: "Não. Profissionais autônomos com CPF podem reservar normalmente. Se você tiver CNPJ, pode emitir nota fiscal pela sua empresa sem problema."
         },
         {
-            q: "Posso atender convênio?",
-            a: "Sim. Você usa o espaço como consultório próprio — a gestão dos seus atendimentos, incluindo convênios, é inteiramente sua."
+            q: "Posso atender convênio aqui?",
+            a: "Sim. O consultório é seu durante o período reservado. Você atende como quiser — convênio, particular ou as duas coisas."
         },
         {
             q: "Posso usar o endereço para registro profissional?",
-            a: "Entre em contato com a equipe para conversarmos sobre essa possibilidade. Avaliamos caso a caso."
+            a: "Essa possibilidade depende da sua categoria e do conselho profissional. Entre em contato com a equipe — avaliamos caso a caso."
         },
         {
             q: "Posso guardar materiais na sala?",
-            a: "Sim. Cada consultório tem armário com chave disponível para seus materiais e equipamentos."
+            a: "Sim. Todos os consultórios têm armário com chave. Você pode deixar o que precisar com segurança entre uma reserva e outra."
         },
         {
-            q: "Como funciona o agendamento?",
-            a: "Pelo WhatsApp. Você escolhe o período disponível, confirma com a equipe e a reserva está feita. Sem sistema complicado, sem burocracia."
+            q: "Como funciona o agendamento dos horários?",
+            a: "Pelo WhatsApp. Você vê os horários disponíveis, escolhe o que quer e confirma com a equipe. Simples, sem sistema complicado."
         },
         {
-            q: "Existe compromisso mínimo?",
-            a: "Não. Você reserva por hora, sem fidelidade e sem mensalidade mínima. Pode começar com uma reserva avulsa."
+            q: "Existe compromisso mínimo ou contrato longo?",
+            a: "Não. Você reserva por hora, sem mensalidade mínima e sem fidelidade. Pode começar com uma reserva avulsa e ir aumentando conforme a demanda."
         },
     ];
 
-    // Fotos do espaço organizadas por ambiente
+    // Fotos highlights (4 principais visíveis de cara)
+    const highlightPhotos = [
+        { src: "/images/sala-a/foto-4.jpeg", alt: "Consultório 1 — Espaço Arthemi", label: "Consultório 1", slug: "sala-a" },
+        { src: "/images/espaco/Recepcao-01.jpeg", alt: "Recepção — Espaço Arthemi", label: "Recepção", slug: "espaco" },
+        { src: "/images/sala-b/02-3.jpeg", alt: "Consultório 2 — Espaço Arthemi", label: "Consultório 2", slug: "sala-b" },
+        { src: "/images/sala-c/03-1.jpeg", alt: "Consultório 3 — Espaço Arthemi", label: "Consultório 3", slug: "sala-c" },
+    ];
+
+    // Fotos secundárias por ambiente
     const spaceGroups = [
         {
             label: "Recepção e Área Comum",
             slug: "espaco",
             photos: [
-                { src: "/images/espaco/Recepcao-01.jpeg", alt: "Recepção — Espaço Arthemi" },
                 { src: "/images/espaco/Recepcao-02.jpeg", alt: "Recepção — Espaço Arthemi" },
                 { src: "/images/espaco/Recepcao-03.jpeg", alt: "Área comum — Espaço Arthemi" },
                 { src: "/images/espaco/Recepcao-04.jpeg", alt: "Corredor — Espaço Arthemi" },
@@ -225,38 +232,37 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
             ]
         },
         {
-            label: "Consultório 1 — O Mais Completo",
+            label: "Consultório 1",
             slug: "sala-a",
             photos: [
-                { src: "/images/sala-a/foto-2.jpeg", alt: "Consultório 1 — Espaço Arthemi" },
-                { src: "/images/sala-a/foto-4.jpeg", alt: "Consultório 1 — Espaço Arthemi" },
-                { src: "/images/sala-a/foto-5.jpeg", alt: "Consultório 1 — Espaço Arthemi" },
-                { src: "/images/sala-a/foto-6.jpeg", alt: "Consultório 1 — Espaço Arthemi" },
-                { src: "/images/sala-a/foto-7.jpeg", alt: "Consultório 1 — Espaço Arthemi" },
+                { src: "/images/sala-a/foto-2.jpeg", alt: "Consultório 1" },
+                { src: "/images/sala-a/foto-5.jpeg", alt: "Consultório 1" },
+                { src: "/images/sala-a/foto-6.jpeg", alt: "Consultório 1" },
+                { src: "/images/sala-a/foto-7.jpeg", alt: "Consultório 1" },
             ]
         },
         {
-            label: "Consultório 2 — Melhor Custo-Benefício",
+            label: "Consultório 2",
             slug: "sala-b",
             photos: [
-                { src: "/images/sala-b/02-1.jpeg", alt: "Consultório 2 — Espaço Arthemi" },
-                { src: "/images/sala-b/02-3.jpeg", alt: "Consultório 2 — Espaço Arthemi" },
-                { src: "/images/sala-b/02-4.jpeg", alt: "Consultório 2 — Espaço Arthemi" },
-                { src: "/images/sala-b/02-5.jpeg", alt: "Consultório 2 — Espaço Arthemi" },
-                { src: "/images/sala-b/02-6.jpeg", alt: "Consultório 2 — Espaço Arthemi" },
+                { src: "/images/sala-b/02-1.jpeg", alt: "Consultório 2" },
+                { src: "/images/sala-b/02-4.jpeg", alt: "Consultório 2" },
+                { src: "/images/sala-b/02-5.jpeg", alt: "Consultório 2" },
+                { src: "/images/sala-b/02-6.jpeg", alt: "Consultório 2" },
             ]
         },
         {
-            label: "Consultório 3 — O Mais Reservado",
+            label: "Consultório 3",
             slug: "sala-c",
             photos: [
-                { src: "/images/sala-c/03-1.jpeg", alt: "Consultório 3 — Espaço Arthemi" },
-                { src: "/images/sala-c/03-2.jpeg", alt: "Consultório 3 — Espaço Arthemi" },
-                { src: "/images/sala-c/03-3.jpeg", alt: "Consultório 3 — Espaço Arthemi" },
-                { src: "/images/sala-c/03-4.jpeg", alt: "Consultório 3 — Espaço Arthemi" },
+                { src: "/images/sala-c/03-2.jpeg", alt: "Consultório 3" },
+                { src: "/images/sala-c/03-3.jpeg", alt: "Consultório 3" },
+                { src: "/images/sala-c/03-4.jpeg", alt: "Consultório 3" },
             ]
         },
     ];
+
+    const [showAllPhotos, setShowAllPhotos] = useState(false);
 
     return (
         <>
@@ -314,32 +320,32 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                     {/* Conteúdo */}
                     <div className="relative z-10 max-w-6xl mx-auto px-4 w-full py-24 sm:py-32">
                         <div className="max-w-2xl">
-                            <span className="inline-block px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-white/90 text-[10px] sm:text-xs font-bold mb-6 uppercase tracking-widest backdrop-blur-sm">
+                            <span className="inline-block px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-white/90 text-[10px] sm:text-xs font-bold mb-5 uppercase tracking-widest backdrop-blur-sm">
                                 Área Hospitalar de BH · Santa Efigênia
                             </span>
 
-                            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-[1.1] mb-6 tracking-tight">
-                                Atenda seus pacientes em consultório profissional{' '}
-                                <span className="text-accent-400">sem precisar de clínica própria.</span>
+                            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-[1.1] mb-5 tracking-tight">
+                                Seu consultório pronto para atender,{' '}
+                                <span className="text-accent-400">sem clínica própria.</span>
                             </h1>
 
-                            <p className="text-lg sm:text-xl text-white/80 mb-10 leading-relaxed max-w-xl">
-                                Estrutura pronta com recepção, limpeza e Wi-Fi. Você reserva por hora e paga só o que usar — sem mensalidade, sem contrato longo.
+                            <p className="text-base sm:text-lg text-white/75 mb-8 leading-relaxed max-w-lg">
+                                Receba seus pacientes em uma estrutura profissional na área hospitalar de BH, reservando por hora e pagando só pelo uso.
                             </p>
 
-                            {/* CTA principal */}
+                            {/* CTA único principal */}
                             <button
                                 id="cta-hero-visita"
                                 data-event="whatsapp_click"
                                 data-intent="visita"
                                 onClick={() => handleOpenWhatsApp('visita', 'hero')}
-                                className="w-full sm:w-auto cta-whatsapp px-8 py-5 rounded-xl font-bold text-lg shadow-2xl flex items-center justify-center gap-2"
+                                className="w-full sm:w-auto cta-whatsapp px-8 py-4 rounded-xl font-bold text-base sm:text-lg shadow-2xl flex items-center justify-center gap-2"
                             >
                                 <MessageCircle className="w-5 h-5" />
                                 Agendar visita pelo WhatsApp
                             </button>
-                            <p className="text-sm text-white/60 mt-3">
-                                Veja a estrutura, tire dúvidas e entenda como funciona antes de decidir.
+                            <p className="text-sm text-white/50 mt-3 max-w-sm">
+                                Conheça o espaço, entenda como funciona e veja se faz sentido para sua rotina profissional.
                             </p>
 
                             {/* Quick proof */}
@@ -423,59 +429,92 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 data-event="whatsapp_click"
                                 data-intent="visita"
                                 onClick={() => handleOpenWhatsApp('visita', 'como-funciona')}
-                                className="inline-flex items-center gap-2 cta-whatsapp px-8 py-4 rounded-xl font-bold text-lg shadow-lg"
+                                className="inline-flex items-center gap-2 cta-whatsapp px-7 py-4 rounded-xl font-bold text-base shadow-lg"
                             >
                                 <MessageCircle className="w-5 h-5" />
-                                Quero conhecer a Arthemi
+                                Agendar visita pelo WhatsApp
                             </button>
                         </div>
                     </div>
                 </section>
 
-                {/* ============= 3) FOTOS DO ESPAÇO (inline, sem modal) ============= */}
-                <section className="py-20 bg-warm-50/40">
+                {/* ============= 3) FOTOS DO ESPAÇO ============= */}
+                <section className="py-16 bg-warm-50/40">
                     <div className="max-w-6xl mx-auto px-4">
-                        <div className="text-center mb-12">
+                        <div className="text-center mb-10">
                             <h2 className="text-3xl sm:text-4xl font-extrabold text-primary-950 mb-3">O espaço por dentro</h2>
-                            <p className="text-secondary-600 text-lg">Recepção profissional, consultórios decorados e ambiente preparado para seus pacientes.</p>
+                            <p className="text-secondary-600">Recepção profissional, consultórios decorados e ambiente preparado para seus pacientes.</p>
                         </div>
 
-                        {spaceGroups.map((group, gi) => (
-                            <div key={gi} className={gi > 0 ? 'mt-14' : ''}>
-                                <h3 className="text-lg font-bold text-primary-950 mb-4 flex items-center gap-2">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-accent-500 inline-block" />
-                                    {group.label}
-                                </h3>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                    {group.photos.map((photo, i) => (
-                                        <div
-                                            key={i}
-                                            className={`relative overflow-hidden rounded-2xl group cursor-pointer shadow-sm hover:shadow-xl transition-all duration-300 ${i === 0 && group.photos.length >= 3 ? 'md:col-span-2 h-64 md:h-72' : 'h-52'}`}
-                                            onClick={() => handleOpenGallery({ name: group.label, slug: group.slug })}
-                                        >
-                                            <Image
-                                                src={photo.src}
-                                                alt={photo.alt}
-                                                fill
-                                                loading="lazy"
-                                                sizes="(max-width: 768px) 50vw, 33vw"
-                                                quality={90}
-                                                className="object-cover group-hover:scale-105 transition-transform duration-500"
-                                            />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
-                                                <span className="text-white font-semibold text-xs flex items-center gap-1.5">
-                                                    <Eye className="w-3.5 h-3.5" /> Ampliar
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
+                        {/* 4 fotos principais — visíveis de cara */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            {highlightPhotos.map((photo, i) => (
+                                <div
+                                    key={i}
+                                    className={`relative overflow-hidden rounded-2xl group cursor-pointer shadow-sm hover:shadow-xl transition-all duration-300 ${i === 0 ? 'col-span-2 h-64 md:h-80' : 'h-48 md:h-56'
+                                        }`}
+                                    onClick={() => handleOpenGallery({ name: photo.label, slug: photo.slug })}
+                                >
+                                    <Image
+                                        src={photo.src}
+                                        alt={photo.alt}
+                                        fill
+                                        loading={i === 0 ? 'eager' : 'lazy'}
+                                        sizes={i === 0 ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 50vw, 25vw'}
+                                        quality={90}
+                                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-4">
+                                        <span className="text-white font-semibold text-sm">{photo.label}</span>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
 
-                        <p className="text-center text-sm text-secondary-500 mt-8 flex items-center justify-center gap-2">
-                            <Eye className="w-4 h-4" /> Clique em qualquer foto para ampliar e ver mais detalhes
-                        </p>
+                        {/* Botão para ver mais fotos */}
+                        {!showAllPhotos && (
+                            <div className="text-center mt-6">
+                                <button
+                                    onClick={() => setShowAllPhotos(true)}
+                                    className="inline-flex items-center gap-2 text-accent-700 font-semibold text-sm border border-accent-200 bg-accent-50 px-5 py-2.5 rounded-xl hover:bg-accent-100 transition"
+                                >
+                                    <Eye className="w-4 h-4" /> Ver todas as fotos
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Fotos adicionais — só aparecem ao clicar */}
+                        {showAllPhotos && (
+                            <div className="mt-10 space-y-10">
+                                {spaceGroups.map((group, gi) => (
+                                    <div key={gi}>
+                                        <h3 className="text-sm font-bold text-secondary-500 uppercase tracking-widest mb-3">{group.label}</h3>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                            {group.photos.map((photo, i) => (
+                                                <div
+                                                    key={i}
+                                                    className="relative h-44 overflow-hidden rounded-xl group cursor-pointer shadow-sm hover:shadow-md transition-all"
+                                                    onClick={() => handleOpenGallery({ name: group.label, slug: group.slug })}
+                                                >
+                                                    <Image
+                                                        src={photo.src}
+                                                        alt={photo.alt}
+                                                        fill
+                                                        loading="lazy"
+                                                        sizes="(max-width: 768px) 50vw, 25vw"
+                                                        quality={85}
+                                                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                                <p className="text-center text-sm text-secondary-400 flex items-center justify-center gap-2">
+                                    <Eye className="w-4 h-4" /> Clique em qualquer foto para ampliar
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </section>
 
@@ -550,17 +589,31 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 {/* ============= 6) VALORES E CONSULTÓRIOS ============= */}
                 <section className="py-20 bg-white">
                     <div className="max-w-6xl mx-auto px-4">
-                        {/* Explicação antes do preço */}
+                        {/* Explicação + simulador de custo */}
                         <div className="max-w-3xl mx-auto text-center mb-14">
-                            <h2 className="text-3xl sm:text-4xl font-extrabold text-primary-950 mb-5">Consultórios e valores</h2>
-                            <div className="bg-warm-50 border border-warm-200 rounded-2xl p-6 text-left sm:text-center">
-                                <p className="text-secondary-700 text-lg leading-relaxed">
-                                    Você paga apenas pelas horas que utilizar o consultório.<br className="hidden sm:block" />
-                                    <strong className="text-primary-950">Sem aluguel mensal, sem contrato longo e sem estrutura própria.</strong>
-                                </p>
-                                <p className="text-sm text-accent-700 font-semibold mt-4 flex items-center justify-center gap-2">
-                                    <Sparkles className="w-4 h-4" />
-                                    Exemplo: atendendo 3 períodos por semana, seu custo mensal pode ser menor que o aluguel de uma sala comercial.
+                            <h2 className="text-3xl sm:text-4xl font-extrabold text-primary-950 mb-4">Consultórios e valores</h2>
+                            <p className="text-secondary-600 text-lg mb-8 leading-relaxed">
+                                Você paga apenas pelas horas que utilizar o consultório, sem aluguel mensal fixo e sem precisar montar estrutura própria.
+                            </p>
+
+                            {/* Simulador de custo mensal */}
+                            <div className="bg-warm-50 border border-warm-200 rounded-2xl p-6">
+                                <p className="text-sm font-bold text-secondary-500 uppercase tracking-widest mb-5">Simulação de custo mensal — Consultório 3</p>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {[
+                                        { freq: "1 turno/semana", valor: "R$ 640" },
+                                        { freq: "2 turnos/semana", valor: "R$ 1.280" },
+                                        { freq: "3 turnos/semana", valor: "R$ 1.920" },
+                                    ].map((ex, i) => (
+                                        <div key={i} className={`rounded-xl p-4 text-center border ${i === 1 ? 'bg-primary-950 border-primary-950 text-white' : 'bg-white border-warm-200 text-primary-950'}`}>
+                                            <p className={`text-xs font-medium mb-2 ${i === 1 ? 'text-white/70' : 'text-secondary-500'}`}>{ex.freq}</p>
+                                            <p className="text-xl font-extrabold">{ex.valor}</p>
+                                            <p className={`text-[10px] mt-1 ${i === 1 ? 'text-white/60' : 'text-secondary-400'}`}>/mês</p>
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="text-xs text-secondary-400 mt-4">
+                                    Assim, você consegue comparar com o custo de manter uma sala própria — com mais flexibilidade no início.
                                 </p>
                             </div>
                         </div>
@@ -684,43 +737,38 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                             <h2 className="text-3xl sm:text-4xl font-extrabold text-primary-950 mb-3">O que dizem quem já atende aqui</h2>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-7">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             {[
                                 {
-                                    name: "Dr. Ricardo Silva",
+                                    initials: "RS",
                                     role: "Psicólogo",
-                                    text: "A localização é estratégica e o ambiente é excelente. Meus pacientes sempre elogiam a recepção e o café. A flexibilidade foi o que me fez escolher a Arthemi.",
-                                    time: "Avaliado há 2 dias"
+                                    text: "Localização ótima e ambiente bem cuidado. Meus pacientes entram já se sentindo em um espaço profissional. Pra mim, o que pesou foi a flexibilidade — consigo ajustar conforme minha agenda.",
+                                    stars: 5
                                 },
                                 {
-                                    name: "Dra. Ana Carolina",
+                                    initials: "AC",
                                     role: "Nutricionista",
-                                    text: "Saí de um aluguel fixo que me prendia muito. Hoje pago apenas o que uso e minha margem aumentou bastante já no primeiro mês.",
-                                    time: "Avaliado há 5 dias"
+                                    text: "Sai de um aluguel fixo que pesava no mês mesmo quando eu atendia pouco. Aqui pago só o que uso. A diferença no custo mensal foi bem real.",
+                                    stars: 5
                                 },
                                 {
-                                    name: "Felipe Santos",
+                                    initials: "FS",
                                     role: "Fisioterapeuta",
-                                    text: "As salas têm tudo que preciso. Chego, atendo e vou embora sem me preocupar com limpeza ou manutenção. Simples assim.",
-                                    time: "Avaliado na última semana"
+                                    text: "Chego, abro a sala e começo a atender. Sem preocupação com limpeza, recepção ou manutenção. Isso vale muito quando você quer focar só nos pacientes.",
+                                    stars: 5
                                 }
-                            ].map((item, i) => {
-                                const initials = item.name.replace(/Dr\.|Dra\./g, '').trim().split(' ').map(n => n[0]).join('').slice(0, 2);
-                                return (
-                                    <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-warm-200 shadow-sm relative h-full flex flex-col">
-                                        <p className="text-secondary-600 mb-7 italic leading-relaxed flex-1">&ldquo;{item.text}&rdquo;</p>
-                                        <div className="flex items-center gap-4 mt-auto">
-                                            <div className="w-11 h-11 rounded-full bg-accent-100 flex items-center justify-center font-bold text-accent-700 text-sm">
-                                                {initials}
-                                            </div>
-                                            <div>
-                                                <p className="font-bold text-primary-950 text-sm">{item.name}</p>
-                                                <p className="text-xs text-secondary-500 font-medium">{item.role} · {item.time}</p>
-                                            </div>
-                                        </div>
+                            ].map((item, i) => (
+                                <div key={i} className="bg-white p-7 rounded-2xl border border-warm-200 shadow-sm flex flex-col gap-5">
+                                    <div className="flex text-yellow-400 gap-0.5">
+                                        {[...Array(item.stars)].map((_, s) => <Star key={s} className="w-4 h-4 fill-current" />)}
                                     </div>
-                                );
-                            })}
+                                    <p className="text-secondary-600 leading-relaxed text-sm flex-1">&ldquo;{item.text}&rdquo;</p>
+                                    <div className="flex items-center gap-3 pt-3 border-t border-warm-100">
+                                        <div className="w-9 h-9 rounded-full bg-warm-100 flex items-center justify-center font-bold text-secondary-600 text-xs flex-shrink-0">{item.initials}</div>
+                                        <p className="text-xs text-secondary-500 font-medium">{item.role} · via Google</p>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </section>
@@ -795,24 +843,24 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 {/* ============= 10) CTA FINAL ============= */}
                 <section className="py-20 bg-primary-950">
                     <div className="max-w-2xl mx-auto px-4 text-center">
-                        <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-5 leading-tight">
-                            Quer entender se faz sentido para você?
+                        <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-4 leading-tight">
+                            Quer entender se a Arthemi faz sentido para sua rotina?
                         </h2>
-                        <p className="text-primary-200 text-lg mb-10 leading-relaxed">
-                            Venha conhecer o espaço pessoalmente — sem compromisso. Nossa equipe mostra tudo, tira suas dúvidas e você decide com calma.
+                        <p className="text-primary-300 text-base sm:text-lg mb-10 leading-relaxed">
+                            Agende uma visita, conheça o espaço pessoalmente e tire suas dúvidas antes de decidir.
                         </p>
                         <button
                             id="cta-final-whatsapp"
                             data-event="whatsapp_click"
                             data-intent="visita"
                             onClick={() => handleOpenWhatsApp('visita', 'footer')}
-                            className="inline-flex items-center gap-3 bg-white text-primary-950 px-10 py-5 rounded-2xl font-black text-xl hover:bg-warm-50 transition-all shadow-2xl group w-full sm:w-auto justify-center"
+                            className="inline-flex items-center gap-3 bg-white text-primary-950 px-10 py-5 rounded-2xl font-bold text-lg hover:bg-warm-50 transition-all shadow-2xl w-full sm:w-auto justify-center"
                         >
                             <MessageCircle className="w-6 h-6 text-accent-600" />
                             Falar no WhatsApp
                         </button>
-                        <p className="text-primary-400 text-sm mt-5">
-                            Atendimento rápido em horário comercial.
+                        <p className="text-primary-500 text-sm mt-4">
+                            Atendimento em horário comercial.
                         </p>
                     </div>
                 </section>

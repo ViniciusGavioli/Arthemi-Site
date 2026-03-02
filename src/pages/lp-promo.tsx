@@ -187,27 +187,27 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
     const faqs = [
         {
             q: "Preciso ter CNPJ para usar o espaço?",
-            a: "Não. Profissionais autônomos com CPF podem reservar normalmente. Se você tiver CNPJ, pode emitir nota fiscal pela sua empresa sem problema."
+            a: "Não é obrigatório para começar. Profissionais autônomos também podem reservar."
         },
         {
             q: "Posso atender convênio aqui?",
-            a: "Sim. O consultório é seu durante o período reservado. Você atende como quiser — convênio, particular ou as duas coisas."
+            a: "Sim, desde que isso faça parte do seu modelo de atendimento e da sua regularização profissional."
         },
         {
             q: "Posso usar o endereço para registro profissional?",
-            a: "Essa possibilidade depende da sua categoria e do conselho profissional. Entre em contato com a equipe — avaliamos caso a caso."
+            a: "Consulte a equipe para entender as possibilidades e regras aplicáveis ao seu caso."
         },
         {
             q: "Posso guardar materiais na sala?",
-            a: "Sim. Todos os consultórios têm armário com chave. Você pode deixar o que precisar com segurança entre uma reserva e outra."
+            a: "Há opções de apoio e armário com chave, conforme disponibilidade operacional."
         },
         {
             q: "Como funciona o agendamento dos horários?",
-            a: "Pelo WhatsApp. Você vê os horários disponíveis, escolhe o que quer e confirma com a equipe. Simples, sem sistema complicado."
+            a: "Você escolhe os horários disponíveis e reserva conforme sua rotina profissional."
         },
         {
             q: "Existe compromisso mínimo ou contrato longo?",
-            a: "Não. Você reserva por hora, sem mensalidade mínima e sem fidelidade. Pode começar com uma reserva avulsa e ir aumentando conforme a demanda."
+            a: "Não há contrato longo nem fidelidade. Você pode começar com flexibilidade."
         },
     ];
 
@@ -618,7 +618,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 if (room.slug === 'sala-a') {
                                     imageUrl = '/images/sala-a/foto-4.jpeg';
                                     roomTitle = 'Consultório 1 — Grande com maca';
-                                    roomSubtitle = 'Mais espaço para atendimentos com apoio de maca';
+                                    roomSubtitle = 'Mais espaço para atendimentos com maca';
                                     badge = 'Mais escolhido';
                                     pkg10h = 'R$ 559,90';
                                     pkg20h = 'R$ 1.039,80';
@@ -626,7 +626,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 } else if (room.slug === 'sala-b') {
                                     imageUrl = '/images/sala-b/02-3.jpeg';
                                     roomTitle = 'Consultório 2 — Médio com maca';
-                                    roomSubtitle = 'Equilíbrio entre conforto e custo';
+                                    roomSubtitle = 'Equilíbrio entre estrutura e investimento';
                                     badge = 'Melhor custo-benefício';
                                     pkg10h = 'R$ 459,90';
                                     pkg20h = 'R$ 839,80';
@@ -634,7 +634,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 } else if (room.slug === 'sala-c') {
                                     imageUrl = '/images/sala-c/03-1.jpeg';
                                     roomTitle = 'Consultório 3 — Compacto sem maca';
-                                    roomSubtitle = 'Ideal para psicologia, nutrição e atendimentos individuais';
+                                    roomSubtitle = 'Ideal para atendimentos individuais';
                                     badge = 'Valor de lançamento';
                                     pkg10h = 'R$ 359,90';
                                     pkg20h = 'R$ 659,80';
@@ -853,7 +853,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 <section className="py-20 bg-primary-950">
                     <div className="max-w-2xl mx-auto px-4 text-center">
                         <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-4 leading-tight">
-                            Quer entender se a Arthemi faz sentido para sua rotina?
+                            Quer entender se a Arthemi faz sentido para a sua rotina?
                         </h2>
                         <p className="text-primary-300 text-base sm:text-lg mb-10 leading-relaxed">
                             Agende uma visita, conheça o espaço pessoalmente e tire suas dúvidas antes de decidir.

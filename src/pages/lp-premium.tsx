@@ -398,11 +398,11 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
                                 if (room.slug === 'sala-a') {
                                     imageUrl = '/images/sala-a/foto-4.jpeg';
                                     badge = "O MAIS COMPLETO";
-                                    indication = "Ideal para procedimentos / maca";
+                                    indication = "Consultório completo com maca";
                                 } else if (room.slug === 'sala-b') {
                                     imageUrl = '/images/sala-b/02-3.jpeg';
                                     badge = "MELHOR CUSTO-BENEFÍCIO";
-                                    indication = "Consultório amplo e versátil";
+                                    indication = "Amplo, versátil e com maca";
                                 } else if (room.slug === 'sala-c') {
                                     imageUrl = '/images/sala-c/03-1.jpeg';
                                     badge = "O MAIS RESERVADO";

@@ -173,25 +173,38 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
         setIsLeadFormOpen(true);
     };
 
-    const handleOpenWhatsApp = (ctaContext: any = '', customIntent?: string) => {
-        const contextStr = typeof ctaContext === 'string' ? ctaContext : '';
-        const intent = customIntent || contextStr;
+    const handleOpenWhatsApp = (intent: 'horarios' | 'visita', locationStr: string) => {
+        let fired = false;
 
-        trackEvent('whatsapp_click', { context: contextStr, intent, page: 'lp-promo' });
+        const trigger = () => {
+            if (fired) return;
+            fired = true;
 
-        let text = 'Olá! Gostaria de saber mais sobre o Espaço Arthemi.';
-        if (contextStr === 'lancamento') {
-            text = 'Olá! Gostaria de garantir meu preço de LANÇAMENTO.';
-        } else if (contextStr === 'visita') {
-            text = 'Olá! VISITA. Gostaria de agendar minha visita guiada.';
-        } else if (contextStr === 'disponibilidade' || contextStr === 'hero_disponibilidade') {
-            text = 'Olá! Vi o site e gostaria de consultar a disponibilidade dos consultórios para hoje.';
-        } else if (contextStr.startsWith('inauguracao')) {
-            text = 'Olá! Vi a promoção no site. INAUGURACAO! Gostaria de garantir meu valor com desconto.';
-        }
+            if (typeof window !== 'undefined' && (window as any).gtag) {
+                (window as any).gtag('event', 'whatsapp_click', {
+                    intent: intent,
+                    location: locationStr,
+                    page: window.location.pathname
+                });
+            }
 
-        const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
-        window.open(url, '_blank');
+            if (typeof window !== 'undefined' && (window as any).fbq) {
+                (window as any).fbq('track', 'Contact', {
+                    content_category: 'WhatsApp Click',
+                    intent: intent,
+                    location: locationStr
+                });
+            }
+
+            const text = intent === 'horarios' ? 'HORÁRIOS' : 'VISITA';
+            const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+
+            setTimeout(() => {
+                window.open(url, '_blank');
+            }, 200);
+        };
+
+        trigger();
     };
 
     const handleOpenGallery = (galleryData: { name: string; slug: string }) => {
@@ -215,7 +228,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 path="/lp-premium"
             />
 
-            <Layout noHeader noFooter className="bg-white">
+            <Layout noHeader noFooter className="bg-white lp-promo">
                 {/* Minimal Header */}
                 <header className="sticky top-0 z-50 bg-warm-50/90 backdrop-blur-xl border-b border-warm-200 overflow-hidden relative">
                     {/* Header Texture Layer */}
@@ -242,7 +255,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                             priority
                         />
                         <button
-                            onClick={() => handleOpenWhatsApp('header')}
+                            onClick={() => handleOpenWhatsApp('horarios', 'hero')}
                             className="hidden sm:flex items-center gap-2 text-accent-700 font-semibold text-sm hover:underline"
                         >
                             <MessageCircle className="w-4 h-4" />
@@ -252,60 +265,38 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 </header>
 
                 {/* Hero Section */}
-                <section className="relative pt-10 pb-16 sm:pt-20 sm:pb-32 overflow-hidden bg-gradient-to-b from-warm-50 to-white">
+                <section className="relative pt-6 pb-12 sm:pt-20 sm:pb-32 overflow-hidden bg-gradient-to-b from-warm-50 to-white">
                     <div className="max-w-6xl mx-auto px-4 relative z-10">
-                        <div className="grid lg:grid-cols-2 gap-12 items-center">
+                        <div className="grid lg:grid-cols-2 gap-10 items-center">
                             <div className="max-w-3xl">
-                                <span className="inline-block px-4 py-1.5 rounded-full bg-accent-100 text-accent-700 text-sm font-bold mb-6 animate-fade-in uppercase tracking-wider">
+                                <span className="inline-block px-3 py-1 rounded-full bg-accent-100 text-accent-700 text-[10px] sm:text-xs font-bold mb-4 animate-fade-in uppercase tracking-wider">
                                     Solução Premium em Saúde
                                 </span>
-                                <h1 className="text-4xl sm:text-6xl font-black text-primary-950 leading-[1.1] mb-6 tracking-tight">
+                                <h1 className="text-4xl sm:text-5xl font-extrabold text-primary-950 leading-[1.15] mb-4 tracking-tight">
                                     Atenda em consultório premium em BH <span className="text-accent-600">sem aluguel fixo</span>.
                                 </h1>
 
-                                {/* Micro-proofs */}
-                                <div className="grid grid-cols-2 gap-y-3 gap-x-6 mb-8 mt-2 animate-fade-in delay-100">
-                                    {[
-                                        "Sem aluguel fixo",
-                                        "Sem taxa de adesão",
-                                        "Recepção e limpeza",
-                                        "Área hospitalar de BH"
-                                    ].map((text, i) => (
-                                        <div key={i} className="flex items-center gap-2 text-primary-900/80 font-bold text-sm">
-                                            <CheckCircle2 className="w-4 h-4 text-green-600" />
-                                            {text}
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <p className="text-lg sm:text-xl text-secondary-600 mb-10 leading-relaxed max-w-xl">
-                                    Reserve por hora, atenda com estrutura completa e sem burocracia <br className="hidden md:block" /> — recepção, limpeza e internet inclusos.
+                                <p className="text-lg sm:text-xl text-secondary-600 mb-8 leading-relaxed max-w-xl">
+                                    Reserva por hora, estrutura pronta e ambiente preparado para seus pacientes. Sem burocracia e sem contrato longo.
                                 </p>
 
-                                <div className="flex flex-col sm:flex-row gap-4 mb-2 lg:mb-0">
+                                <div className="flex flex-col sm:flex-row gap-3">
                                     <button
-                                        id="cta-whatsapp-lancamento"
-                                        data-event="whatsapp_click"
-                                        data-intent="lancamento"
-                                        onClick={() => handleOpenWhatsApp('lancamento', 'lancamento')}
-                                        className="bg-primary-950 text-white px-8 py-5 rounded-2xl font-bold text-lg shadow-xl shadow-primary-900/20 hover:bg-black transition-all hover:-translate-y-1 flex items-center justify-center gap-2"
+                                        onClick={() => handleOpenWhatsApp('horarios', 'hero')}
+                                        className="w-full sm:w-auto cta-whatsapp px-6 py-4 rounded-xl font-bold text-[15px] sm:text-lg shadow-xl shadow-primary-900/20 hover:bg-black transition-all flex items-center justify-center gap-2"
                                     >
-                                        Garantir preço de lançamento
+                                        Ver horários e valores no WhatsApp
                                     </button>
                                     <button
-                                        id="cta-whatsapp-visita"
-                                        data-event="whatsapp_click"
-                                        data-intent="visita"
-                                        onClick={() => handleOpenWhatsApp('visita', 'visita')}
-                                        className="bg-white text-secondary-800 border-2 border-warm-200 px-8 py-5 rounded-2xl font-bold text-lg hover:bg-warm-50 transition-all flex items-center justify-center gap-2"
+                                        onClick={() => handleOpenWhatsApp('visita', 'hero')}
+                                        className="w-full sm:w-auto bg-white text-secondary-800 border-2 border-warm-200 px-6 py-4 rounded-xl font-bold text-[15px] sm:text-lg hover:bg-warm-50 transition-all flex items-center justify-center gap-2"
                                     >
-                                        <MessageCircle className="w-6 h-6 text-green-600" />
                                         Agendar visita guiada
                                     </button>
                                 </div>
-                                <p className="text-sm text-secondary-500 mt-4 mb-12 lg:mb-0 flex items-center gap-2">
-                                    <Clock className="w-4 h-4" />
-                                    Resposta via WhatsApp em até 5 minutos (horário comercial).
+                                <p className="text-xs sm:text-sm text-secondary-500 mt-4 flex items-center justify-center sm:justify-start gap-1">
+                                    <Clock className="w-3.5 h-3.5" />
+                                    Resposta no WhatsApp em até 5 minutos (horário comercial).
                                 </p>
 
                                 {/* Quick Proof */}
@@ -405,17 +396,21 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                             </div>
                         </div>
 
-                        {/* Mobile Micro-proofs - Fixed Style */}
-                        <div className="lg:hidden mt-8 grid grid-cols-1 gap-3 border-t border-warm-200 pt-8 animate-fade-in">
-                            {[
-                                "✅ Sem taxa de adesão",
-                                "✅ Sem fidelidade",
-                                "✅ Recepção + limpeza inclusas"
-                            ].map((text, i) => (
-                                <div key={i} className="flex items-center gap-2 text-primary-900/80 font-bold text-sm">
-                                    {text}
-                                </div>
-                            ))}
+                        {/* Por que Arthemi */}
+                        <div className="mt-8 sm:mt-12 border-t border-warm-200 pt-8 sm:pt-10 animate-fade-in">
+                            <h3 className="text-xl sm:text-2xl font-bold text-primary-950 mb-6 text-center lg:text-left">Um jeito mais leve e profissional de atender.</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {[
+                                    "Consultório pronto: você chega e atende.",
+                                    "Você paga apenas quando usa.",
+                                    "Ambiente premium que valoriza seu atendimento."
+                                ].map((text, i) => (
+                                    <div key={i} className="flex items-center gap-3 bg-warm-50/50 p-4 rounded-xl border border-warm-100 shadow-sm leading-tight">
+                                        <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                                        <p className="font-bold text-primary-950 text-sm">{text}</p>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -424,7 +419,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 <section className="py-16 bg-gradient-to-b from-warm-50 to-white">
                     <div className="max-w-4xl mx-auto px-4 text-center">
                         <span className="inline-block px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-xs font-bold tracking-widest uppercase mb-4">Oportunidade</span>
-                        <h2 className="text-3xl sm:text-4xl font-black text-primary-950 mb-6">Valores de Lançamento</h2>
+                        <h2 className="text-3xl sm:text-4xl font-extrabold text-primary-950 mb-6">Valores de Lançamento</h2>
                         <p className="text-secondary-600 text-lg sm:text-xl mb-8 leading-relaxed max-w-2xl mx-auto">
                             Assegure sua agenda com valores exclusivos de inauguração antes do reajuste programado. Devido à alta procura, vagas na manhã e fim de tarde são limitadas.
                         </p>
@@ -445,8 +440,8 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                             id="cta-whatsapp-lancamento-mid"
                             data-event="whatsapp_click"
                             data-intent="lancamento"
-                            onClick={() => handleOpenWhatsApp('lancamento', 'lancamento')}
-                            className="bg-primary-950 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-black transition-all hover:-translate-y-1 inline-flex items-center justify-center gap-3 shadow-lg"
+                            onClick={() => handleOpenWhatsApp('horarios', 'mid')}
+                            className="bg-primary-950 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-black transition-all hover:-translate-y-1 inline-flex items-center justify-center gap-3 shadow-lg w-full sm:w-auto"
                         >
                             Falar com a equipe
                             <ArrowRight className="w-5 h-5" />
@@ -454,12 +449,16 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                     </div>
                 </section>
 
-                {/* 2) Nossos Consultórios Section (Moved from bottom) */}
-                <section className="py-24 bg-white">
+                {/* 2) Nossos Consultórios Section */}
+                <section className="py-24 bg-warm-50/30 relative overflow-hidden">
+                    {/* Imagem de fundo sutil */}
+                    <div className="absolute inset-0 opacity-[0.04] pointer-events-none">
+                        <Image src="/images/espaco/Recepcao-02.jpeg" alt="" fill className="object-cover" />
+                    </div>
                     <div className="max-w-6xl mx-auto px-4">
                         <div className="flex flex-col md:flex-row md:items-start justify-between mb-8 gap-6">
                             <div>
-                                <h2 className="text-3xl sm:text-4xl font-black text-primary-950 mb-4">Nossos Consultórios</h2>
+                                <h2 className="text-3xl sm:text-4xl font-extrabold text-primary-950 mb-4">Nossos Consultórios</h2>
                                 <p className="text-secondary-600 text-lg">Valores transparentes e indicações de uso para facilitar sua escolha.</p>
                                 <p className="text-accent-700 font-bold text-sm mt-3 flex items-center gap-2">
                                     <Sparkles className="w-4 h-4" />
@@ -485,12 +484,12 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 if (room.slug === 'sala-a') {
                                     imageUrl = '/images/sala-a/foto-4.jpeg';
                                     badge = "O MAIS COMPLETO";
-                                    indication = "Ideal para procedimentos / maca";
+                                    indication = "Consultório completo com maca";
                                     discountText = "25% OFF";
                                 } else if (room.slug === 'sala-b') {
                                     imageUrl = '/images/sala-b/02-3.jpeg';
                                     badge = "MELHOR CUSTO-BENEFÍCIO";
-                                    indication = "Consultório amplo e versátil";
+                                    indication = "Amplo, versátil e com maca";
                                     discountText = "23% OFF";
                                 } else if (room.slug === 'sala-c') {
                                     imageUrl = '/images/sala-c/03-1.jpeg';
@@ -552,7 +551,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                                 id={`cta-whatsapp-horarios-${room.slug}`}
                                                 data-event="whatsapp_click"
                                                 data-intent="horarios"
-                                                onClick={() => handleOpenWhatsApp('lancamento', 'horarios')}
+                                                onClick={() => handleOpenWhatsApp('horarios', 'mid')}
                                                 className="w-full bg-primary-950 text-white py-4 rounded-xl font-bold hover:bg-black transition-all flex items-center justify-center gap-2 group mt-auto"
                                             >
                                                 Consultar disponibilidade
@@ -582,7 +581,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 <span className="text-xl font-black text-primary-950">4.9/5 no Google</span>
                             </div>
                             <span className="text-accent-600 font-bold text-sm tracking-widest uppercase mb-4 block underline decoration-accent-200 underline-offset-4">O QUE DIZEM NOSSOS PROFISSIONAIS</span>
-                            <h2 className="text-3xl sm:text-4xl font-black text-primary-950 mb-4">Quem atende, aprova o modelo Arthemi</h2>
+                            <h2 className="text-3xl sm:text-4xl font-extrabold text-primary-950 mb-4">Quem atende, aprova o modelo Arthemi</h2>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -636,28 +635,31 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
 
 
                 {/* How it Works Section */}
-                <section className="py-24 bg-white border-y border-warm-100">
+                <section className="py-24 bg-white border-y border-warm-100 relative overflow-hidden">
+                    {/* Imagem de fundo sutil */}
+                    <div className="absolute inset-0 opacity-[0.03] pointer-events-none">
+                        <Image src="/images/espaco/Recepcao-03.jpeg" alt="" fill className="object-cover" />
+                    </div>
                     <div className="max-w-6xl mx-auto px-4">
                         <div className="text-center mb-16">
-                            <h2 className="text-3xl sm:text-4xl font-black text-primary-950 mb-4">Como funciona? É direto ao ponto.</h2>
+                            <h2 className="text-3xl sm:text-4xl font-extrabold text-primary-950 mb-4">Como funciona? É direto ao ponto.</h2>
                             <p className="text-secondary-600 text-lg">Sem contratos complexos ou burocracia infinita.</p>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
                             {[
-                                { step: "01", title: "Consulte pelo WhatsApp", desc: "Chame nossa recepção e escolha os horários que deseja atender hoje ou na semana." },
-                                { step: "02", title: "Reserva Confirmada", desc: "Processo 100% online e rápido. Sem taxa de adesão ou contrato de fidelidade." },
-                                { step: "03", title: "Chegue e Atenda", desc: "Estrutura pronta: ar ligado, café pronto e recepcionista aguardando seu paciente." },
+                                { step: "01", title: "Você chama no WhatsApp", desc: "" },
+                                { step: "02", title: "Escolhe o horário", desc: "" },
+                                { step: "03", title: "Reserva confirmada e pronto.", desc: "" },
                             ].map((item, i) => (
-                                <div key={i} className="relative group text-center">
+                                <div key={i} className="relative group text-center flex flex-col items-center">
                                     <div className="text-7xl font-black text-accent-600/30 absolute -top-8 left-1/2 -translate-x-1/2 group-hover:text-accent-600/50 transition-colors -z-0">
                                         {item.step}
                                     </div>
-                                    <div className="relative z-10 pt-8">
-                                        <h3 className="text-2xl font-bold text-primary-950 mb-3">{item.title}</h3>
-                                        <p className="text-secondary-600 leading-relaxed">{item.desc}</p>
+                                    <div className="relative z-10 pt-8 mt-2">
+                                        <h3 className="text-2xl font-bold text-primary-950">{item.title}</h3>
                                     </div>
-                                    {i < 2 && <ArrowRight className="hidden md:block absolute top-1/2 -right-6 -translate-y-12 text-warm-200 w-12 h-12" />}
+                                    {i < 2 && <ArrowRight className="hidden md:block absolute top-1/2 -right-6 -translate-y-8 text-warm-200 w-12 h-12" />}
                                 </div>
                             ))}
                         </div>
@@ -665,10 +667,14 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 </section>
 
                 {/* 5) Benefits Section */}
-                <section className="py-24 bg-white">
+                <section className="py-24 bg-white relative overflow-hidden">
+                    {/* Imagem de fundo sutil */}
+                    <div className="absolute inset-0 opacity-[0.04] pointer-events-none">
+                        <Image src="/images/sala-b/02-5.jpeg" alt="" fill className="object-cover" />
+                    </div>
                     <div className="max-w-6xl mx-auto px-4">
                         <div className="text-center mb-16">
-                            <h2 className="text-3xl sm:text-4xl font-black text-primary-950 mb-4">Estrutura completa para você focar no paciente</h2>
+                            <h2 className="text-3xl sm:text-4xl font-extrabold text-primary-950 mb-4">Estrutura completa para você focar no paciente</h2>
                             <p className="text-secondary-600 text-lg">Tudo o que você precisa em um só lugar, sem taxas extras.</p>
                         </div>
 
@@ -696,13 +702,13 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                     <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-10">
                         <div className="text-white">
                             <span className="text-accent-400 font-black text-sm uppercase tracking-widest mb-4 block">OFERTA PARA QUEM ESTÁ INSEGURO</span>
-                            <h3 className="text-3xl sm:text-4xl font-black mb-4">Primeira vez na Arthemi?</h3>
+                            <h3 className="text-3xl sm:text-4xl font-extrabold mb-4">Primeira vez na Arthemi?</h3>
                             <p className="text-primary-200 text-lg leading-relaxed max-w-xl">Venha conhecer pessoalmente. Ganhe uma visita guiada com café e tour pelo espaço antes da sua primeira reserva.</p>
                         </div>
                         <button
                             id="cta-visita-guiada"
-                            onClick={() => handleOpenWhatsApp('visita_guiada')}
-                            className="bg-accent-600 text-white px-10 py-5 rounded-2xl font-bold text-lg hover:bg-accent-700 transition-all flex items-center gap-3 shadow-2xl shadow-accent-600/30 group"
+                            onClick={() => handleOpenWhatsApp('visita', 'mid')}
+                            className="bg-accent-600 text-white px-10 py-5 rounded-2xl font-bold text-lg hover:bg-accent-700 transition-all flex items-center gap-3 shadow-2xl shadow-accent-600/30 group w-full sm:w-auto mt-4 sm:mt-0"
                         >
                             Agendar Visita Gratuita
                             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -713,7 +719,11 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
 
 
                 {/* Ideal for Section */}
-                <section className="py-24 bg-white border-t border-warm-100">
+                <section className="py-24 bg-white border-t border-warm-100 relative overflow-hidden">
+                    {/* Imagem de fundo sutil */}
+                    <div className="absolute inset-0 opacity-[0.04] pointer-events-none">
+                        <Image src="/images/espaco/Recepcao-04.jpeg" alt="" fill className="object-cover" />
+                    </div>
                     <div className="max-w-6xl mx-auto px-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 bg-warm-50/50 rounded-[3rem] p-8 md:p-16 border border-warm-100">
                             <div>
@@ -762,7 +772,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 <section className="py-24 bg-warm-50/30">
                     <div className="max-w-6xl mx-auto px-4">
                         <div className="text-center mb-16">
-                            <h2 className="text-3xl sm:text-4xl font-black text-primary-950 mb-4">Perfeito para sua especialidade</h2>
+                            <h2 className="text-3xl sm:text-4xl font-extrabold text-primary-950 mb-4">Perfeito para sua especialidade</h2>
                             <p className="text-secondary-600 text-lg">Ambientes pensados para diferentes nichos de atuação.</p>
                         </div>
 
@@ -787,7 +797,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                     <div className="max-w-4xl mx-auto px-4">
                         <div className="bg-primary-950 rounded-[3rem] p-8 md:p-16 text-center text-white relative overflow-hidden">
                             <Sparkles className="absolute top-8 right-8 w-24 h-24 text-white/5" />
-                            <h2 className="text-3xl font-black mb-6">Quer economizar ainda mais?</h2>
+                            <h2 className="text-3xl font-extrabold mb-6">Quer economizar ainda mais?</h2>
                             <p className="text-primary-200 text-lg mb-4 max-w-2xl mx-auto">
                                 Temos pacotes de horas (10h, 20h ou mais) com valores reduzidos para quem atende com recorrência.
                             </p>
@@ -798,8 +808,8 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 <p className="text-2xl font-black">Consulte condições especiais após conhecer o espaço</p>
                             </div>
                             <button
-                                onClick={() => handleOpenWhatsApp('disponibilidade')}
-                                className="bg-accent-600 text-white px-8 py-5 rounded-2xl font-bold text-lg hover:bg-accent-700 transition-all flex items-center justify-center gap-2 mx-auto"
+                                onClick={() => handleOpenWhatsApp('horarios', 'footer')}
+                                className="bg-accent-600 text-white px-8 py-5 rounded-2xl font-bold text-lg hover:bg-accent-700 transition-all flex items-center justify-center gap-2 mx-auto w-full sm:w-auto"
                             >
                                 Consultar pacotes ideais
                             </button>
@@ -811,7 +821,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 <section className="py-24 bg-warm-50 overflow-hidden relative">
                     <div className="max-w-4xl mx-auto px-4 relative z-10">
                         <div className="text-center mb-12">
-                            <h2 className="text-3xl sm:text-4xl font-black text-primary-950 mb-4">Dúvidas que travam a decisão?</h2>
+                            <h2 className="text-3xl sm:text-4xl font-extrabold text-primary-950 mb-4">Dúvidas que travam a decisão?</h2>
                             <p className="text-secondary-600">Transparência total para você começar hoje mesmo.</p>
                         </div>
 
@@ -836,10 +846,10 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                             <p className="mb-8 text-accent-100 text-lg">Nosso time responde em até 5 minutos no WhatsApp.</p>
                             <button
                                 id="cta-final-whatsapp"
-                                onClick={() => handleOpenWhatsApp('cta_final')}
-                                className="bg-white text-accent-700 px-10 py-5 rounded-2xl font-black text-xl hover:bg-warm-50 transition-all flex items-center justify-center gap-2 mx-auto shadow-2xl"
+                                onClick={() => handleOpenWhatsApp('horarios', 'footer')}
+                                className="bg-white text-accent-700 px-10 py-5 rounded-2xl font-black text-xl hover:bg-warm-50 transition-all flex items-center justify-center gap-2 mx-auto shadow-2xl w-full sm:w-auto"
                             >
-                                Ver horários disponíveis agora no WhatsApp
+                                Quero horários e valores
                                 <MessageCircle className="w-6 h-6" />
                             </button>
                         </div>
@@ -850,12 +860,16 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 </section>
 
                 {/* Location Section */}
-                <section className="py-24 bg-white">
+                <section className="py-24 bg-warm-50/30 relative overflow-hidden">
+                    {/* Imagem de fundo sutil */}
+                    <div className="absolute inset-0 opacity-[0.03] pointer-events-none">
+                        <Image src="/images/sala-a/foto-5.jpeg" alt="" fill className="object-cover" />
+                    </div>
                     <div className="max-w-6xl mx-auto px-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
                             <div>
                                 <span className="text-accent-600 font-bold text-sm tracking-widest uppercase mb-4 block">LOCALIZAÇÃO ESTRATÉGICA</span>
-                                <h2 className="text-4xl font-black text-primary-950 mb-6">No coração da Área Hospitalar de BH</h2>
+                                <h2 className="text-4xl font-extrabold text-primary-950 mb-6">No coração da Área Hospitalar de BH</h2>
                                 <p className="text-secondary-600 text-lg mb-8 leading-relaxed">
                                     Localizados no bairro Santa Efigênia, facilitamos o acesso para você e seus pacientes,
                                     em uma região com infraestrutura completa de serviços e transporte.
@@ -912,21 +926,14 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 </footer>
 
                 {/* Floating Mobile CTA */}
-                <div className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-md border-t border-warm-100 p-4 grid grid-cols-2 gap-3 shadow-[0_-10px_20px_rgba(0,0,0,0.1)]">
+                <div className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-md border-t border-warm-100 p-4 shadow-[0_-10px_20px_rgba(0,0,0,0.1)]">
                     <button
                         id="mobile-cta-availability"
-                        onClick={() => handleOpenWhatsApp('mobile_disponibilidade')}
-                        className="flex items-center justify-center gap-2 bg-green-100 text-green-700 py-4 rounded-xl font-bold text-sm"
+                        onClick={() => handleOpenWhatsApp('horarios', 'footer')}
+                        className="flex items-center justify-center gap-2 cta-whatsapp w-full py-4 rounded-xl font-bold text-[15px] shadow-lg shadow-primary-900/20"
                     >
+                        Quero horários e valores
                         <MessageCircle className="w-5 h-5" />
-                        Ver Horários
-                    </button>
-                    <button
-                        id="mobile-cta-consult"
-                        onClick={() => handleOpenWhatsApp('mobile_consultar')}
-                        className="bg-accent-600 text-white py-4 rounded-xl font-bold text-sm shadow-lg shadow-accent-600/20"
-                    >
-                        Consultar Agora
                     </button>
                 </div>
             </Layout >
@@ -980,7 +987,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                     Condição Exclusiva
                                 </div>
 
-                                <h3 className="text-3xl md:text-5xl font-black text-white mb-5 leading-tight tracking-tight px-2">
+                                <h3 className="text-3xl md:text-4xl font-extrabold text-white mb-5 leading-tight tracking-tight px-2">
                                     Garanta seu valor de <span className="font-light italic text-accent-400">lançamento</span>
                                 </h3>
 
@@ -995,7 +1002,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                         data-intent="lancamento"
                                         onClick={() => {
                                             setShowPopup(false);
-                                            handleOpenWhatsApp('lancamento', 'lancamento');
+                                            handleOpenWhatsApp('horarios', 'footer');
                                         }}
                                         className="w-full bg-white text-primary-950 py-4 md:py-5 rounded-2xl font-bold text-lg hover:bg-warm-50 transition-all flex items-center justify-center gap-3 shadow-xl hover:-translate-y-1 group relative overflow-hidden"
                                     >
@@ -1009,7 +1016,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                         data-intent="visita"
                                         onClick={() => {
                                             setShowPopup(false);
-                                            handleOpenWhatsApp('visita', 'visita');
+                                            handleOpenWhatsApp('visita', 'footer');
                                         }}
                                         className="w-full bg-transparent text-primary-300 py-3 rounded-xl font-bold text-base hover:text-white transition-colors underline decoration-primary-700 underline-offset-4 hover:decoration-primary-400"
                                     >
@@ -1030,6 +1037,63 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
         .animate-fade-in {
           animation: fade-in 0.6s ease-out forwards;
         }
+
+        /* ============================================= */
+        /* LP PROMO - Refinamentos sutis                 */
+        /* Mantém marrom + bege da marca                 */
+        /* ============================================= */
+
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+        .lp-promo {
+          font-family: 'Outfit', 'Inter', system-ui, sans-serif !important;
+          -webkit-font-smoothing: antialiased;
+        }
+        .lp-promo * {
+          font-family: inherit;
+        }
+
+        .lp-promo h1, .lp-promo h2, .lp-promo h3 {
+          letter-spacing: -0.01em;
+        }
+
+        /* WhatsApp CTA verde (faz sentido com a marca do WhatsApp) */
+        .lp-promo .cta-whatsapp {
+          background-color: #25D366 !important;
+          color: #fff !important;
+        }
+        .lp-promo .cta-whatsapp:hover {
+          background-color: #1fb855 !important;
+        }
+
+        /* Seções com imagem de fundo */
+        .lp-promo .bg-section-image {
+          position: relative;
+        }
+        .lp-promo .bg-section-image::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background-size: cover;
+          background-position: center;
+          opacity: 0.06;
+          pointer-events: none;
+        }
+        .lp-promo .bg-section-image > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        /* --- Accent: amarelo queimado / âmbar elegante --- */
+        .lp-promo .text-accent-600 { color: #c48830 !important; }
+        .lp-promo .text-accent-700 { color: #a87228 !important; }
+        .lp-promo .text-accent-500 { color: #d49a3c !important; }
+        .lp-promo .text-accent-400 { color: #e0ad55 !important; }
+        .lp-promo .bg-accent-600 { background-color: #c48830 !important; }
+        .lp-promo .bg-accent-100 { background-color: #fdf4e3 !important; }
+        .lp-promo .border-b-accent-100 { border-bottom-color: #fdf4e3 !important; }
+        .lp-promo .hover\:bg-accent-700:hover { background-color: #a87228 !important; }
+        .lp-promo .shadow-accent-600\/30 { --tw-shadow-color: rgba(196,136,48,0.3) !important; }
       `}</style>
         </>
     );

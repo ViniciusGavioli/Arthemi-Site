@@ -293,17 +293,23 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 </header>
 
                 {/* ============= 1) HERO ============= */}
-                <section
-                    className="relative min-h-[90vh] sm:min-h-[85vh] flex items-center overflow-hidden"
-                    style={{
-                        backgroundImage: 'url(/images/espaco/Recepcao-01.jpeg)',
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                    }}
-                >
-                    {/* Overlay gradiente — escuro à esquerda, transparente à direita */}
-                    <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(28,20,14,0.85) 0%, rgba(28,20,14,0.65) 50%, rgba(28,20,14,0.25) 100%)' }} />
-                    <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(28,20,14,0.5) 0%, transparent 60%)' }} />
+                <section className="relative min-h-[90vh] sm:min-h-[85vh] flex items-center overflow-hidden">
+
+                    {/* Foto de fundo — next/image otimizada (WebP + preload automático) */}
+                    <Image
+                        src="/images/espaco/Recepcao-01.jpeg"
+                        alt="Espaço Arthemi — Recepção"
+                        fill
+                        priority
+                        quality={85}
+                        sizes="100vw"
+                        style={{ objectFit: 'cover', objectPosition: 'center' }}
+                    />
+
+                    {/* Overlay horizontal — escuro à esquerda onde fica o texto */}
+                    <div style={{ position: 'absolute', inset: 0, zIndex: 1, background: 'linear-gradient(to right, rgba(28,20,14,0.85) 0%, rgba(28,20,14,0.60) 55%, rgba(28,20,14,0.15) 100%)' }} />
+                    {/* Overlay vertical — escurece o rodapé */}
+                    <div style={{ position: 'absolute', inset: 0, zIndex: 1, background: 'linear-gradient(to top, rgba(28,20,14,0.55) 0%, transparent 55%)' }} />
 
                     {/* Conteúdo */}
                     <div className="relative z-10 max-w-6xl mx-auto px-4 w-full py-24 sm:py-32">

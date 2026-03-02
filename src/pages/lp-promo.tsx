@@ -211,58 +211,31 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
         },
     ];
 
-    // Fotos highlights (4 principais visíveis de cara)
-    const highlightPhotos = [
-        { src: "/images/espaco/Recepcao-01.jpeg", alt: "Recepção — Espaço Arthemi", label: "Recepção", slug: "espaco" },
-        { src: "/images/sala-a/foto-4.jpeg", alt: "Consultório 1 — Espaço Arthemi", label: "Consultório 1", slug: "sala-a" },
-        { src: "/images/sala-b/02-3.jpeg", alt: "Consultório 2 — Espaço Arthemi", label: "Consultório 2", slug: "sala-b" },
-        { src: "/images/sala-c/03-1.jpeg", alt: "Consultório 3 — Espaço Arthemi", label: "Consultório 3", slug: "sala-c" },
+    // Todas as fotos misturadas — layout colagem
+    const collagePhotos = [
+        { src: "/images/espaco/Recepcao-01.jpeg", alt: "Recepção", slug: "espaco" },
+        { src: "/images/sala-a/foto-4.jpeg", alt: "Consultório 1", slug: "sala-a" },
+        { src: "/images/sala-c/03-1.jpeg", alt: "Consultório 3", slug: "sala-c" },
+        { src: "/images/sala-b/02-3.jpeg", alt: "Consultório 2", slug: "sala-b" },
+        { src: "/images/espaco/Recepcao-02.jpeg", alt: "Recepção", slug: "espaco" },
+        { src: "/images/sala-a/foto-2.jpeg", alt: "Consultório 1", slug: "sala-a" },
+        { src: "/images/sala-b/02-1.jpeg", alt: "Consultório 2", slug: "sala-b" },
+        { src: "/images/sala-c/03-2.jpeg", alt: "Consultório 3", slug: "sala-c" },
+        { src: "/images/espaco/Recepcao-03.jpeg", alt: "Recepção", slug: "espaco" },
+        { src: "/images/sala-a/foto-5.jpeg", alt: "Consultório 1", slug: "sala-a" },
+        { src: "/images/sala-b/02-4.jpeg", alt: "Consultório 2", slug: "sala-b" },
+        { src: "/images/sala-c/03-3.jpeg", alt: "Consultório 3", slug: "sala-c" },
+        { src: "/images/espaco/Recepcao-04.jpeg", alt: "Recepção", slug: "espaco" },
+        { src: "/images/sala-a/foto-6.jpeg", alt: "Consultório 1", slug: "sala-a" },
+        { src: "/images/sala-b/02-5.jpeg", alt: "Consultório 2", slug: "sala-b" },
+        { src: "/images/sala-c/03-4.jpeg", alt: "Consultório 3", slug: "sala-c" },
+        { src: "/images/espaco/Recepcao.jpeg", alt: "Entrada", slug: "espaco" },
+        { src: "/images/sala-a/foto-7.jpeg", alt: "Consultório 1", slug: "sala-a" },
+        { src: "/images/sala-b/02-6.jpeg", alt: "Consultório 2", slug: "sala-b" },
     ];
 
-    // Fotos secundárias por ambiente
-    const spaceGroups = [
-        {
-            label: "Recepção e Área Comum",
-            slug: "espaco",
-            photos: [
-                { src: "/images/espaco/Recepcao-02.jpeg", alt: "Recepção — Espaço Arthemi" },
-                { src: "/images/espaco/Recepcao-03.jpeg", alt: "Área comum — Espaço Arthemi" },
-                { src: "/images/espaco/Recepcao-04.jpeg", alt: "Corredor — Espaço Arthemi" },
-                { src: "/images/espaco/Recepcao.jpeg", alt: "Entrada — Espaço Arthemi" },
-            ]
-        },
-        {
-            label: "Consultório 1",
-            slug: "sala-a",
-            photos: [
-                { src: "/images/sala-a/foto-2.jpeg", alt: "Consultório 1" },
-                { src: "/images/sala-a/foto-5.jpeg", alt: "Consultório 1" },
-                { src: "/images/sala-a/foto-6.jpeg", alt: "Consultório 1" },
-                { src: "/images/sala-a/foto-7.jpeg", alt: "Consultório 1" },
-            ]
-        },
-        {
-            label: "Consultório 2",
-            slug: "sala-b",
-            photos: [
-                { src: "/images/sala-b/02-1.jpeg", alt: "Consultório 2" },
-                { src: "/images/sala-b/02-4.jpeg", alt: "Consultório 2" },
-                { src: "/images/sala-b/02-5.jpeg", alt: "Consultório 2" },
-                { src: "/images/sala-b/02-6.jpeg", alt: "Consultório 2" },
-            ]
-        },
-        {
-            label: "Consultório 3",
-            slug: "sala-c",
-            photos: [
-                { src: "/images/sala-c/03-2.jpeg", alt: "Consultório 3" },
-                { src: "/images/sala-c/03-3.jpeg", alt: "Consultório 3" },
-                { src: "/images/sala-c/03-4.jpeg", alt: "Consultório 3" },
-            ]
-        },
-    ];
-
-    const [showAllPhotos, setShowAllPhotos] = useState(false);
+    // Alturas variadas para efeito de colagem
+    const collageHeights = ['h-56', 'h-40', 'h-64', 'h-44', 'h-60', 'h-36', 'h-52', 'h-48'];
 
     return (
         <>
@@ -446,75 +419,30 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                             <p className="text-secondary-600">Recepção profissional, consultórios decorados e ambiente preparado para seus pacientes.</p>
                         </div>
 
-                        {/* 4 fotos principais — visíveis de cara */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            {highlightPhotos.map((photo, i) => (
+                        {/* Colagem masonry — alturas variadas, sem separadores */}
+                        <div className="columns-2 md:columns-3 gap-3">
+                            {collagePhotos.map((photo, i) => (
                                 <div
                                     key={i}
-                                    className={`relative overflow-hidden rounded-2xl group cursor-pointer shadow-sm hover:shadow-xl transition-all duration-300 ${i === 0 ? 'col-span-2 h-64 md:h-80' : 'h-48 md:h-56'
-                                        }`}
-                                    onClick={() => handleOpenGallery({ name: photo.label, slug: photo.slug })}
+                                    className={`break-inside-avoid mb-3 overflow-hidden rounded-2xl group cursor-pointer relative ${collageHeights[i % collageHeights.length]}`}
+                                    onClick={() => handleOpenGallery({ name: photo.alt, slug: photo.slug })}
                                 >
                                     <Image
                                         src={photo.src}
                                         alt={photo.alt}
                                         fill
-                                        loading={i === 0 ? 'eager' : 'lazy'}
-                                        sizes={i === 0 ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 50vw, 25vw'}
-                                        quality={90}
+                                        loading={i < 6 ? 'eager' : 'lazy'}
+                                        sizes="(max-width: 768px) 50vw, 33vw"
+                                        quality={85}
                                         className="object-cover group-hover:scale-105 transition-transform duration-500"
                                     />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-4">
-                                        <span className="text-white font-semibold text-sm">{photo.label}</span>
-                                    </div>
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
                                 </div>
                             ))}
                         </div>
-
-                        {/* Botão para ver mais fotos */}
-                        {!showAllPhotos && (
-                            <div className="text-center mt-6">
-                                <button
-                                    onClick={() => setShowAllPhotos(true)}
-                                    className="inline-flex items-center gap-2 text-accent-700 font-semibold text-sm border border-accent-200 bg-accent-50 px-5 py-2.5 rounded-xl hover:bg-accent-100 transition"
-                                >
-                                    <Eye className="w-4 h-4" /> Ver todas as fotos
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Fotos adicionais — só aparecem ao clicar */}
-                        {showAllPhotos && (
-                            <div className="mt-10 space-y-10">
-                                {spaceGroups.map((group, gi) => (
-                                    <div key={gi}>
-                                        <h3 className="text-sm font-bold text-secondary-500 uppercase tracking-widest mb-3">{group.label}</h3>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                            {group.photos.map((photo, i) => (
-                                                <div
-                                                    key={i}
-                                                    className="relative h-44 overflow-hidden rounded-xl group cursor-pointer shadow-sm hover:shadow-md transition-all"
-                                                    onClick={() => handleOpenGallery({ name: group.label, slug: group.slug })}
-                                                >
-                                                    <Image
-                                                        src={photo.src}
-                                                        alt={photo.alt}
-                                                        fill
-                                                        loading="lazy"
-                                                        sizes="(max-width: 768px) 50vw, 25vw"
-                                                        quality={85}
-                                                        className="object-cover group-hover:scale-105 transition-transform duration-500"
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                                <p className="text-center text-sm text-secondary-400 flex items-center justify-center gap-2">
-                                    <Eye className="w-4 h-4" /> Clique em qualquer foto para ampliar
-                                </p>
-                            </div>
-                        )}
+                        <p className="text-center text-xs text-secondary-400 mt-6">
+                            Clique em qualquer foto para ampliar
+                        </p>
                     </div>
                 </section>
 

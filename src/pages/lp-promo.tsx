@@ -702,7 +702,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 const initials = item.name.replace(/Dr\.|Dra\./g, '').trim().split(' ').map(n => n[0]).join('').slice(0, 2);
                                 return (
                                     <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-warm-200 shadow-sm relative h-full flex flex-col">
-                                        <p className="text-secondary-600 mb-7 italic leading-relaxed flex-1">"{item.text}"</p>
+                                        <p className="text-secondary-600 mb-7 italic leading-relaxed flex-1">&ldquo;{item.text}&rdquo;</p>
                                         <div className="flex items-center gap-4 mt-auto">
                                             <div className="w-11 h-11 rounded-full bg-accent-100 flex items-center justify-center font-bold text-accent-700 text-sm">
                                                 {initials}

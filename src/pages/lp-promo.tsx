@@ -596,11 +596,11 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 Escolha o consultório ideal para a sua rotina
                             </h2>
                             <p className="text-secondary-600 text-lg leading-relaxed mb-4">
-                                A Arthemi oferece 3 opções de consultório, com valores por hora, pacotes e turnos fixos. Assim, você pode começar com flexibilidade e escolher o formato mais adequado para sua agenda.
+                                A Arthemi oferece 3 opções de consultório com condições flexíveis para quem quer começar a atender com estrutura profissional, sem assumir os custos de uma clínica própria.
                             </p>
-                            <p className="text-sm text-accent-700 font-medium flex items-center justify-center gap-2">
-                                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                                Todos os valores já incluem recepção, limpeza entre atendimentos, Wi-Fi, café e água.
+                            <p className="text-sm text-secondary-500 flex items-center justify-center gap-2">
+                                <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-accent-600" />
+                                Recepção, limpeza entre atendimentos, Wi-Fi, café e água já incluídos.
                             </p>
                         </div>
 
@@ -619,7 +619,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                     imageUrl = '/images/sala-a/foto-4.jpeg';
                                     roomTitle = 'Consultório 1 — Grande com maca';
                                     roomSubtitle = 'Mais espaço para atendimentos com apoio de maca';
-                                    badge = 'Mais completo';
+                                    badge = 'Mais escolhido';
                                     pkg10h = 'R$ 559,90';
                                     pkg20h = 'R$ 1.039,80';
                                     shiftFixed = 'R$ 189,99';
@@ -627,7 +627,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                     imageUrl = '/images/sala-b/02-3.jpeg';
                                     roomTitle = 'Consultório 2 — Médio com maca';
                                     roomSubtitle = 'Equilíbrio entre conforto e custo';
-                                    badge = 'Mais versátil';
+                                    badge = 'Melhor custo-benefício';
                                     pkg10h = 'R$ 459,90';
                                     pkg20h = 'R$ 839,80';
                                     shiftFixed = 'R$ 159,99';
@@ -635,7 +635,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                     imageUrl = '/images/sala-c/03-1.jpeg';
                                     roomTitle = 'Consultório 3 — Compacto sem maca';
                                     roomSubtitle = 'Ideal para psicologia, nutrição e atendimentos individuais';
-                                    badge = 'Melhor custo-benefício';
+                                    badge = 'Valor de lançamento';
                                     pkg10h = 'R$ 359,90';
                                     pkg20h = 'R$ 659,80';
                                     shiftFixed = 'R$ 129,99';
@@ -684,6 +684,9 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                                     <span className="text-3xl font-black text-primary-950">{formatCurrency(room.hourlyRate / 100)}</span>
                                                     <span className="text-secondary-400 font-medium text-sm">/ hora</span>
                                                 </div>
+                                                <p className="text-[11px] text-accent-600 font-semibold mt-1.5 flex items-center gap-1">
+                                                    <Sparkles className="w-3 h-3" /> Condição especial para começar
+                                                </p>
                                             </div>
 
                                             {/* Tabela de pacotes */}

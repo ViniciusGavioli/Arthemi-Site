@@ -211,7 +211,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
         },
     ];
 
-    // Todas as fotos misturadas — layout colagem
+    // Todas as fotos misturadas — layout colagem (8 fotos)
     const collagePhotos = [
         { src: "/images/espaco/Recepcao-01.jpeg", alt: "Recepção", slug: "espaco" },
         { src: "/images/sala-a/foto-4.jpeg", alt: "Consultório 1", slug: "sala-a" },
@@ -221,17 +221,6 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
         { src: "/images/sala-a/foto-2.jpeg", alt: "Consultório 1", slug: "sala-a" },
         { src: "/images/sala-b/02-1.jpeg", alt: "Consultório 2", slug: "sala-b" },
         { src: "/images/sala-c/03-2.jpeg", alt: "Consultório 3", slug: "sala-c" },
-        { src: "/images/espaco/Recepcao-03.jpeg", alt: "Recepção", slug: "espaco" },
-        { src: "/images/sala-a/foto-5.jpeg", alt: "Consultório 1", slug: "sala-a" },
-        { src: "/images/sala-b/02-4.jpeg", alt: "Consultório 2", slug: "sala-b" },
-        { src: "/images/sala-c/03-3.jpeg", alt: "Consultório 3", slug: "sala-c" },
-        { src: "/images/espaco/Recepcao-04.jpeg", alt: "Recepção", slug: "espaco" },
-        { src: "/images/sala-a/foto-6.jpeg", alt: "Consultório 1", slug: "sala-a" },
-        { src: "/images/sala-b/02-5.jpeg", alt: "Consultório 2", slug: "sala-b" },
-        { src: "/images/sala-c/03-4.jpeg", alt: "Consultório 3", slug: "sala-c" },
-        { src: "/images/espaco/Recepcao.jpeg", alt: "Entrada", slug: "espaco" },
-        { src: "/images/sala-a/foto-7.jpeg", alt: "Consultório 1", slug: "sala-a" },
-        { src: "/images/sala-b/02-6.jpeg", alt: "Consultório 2", slug: "sala-b" },
     ];
 
     // Alturas variadas para efeito de colagem

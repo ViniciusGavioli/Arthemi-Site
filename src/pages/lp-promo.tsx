@@ -213,8 +213,8 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
 
     // Fotos highlights (4 principais visíveis de cara)
     const highlightPhotos = [
-        { src: "/images/sala-a/foto-4.jpeg", alt: "Consultório 1 — Espaço Arthemi", label: "Consultório 1", slug: "sala-a" },
         { src: "/images/espaco/Recepcao-01.jpeg", alt: "Recepção — Espaço Arthemi", label: "Recepção", slug: "espaco" },
+        { src: "/images/sala-a/foto-4.jpeg", alt: "Consultório 1 — Espaço Arthemi", label: "Consultório 1", slug: "sala-a" },
         { src: "/images/sala-b/02-3.jpeg", alt: "Consultório 2 — Espaço Arthemi", label: "Consultório 2", slug: "sala-b" },
         { src: "/images/sala-c/03-1.jpeg", alt: "Consultório 3 — Espaço Arthemi", label: "Consultório 3", slug: "sala-c" },
     ];

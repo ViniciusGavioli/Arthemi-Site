@@ -32,7 +32,7 @@ const PRICES_V3 = {
     capacity: 4,
     size: 20,
     tier: 1, // Consultório premium (hierarquia: pode usar crédito em 1, 2 ou 3)
-    amenities: ['Maca profissional', 'Ar-condicionado', 'Wi-Fi', 'Pia com água quente', 'Armário', 'Espelho'],
+    amenities: ['Maca profissional', 'Ar-condicionado', 'Wi-Fi', 'Sala ampla e iluminada', 'Armário', 'Espelho'],
     prices: {
       HOURLY_RATE: 5999,      // R$ 59,99
       PACKAGE_10H: 55990,     // R$ 559,90
@@ -105,11 +105,11 @@ async function main() {
 
   // ---- Criar Usuário Admin com Senha ----
   console.log('👤 Criando usuários...');
-  
+
   // Hash da senha do admin (bcrypt com salt rounds = 12)
   const SALT_ROUNDS = 12;
   const adminPasswordHash = await bcrypt.hash(ADMIN_PASSWORD, SALT_ROUNDS);
-  
+
   const admin = await prisma.user.create({
     data: {
       email: ADMIN_EMAIL,
@@ -121,7 +121,7 @@ async function main() {
       failedAttempts: 0,
     },
   });
-  
+
   console.log(`  🔐 Admin criado com senha hashada (bcrypt, ${SALT_ROUNDS} rounds)`);
 
   const testUser = await prisma.user.create({
@@ -148,7 +148,7 @@ async function main() {
     // PRICES_V3 armazena valores em REAIS, mas o banco armazena em CENTAVOS (Int)
     const hourlyRateCents = Math.round(roomData.prices.HOURLY_RATE * 100);
     const shiftPriceCents = Math.round(roomData.prices.SHIFT_FIXED * 100);
-    
+
     const room = await prisma.room.create({
       data: {
         name: roomData.name,
@@ -196,7 +196,7 @@ async function main() {
     for (const pt of productTypes) {
       const priceReais = pricesForRoom[pt.type];
       if (!priceReais) continue;
-      
+
       // PRICES_V3 está em REAIS, converter para CENTAVOS para o banco
       const priceCents = Math.round(priceReais * 100);
 
@@ -224,7 +224,7 @@ async function main() {
   // ---- Resumo dos Preços V3 ----
   console.log('\n📊 RESUMO DOS PREÇOS V3:');
   console.log('═'.repeat(60));
-  
+
   for (const roomKey of roomKeys) {
     const roomData = PRICES_V3[roomKey];
     console.log(`\n🏠 ${roomData.name} - ${roomData.subtitle}`);
@@ -241,7 +241,7 @@ async function main() {
 
   console.log('\n═'.repeat(60));
   console.log('✅ Seed V3 concluído com sucesso!');
-  
+
   // Aviso de segurança para produção
   if (!process.env.ADMIN_PASSWORD) {
     console.log('\n⚠️  AVISO DE SEGURANÇA:');

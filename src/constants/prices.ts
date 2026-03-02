@@ -14,7 +14,7 @@ export const PRICES_V3 = {
     description: 'Consultório amplo com maca profissional, ideal para procedimentos e atendimentos que requerem mais espaço.',
     capacity: 4,
     size: 20, // m²
-    amenities: ['Maca profissional', 'Ar-condicionado', 'Wi-Fi', 'Pia com água quente', 'Armário', 'Espelho'],
+    amenities: ['Maca profissional', 'Ar-condicionado', 'Wi-Fi', 'Pia', 'Armário', 'Espelho'],
     image: '/images/sala-a.jpg',
     prices: {
       HOURLY_RATE: 59.99,
@@ -177,13 +177,13 @@ export const DISCONTINUED_PRODUCTS = ['DAY_PASS', 'SATURDAY_5H'] as const;
 export function getPackagesForRoom(roomKey: RoomKey) {
   const room = PRICES_V3[roomKey];
   const hourlyRate = room.prices.HOURLY_RATE;
-  
+
   return PURCHASABLE_PACKAGES.map(pkgType => {
     const hours = PRODUCT_HOURS[pkgType];
     const price = room.prices[pkgType];
     const pricePerHour = price / hours;
     const discount = Math.round(((hourlyRate - pricePerHour) / hourlyRate) * 100);
-    
+
     return {
       type: pkgType,
       name: PRODUCT_DESCRIPTIONS[pkgType],
@@ -218,7 +218,7 @@ export function getAllProductsForRoom(roomKey: RoomKey): Array<{
     type: string;
     roomId: string | null;
   }> = [];
-  
+
   // Adicionar todos os produtos oficiais
   OFFICIAL_PRODUCT_TYPES.forEach((productType, index) => {
     const hours = PRODUCT_HOURS[productType];
@@ -233,7 +233,7 @@ export function getAllProductsForRoom(roomKey: RoomKey): Array<{
       roomId: null,
     });
   });
-  
+
   return products;
 }
 

@@ -132,7 +132,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
             (window as any).gtag('event', eventName, params);
         }
         if (typeof window !== 'undefined' && (window as any).fbq) {
-            if (eventName === 'whatsapp_click' || eventName === 'clique_reservar') {
+            if (eventName === 'clique_reservar') {
                 (window as any).fbq('track', 'Contact', {
                     content_name: params.room || 'Geral',
                     content_category: 'WhatsApp Click',
@@ -144,6 +144,35 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
         }
     };
 
+    const trackWhatsAppClick = (intent: string, ctaId: string) => {
+        let fired = false;
+        return (message: string) => {
+            if (fired) return;
+            fired = true;
+
+            const payload = {
+                page_path: typeof window !== 'undefined' ? window.location.pathname : '',
+                intent,
+                cta_id: ctaId
+            };
+
+            // Dispara evento oficial e o antigo como fallback
+            if (typeof window !== 'undefined' && (window as any).gtag) {
+                (window as any).gtag('event', 'clique_whatsapp', payload);
+                (window as any).gtag('event', 'whatsapp_click', payload);
+            }
+
+            if (typeof window !== 'undefined' && (window as any).fbq) {
+                (window as any).fbq('track', 'Lead', payload);
+                (window as any).fbq('track', 'Contact', payload); // compatibilidade
+            }
+
+            setTimeout(() => {
+                window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+            }, 200);
+        };
+    };
+
     const handleOpenBooking = (roomName: string) => {
         trackEvent('clique_reservar', { room: roomName });
         setSelectedRoomName(roomName);
@@ -151,37 +180,11 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
     };
 
     const handleOpenWhatsApp = (intent: 'horarios' | 'visita', locationStr: string) => {
-        let fired = false;
+        const text = intent === 'horarios' ? 'HORÁRIOS' : 'Oi, tudo bem? Vi o site de vocês e gostaria de marcar um horário para conhecer a estrutura.';
+        const ctaId = locationStr === 'hero' ? 'hero_primary' : (locationStr === 'footer' ? 'final_cta' : `cta_${locationStr}`);
+        const realIntent = intent === 'visita' ? 'agendar_visita' : 'horarios';
 
-        const trigger = () => {
-            if (fired) return;
-            fired = true;
-
-            if (typeof window !== 'undefined' && (window as any).gtag) {
-                (window as any).gtag('event', 'whatsapp_click', {
-                    intent: intent,
-                    location: locationStr,
-                    page: window.location.pathname
-                });
-            }
-
-            if (typeof window !== 'undefined' && (window as any).fbq) {
-                (window as any).fbq('track', 'Contact', {
-                    content_category: 'WhatsApp Click',
-                    intent: intent,
-                    location: locationStr
-                });
-            }
-
-            const text = intent === 'horarios' ? 'HORÁRIOS' : 'Oi, tudo bem? Vi o site de vocês e gostaria de marcar um horário para conhecer a estrutura.';
-            const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
-
-            setTimeout(() => {
-                window.open(url, '_blank');
-            }, 200);
-        };
-
-        trigger();
+        trackWhatsAppClick(realIntent, ctaId)(text);
     };
 
     const handleOpenGallery = (galleryData: { name: string; slug: string }) => {
@@ -221,8 +224,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
         const maca = triagemMaca || 'não informado';
         const horas = triagemHoras || 'não informado';
         const msg = `Olá! Minha área é *${area}*. Preciso de maca: *${maca}*. Pretendo reservar *${horas} horas/semana*. Queria ver horários e valores.`;
-        trackEvent('whatsapp_click', { intent: 'triagem', location: 'mini-triagem' });
-        setTimeout(() => window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank'), 200);
+        trackWhatsAppClick('mini_triagem', 'cta-triagem-whatsapp')(msg);
     };
 
     // Todas as fotos misturadas — layout colagem (8 fotos)
@@ -586,8 +588,6 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                     savings = 'Pacotes com vantagem progressiva — até 25% de economia';
                                 }
 
-                                const waMessage = encodeURIComponent(`Oi! Adorei a estrutura do ${roomTitle.split('—')[0].trim()} que vi no site. Podemos conferir a disponibilidade?`);
-                                const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${waMessage}`;
 
                                 return (
                                     <div key={room.id} className="bg-white rounded-[2rem] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 border border-warm-200 group flex flex-col">
@@ -662,12 +662,11 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                             <button
                                                 id={`cta-quero-${room.slug}`}
                                                 data-event="whatsapp_click"
-                                                data-intent="quero-consultor"
+                                                data-intent={`consultorio_${room.slug.replace('sala-', '')}`}
                                                 onClick={() => {
                                                     const roomNum = roomTitle.split('Consultório')[1]?.split('—')[0]?.trim() || '';
-                                                    const msgEspecifica = encodeURIComponent(`Olá! Quero o Consultório ${roomNum}. Pode me passar a disponibilidade de horários e valores?`);
-                                                    trackEvent('whatsapp_click', { intent: 'quero-consultor', room: roomTitle, location: 'card' });
-                                                    setTimeout(() => window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msgEspecifica}`, '_blank'), 200);
+                                                    const msgEspecifica = `Olá! Quero o Consultório ${roomNum}. Pode me passar a disponibilidade de horários e valores?`;
+                                                    trackWhatsAppClick(`consultorio_${room.slug.replace('sala-', '')}`, `cta-quero-${room.slug}`)(msgEspecifica);
                                                 }}
                                                 className="w-full cta-whatsapp py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 group/btn mt-auto mb-2"
                                             >
@@ -677,10 +676,10 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                             <button
                                                 id={`cta-preco-${room.slug}`}
                                                 data-event="whatsapp_click"
-                                                data-intent="horarios"
+                                                data-intent={`consultorio_${room.slug.replace('sala-', '')}`}
                                                 onClick={() => {
-                                                    trackEvent('whatsapp_click', { intent: 'horarios', room: roomTitle, location: 'precos' });
-                                                    setTimeout(() => window.open(waUrl, '_blank'), 200);
+                                                    const msgEspecifica = `Oi! Adorei a estrutura do ${roomTitle.split('—')[0].trim()} que vi no site. Podemos conferir a disponibilidade?`;
+                                                    trackWhatsAppClick(`consultorio_${room.slug.replace('sala-', '')}_precos`, `cta-preco-${room.slug}`)(msgEspecifica);
                                                 }}
                                                 className="w-full bg-white text-primary-950 border border-warm-200 py-3 rounded-xl font-semibold text-sm hover:bg-warm-50 transition-all flex items-center justify-center gap-2 group/btn"
                                             >

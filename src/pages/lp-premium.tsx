@@ -145,8 +145,8 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
         const contextStr = typeof ctaContext === 'string' ? ctaContext : '';
         trackEvent('clique_whatsapp', { context: contextStr });
         const text = contextStr === 'disponibilidade'
-            ? 'Olá! Vi o site e gostaria de consultar a disponibilidade dos consultórios para hoje.'
-            : 'Olá! Gostaria de saber mais sobre o Espaço Arthemi.';
+            ? 'Oi! Adorei a estrutura dos consultórios que vi no site. Podemos conferir a disponibilidade?'
+            : 'Oi, tudo bem? Vi o site de vocês e gostaria de marcar um horário para conhecer a estrutura.';
         const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
         window.open(url, '_blank');
     };

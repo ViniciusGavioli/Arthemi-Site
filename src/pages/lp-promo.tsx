@@ -72,6 +72,11 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
     const [activeFaq, setActiveFaq] = useState<number | null>(0);
     const [showPopup, setShowPopup] = useState(false);
 
+    // Mini-triagem state
+    const [triagemArea, setTriagemArea] = useState('');
+    const [triagemMaca, setTriagemMaca] = useState('');
+    const [triagemHoras, setTriagemHoras] = useState('');
+
     // Popup Logic — exit intent only OR após 50s
     useEffect(() => {
         let shown = false;
@@ -168,7 +173,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 });
             }
 
-            const text = intent === 'horarios' ? 'HORÁRIOS' : 'VISITA';
+            const text = intent === 'horarios' ? 'HORÁRIOS' : 'Oi, tudo bem? Vi o site de vocês e gostaria de marcar um horário para conhecer a estrutura.';
             const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
 
             setTimeout(() => {
@@ -186,30 +191,39 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
 
     const faqs = [
         {
-            q: "Preciso ter CNPJ para usar o espaço?",
-            a: "Não é obrigatório para começar. Profissionais autônomos também podem reservar."
+            q: "Tem contrato de fidelidade?",
+            a: "Não. Você reserva por hora e usa quando quiser, sem vínculos ou multas."
         },
         {
-            q: "Posso atender convênio aqui?",
-            a: "Sim, desde que isso faça parte do seu modelo de atendimento e da sua regularização profissional."
+            q: "Tem taxa de adesão?",
+            a: "Não. Nenhuma taxa para começar. Você paga só pelo tempo reservado."
         },
         {
-            q: "Posso usar o endereço para registro profissional?",
-            a: "Consulte a equipe para entender as possibilidades e regras aplicáveis ao seu caso."
+            q: "Posso cancelar ou remarcar?",
+            a: "Sim. Cancelamentos e remarcações são aceitos com até 48h de antecedência, sem custo."
         },
         {
-            q: "Posso guardar materiais na sala?",
-            a: "Há opções de apoio e armário com chave, conforme disponibilidade operacional."
+            q: "Atende aos sábados?",
+            a: "Sim. Temos disponibilidade aos sábados com tabela específica — consulte pelo WhatsApp."
         },
         {
-            q: "Como funciona o agendamento dos horários?",
-            a: "Você escolhe os horários disponíveis e reserva conforme sua rotina profissional."
+            q: "Emite nota fiscal ou recibo?",
+            a: "Sim. Emitimos documento fiscal conforme o serviço contratado."
         },
         {
-            q: "Existe compromisso mínimo ou contrato longo?",
-            a: "Não há contrato longo nem fidelidade. Você pode começar com flexibilidade."
+            q: "O que está incluso na reserva?",
+            a: "Recepção para seus pacientes, limpeza entre atendimentos, Wi-Fi, café e água. Sem cobranças extras."
         },
     ];
+
+    const handleTriagemWhatsApp = () => {
+        const area = triagemArea || 'não informada';
+        const maca = triagemMaca || 'não informado';
+        const horas = triagemHoras || 'não informado';
+        const msg = `Olá! Minha área é *${area}*. Preciso de maca: *${maca}*. Pretendo reservar *${horas} horas/semana*. Queria ver horários e valores.`;
+        trackEvent('whatsapp_click', { intent: 'triagem', location: 'mini-triagem' });
+        setTimeout(() => window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank'), 200);
+    };
 
     // Todas as fotos misturadas — layout colagem (8 fotos)
     const collagePhotos = [
@@ -295,19 +309,29 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 Receba seus pacientes em uma estrutura profissional na área hospitalar de BH, reservando por hora e pagando só pelo uso.
                             </p>
 
-                            {/* CTA único principal */}
-                            <button
-                                id="cta-hero-visita"
-                                data-event="whatsapp_click"
-                                data-intent="visita"
-                                onClick={() => handleOpenWhatsApp('visita', 'hero')}
-                                className="w-full sm:w-auto cta-whatsapp px-8 py-4 rounded-xl font-bold text-base sm:text-lg shadow-2xl flex items-center justify-center gap-2"
-                            >
-                                <MessageCircle className="w-5 h-5" />
-                                Agendar visita pelo WhatsApp
-                            </button>
+                            {/* HERO: 2 CTAs */}
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <button
+                                    id="cta-hero-visita"
+                                    data-event="whatsapp_click"
+                                    data-intent="visita"
+                                    onClick={() => handleOpenWhatsApp('visita', 'hero')}
+                                    className="w-full sm:w-auto cta-whatsapp px-8 py-4 rounded-xl font-bold text-base sm:text-lg shadow-2xl flex items-center justify-center gap-2"
+                                >
+                                    <MessageCircle className="w-5 h-5" />
+                                    Agendar visita pelo WhatsApp
+                                </button>
+                                <a
+                                    id="cta-hero-precos"
+                                    href="#secao-precos"
+                                    className="w-full sm:w-auto bg-white/15 hover:bg-white/25 border border-white/30 text-white px-8 py-4 rounded-xl font-bold text-base sm:text-lg flex items-center justify-center gap-2 transition-all backdrop-blur-sm"
+                                >
+                                    <ArrowRight className="w-5 h-5" />
+                                    Ver preços e escolher consultório
+                                </a>
+                            </div>
                             <p className="text-sm text-white/50 mt-3 max-w-sm">
-                                Conheça o espaço, entenda como funciona e veja se faz sentido para sua rotina profissional.
+                                Você pode agendar uma visita ou reservar direto se já souber o que precisa.
                             </p>
 
                             {/* Quick proof */}
@@ -359,7 +383,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                     step: "02",
                                     icon: Building2,
                                     title: "Conhece o espaço",
-                                    desc: "Fazemos um tour pela recepção e pelos consultórios. Você tira todas as dúvidas no local."
+                                    desc: "Fazemos um tour pela recepção e pelos consultórios. Você tira todas as dúvidas no local. Se preferir, você também pode reservar direto pelo WhatsApp."
                                 },
                                 {
                                     step: "03",
@@ -504,7 +528,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 </section>
 
                 {/* ============= 6) VALORES E CONSULTÓRIOS ============= */}
-                <section className="py-20 bg-white">
+                <section id="secao-precos" className="py-20 bg-white">
                     <div className="max-w-6xl mx-auto px-4">
 
                         {/* Introdução editorial */}
@@ -562,7 +586,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                     savings = 'Pacotes com vantagem progressiva — até 25% de economia';
                                 }
 
-                                const waMessage = encodeURIComponent(`Olá! Tenho interesse em conhecer o ${roomTitle.split('—')[0].trim()}. Gostaria de saber mais sobre disponibilidade.`);
+                                const waMessage = encodeURIComponent(`Oi! Adorei a estrutura do ${roomTitle.split('—')[0].trim()} que vi no site. Podemos conferir a disponibilidade?`);
                                 const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${waMessage}`;
 
                                 return (
@@ -634,7 +658,22 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                                 </p>
                                             )}
 
-                                            {/* CTA com pré-preenchimento */}
+                                            {/* CTAs do card */}
+                                            <button
+                                                id={`cta-quero-${room.slug}`}
+                                                data-event="whatsapp_click"
+                                                data-intent="quero-consultor"
+                                                onClick={() => {
+                                                    const roomNum = roomTitle.split('Consultório')[1]?.split('—')[0]?.trim() || '';
+                                                    const msgEspecifica = encodeURIComponent(`Olá! Quero o Consultório ${roomNum}. Pode me passar a disponibilidade de horários e valores?`);
+                                                    trackEvent('whatsapp_click', { intent: 'quero-consultor', room: roomTitle, location: 'card' });
+                                                    setTimeout(() => window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msgEspecifica}`, '_blank'), 200);
+                                                }}
+                                                className="w-full cta-whatsapp py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 group/btn mt-auto mb-2"
+                                            >
+                                                <MessageCircle className="w-4 h-4" />
+                                                Quero este consultório
+                                            </button>
                                             <button
                                                 id={`cta-preco-${room.slug}`}
                                                 data-event="whatsapp_click"
@@ -643,7 +682,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                                     trackEvent('whatsapp_click', { intent: 'horarios', room: roomTitle, location: 'precos' });
                                                     setTimeout(() => window.open(waUrl, '_blank'), 200);
                                                 }}
-                                                className="w-full bg-primary-950 text-white py-3.5 rounded-xl font-bold text-sm hover:bg-black transition-all flex items-center justify-center gap-2 group/btn mt-auto"
+                                                className="w-full bg-white text-primary-950 border border-warm-200 py-3 rounded-xl font-semibold text-sm hover:bg-warm-50 transition-all flex items-center justify-center gap-2 group/btn"
                                             >
                                                 Consultar disponibilidade
                                                 <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
@@ -660,6 +699,89 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                         </p>
                     </div>
                 </section>
+
+                {/* ============= MINI-TRIAGEM ============= */}
+                <section className="py-14 bg-warm-100/60 border-y border-warm-200">
+                    <div className="max-w-3xl mx-auto px-4">
+                        <div className="text-center mb-8">
+                            <h2 className="text-2xl font-extrabold text-primary-950 mb-2">Não sabe qual escolher?</h2>
+                            <p className="text-secondary-500 text-sm">Responda 3 perguntas rápidas e receba indicação personalizada no WhatsApp.</p>
+                        </div>
+
+                        <div className="bg-white rounded-2xl border border-warm-200 shadow-sm p-6 sm:p-8 space-y-6">
+                            {/* Pergunta 1 */}
+                            <div>
+                                <p className="text-sm font-bold text-primary-950 mb-3">Sua área de atuação:</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {['Psicologia', 'Nutrição', 'Fisioterapia', 'Medicina', 'Outra'].map((opt) => (
+                                        <button
+                                            key={opt}
+                                            onClick={() => setTriagemArea(opt)}
+                                            className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all ${triagemArea === opt
+                                                ? 'bg-accent-600 text-white border-accent-600 shadow-sm'
+                                                : 'bg-warm-50 text-secondary-700 border-warm-200 hover:border-accent-400'
+                                                }`}
+                                        >
+                                            {opt}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Pergunta 2 */}
+                            <div>
+                                <p className="text-sm font-bold text-primary-950 mb-3">Precisa de maca?</p>
+                                <div className="flex gap-2">
+                                    {['Sim', 'Não'].map((opt) => (
+                                        <button
+                                            key={opt}
+                                            onClick={() => setTriagemMaca(opt)}
+                                            className={`px-6 py-2 rounded-full text-sm font-semibold border transition-all ${triagemMaca === opt
+                                                ? 'bg-accent-600 text-white border-accent-600 shadow-sm'
+                                                : 'bg-warm-50 text-secondary-700 border-warm-200 hover:border-accent-400'
+                                                }`}
+                                        >
+                                            {opt}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Pergunta 3 */}
+                            <div>
+                                <p className="text-sm font-bold text-primary-950 mb-3">Quantas horas por semana pretende atender?</p>
+                                <div className="flex gap-2">
+                                    {['1–2h', '3–5h', '6h+'].map((opt) => (
+                                        <button
+                                            key={opt}
+                                            onClick={() => setTriagemHoras(opt)}
+                                            className={`px-6 py-2 rounded-full text-sm font-semibold border transition-all ${triagemHoras === opt
+                                                ? 'bg-accent-600 text-white border-accent-600 shadow-sm'
+                                                : 'bg-warm-50 text-secondary-700 border-warm-200 hover:border-accent-400'
+                                                }`}
+                                        >
+                                            {opt}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <button
+                                id="cta-triagem-whatsapp"
+                                onClick={handleTriagemWhatsApp}
+                                className="w-full cta-whatsapp py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 shadow-lg"
+                            >
+                                <MessageCircle className="w-5 h-5" />
+                                Enviar no WhatsApp
+                            </button>
+                            <p className="text-center text-xs text-secondary-400">Nossas indicações são enviadas pelo WhatsApp em até 5 minutos.</p>
+                        </div>
+                    </div>
+                </section>
+
+
+
+
 
 
                 {/* ============= 7) DEPOIMENTOS ============= */}
@@ -776,10 +898,10 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                             </div>
                         </div>
                     </div>
-                </section>
+                </section >
 
                 {/* ============= 10) CTA FINAL ============= */}
-                <section className="py-20 bg-primary-950">
+                < section className="py-20 bg-primary-950" >
                     <div className="max-w-2xl mx-auto px-4 text-center">
                         <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-4 leading-tight">
                             Quer entender se a Arthemi faz sentido para a sua rotina?
@@ -787,24 +909,33 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                         <p className="text-primary-300 text-base sm:text-lg mb-10 leading-relaxed">
                             Agende uma visita, conheça o espaço pessoalmente e tire suas dúvidas antes de decidir.
                         </p>
-                        <button
-                            id="cta-final-whatsapp"
-                            data-event="whatsapp_click"
-                            data-intent="visita"
-                            onClick={() => handleOpenWhatsApp('visita', 'footer')}
-                            className="inline-flex items-center gap-3 bg-white text-primary-950 px-10 py-5 rounded-2xl font-bold text-lg hover:bg-warm-50 transition-all shadow-2xl w-full sm:w-auto justify-center"
-                        >
-                            <MessageCircle className="w-6 h-6 text-accent-600" />
-                            Falar no WhatsApp
-                        </button>
+                        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                            <button
+                                id="cta-final-whatsapp"
+                                data-event="whatsapp_click"
+                                data-intent="visita"
+                                onClick={() => handleOpenWhatsApp('visita', 'footer')}
+                                className="inline-flex items-center gap-3 bg-white text-primary-950 px-10 py-5 rounded-2xl font-bold text-lg hover:bg-warm-50 transition-all shadow-2xl w-full sm:w-auto justify-center"
+                            >
+                                <MessageCircle className="w-6 h-6 text-accent-600" />
+                                Agendar visita pelo WhatsApp
+                            </button>
+                            <a
+                                href="#secao-precos"
+                                className="inline-flex items-center gap-2 border border-white/30 text-white/80 px-8 py-5 rounded-2xl font-semibold text-base hover:bg-white/10 transition-all w-full sm:w-auto justify-center"
+                            >
+                                <ArrowRight className="w-5 h-5" />
+                                Ver consultórios e preços
+                            </a>
+                        </div>
                         <p className="text-primary-500 text-sm mt-4">
-                            Atendimento em horário comercial.
+                            Atendimento em horário comercial · Resposta em até 5 min
                         </p>
                     </div>
-                </section>
+                </section >
 
                 {/* Footer */}
-                <footer className="py-10 bg-warm-50 border-t border-warm-200">
+                < footer className="py-10 bg-warm-50 border-t border-warm-200" >
                     <div className="max-w-6xl mx-auto px-4 text-center">
                         <Image
                             src="/images/Logo/logo.webp"
@@ -821,10 +952,10 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                             <Link href="/privacidade" className="hover:text-accent-600 transition">Privacidade</Link>
                         </div>
                     </div>
-                </footer>
+                </footer >
 
                 {/* Floating Mobile CTA */}
-                <div className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-md border-t border-warm-100 p-4 shadow-[0_-10px_20px_rgba(0,0,0,0.1)]">
+                < div className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-md border-t border-warm-100 p-4 shadow-[0_-10px_20px_rgba(0,0,0,0.1)]" >
                     <button
                         id="mobile-cta-whatsapp"
                         onClick={() => handleOpenWhatsApp('visita', 'mobile-sticky')}
@@ -833,24 +964,26 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                         <MessageCircle className="w-5 h-5" />
                         Agendar visita pelo WhatsApp
                     </button>
-                </div>
-            </Layout>
+                </div >
+            </Layout >
 
             {/* Modal de Galeria */}
-            {galleryRoom && (
-                <RoomGalleryModal
-                    isOpen={!!galleryRoom}
-                    onClose={() => setGalleryRoom(null)}
-                    onReservar={() => {
-                        if (galleryRoom) {
-                            const name = galleryRoom.name;
-                            setGalleryRoom(null);
-                            handleOpenBooking(name);
-                        }
-                    }}
-                    room={galleryRoom}
-                />
-            )}
+            {
+                galleryRoom && (
+                    <RoomGalleryModal
+                        isOpen={!!galleryRoom}
+                        onClose={() => setGalleryRoom(null)}
+                        onReservar={() => {
+                            if (galleryRoom) {
+                                const name = galleryRoom.name;
+                                setGalleryRoom(null);
+                                handleOpenBooking(name);
+                            }
+                        }}
+                        room={galleryRoom}
+                    />
+                )
+            }
 
             {/* Modal de Lead */}
             <LeadFormModal
@@ -860,56 +993,58 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
             />
 
             {/* Popup — exit intent / após 50s */}
-            {showPopup && (
-                <div className="fixed inset-0 z-[999] bg-primary-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
-                    <div className="bg-gradient-to-br from-primary-950 via-primary-900 to-primary-950 rounded-[2.5rem] p-8 md:p-12 max-w-xl w-full shadow-[0_0_50px_rgba(0,0,0,0.4)] border border-primary-800 relative mt-auto mb-auto overflow-hidden">
-                        <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-accent-500/20 rounded-full blur-[60px] pointer-events-none" />
-                        <div className="absolute bottom-0 left-0 -mb-16 -ml-16 w-64 h-64 bg-accent-400/20 rounded-full blur-[60px] pointer-events-none" />
+            {
+                showPopup && (
+                    <div className="fixed inset-0 z-[999] bg-primary-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+                        <div className="bg-gradient-to-br from-primary-950 via-primary-900 to-primary-950 rounded-[2.5rem] p-8 md:p-12 max-w-xl w-full shadow-[0_0_50px_rgba(0,0,0,0.4)] border border-primary-800 relative mt-auto mb-auto overflow-hidden">
+                            <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-accent-500/20 rounded-full blur-[60px] pointer-events-none" />
+                            <div className="absolute bottom-0 left-0 -mb-16 -ml-16 w-64 h-64 bg-accent-400/20 rounded-full blur-[60px] pointer-events-none" />
 
-                        <button
-                            onClick={() => setShowPopup(false)}
-                            className="absolute top-6 right-6 w-10 h-10 bg-white/5 text-white/60 hover:text-white hover:bg-white/10 rounded-full flex items-center justify-center transition-colors z-20 border border-white/10"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
+                            <button
+                                onClick={() => setShowPopup(false)}
+                                className="absolute top-6 right-6 w-10 h-10 bg-white/5 text-white/60 hover:text-white hover:bg-white/10 rounded-full flex items-center justify-center transition-colors z-20 border border-white/10"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
 
-                        <div className="relative z-10 flex flex-col items-center text-center">
-                            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 border border-white/20 text-white/90 rounded-full text-xs font-bold tracking-widest uppercase mb-6 shadow-sm">
-                                <Sparkles className="w-4 h-4 text-accent-400" />
-                                Condição de Lançamento
-                            </div>
-                            <h3 className="text-3xl md:text-4xl font-extrabold text-white mb-5 leading-tight tracking-tight px-2">
-                                Quer conhecer antes de decidir?
-                            </h3>
-                            <p className="text-primary-100 mb-8 text-lg md:text-xl leading-relaxed max-w-md mx-auto font-light">
-                                Agende uma visita gratuita. Você vê o espaço, conversa com a equipe e decide com calma — sem compromisso.
-                            </p>
-                            <div className="w-full flex flex-col gap-4">
-                                <button
-                                    id="cta-whatsapp-popup-visita"
-                                    data-event="whatsapp_click"
-                                    data-intent="visita"
-                                    onClick={() => {
-                                        setShowPopup(false);
-                                        handleOpenWhatsApp('visita', 'popup');
-                                    }}
-                                    className="w-full bg-white text-primary-950 py-4 md:py-5 rounded-2xl font-bold text-lg hover:bg-warm-50 transition-all flex items-center justify-center gap-3 shadow-xl hover:-translate-y-1 group"
-                                >
-                                    <MessageCircle className="w-5 h-5 text-accent-600" />
-                                    Agendar visita pelo WhatsApp
-                                    <ArrowRight className="w-5 h-5 text-accent-600 group-hover:translate-x-1 transition-transform" />
-                                </button>
-                                <button
-                                    onClick={() => setShowPopup(false)}
-                                    className="w-full bg-transparent text-primary-400 py-3 rounded-xl font-medium text-sm hover:text-white transition-colors"
-                                >
-                                    Fechar e continuar lendo
-                                </button>
+                            <div className="relative z-10 flex flex-col items-center text-center">
+                                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 border border-white/20 text-white/90 rounded-full text-xs font-bold tracking-widest uppercase mb-6 shadow-sm">
+                                    <Sparkles className="w-4 h-4 text-accent-400" />
+                                    Condição de Lançamento
+                                </div>
+                                <h3 className="text-3xl md:text-4xl font-extrabold text-white mb-5 leading-tight tracking-tight px-2">
+                                    Quer conhecer antes de decidir?
+                                </h3>
+                                <p className="text-primary-100 mb-8 text-lg md:text-xl leading-relaxed max-w-md mx-auto font-light">
+                                    Agende uma visita gratuita. Você vê o espaço, conversa com a equipe e decide com calma — sem compromisso.
+                                </p>
+                                <div className="w-full flex flex-col gap-4">
+                                    <button
+                                        id="cta-whatsapp-popup-visita"
+                                        data-event="whatsapp_click"
+                                        data-intent="visita"
+                                        onClick={() => {
+                                            setShowPopup(false);
+                                            handleOpenWhatsApp('visita', 'popup');
+                                        }}
+                                        className="w-full bg-white text-primary-950 py-4 md:py-5 rounded-2xl font-bold text-lg hover:bg-warm-50 transition-all flex items-center justify-center gap-3 shadow-xl hover:-translate-y-1 group"
+                                    >
+                                        <MessageCircle className="w-5 h-5 text-accent-600" />
+                                        Agendar visita pelo WhatsApp
+                                        <ArrowRight className="w-5 h-5 text-accent-600 group-hover:translate-x-1 transition-transform" />
+                                    </button>
+                                    <button
+                                        onClick={() => setShowPopup(false)}
+                                        className="w-full bg-transparent text-primary-400 py-3 rounded-xl font-medium text-sm hover:text-white transition-colors"
+                                    >
+                                        Fechar e continuar lendo
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             <style jsx global>{`
         @keyframes fade-in {

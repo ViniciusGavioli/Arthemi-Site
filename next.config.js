@@ -50,7 +50,7 @@ const nextConfig = {
     return [
       {
         source: '/',
-        destination: '/lp-premium',
+        destination: '/lp-promo',
         permanent: false, // Usando temporary para caso queira voltar atrás fácil
       },
     ];

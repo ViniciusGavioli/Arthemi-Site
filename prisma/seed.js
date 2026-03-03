@@ -101,6 +101,8 @@ async function main() {
   await prisma.product.deleteMany();
   await prisma.room.deleteMany();
   await prisma.magicLinkToken.deleteMany();
+  // Limpa couponUsage antes de User (FK constraint)
+  try { await prisma.couponUsage.deleteMany(); } catch (_) { }
   await prisma.user.deleteMany();
 
   // ---- Criar Usuário Admin com Senha ----

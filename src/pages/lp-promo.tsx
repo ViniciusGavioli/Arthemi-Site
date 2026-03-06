@@ -556,35 +556,36 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 let badge = '';
                                 let pkg10h = '';
                                 let pkg20h = '';
+                                let pkg40h = '';
                                 let shiftFixed = '';
                                 let savings = '';
+
+                                // Puxar preços dinâmicos dos produtos vinculados à sala
+                                const p10 = room.products?.find((p: any) => p.type === 'PACKAGE_10H');
+                                const p20 = room.products?.find((p: any) => p.type === 'PACKAGE_20H');
+                                const p40 = room.products?.find((p: any) => p.type === 'PACKAGE_40H');
+
+                                pkg10h = p10 ? formatCurrency(p10.price) : '—';
+                                pkg20h = p20 ? formatCurrency(p20.price) : '—';
+                                pkg40h = p40 ? formatCurrency(p40.price) : '—';
 
                                 if (room.slug === 'sala-a') {
                                     imageUrl = '/images/sala-a/foto-4.jpeg';
                                     roomTitle = 'Consultório 1 — Grande com maca';
                                     roomSubtitle = 'Mais espaço para atendimentos com maca';
                                     badge = 'Mais escolhido';
-                                    pkg10h = 'R$ 559,90';
-                                    pkg20h = 'R$ 1.039,80';
-                                    shiftFixed = 'R$ 189,99';
                                     savings = 'Pacotes com vantagem progressiva — até 18% de economia';
                                 } else if (room.slug === 'sala-b') {
                                     imageUrl = '/images/sala-b/02-3.jpeg';
                                     roomTitle = 'Consultório 2 — Médio com maca';
                                     roomSubtitle = 'Equilíbrio entre estrutura e investimento';
                                     badge = 'Melhor custo-benefício';
-                                    pkg10h = 'R$ 459,90';
-                                    pkg20h = 'R$ 839,80';
-                                    shiftFixed = 'R$ 159,99';
                                     savings = 'Pacotes com vantagem progressiva — até 22% de economia';
                                 } else if (room.slug === 'sala-c') {
                                     imageUrl = '/images/sala-c/03-1.jpeg';
                                     roomTitle = 'Consultório 3 — Compacto sem maca';
                                     roomSubtitle = 'Ideal para atendimentos individuais';
                                     badge = 'Valor de lançamento';
-                                    pkg10h = 'R$ 359,90';
-                                    pkg20h = 'R$ 659,80';
-                                    shiftFixed = 'R$ 129,99';
                                     savings = 'Pacotes com vantagem progressiva — até 25% de economia';
                                 }
 
@@ -626,7 +627,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                             <div className="mb-5 pb-5 border-b border-warm-100">
                                                 <p className="text-xs text-secondary-400 font-medium mb-1">A partir de</p>
                                                 <div className="flex items-baseline gap-1">
-                                                    <span className="text-3xl font-black text-primary-950">{formatCurrency(room.hourlyRate / 100)}</span>
+                                                    <span className="text-3xl font-black text-primary-950">{formatCurrency(room.hourlyRate)}</span>
                                                     <span className="text-secondary-400 font-medium text-sm">/ hora</span>
                                                 </div>
                                                 <p className="text-[11px] text-accent-600 font-semibold mt-1.5 flex items-center gap-1">
@@ -645,8 +646,8 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                                     <span className="font-semibold text-primary-950">{pkg20h}</span>
                                                 </div>
                                                 <div className="flex justify-between text-sm">
-                                                    <span className="text-secondary-500">Turno fixo 4h</span>
-                                                    <span className="font-semibold text-primary-950">{shiftFixed}</span>
+                                                    <span className="text-secondary-500">Pacote 40h</span>
+                                                    <span className="font-semibold text-primary-950">{pkg40h}</span>
                                                 </div>
                                             </div>
 

@@ -34,14 +34,14 @@ const PRICES_V3 = {
     tier: 1, // Consultório premium (hierarquia: pode usar crédito em 1, 2 ou 3)
     amenities: ['Maca profissional', 'Ar-condicionado', 'Wi-Fi', 'Sala ampla e iluminada', 'Armário', 'Espelho'],
     prices: {
-      HOURLY_RATE: 5999,      // R$ 59,99
-      PACKAGE_10H: 55990,     // R$ 559,90
-      PACKAGE_20H: 103980,    // R$ 1.039,80
-      PACKAGE_40H: 195960,    // R$ 1.959,60
-      SHIFT_FIXED: 72899,     // R$ 728,99 - Turno fixo mensal (16h)
-      DAY_PASS: 36999,        // R$ 369,99 - Diária (8h seguidas)
-      SATURDAY_HOUR: 6499,    // R$ 64,99
-      SATURDAY_5H: 29995,     // R$ 299,95
+      HOURLY_RATE: 59.99,      // R$ 59,99
+      PACKAGE_10H: 559.90,     // R$ 559,90
+      PACKAGE_20H: 1039.80,    // R$ 1.039,80
+      PACKAGE_40H: 1959.60,    // R$ 1.959,60
+      SHIFT_FIXED: 189.99,     // R$ 189,99 - Turno fixo (4h)
+      DAY_PASS: 369.99,        // R$ 369,99 - Diária (8h seguidas)
+      SATURDAY_HOUR: 64.99,    // R$ 64,99
+      SATURDAY_5H: 299.95,     // R$ 299,95
     },
   },
   SALA_B: {
@@ -55,14 +55,14 @@ const PRICES_V3 = {
     tier: 2, // Consultório intermediário (pode usar crédito em 2 ou 3)
     amenities: ['Maca profissional', 'Ar-condicionado', 'Wi-Fi', 'Pia', 'Armário'],
     prices: {
-      HOURLY_RATE: 4999,      // R$ 49,99
-      PACKAGE_10H: 45990,     // R$ 459,90
-      PACKAGE_20H: 83980,     // R$ 839,80
-      PACKAGE_40H: 155960,    // R$ 1.559,60
-      SHIFT_FIXED: 58099,     // R$ 580,99 - Turno fixo mensal (16h)
-      DAY_PASS: 29999,        // R$ 299,99 - Diária (8h seguidas)
-      SATURDAY_HOUR: 5399,    // R$ 53,99
-      SATURDAY_5H: 24995,     // R$ 249,95
+      HOURLY_RATE: 49.99,      // R$ 49,99
+      PACKAGE_10H: 459.90,     // R$ 459,90
+      PACKAGE_20H: 839.80,     // R$ 839,80
+      PACKAGE_40H: 1559.60,    // R$ 1.559,60
+      SHIFT_FIXED: 159.99,     // R$ 159,99 - Turno fixo (4h)
+      DAY_PASS: 299.99,        // R$ 299,99 - Diária (8h seguidas)
+      SATURDAY_HOUR: 53.99,    // R$ 53,99
+      SATURDAY_5H: 249.95,     // R$ 249,95
     },
   },
   SALA_C: {
@@ -76,14 +76,14 @@ const PRICES_V3 = {
     tier: 3, // Consultório básico (só pode usar crédito em 3)
     amenities: ['Ar-condicionado', 'Wi-Fi', 'Mesa de atendimento', 'Cadeiras confortáveis', 'Armário'],
     prices: {
-      HOURLY_RATE: 3999,      // R$ 39,99
-      PACKAGE_10H: 35990,     // R$ 359,90
-      PACKAGE_20H: 65980,     // R$ 659,80
-      PACKAGE_40H: 119960,    // R$ 1.199,60
-      SHIFT_FIXED: 44699,     // R$ 446,99 - Turno fixo mensal (16h)
-      DAY_PASS: 22999,        // R$ 229,99 - Diária (8h seguidas)
-      SATURDAY_HOUR: 4299,    // R$ 42,99
-      SATURDAY_5H: 19995,     // R$ 199,95
+      HOURLY_RATE: 39.99,      // R$ 39,99
+      PACKAGE_10H: 359.90,     // R$ 359,90
+      PACKAGE_20H: 659.80,     // R$ 659,80
+      PACKAGE_40H: 1199.60,    // R$ 1.199,60
+      SHIFT_FIXED: 129.99,     // R$ 129,99 - Turno fixo (4h)
+      DAY_PASS: 229.99,        // R$ 229,99 - Diária (8h seguidas)
+      SATURDAY_HOUR: 42.99,    // R$ 42,99
+      SATURDAY_5H: 199.95,     // R$ 199,95
     },
   },
 };
@@ -181,7 +181,7 @@ async function main() {
     { type: 'PACKAGE_10H', name: 'Pacote 10 Horas', hours: 10, validity: 90, desc: 'Economize! Use em até 90 dias.' },
     { type: 'PACKAGE_20H', name: 'Pacote 20 Horas', hours: 20, validity: 90, desc: 'Melhor custo-benefício! Validade 90 dias.' },
     { type: 'PACKAGE_40H', name: 'Pacote 40 Horas', hours: 40, validity: 180, desc: 'Máxima economia! Validade 180 dias.' },
-    { type: 'SHIFT_FIXED', name: 'Turno Fixo Mensal (16h)', hours: 16, validity: 30, desc: '4h/semana fixas por 1 mês.' },
+    { type: 'SHIFT_FIXED', name: 'Turno Fixo (4h)', hours: 4, validity: 30, desc: 'Reserva de turno fixo de 4 horas.' },
     { type: 'DAY_PASS', name: 'Diária (8h seguidas)', hours: 8, validity: 1, desc: 'Um dia inteiro de atendimento.' },
     { type: 'SATURDAY_HOUR', name: 'Sábado - Hora', hours: 1, validity: 1, desc: 'Atendimento aos sábados.' },
     { type: 'SATURDAY_5H', name: 'Sábado - Pacote 5h', hours: 5, validity: 1, desc: 'Manhã ou tarde de sábado.' },
@@ -231,14 +231,14 @@ async function main() {
     const roomData = PRICES_V3[roomKey];
     console.log(`\n🏠 ${roomData.name} - ${roomData.subtitle}`);
     console.log('-'.repeat(40));
-    console.log(`  Hora avulsa:     R$ ${(roomData.prices.HOURLY_RATE / 100).toFixed(2)}`);
-    console.log(`  Pacote 10h:      R$ ${(roomData.prices.PACKAGE_10H / 100).toFixed(2)}`);
-    console.log(`  Pacote 20h:      R$ ${(roomData.prices.PACKAGE_20H / 100).toFixed(2)}`);
-    console.log(`  Pacote 40h:      R$ ${(roomData.prices.PACKAGE_40H / 100).toFixed(2)}`);
-    console.log(`  Turno fixo 16h:  R$ ${(roomData.prices.SHIFT_FIXED / 100).toFixed(2)}`);
-    console.log(`  Diária 8h:       R$ ${(roomData.prices.DAY_PASS / 100).toFixed(2)}`);
-    console.log(`  Sábado hora:     R$ ${(roomData.prices.SATURDAY_HOUR / 100).toFixed(2)}`);
-    console.log(`  Sábado 5h:       R$ ${(roomData.prices.SATURDAY_5H / 100).toFixed(2)}`);
+    console.log(`  Hora avulsa:     R$ ${roomData.prices.HOURLY_RATE.toFixed(2)}`);
+    console.log(`  Pacote 10h:      R$ ${roomData.prices.PACKAGE_10H.toFixed(2)}`);
+    console.log(`  Pacote 20h:      R$ ${roomData.prices.PACKAGE_20H.toFixed(2)}`);
+    console.log(`  Pacote 40h:      R$ ${roomData.prices.PACKAGE_40H.toFixed(2)}`);
+    console.log(`  Turno fixo 4h:   R$ ${roomData.prices.SHIFT_FIXED.toFixed(2)}`);
+    console.log(`  Diária 8h:       R$ ${roomData.prices.DAY_PASS.toFixed(2)}`);
+    console.log(`  Sábado hora:     R$ ${roomData.prices.SATURDAY_HOUR.toFixed(2)}`);
+    console.log(`  Sábado 5h:       R$ ${roomData.prices.SATURDAY_5H.toFixed(2)}`);
   }
 
   console.log('\n═'.repeat(60));

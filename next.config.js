@@ -53,6 +53,16 @@ const nextConfig = {
         destination: '/lp-promo',
         permanent: false, // Usando temporary para caso queira voltar atrás fácil
       },
+      {
+        source: '/lp-consultórios',
+        destination: '/lp-consultorios',
+        permanent: false,
+      },
+      {
+        source: '/lp-consult%C3%B3rios',
+        destination: '/lp-consultorios',
+        permanent: false,
+      },
     ];
   },
 };

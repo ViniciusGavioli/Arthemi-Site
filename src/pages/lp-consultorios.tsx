@@ -76,6 +76,33 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
     const [triagemArea, setTriagemArea] = useState('');
     const [triagemMaca, setTriagemMaca] = useState('');
     const [triagemHoras, setTriagemHoras] = useState('');
+    const [hideMobileCta, setHideMobileCta] = useState(false);
+
+    // Intersection Observer — scroll reveal + hide mobile CTA near footer
+    useEffect(() => {
+        const els = document.querySelectorAll('.reveal');
+        const observer = new IntersectionObserver(
+            (entries) => entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } }),
+            { threshold: 0.12 }
+        );
+        els.forEach(el => observer.observe(el));
+
+        // Hide mobile CTA when any section with a prominent button is visible
+        const watchIds = ['hero', 'como-funciona-cta', 'triagem', 'cta-final-section', 'footer-main'];
+        const ctaObserver = new IntersectionObserver(
+            (entries) => {
+                const anyVisible = entries.some(e => e.isIntersecting);
+                setHideMobileCta(anyVisible);
+            },
+            { threshold: 0.1 }
+        );
+        watchIds.forEach(id => {
+            const el = document.getElementById(id) || (id === 'footer-main' ? document.querySelector('footer') : null);
+            if (el) ctaObserver.observe(el);
+        });
+
+        return () => { observer.disconnect(); ctaObserver.disconnect(); };
+    }, []);
 
     // Popup Logic — exit intent only OR após 50s
     useEffect(() => {
@@ -180,11 +207,13 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
     };
 
     const handleOpenWhatsApp = (intent: 'horarios' | 'visita', locationStr: string) => {
-        const text = intent === 'horarios' ? 'HORÁRIOS' : 'Oi, tudo bem? Vi o site de vocês e gostaria de marcar um horário para conhecer a estrutura.';
-        const ctaId = locationStr === 'hero' ? 'hero_primary' : (locationStr === 'footer' ? 'final_cta' : `cta_${locationStr}`);
-        const realIntent = intent === 'visita' ? 'agendar_visita' : 'horarios';
+        trackEvent('cta_para_triagem', { intent, source: locationStr });
+        scrollToTriagem();
+    };
 
-        trackWhatsAppClick(realIntent, ctaId)(text);
+    const scrollToTriagem = () => {
+        const el = document.getElementById('triagem');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
 
     const handleOpenGallery = (galleryData: { name: string; slug: string }) => {
@@ -207,7 +236,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
         },
         {
             q: "Atende aos sábados?",
-            a: "Sim. Temos disponibilidade aos sábados com tabela específica — consulte pelo WhatsApp."
+            a: "Sim. Temos disponibilidade aos sábados — consulte pelo WhatsApp."
         },
         {
             q: "Emite nota fiscal ou recibo?",
@@ -250,11 +279,11 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
             subtitle: PRICES_V3.SALA_A.subtitle,
             imageUrl: '/images/sala-a/foto-4.jpeg',
             badge: 'Mais espaço',
-            hourlyRate: PRICES_V3.SALA_A.prices.HOURLY_RATE,
+            hourlyRate: Math.round(PRICES_V3.SALA_A.prices.HOURLY_RATE * 100),
             packages: [
-                { hours: 10, total: PRICES_V3.SALA_A.prices.PACKAGE_10H },
-                { hours: 20, total: PRICES_V3.SALA_A.prices.PACKAGE_20H },
-                { hours: 40, total: PRICES_V3.SALA_A.prices.PACKAGE_40H },
+                { hours: 10, total: Math.round(PRICES_V3.SALA_A.prices.PACKAGE_10H * 100) },
+                { hours: 20, total: Math.round(PRICES_V3.SALA_A.prices.PACKAGE_20H * 100) },
+                { hours: 40, total: Math.round(PRICES_V3.SALA_A.prices.PACKAGE_40H * 100) },
             ],
         },
         {
@@ -264,11 +293,11 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
             subtitle: PRICES_V3.SALA_B.subtitle,
             imageUrl: '/images/sala-b/02-3.jpeg',
             badge: 'Mais procurado',
-            hourlyRate: PRICES_V3.SALA_B.prices.HOURLY_RATE,
+            hourlyRate: Math.round(PRICES_V3.SALA_B.prices.HOURLY_RATE * 100),
             packages: [
-                { hours: 10, total: PRICES_V3.SALA_B.prices.PACKAGE_10H },
-                { hours: 20, total: PRICES_V3.SALA_B.prices.PACKAGE_20H },
-                { hours: 40, total: PRICES_V3.SALA_B.prices.PACKAGE_40H },
+                { hours: 10, total: Math.round(PRICES_V3.SALA_B.prices.PACKAGE_10H * 100) },
+                { hours: 20, total: Math.round(PRICES_V3.SALA_B.prices.PACKAGE_20H * 100) },
+                { hours: 40, total: Math.round(PRICES_V3.SALA_B.prices.PACKAGE_40H * 100) },
             ],
         },
         {
@@ -278,14 +307,15 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
             subtitle: PRICES_V3.SALA_C.subtitle,
             imageUrl: '/images/sala-c/03-1.jpeg',
             badge: 'Melhor custo-benefício',
-            hourlyRate: PRICES_V3.SALA_C.prices.HOURLY_RATE,
+            hourlyRate: Math.round(PRICES_V3.SALA_C.prices.HOURLY_RATE * 100),
             packages: [
-                { hours: 10, total: PRICES_V3.SALA_C.prices.PACKAGE_10H },
-                { hours: 20, total: PRICES_V3.SALA_C.prices.PACKAGE_20H },
-                { hours: 40, total: PRICES_V3.SALA_C.prices.PACKAGE_40H },
+                { hours: 10, total: Math.round(PRICES_V3.SALA_C.prices.PACKAGE_10H * 100) },
+                { hours: 20, total: Math.round(PRICES_V3.SALA_C.prices.PACKAGE_20H * 100) },
+                { hours: 40, total: Math.round(PRICES_V3.SALA_C.prices.PACKAGE_40H * 100) },
             ],
         },
     ];
+
 
     return (
         <>
@@ -297,34 +327,32 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
 
             <Layout noHeader noFooter className="bg-white lp-promo">
                 {/* ============= HEADER ============= */}
-                <header className="sticky top-0 z-50 bg-warm-50/90 backdrop-blur-xl border-b border-warm-200 overflow-hidden relative">
-                    <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#000 0.5px, transparent 0.5px)', backgroundSize: '10px 10px' }}></div>
-                    <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-accent-500/20 to-transparent"></div>
-
-                    <div className="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between relative z-10">
+                {/* ============= HEADER ============= */}
+                <header className="sticky top-0 z-50 bg-warm-50/90 backdrop-blur-xl border-b border-warm-200">
+                    <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
                         <Image
                             src="/images/Logo/logo.webp"
                             alt="Espaço Arthemi"
-                            width={130}
-                            height={52}
-                            className="h-10 w-auto"
+                            width={110}
+                            height={44}
+                            className="h-8 w-auto"
                             priority
                         />
                         <button
                             id="header-cta-whatsapp"
-                            onClick={() => handleOpenWhatsApp('visita', 'header')}
-                            className="hidden sm:flex items-center gap-2 text-accent-700 font-semibold text-sm hover:underline"
+                            onClick={scrollToTriagem}
+                            className="flex items-center gap-2 bg-accent-600 hover:bg-accent-700 text-white text-xs font-bold px-5 py-2.5 rounded-full transition-colors shadow-md"
                         >
-                            <MessageCircle className="w-4 h-4" />
-                            Falar no WhatsApp
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            Fazer triagem
                         </button>
                     </div>
                 </header>
 
                 {/* ============= 1) HERO ============= */}
-                <section className="relative min-h-[90vh] sm:min-h-[85vh] flex items-center overflow-hidden">
+                <section id="hero" className="relative min-h-[90vh] sm:min-h-[85vh] flex items-center overflow-hidden">
 
-                    {/* Foto de fundo — next/image otimizada (WebP + preload automático) */}
+                    {/* Foto de fundo — next/image otimizada */}
                     <Image
                         src="/images/espaco/Recepcao-01.jpeg"
                         alt="Espaço Arthemi — Recepção"
@@ -335,66 +363,62 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                         style={{ objectFit: 'cover', objectPosition: 'center' }}
                     />
 
-                    {/* Overlay horizontal — escuro à esquerda onde fica o texto */}
-                    <div style={{ position: 'absolute', inset: 0, zIndex: 1, background: 'linear-gradient(to right, rgba(28,20,14,0.85) 0%, rgba(28,20,14,0.60) 55%, rgba(28,20,14,0.15) 100%)' }} />
-                    {/* Overlay vertical — escurece o rodapé */}
-                    <div style={{ position: 'absolute', inset: 0, zIndex: 1, background: 'linear-gradient(to top, rgba(28,20,14,0.55) 0%, transparent 55%)' }} />
+                    {/* Overlay — mais forte no mobile pra legibilidade */}
+                    <div className="absolute inset-0 z-[1]" style={{ background: 'linear-gradient(to right, rgba(28,20,14,0.86) 0%, rgba(28,20,14,0.60) 50%, rgba(28,20,14,0.20) 100%)' }} />
+                    <div className="absolute inset-0 z-[1] sm:hidden" style={{ background: 'linear-gradient(to bottom, rgba(20,14,10,0.44) 0%, rgba(20,14,10,0.86) 100%)' }} />
+                    <div className="absolute inset-0 z-[1] hidden sm:block" style={{ background: 'linear-gradient(to top, rgba(28,20,14,0.55) 0%, transparent 55%)' }} />
 
                     {/* Conteúdo */}
-                    <div className="relative z-10 max-w-6xl mx-auto px-4 w-full py-24 sm:py-32">
+                    <div className="relative z-10 max-w-6xl mx-auto px-4 w-full py-20 sm:py-32">
                         <div className="max-w-2xl">
-                            <span className="inline-block px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-white/90 text-[10px] sm:text-xs font-bold mb-5 uppercase tracking-widest backdrop-blur-sm">
+                            <span className="inline-flex items-center px-4 py-1.5 rounded-full bg-white/12 border border-white/25 text-white text-[10px] sm:text-xs font-bold mb-5 uppercase tracking-[0.14em] backdrop-blur-sm">
                                 Área Hospitalar de BH · Santa Efigênia
                             </span>
 
-                            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-[1.1] mb-5 tracking-tight">
-                                Seu consultório pronto para atender,{' '}
-                                <span className="text-accent-400">sem clínica própria.</span>
+                            <h1 className="text-[38px] sm:text-5xl lg:text-6xl font-extrabold text-white leading-[1.02] mb-5 tracking-tight">
+                                Seu consultório pronto
+                                <br />
+                                <span className="text-accent-400">para atender.</span>
                             </h1>
 
-                            <p className="text-base sm:text-lg text-white/75 mb-8 leading-relaxed max-w-lg">
-                                Receba seus pacientes em uma estrutura profissional na área hospitalar de BH, reservando por hora e pagando só pelo uso.
+                            <p className="text-[21px] sm:text-lg text-white/85 mb-8 leading-relaxed max-w-xl">
+                                Sem clínica própria, sem custo fixo alto. Reserve por hora na área hospitalar de BH e pague só pelo uso.
                             </p>
 
                             {/* HERO: 2 CTAs */}
                             <div className="flex flex-col sm:flex-row gap-3">
                                 <button
                                     id="cta-hero-visita"
-                                    data-event="whatsapp_click"
-                                    data-intent="visita"
-                                    onClick={() => handleOpenWhatsApp('visita', 'hero')}
-                                    className="w-full sm:w-auto cta-whatsapp px-8 py-4 rounded-xl font-bold text-base sm:text-lg shadow-2xl flex items-center justify-center gap-2"
+                                    onClick={scrollToTriagem}
+                                    className="w-full sm:w-auto cta-whatsapp px-8 py-[18px] rounded-2xl font-bold text-base sm:text-lg shadow-2xl shadow-green-900/25 flex items-center justify-center gap-2"
                                 >
                                     <MessageCircle className="w-5 h-5" />
-                                    Agendar visita pelo WhatsApp
+                                    Fazer triagem rápida
                                 </button>
                                 <a
                                     id="cta-hero-precos"
                                     href="#secao-precos"
-                                    className="w-full sm:w-auto bg-white/15 hover:bg-white/25 border border-white/30 text-white px-8 py-4 rounded-xl font-bold text-base sm:text-lg flex items-center justify-center gap-2 transition-all backdrop-blur-sm"
+                                    className="w-full sm:w-auto bg-black/20 hover:bg-black/28 border border-white/25 text-white px-8 py-4 rounded-2xl font-semibold text-base sm:text-lg flex items-center justify-center gap-2 transition-all backdrop-blur-sm"
                                 >
                                     <ArrowRight className="w-5 h-5" />
                                     Ver preços e escolher consultório
                                 </a>
                             </div>
-                            <p className="text-sm text-white/50 mt-3 max-w-sm">
-                                Você pode agendar uma visita ou reservar direto se já souber o que precisa.
+                            <p className="text-sm text-white/75 mt-3 max-w-md">
+                                Responda 3 perguntas e receba indicação de sala e horários em minutos.
                             </p>
 
                             {/* Quick proof */}
-                            <div className="mt-12 flex flex-wrap gap-5 items-center border-t border-white/20 pt-8">
-                                <div className="flex items-center gap-1.5">
+                            <div className="mt-9 sm:mt-12 flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-5 sm:items-center pt-2">
+                                <div className="inline-flex w-fit items-center gap-2 px-3.5 py-2 rounded-full border border-white/25 bg-white/12 backdrop-blur-sm shadow-lg">
                                     <div className="flex text-yellow-400">
-                                        {[...Array(5)].map((_, i) => <Star key={i} className="w-4 h-4 fill-current" />)}
+                                        {[...Array(5)].map((_, i) => <Star key={i} className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />)}
                                     </div>
-                                    <span className="text-sm font-semibold text-white/90">4.9 no Google</span>
+                                    <span className="text-xs sm:text-sm font-semibold text-white/95">4,9 no Google</span>
                                 </div>
-                                <div className="flex items-center gap-2 text-sm text-white/70 font-medium">
-                                    <Clock className="w-4 h-4 text-accent-400" />
-                                    Resposta em até 5 min
-                                </div>
-                                <div className="flex items-center gap-2 text-sm text-white/70 font-medium">
-                                    <CheckCircle2 className="w-4 h-4 text-green-400" />
+
+                                <div className="flex items-center gap-2 text-xs sm:text-sm text-white/85 font-medium">
+                                    <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-400" />
                                     Sem contrato de fidelidade
                                 </div>
                             </div>
@@ -407,16 +431,15 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                     </div>
                 </section>
 
-
-
-
                 {/* ============= 2) COMO FUNCIONA ============= */}
-                <section className="py-20 bg-white border-y border-warm-100 relative overflow-hidden texture-grain">
-                    <div className="absolute top-0 left-0 w-full h-40 bg-gradient-to-b from-white to-transparent pointer-events-none" />
-                    <div className="max-w-5xl mx-auto px-4">
-                        <div className="text-center mb-14">
+                <section id="como-funciona" data-section="como-funciona" className="py-24 border-y border-warm-200 relative overflow-hidden" style={{ backgroundColor: '#faf8f5' }}>
+                    <div aria-hidden="true" style={{ position: 'absolute', inset: 0, opacity: 0.10, pointerEvents: 'none', zIndex: 0, backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160' fill='none' stroke='%23715d4a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M30 25h10v-10h10v10h10v10h-10v10h-10v-10h-10z'/%3E%3Crect x='90' y='20' width='14' height='28' rx='7' transform='rotate(45 97 34)'/%3E%3Cline x1='87' y1='34' x2='107' y2='34' transform='rotate(45 97 34)'/%3E%3Ccircle cx='90' cy='45' r='3'/%3E%3Cpath d='M135 30a8 8 0 0 1 16 0c0 9-12 15-16 22c-4-7-16-13-16-22a8 8 0 0 1 16 0z'/%3E%3Cpolyline points='120 37,130 37,133 30,137 43,140 37,150 37'/%3E%3Cpath d='M25 80a15 15 0 0 0 30 0v-15'/%3E%3Ccircle cx='25' cy='65' r='3'/%3E%3Ccircle cx='55' cy='65' r='3'/%3E%3Cpath d='M40 95v15'/%3E%3Ccircle cx='40' cy='115' r='5'/%3E%3Crect x='85' y='75' width='12' height='30' rx='2' transform='rotate(-45 91 90)'/%3E%3Cpath d='M130 85a10 10 0 0 1 10 10v15h-15v-5'/%3E%3Cpath d='M25 140h6v-6h4v6h6v4h-6v6h-4v-6h-6z'/%3E%3Cpath d='M125 130c15 10 15 20 0 30'/%3E%3Cpath d='M145 130c-15 10-15 20 0 30'/%3E%3C/svg%3E")`, backgroundSize: '160px' }} />
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-accent-400/50 to-transparent" />
+                    <div className="max-w-5xl mx-auto px-4 relative z-10">
+                        <div className="text-center mb-14 reveal">
+                            <span className="inline-block text-green-700 text-[10px] font-bold tracking-[0.25em] uppercase mb-3 border border-green-200 bg-green-50 px-3 py-1 rounded-full">Passo a passo</span>
                             <h2 className="text-3xl sm:text-4xl font-extrabold text-primary-950 mb-3">Como funciona?</h2>
-                            <p className="text-secondary-600 text-lg">Do primeiro contato até o primeiro atendimento — em 4 passos simples.</p>
+                            <p className="text-secondary-600 text-lg">Sem burocracia: você chama no WhatsApp, escolhe horário e já sai com sua reserva confirmada.</p>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 relative">
@@ -424,49 +447,50 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 {
                                     step: "01",
                                     icon: MessageCircle,
-                                    title: "Você agenda uma visita",
-                                    desc: "Manda mensagem no WhatsApp e escolhe um dia pra conhecer o espaço pessoalmente."
+                                    title: "Chama no WhatsApp oficial",
+                                    desc: "Você fala com a equipe e já recebe opções de horários, valores e qual consultório faz mais sentido para sua rotina."
                                 },
                                 {
                                     step: "02",
                                     icon: Building2,
-                                    title: "Conhece o espaço",
-                                    desc: "Fazemos um tour pela recepção e pelos consultórios. Você tira todas as dúvidas no local. Se preferir, você também pode reservar direto pelo WhatsApp."
+                                    title: "Escolhe como começar",
+                                    desc: "Você decide se quer visitar primeiro ou reservar direto. Se já quiser agilizar, fechamos tudo no atendimento."
                                 },
                                 {
                                     step: "03",
                                     icon: Calendar,
-                                    title: "Escolhe seus horários",
-                                    desc: "Vê a agenda disponível e reserva os períodos que fazem sentido pra sua rotina."
+                                    title: "Recebe link e confirma",
+                                    desc: "Enviamos o link oficial de agendamento e pagamento (PIX/link). A reserva é confirmada após a compensação."
                                 },
                                 {
                                     step: "04",
                                     icon: UserCheck,
-                                    title: "Começa a atender",
-                                    desc: "Chega no horário, a sala está pronta. Você foca nos pacientes — o resto é com a gente."
+                                    title: "Vem atender com tudo pronto",
+                                    desc: "No dia, a sala está pronta para uso. Recepção, limpeza e suporte já estão incluídos para você focar no paciente."
                                 },
                             ].map((item, i) => (
-                                <div key={i} className="relative flex flex-col items-center text-center p-6 rounded-2xl bg-warm-50 border border-warm-100">
-                                    <div className="text-5xl font-black text-accent-600/20 mb-3 leading-none">{item.step}</div>
-                                    <div className="w-12 h-12 rounded-2xl bg-white border border-warm-200 shadow-sm flex items-center justify-center mb-4">
-                                        <item.icon className="w-6 h-6 text-accent-600" />
+                                <div key={i} className={`reveal reveal-delay-${i + 1} card-lift relative flex flex-col items-center text-center p-7 rounded-2xl border border-warm-200 group`} style={{ background: '#fff', boxShadow: '0 4px 16px rgba(0,0,0,0.07)' }}>
+                                    <div className="text-6xl font-black text-accent-400/40 mb-2 leading-none group-hover:text-accent-500/60 transition-colors">{item.step}</div>
+                                    <div className="w-12 h-12 rounded-2xl bg-accent-100 border border-accent-200 shadow-sm flex items-center justify-center mb-4">
+                                        <item.icon className="w-6 h-6 text-accent-700" />
                                     </div>
-                                    <h3 className="text-lg font-bold text-primary-950 mb-2">{item.title}</h3>
-                                    <p className="text-sm text-secondary-600 leading-relaxed">{item.desc}</p>
+                                    <h3 className="text-lg font-bold text-primary-950 mb-2 tracking-tight">{item.title}</h3>
+                                    <p className="text-sm text-secondary-500 leading-relaxed">{item.desc}</p>
                                 </div>
                             ))}
                         </div>
 
-                        <div className="text-center mt-10">
+                        <div id="como-funciona-cta" className="text-center mt-10">
+                            <p className="text-secondary-500 text-sm mb-4">
+                                Pode reagendar sem perda com 48h de antecedência. Em caso de dúvida, respondemos na hora pelo WhatsApp.
+                            </p>
                             <button
                                 id="cta-como-funciona-visita"
-                                data-event="whatsapp_click"
-                                data-intent="visita"
-                                onClick={() => handleOpenWhatsApp('visita', 'como-funciona')}
+                                onClick={() => handleOpenWhatsApp('horarios', 'como-funciona')}
                                 className="inline-flex items-center gap-2 cta-whatsapp px-7 py-4 rounded-xl font-bold text-base shadow-lg"
                             >
                                 <MessageCircle className="w-5 h-5" />
-                                Agendar visita pelo WhatsApp
+                                Quero ver horários e valores agora
                             </button>
                         </div>
                     </div>
@@ -509,10 +533,10 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
 
 
                 {/* ============= 4) PARA QUEM É ============= */}
-                <section className="py-24 bg-primary-900 relative texture-diamonds">
+                < section className="py-24 bg-primary-900 relative texture-diamonds" >
                     <div className="absolute inset-0 bg-gradient-to-tr from-accent-600/5 via-transparent to-transparent pointer-events-none" />
                     <div className="max-w-5xl mx-auto px-4">
-                        <div className="text-center mb-12">
+                        <div className="text-center mb-12 reveal">
                             <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-3">Para quem é a Arthemi?</h2>
                             <p className="text-primary-200/80 text-lg">Para profissionais de saúde que querem atender bem sem os custos de uma clínica própria.</p>
                         </div>
@@ -524,29 +548,24 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 { label: "Fisioterapeutas", desc: "Consultórios com maca profissional e espaço para movimentação." },
                                 { label: "Médicos e Especialistas", desc: "Localização na área hospitalar de BH, estrutura compatível." },
                             ].map((item, i) => (
-                                <div key={i} className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:-translate-y-1 transition-all">
+                                <div key={i} className={`reveal reveal-delay-${i + 1} p-6 rounded-2xl bg-white/5 border border-white/10 hover:-translate-y-2 transition-all duration-300`}>
                                     <h4 className="text-base font-bold text-white mb-2">{item.label}</h4>
                                     <p className="text-xs text-primary-200/70 leading-relaxed">{item.desc}</p>
                                 </div>
                             ))}
                         </div>
 
-                        {/* Não é ideal para */}
-                        <div className="mt-8 p-6 rounded-2xl bg-warm-50 border border-warm-100">
-                            <h3 className="text-sm font-bold text-secondary-500 uppercase tracking-widest mb-3">Não atende bem quem precisa de:</h3>
-                            <div className="flex flex-wrap gap-3">
-                                {["Internação hospitalar", "Descarte de resíduos cirúrgicos pesados", "Exclusividade de sala por meses"].map((text, i) => (
-                                    <span key={i} className="text-sm text-secondary-500 bg-white border border-warm-200 px-3 py-1.5 rounded-full">{text}</span>
-                                ))}
-                            </div>
-                        </div>
+
                     </div>
                 </section>
 
                 {/* ============= 5) O QUE ESTÁ INCLUSO ============= */}
-                <section className="py-20 bg-white border-y border-warm-200/60 relative texture-grain">
-                    <div className="max-w-6xl mx-auto px-4">
-                        <div className="text-center mb-12">
+                <section data-section="incluso" className="py-24 border-y border-warm-200 relative overflow-hidden" style={{ backgroundColor: '#fdfcfb' }}>
+                    <div aria-hidden="true" style={{ position: 'absolute', inset: 0, opacity: 0.09, pointerEvents: 'none', zIndex: 0, backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160' fill='none' stroke='%23715d4a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M30 25h10v-10h10v10h10v10h-10v10h-10v-10h-10z'/%3E%3Crect x='90' y='20' width='14' height='28' rx='7' transform='rotate(45 97 34)'/%3E%3Cline x1='87' y1='34' x2='107' y2='34' transform='rotate(45 97 34)'/%3E%3Ccircle cx='90' cy='45' r='3'/%3E%3Cpath d='M135 30a8 8 0 0 1 16 0c0 9-12 15-16 22c-4-7-16-13-16-22a8 8 0 0 1 16 0z'/%3E%3Cpolyline points='120 37,130 37,133 30,137 43,140 37,150 37'/%3E%3Cpath d='M25 80a15 15 0 0 0 30 0v-15'/%3E%3Ccircle cx='25' cy='65' r='3'/%3E%3Ccircle cx='55' cy='65' r='3'/%3E%3Cpath d='M40 95v15'/%3E%3Ccircle cx='40' cy='115' r='5'/%3E%3Crect x='85' y='75' width='12' height='30' rx='2' transform='rotate(-45 91 90)'/%3E%3Cpath d='M130 85a10 10 0 0 1 10 10v15h-15v-5'/%3E%3Cpath d='M25 140h6v-6h4v6h6v4h-6v6h-4v-6h-6z'/%3E%3Cpath d='M125 130c15 10 15 20 0 30'/%3E%3Cpath d='M145 130c-15 10-15 20 0 30'/%3E%3C/svg%3E")`, backgroundSize: '160px' }} />
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-accent-400/50 to-transparent" />
+                    <div className="max-w-6xl mx-auto px-4 relative z-10">
+                        <div className="text-center mb-14 reveal">
+                            <span className="inline-block text-green-700 text-[10px] font-bold tracking-[0.25em] uppercase mb-3 border border-green-200 bg-green-50 px-3 py-1 rounded-full">Tudo incluso</span>
                             <h2 className="text-3xl sm:text-4xl font-extrabold text-primary-950 mb-3">O que está incluso em toda reserva</h2>
                             <p className="text-secondary-600 text-lg">Você não paga nada além da hora reservada.</p>
                         </div>
@@ -559,16 +578,15 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 { icon: Coffee, title: "Café e água", desc: "Para você e seus pacientes." },
                                 { icon: ShieldCheck, title: "Sem contrato", desc: "Sem fidelidade e sem taxa de adesão." },
                                 { icon: Clock, title: "Flexibilidade", desc: "Reserve por hora conforme sua agenda." },
-                                { icon: Building2, title: "Armário com chave", desc: "Para guardar seus materiais com segurança." },
                                 { icon: CheckCircle2, title: "Endereço profissional", desc: "Área hospitalar de BH — Santa Efigênia." },
                             ].map((item, i) => (
-                                <div key={i} className="bg-white p-5 rounded-2xl border border-warm-100 shadow-sm flex flex-col gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-warm-50 border border-warm-200 flex items-center justify-center">
-                                        <item.icon className="w-5 h-5 text-accent-600" />
+                                <div key={i} className={`reveal reveal-delay-${(i % 4) + 1} card-lift p-6 rounded-2xl border border-warm-200 flex flex-col gap-3 group`} style={{ background: '#fff', boxShadow: '0 4px 16px rgba(0,0,0,0.07)' }}>
+                                    <div className="w-12 h-12 rounded-xl bg-accent-100 border border-accent-200 flex items-center justify-center group-hover:bg-accent-200 transition-colors duration-300">
+                                        <item.icon className="w-5 h-5 text-accent-700" />
                                     </div>
                                     <div>
-                                        <p className="font-bold text-primary-950 text-sm">{item.title}</p>
-                                        <p className="text-xs text-secondary-500 mt-0.5 leading-relaxed">{item.desc}</p>
+                                        <p className="font-bold text-primary-950 text-sm tracking-tight">{item.title}</p>
+                                        <p className="text-xs text-secondary-500 mt-1 leading-relaxed">{item.desc}</p>
                                     </div>
                                 </div>
                             ))}
@@ -577,27 +595,30 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 </section>
 
                 {/* ============= 6) VALORES E CONSULTÓRIOS ============= */}
-                <section id="secao-precos" className="py-20 bg-white">
-                    <div className="max-w-6xl mx-auto px-4">
+                {/* ============= 6) VALORES E CONSULTÓRIOS ============= */}
+                <section id="secao-precos" data-section="precos" className="py-24 relative overflow-hidden" style={{ backgroundColor: '#faf8f5' }}>
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-accent-400/50 to-transparent" />
+                    <div className="max-w-6xl mx-auto px-4 relative z-10">
 
                         {/* Introdução editorial */}
-                        <div className="max-w-2xl mx-auto text-center mb-14">
+                        <div className="max-w-2xl mx-auto text-center mb-16">
+                            <span className="inline-block text-green-700 text-[10px] font-bold tracking-[0.25em] uppercase mb-3 border border-green-200 bg-green-50 px-3 py-1 rounded-full">Nossos consultórios</span>
                             <h2 className="text-3xl sm:text-4xl font-extrabold text-primary-950 mb-4">
                                 Escolha o consultório ideal para a sua rotina
                             </h2>
                             <p className="text-secondary-600 text-lg leading-relaxed mb-4">
                                 A Arthemi oferece 3 opções de consultório com condições flexíveis para quem quer começar a atender com estrutura profissional, sem assumir os custos de uma clínica própria.
                             </p>
-                            <p className="text-sm text-secondary-500 flex items-center justify-center gap-2">
-                                <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-accent-600" />
+                            <p className="text-sm text-secondary-500 flex items-start justify-center gap-2">
+                                <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-accent-600 mt-0.5" />
                                 Recepção, limpeza entre atendimentos, Wi-Fi, café e água já incluídos.
                             </p>
                         </div>
 
-                        {/* Layout Vertical de Consultórios para evidenciar as tabelas */}
-                        <div className="space-y-32">
+                        {/* Grid de Consultórios — 1 col mobile, 3 col desktop */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                             {STATIC_ROOMS.map((room) => {
-                                const roomTitle = `${room.name} - ${room.subtitle}`;
+                                const roomTitle = room.name;
                                 const pkg10h = room.packages.find(p => p.hours === 10)?.total ? formatCurrency(room.packages.find(p => p.hours === 10)!.total) : '—';
                                 const pkg20h = room.packages.find(p => p.hours === 20)?.total ? formatCurrency(room.packages.find(p => p.hours === 20)!.total) : '—';
                                 const pkg40h = room.packages.find(p => p.hours === 40)?.total ? formatCurrency(room.packages.find(p => p.hours === 40)!.total) : '—';
@@ -605,10 +626,10 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 const savings = savings40h > 0 ? `Pacote 40h economiza ${formatCurrency(savings40h)} vs hora avulsa.` : '';
 
                                 return (
-                                    <div key={room.id} className="bg-white rounded-[2rem] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 border border-warm-200 group flex flex-col">
+                                    <div key={room.id} className="reveal card-lift rounded-[2rem] overflow-hidden border border-warm-200 group flex flex-col" style={{ background: '#fff', boxShadow: '0 6px 24px rgba(0,0,0,0.09)' }}>
 
                                         {/* Foto */}
-                                        <div className="relative h-52 cursor-pointer overflow-hidden flex-shrink-0" onClick={() => handleOpenGallery({ name: room.name, slug: room.slug })}>
+                                        <div className="relative h-64 cursor-pointer overflow-hidden flex-shrink-0" onClick={() => handleOpenGallery({ name: room.name, slug: room.slug })}>
                                             <Image
                                                 src={room.imageUrl || '/images/espaco/Recepcao-01.jpeg'}
                                                 alt={roomTitle}
@@ -621,7 +642,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
                                             {/* Badge sóbrio */}
                                             {room.badge && (
-                                                <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm text-primary-950 text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full shadow-sm border border-warm-200">
+                                                <div className="absolute top-4 left-4 bg-accent-100 text-accent-800 text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-sm border border-accent-200">
                                                     {room.badge}
                                                 </div>
                                             )}
@@ -631,15 +652,15 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                         </div>
 
                                         {/* Conteúdo */}
-                                        <div className="p-6 flex-1 flex flex-col">
+                                        <div className="p-7 flex-1 flex flex-col">
                                             <div className="mb-5">
-                                                <h3 className="text-lg font-extrabold text-primary-950 leading-tight mb-1">{roomTitle}</h3>
-                                                <p className="text-sm text-secondary-500 leading-relaxed">{room.subtitle}</p>
+                                                <p className="text-xs font-bold tracking-[0.15em] uppercase text-accent-600 mb-1">{room.subtitle}</p>
+                                                <h3 className="text-xl font-extrabold text-primary-950 leading-tight tracking-tight">{room.name}</h3>
                                             </div>
 
                                             {/* Preço principal */}
-                                            <div className="mb-5 pb-5 border-b border-warm-100">
-                                                <p className="text-xs text-secondary-400 font-medium mb-1">A partir de</p>
+                                            <div className="mb-6 pb-6 border-b border-warm-100/80">
+                                                <p className="text-xs text-secondary-400 font-medium mb-1 tracking-wide uppercase">A partir de</p>
                                                 <div className="flex items-baseline gap-1">
                                                     <span className="text-3xl font-black text-primary-950">{formatCurrency(room.hourlyRate)}</span>
                                                     <span className="text-secondary-400 font-medium text-sm">/ hora</span>
@@ -650,19 +671,17 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                             </div>
 
                                             {/* Tabela de pacotes */}
-                                            <div className="space-y-2 mb-4 flex-1">
-                                                <div className="flex justify-between text-sm">
-                                                    <span className="text-secondary-500">Pacote 10h</span>
-                                                    <span className="font-semibold text-primary-950">{pkg10h}</span>
-                                                </div>
-                                                <div className="flex justify-between text-sm">
-                                                    <span className="text-secondary-500">Pacote 20h</span>
-                                                    <span className="font-semibold text-primary-950">{pkg20h}</span>
-                                                </div>
-                                                <div className="flex justify-between text-sm">
-                                                    <span className="text-secondary-500">Pacote 40h</span>
-                                                    <span className="font-semibold text-primary-950">{pkg40h}</span>
-                                                </div>
+                                            <div className="space-y-3 mb-5 flex-1">
+                                                {[
+                                                    { label: 'Pacote 10h', value: pkg10h },
+                                                    { label: 'Pacote 20h', value: pkg20h },
+                                                    { label: 'Pacote 40h', value: pkg40h },
+                                                ].map((pkg, pi) => (
+                                                    <div key={pi} className="flex justify-between items-center text-sm py-1.5 border-b border-warm-50 last:border-0">
+                                                        <span className="text-secondary-500">{pkg.label}</span>
+                                                        <span className="font-semibold text-primary-950">{pkg.value}</span>
+                                                    </div>
+                                                ))}
                                             </div>
 
                                             {/* Microcopy de vantagem por volume */}
@@ -676,11 +695,9 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                             {/* CTAs do card */}
                                             <button
                                                 id={`cta-quero-${room.slug}`}
-                                                data-event="whatsapp_click"
-                                                data-intent={`consultorio_${room.slug.replace('sala-', '')}`}
                                                 onClick={() => {
-                                                    const msgEspecifica = `Olá! Quero o ${room.name}. Pode me passar a disponibilidade de horários e valores?`;
-                                                    trackWhatsAppClick(`consultorio_${room.slug.replace('sala-', '')}`, `cta-quero-${room.slug}`)(msgEspecifica);
+                                                    trackEvent('cta_para_triagem', { intent: `consultorio_${room.slug.replace('sala-', '')}`, source: `cta-quero-${room.slug}` });
+                                                    scrollToTriagem();
                                                 }}
                                                 className="w-full cta-whatsapp py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 group/btn mt-auto mb-2"
                                             >
@@ -689,11 +706,9 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                             </button>
                                             <button
                                                 id={`cta-preco-${room.slug}`}
-                                                data-event="whatsapp_click"
-                                                data-intent={`consultorio_${room.slug.replace('sala-', '')}`}
                                                 onClick={() => {
-                                                    const msgEspecifica = `Oi! Adorei a estrutura do ${room.name} que vi no site. Podemos conferir a disponibilidade?`;
-                                                    trackWhatsAppClick(`consultorio_${room.slug.replace('sala-', '')}_precos`, `cta-preco-${room.slug}`)(msgEspecifica);
+                                                    trackEvent('cta_para_triagem', { intent: `consultorio_${room.slug.replace('sala-', '')}_precos`, source: `cta-preco-${room.slug}` });
+                                                    scrollToTriagem();
                                                 }}
                                                 className="w-full bg-white text-primary-950 border border-warm-200 py-3 rounded-xl font-semibold text-sm hover:bg-warm-50 transition-all flex items-center justify-center gap-2 group/btn"
                                             >
@@ -708,31 +723,34 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
 
                         {/* Nota de rodapé */}
                         <p className="text-center text-sm text-secondary-400 mt-10">
-                            Valores para dias úteis (seg–sex). Atendimentos aos sábados têm tabela específica — consulte pelo WhatsApp.
+                            Valores para dias úteis (seg–sex). Atendimentos aos sábados — consulte pelo WhatsApp.
                         </p>
                     </div>
                 </section>
 
                 {/* ============= MINI-TRIAGEM ============= */}
-                <section className="py-14 bg-primary-950 relative texture-diamonds">
+                < section id="triagem" className="py-14 bg-primary-950 relative overflow-hidden texture-diamonds" >
+                    <div aria-hidden="true" style={{ position: 'absolute', inset: 0, opacity: 0.06, pointerEvents: 'none', zIndex: 0, backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='160' viewBox='0 0 180 160' fill='none' stroke='white' stroke-width='1'%3E%3Cpolygon points='45,15 63,25 63,45 45,55 27,45 27,25'/%3E%3Cpolygon points='135,15 153,25 153,45 135,55 117,45 117,25'/%3E%3Cpolygon points='90,60 108,70 108,90 90,100 72,90 72,70'/%3E%3Cpolygon points='45,105 63,115 63,135 45,145 27,135 27,115'/%3E%3Cpolygon points='135,105 153,115 153,135 135,145 117,135 117,115'/%3E%3Cline x1='63' y1='35' x2='72' y2='70' stroke-width='0.7'/%3E%3Cline x1='117' y1='35' x2='108' y2='70' stroke-width='0.7'/%3E%3Cline x1='72' y1='90' x2='63' y2='115' stroke-width='0.7'/%3E%3Cline x1='108' y1='90' x2='117' y2='115' stroke-width='0.7'/%3E%3Ccircle cx='67.5' cy='52.5' r='2' fill='white' stroke='none'/%3E%3Ccircle cx='112.5' cy='52.5' r='2' fill='white' stroke='none'/%3E%3Ccircle cx='67.5' cy='102.5' r='2' fill='white' stroke='none'/%3E%3Ccircle cx='112.5' cy='102.5' r='2' fill='white' stroke='none'/%3E%3Crect x='42' y='30' width='6' height='2' fill='white' stroke='none'/%3E%3Crect x='44' y='28' width='2' height='6' fill='white' stroke='none'/%3E%3Crect x='87' y='78' width='6' height='2' fill='white' stroke='none'/%3E%3Crect x='89' y='76' width='2' height='6' fill='white' stroke='none'/%3E%3Cpath d='M131,28a4,4 0 0 1 8,0c0 5-8 10-8 10s-8-5-8-10a4,4 0 0 1 8,0z' fill='white' stroke='none'/%3E%3Cline x1='45' y1='118' x2='45' y2='131' stroke-width='1.5'/%3E%3Cline x1='38.5' y1='124.5' x2='51.5' y2='124.5' stroke-width='1.5'/%3E%3Cline x1='41' y1='120' x2='49' y2='129' stroke-width='1'/%3E%3Cline x1='49' y1='120' x2='41' y2='129' stroke-width='1'/%3E%3Crect x='132' y='121' width='6' height='2' fill='white' stroke='none'/%3E%3Crect x='134' y='119' width='2' height='6' fill='white' stroke='none'/%3E%3C/svg%3E")`, backgroundSize: '180px' }} />
                     <div className="max-w-3xl mx-auto px-4">
                         <div className="text-center mb-8">
                             <h2 className="text-2xl font-extrabold text-white mb-2">Não sabe qual escolher?</h2>
                             <p className="text-primary-200/70 text-sm">Responda 3 perguntas rápidas e receba indicação personalizada no WhatsApp.</p>
                         </div>
 
-                        <div className="bg-white/5 rounded-2xl border border-white/10 shadow-sm p-6 sm:p-8 space-y-6">
+                        <div className="relative bg-gradient-to-b from-white/[0.10] to-white/[0.03] rounded-3xl border border-white/15 shadow-[0_20px_60px_rgba(0,0,0,0.30)] backdrop-blur-md p-6 sm:p-8 space-y-6 overflow-hidden">
+                            <div className="pointer-events-none absolute -top-14 -right-14 w-40 h-40 rounded-full bg-accent-500/15 blur-3xl" />
+                            <div className="pointer-events-none absolute -bottom-16 -left-16 w-44 h-44 rounded-full bg-green-500/15 blur-3xl" />
                             {/* Pergunta 1 */}
-                            <div>
+                            <div className="relative z-10 bg-white/[0.03] border border-white/10 rounded-2xl p-4 sm:p-5">
                                 <p className="text-sm font-bold text-white mb-3">Sua área de atuação:</p>
                                 <div className="flex flex-wrap gap-2">
                                     {['Psicologia', 'Nutrição', 'Fisioterapia', 'Medicina', 'Outra'].map((opt) => (
                                         <button
                                             key={opt}
                                             onClick={() => setTriagemArea(opt)}
-                                            className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all ${triagemArea === opt
-                                                ? 'bg-accent-600 text-white border-accent-600 shadow-sm'
-                                                : 'bg-white/5 text-white/80 border-white/20 hover:border-accent-400'
+                                            className={`px-4 py-2.5 rounded-full text-sm font-semibold border transition-all ${triagemArea === opt
+                                                ? 'bg-accent-600 text-white border-accent-500 shadow-md shadow-accent-900/30'
+                                                : 'bg-white/5 text-white/85 border-white/20 hover:border-accent-300 hover:bg-white/10'
                                                 }`}
                                         >
                                             {opt}
@@ -742,16 +760,16 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                             </div>
 
                             {/* Pergunta 2 */}
-                            <div>
+                            <div className="relative z-10 bg-white/[0.03] border border-white/10 rounded-2xl p-4 sm:p-5">
                                 <p className="text-sm font-bold text-white mb-3">Precisa de maca?</p>
                                 <div className="flex gap-2">
                                     {['Sim', 'Não'].map((opt) => (
                                         <button
                                             key={opt}
                                             onClick={() => setTriagemMaca(opt)}
-                                            className={`px-6 py-2 rounded-full text-sm font-semibold border transition-all ${triagemMaca === opt
-                                                ? 'bg-accent-600 text-white border-accent-600 shadow-sm'
-                                                : 'bg-white/5 text-white/80 border-white/20 hover:border-accent-400'
+                                            className={`px-6 py-2.5 rounded-full text-sm font-semibold border transition-all ${triagemMaca === opt
+                                                ? 'bg-accent-600 text-white border-accent-500 shadow-md shadow-accent-900/30'
+                                                : 'bg-white/5 text-white/85 border-white/20 hover:border-accent-300 hover:bg-white/10'
                                                 }`}
                                         >
                                             {opt}
@@ -761,16 +779,16 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                             </div>
 
                             {/* Pergunta 3 */}
-                            <div>
+                            <div className="relative z-10 bg-white/[0.03] border border-white/10 rounded-2xl p-4 sm:p-5">
                                 <p className="text-sm font-bold text-white mb-3">Quantas horas por semana pretende atender?</p>
                                 <div className="flex gap-2">
                                     {['1–2h', '3–5h', '6h+'].map((opt) => (
                                         <button
                                             key={opt}
                                             onClick={() => setTriagemHoras(opt)}
-                                            className={`px-6 py-2 rounded-full text-sm font-semibold border transition-all ${triagemHoras === opt
-                                                ? 'bg-accent-600 text-white border-accent-600 shadow-sm'
-                                                : 'bg-white/5 text-white/80 border-white/20 hover:border-accent-400'
+                                            className={`px-6 py-2.5 rounded-full text-sm font-semibold border transition-all ${triagemHoras === opt
+                                                ? 'bg-accent-600 text-white border-accent-500 shadow-md shadow-accent-900/30'
+                                                : 'bg-white/5 text-white/85 border-white/20 hover:border-accent-300 hover:bg-white/10'
                                                 }`}
                                         >
                                             {opt}
@@ -782,12 +800,12 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                             <button
                                 id="cta-triagem-whatsapp"
                                 onClick={handleTriagemWhatsApp}
-                                className="w-full cta-whatsapp py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 shadow-lg"
+                                className="relative z-10 w-full cta-whatsapp py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-green-900/30 hover:-translate-y-0.5 transition-transform"
                             >
                                 <MessageCircle className="w-5 h-5" />
                                 Enviar no WhatsApp
                             </button>
-                            <p className="text-center text-xs text-primary-200/50">Nossas indicações são enviadas pelo WhatsApp em até 5 minutos.</p>
+                            <p className="relative z-10 text-center text-xs text-primary-200/60">Somente aqui você abre o WhatsApp com sua triagem preenchida para atendimento mais rápido.</p>
                         </div>
                     </div>
                 </section>
@@ -798,7 +816,8 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
 
 
                 {/* ============= 7) DEPOIMENTOS ============= */}
-                <section className="py-20 bg-primary-900 border-t border-primary-800 relative texture-diamonds">
+                < section className="py-20 bg-primary-900 border-t border-primary-800 relative overflow-hidden texture-diamonds" >
+                    <div aria-hidden="true" style={{ position: 'absolute', inset: 0, opacity: 0.06, pointerEvents: 'none', zIndex: 0, backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='160' viewBox='0 0 180 160' fill='none' stroke='white' stroke-width='1'%3E%3Cpolygon points='45,15 63,25 63,45 45,55 27,45 27,25'/%3E%3Cpolygon points='135,15 153,25 153,45 135,55 117,45 117,25'/%3E%3Cpolygon points='90,60 108,70 108,90 90,100 72,90 72,70'/%3E%3Cpolygon points='45,105 63,115 63,135 45,145 27,135 27,115'/%3E%3Cpolygon points='135,105 153,115 153,135 135,145 117,135 117,115'/%3E%3Cline x1='63' y1='35' x2='72' y2='70' stroke-width='0.7'/%3E%3Cline x1='117' y1='35' x2='108' y2='70' stroke-width='0.7'/%3E%3Cline x1='72' y1='90' x2='63' y2='115' stroke-width='0.7'/%3E%3Cline x1='108' y1='90' x2='117' y2='115' stroke-width='0.7'/%3E%3Ccircle cx='67.5' cy='52.5' r='2' fill='white' stroke='none'/%3E%3Ccircle cx='112.5' cy='52.5' r='2' fill='white' stroke='none'/%3E%3Ccircle cx='67.5' cy='102.5' r='2' fill='white' stroke='none'/%3E%3Ccircle cx='112.5' cy='102.5' r='2' fill='white' stroke='none'/%3E%3Cpolyline points='75,80 80,80 82,72 86,88 90,76 92,80 105,80' stroke-width='1.5'/%3E%3Cpath d='M40,27a5,5 0 0 1 10,0c0 6-10 12-10 12s-10-6-10-12a5,5 0 0 1 10,0z' fill='white' stroke='none'/%3E%3Cpath d='M130,27a5,5 0 0 1 10,0c0 6-10 12-10 12s-10-6-10-12a5,5 0 0 1 10,0z' fill='white' stroke='none'/%3E%3Ccircle cx='45' cy='124' r='8' stroke-width='1'/%3E%3Cline x1='42' y1='124' x2='48' y2='124' stroke-width='1.5'/%3E%3Cline x1='45' y1='121' x2='45' y2='127' stroke-width='1.5'/%3E%3Crect x='129' y='116' width='12' height='16' rx='2' stroke-width='1'/%3E%3Cline x1='133' y1='120' x2='139' y2='120' stroke-width='1'/%3E%3Cline x1='133' y1='124' x2='139' y2='124' stroke-width='1'/%3E%3Cline x1='133' y1='128' x2='139' y2='128' stroke-width='1'/%3E%3C/svg%3E")`, backgroundSize: '180px' }} />
                     <div className="max-w-6xl mx-auto px-4">
                         <div className="text-center mb-12">
                             <div className="flex items-center justify-center gap-1.5 mb-3">
@@ -847,25 +866,26 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 </section>
 
                 {/* ============= 8) FAQ ============= */}
-                <section className="py-20 bg-primary-950 relative texture-diamonds">
+                < section className="py-20 bg-white border-t border-warm-100 relative overflow-hidden" >
+                    <div aria-hidden="true" style={{ position: 'absolute', inset: 0, opacity: 0.07, pointerEvents: 'none', zIndex: 0, backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160' fill='none' stroke='%23715d4a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M30 25h10v-10h10v10h10v10h-10v10h-10v-10h-10z'/%3E%3Crect x='90' y='20' width='14' height='28' rx='7' transform='rotate(45 97 34)'/%3E%3Cline x1='87' y1='34' x2='107' y2='34' transform='rotate(45 97 34)'/%3E%3Ccircle cx='90' cy='45' r='3'/%3E%3Cpath d='M135 30a8 8 0 0 1 16 0c0 9-12 15-16 22c-4-7-16-13-16-22a8 8 0 0 1 16 0z'/%3E%3Cpolyline points='120 37,130 37,133 30,137 43,140 37,150 37'/%3E%3Cpath d='M25 80a15 15 0 0 0 30 0v-15'/%3E%3Ccircle cx='25' cy='65' r='3'/%3E%3Ccircle cx='55' cy='65' r='3'/%3E%3Cpath d='M40 95v15'/%3E%3Ccircle cx='40' cy='115' r='5'/%3E%3Crect x='85' y='75' width='12' height='30' rx='2' transform='rotate(-45 91 90)'/%3E%3Cpath d='M130 85a10 10 0 0 1 10 10v15h-15v-5'/%3E%3Cpath d='M25 140h6v-6h4v6h6v4h-6v6h-4v-6h-6z'/%3E%3Cpath d='M125 130c15 10 15 20 0 30'/%3E%3Cpath d='M145 130c-15 10-15 20 0 30'/%3E%3C/svg%3E")`, backgroundSize: '160px' }} />
                     <div className="max-w-3xl mx-auto px-4">
                         <div className="text-center mb-12">
-                            <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-3">Perguntas que você provavelmente tem</h2>
+                            <h2 className="text-3xl sm:text-4xl font-extrabold text-primary-950 mb-3">Perguntas que você provavelmente tem</h2>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                             {faqs.map((faq, i) => (
-                                <div key={i} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                                <div key={i} className="bg-warm-50 border border-warm-200 rounded-2xl overflow-hidden">
                                     <button
                                         className="w-full flex items-center justify-between p-6 text-left"
                                         onClick={() => setActiveFaq(activeFaq === i ? null : i)}
                                     >
-                                        <span className="font-bold text-white text-base pr-4">{faq.q}</span>
+                                        <span className="font-bold text-primary-950 text-base pr-4">{faq.q}</span>
                                         <ChevronDown className={`w-5 h-5 text-accent-600 flex-shrink-0 transition-transform duration-200 ${activeFaq === i ? 'rotate-180' : ''}`} />
                                     </button>
                                     {activeFaq === i && (
                                         <div className="px-6 pb-6">
-                                            <p className="text-primary-100/90 leading-relaxed text-sm">{faq.a}</p>
+                                            <p className="text-secondary-600 leading-relaxed text-sm">{faq.a}</p>
                                         </div>
                                     )}
                                 </div>
@@ -875,7 +895,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 </section>
 
                 {/* ============= 9) LOCALIZAÇÃO ============= */}
-                <section className="py-20 bg-primary-900 border-t border-primary-800 relative texture-diamonds">
+                < section className="py-20 bg-primary-900 border-t border-primary-800 relative texture-diamonds" >
                     <div className="max-w-6xl mx-auto px-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
                             <div>
@@ -914,12 +934,14 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 </section>
 
                 {/* ============= 10) CTA FINAL ============= */}
-                <section className="py-20 bg-primary-950">
+                < section id="cta-final-section" className="py-20 relative overflow-hidden" style={{ backgroundColor: '#faf8f5' }
+                }>
+                    <div aria-hidden="true" style={{ position: 'absolute', inset: 0, opacity: 0.09, pointerEvents: 'none', zIndex: 0, backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160' fill='none' stroke='%23715d4a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M30 25h10v-10h10v10h10v10h-10v10h-10v-10h-10z'/%3E%3Crect x='90' y='20' width='14' height='28' rx='7' transform='rotate(45 97 34)'/%3E%3Cline x1='87' y1='34' x2='107' y2='34' transform='rotate(45 97 34)'/%3E%3Ccircle cx='90' cy='45' r='3'/%3E%3Cpath d='M135 30a8 8 0 0 1 16 0c0 9-12 15-16 22c-4-7-16-13-16-22a8 8 0 0 1 16 0z'/%3E%3Cpolyline points='120 37,130 37,133 30,137 43,140 37,150 37'/%3E%3Cpath d='M25 80a15 15 0 0 0 30 0v-15'/%3E%3Ccircle cx='25' cy='65' r='3'/%3E%3Ccircle cx='55' cy='65' r='3'/%3E%3Cpath d='M40 95v15'/%3E%3Ccircle cx='40' cy='115' r='5'/%3E%3Crect x='85' y='75' width='12' height='30' rx='2' transform='rotate(-45 91 90)'/%3E%3Cpath d='M130 85a10 10 0 0 1 10 10v15h-15v-5'/%3E%3Cpath d='M25 140h6v-6h4v6h6v4h-6v6h-4v-6h-6z'/%3E%3Cpath d='M125 130c15 10 15 20 0 30'/%3E%3Cpath d='M145 130c-15 10-15 20 0 30'/%3E%3C/svg%3E")`, backgroundSize: '160px' }} />
                     <div className="max-w-2xl mx-auto px-4 text-center">
-                        <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-4 leading-tight">
+                        <h2 className="text-3xl sm:text-4xl font-extrabold text-primary-950 mb-4 leading-tight">
                             Quer entender se a Arthemi faz sentido para a sua rotina?
                         </h2>
-                        <p className="text-primary-300 text-base sm:text-lg mb-10 leading-relaxed">
+                        <p className="text-secondary-500 text-base sm:text-lg mb-10 leading-relaxed">
                             Agende uma visita, conheça o espaço pessoalmente e tire suas dúvidas antes de decidir.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -927,55 +949,57 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 id="cta-final-whatsapp"
                                 data-event="whatsapp_click"
                                 data-intent="visita"
-                                onClick={() => handleOpenWhatsApp('visita', 'footer')}
-                                className="inline-flex items-center gap-3 bg-white text-primary-950 px-10 py-5 rounded-2xl font-bold text-lg hover:bg-warm-50 transition-all shadow-2xl w-full sm:w-auto justify-center"
+                                onClick={scrollToTriagem}
+                                className="inline-flex items-center gap-3 cta-whatsapp px-10 py-5 rounded-2xl font-bold text-lg shadow-xl w-full sm:w-auto justify-center"
                             >
-                                <MessageCircle className="w-6 h-6 text-accent-600" />
-                                Agendar visita pelo WhatsApp
+                                <MessageCircle className="w-6 h-6" />
+                                Fazer triagem rápida
                             </button>
                             <a
                                 href="#secao-precos"
-                                className="inline-flex items-center gap-2 border border-white/30 text-white/80 px-8 py-5 rounded-2xl font-semibold text-base hover:bg-white/10 transition-all w-full sm:w-auto justify-center"
+                                className="inline-flex items-center gap-2 border border-warm-300 text-primary-700 px-8 py-5 rounded-2xl font-semibold text-base hover:bg-warm-100 transition-all w-full sm:w-auto justify-center"
                             >
                                 <ArrowRight className="w-5 h-5" />
                                 Ver consultórios e preços
                             </a>
                         </div>
-                        <p className="text-primary-500 text-sm mt-4">
+                        <p className="text-secondary-400 text-sm mt-4">
                             Atendimento em horário comercial · Resposta em até 5 min
                         </p>
                     </div>
-                </section >
+                </section>
 
-                {/* Footer */}
-                <footer className="py-10 bg-primary-950 border-t border-primary-900 relative texture-diamonds">
-                    <div className="max-w-6xl mx-auto px-4 text-center">
-                        <Image
-                            src="/images/Logo/logo-white.webp"
-                            alt="Espaço Arthemi"
-                            width={100}
-                            height={40}
-                            className="h-8 w-auto mx-auto mb-5 opacity-60 hover:opacity-100 transition-opacity"
-                        />
-                        <p className="text-primary-200/50 text-sm">
-                            © {new Date().getFullYear()} Espaço Arthemi. Todos os direitos reservados.
-                        </p>
-                        <div className="mt-3 flex justify-center gap-6 text-xs text-primary-200/40">
-                            <Link href="/termos" className="hover:text-white transition">Termos de Uso</Link>
-                            <Link href="/privacidade" className="hover:text-white transition">Privacidade</Link>
+                <footer>
+                    <div id="footer-main" className="py-10 bg-primary-950 border-t border-primary-900 relative texture-diamonds">
+                        <div className="max-w-6xl mx-auto px-4 text-center">
+                            <Image
+                                src="/images/Logo/logo.webp"
+                                alt="Espaço Arthemi"
+                                width={100}
+                                height={40}
+                                className="h-8 w-auto mx-auto mb-5 opacity-60 hover:opacity-100 transition-opacity"
+                                style={{ filter: 'brightness(0) invert(1)' }}
+                            />
+                            <p className="text-primary-200/50 text-sm">
+                                © {new Date().getFullYear()} Espaço Arthemi. Todos os direitos reservados.
+                            </p>
+                            <div className="mt-3 flex justify-center gap-6 text-xs text-primary-200/40">
+                                <Link href="/termos" className="hover:text-white transition">Termos de Uso</Link>
+                                <Link href="/privacidade" className="hover:text-white transition">Privacidade</Link>
+                            </div>
                         </div>
                     </div>
                 </footer>
 
-                {/* Floating Mobile CTA */}
-                < div className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-md border-t border-warm-100 p-4 shadow-[0_-10px_20px_rgba(0,0,0,0.1)]" >
+                {/* Floating Mobile CTA — hides when CTA Final is visible */}
+                < div className={`md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-md border-t border-warm-100 p-4 shadow-[0_-10px_20px_rgba(0,0,0,0.1)] transition-all duration-300 ${hideMobileCta ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
                     <button
                         id="mobile-cta-whatsapp"
                         onClick={() => handleOpenWhatsApp('visita', 'mobile-sticky')}
                         className="flex items-center justify-center gap-2 cta-whatsapp w-full py-4 rounded-xl font-bold text-[15px] shadow-lg shadow-green-700/20"
                     >
                         <MessageCircle className="w-5 h-5" />
-                        Agendar visita pelo WhatsApp
+                        Fazer triagem rápida
                     </button>
                 </div >
             </Layout >
@@ -1043,7 +1067,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                         className="w-full bg-white text-primary-950 py-4 md:py-5 rounded-2xl font-bold text-lg hover:bg-warm-50 transition-all flex items-center justify-center gap-3 shadow-xl hover:-translate-y-1 group"
                                     >
                                         <MessageCircle className="w-5 h-5 text-accent-600" />
-                                        Agendar visita pelo WhatsApp
+                                        Fazer triagem rápida
                                         <ArrowRight className="w-5 h-5 text-accent-600 group-hover:translate-x-1 transition-transform" />
                                     </button>
                                     <button
@@ -1111,7 +1135,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
           left: 0;
           width: 100%;
           height: 100%;
-          opacity: 0.015;
+          opacity: 0.05;
           pointer-events: none;
           z-index: 1;
           background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
@@ -1127,10 +1151,75 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
           left: 0;
           width: 100%;
           height: 100%;
-          opacity: 0.03;
+          opacity: 0.06;
           pointer-events: none;
           z-index: 1;
           background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M20 20L10 10L0 20L10 30L20 20z M40 20L30 10L20 20L30 30L40 20z M20 0L10 -10L0 0L10 10L20 0z M20 40L10 30L0 40L10 50L20 40z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        /* Section backgrounds */
+        [data-section="como-funciona"] {
+          background-color: #f2e8db !important;
+        }
+        [data-section="incluso"] {
+          background-color: #f8f2ea !important;
+        }
+        [data-section="precos"] {
+          background-color: #f2e8db !important;
+        }
+
+        /* Card hover effects */
+        [data-section="como-funciona"] .group:hover,
+        [data-section="incluso"] .group:hover,
+        [data-section="precos"] .group:hover {
+          box-shadow: 0 12px 40px rgba(0,0,0,0.14) !important;
+          border-color: #dfc08e !important;
+        }
+
+        /* Icon container gold */
+        [data-section="como-funciona"] .group .rounded-2xl.bg-accent-100,
+        [data-section="incluso"] .group .rounded-xl.bg-accent-100 {
+          background-color: #faf5eb !important;
+          border-color: #ead6b3 !important;
+        }
+
+        .texture-lines {
+          position: relative;
+        }
+        .texture-lines::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          opacity: 0.06;
+          pointer-events: none;
+          z-index: 0;
+          background-image: repeating-linear-gradient(
+            60deg,
+            transparent,
+            transparent 30px,
+            #7a6050 30px,
+            #7a6050 31px
+          );
+        }
+
+        .texture-medical {
+          position: relative;
+        }
+        .texture-medical::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          opacity: 0.70;
+          pointer-events: none;
+          z-index: 0;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160' fill='none' stroke='%23ceb698' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M 30 25 h 10 v -10 h 10 v 10 h 10 v 10 h -10 v 10 h -10 v -10 h -10 z' /%3E%3Crect x='90' y='20' width='14' height='28' rx='7' transform='rotate(45 97 34)' /%3E%3Cline x1='87' y1='34' x2='107' y2='34' transform='rotate(45 97 34)' /%3E%3Ccircle cx='90' cy='45' r='3' /%3E%3Ccircle cx='100' cy='50' r='2' /%3E%3Cpath d='M 135 30 a 8 8 0 0 1 16 0 c 0 9 -12 15 -16 22 c -4 -7 -16 -13 -16 -22 a 8 8 0 0 1 16 0 z' /%3E%3Cpolyline points='120 37, 130 37, 133 30, 137 43, 140 37, 150 37' /%3E%3Cpath d='M 25 80 a 15 15 0 0 0 30 0 v -15' /%3E%3Ccircle cx='25' cy='65' r='3' /%3E%3Ccircle cx='55' cy='65' r='3' /%3E%3Cpath d='M 40 95 v 15' /%3E%3Ccircle cx='40' cy='115' r='5' /%3E%3Crect x='85' y='75' width='12' height='30' rx='2' transform='rotate(-45 91 90)' /%3E%3Cline x1='91' y1='75' x2='91' y2='65' transform='rotate(-45 91 90)' /%3E%3Cline x1='82' y1='105' x2='100' y2='105' transform='rotate(-45 91 90)' /%3E%3Cline x1='85' y1='85' x2='97' y2='85' transform='rotate(-45 91 90)' /%3E%3Cline x1='85' y1='95' x2='97' y2='95' transform='rotate(-45 91 90)' /%3E%3Cpath d='M 130 85 a 10 10 0 0 1 10 10 v 15 h -15 v -5' /%3E%3Crect x='135' y='75' width='10' height='20' transform='rotate(30 140 85)' /%3E%3Cline x1='120' y1='110' x2='150' y2='110' /%3E%3Cpath d='M 25 140 h 6 v -6 h 4 v 6 h 6 v 4 h -6 v 6 h -4 v -6 h -6 z' /%3E%3Crect x='75' y='130' width='16' height='32' rx='8' transform='rotate(60 83 146)' /%3E%3Crect x='79' y='138' width='8' height='16' transform='rotate(60 83 146)' /%3E%3Ccircle cx='83' cy='142' r='1' transform='rotate(60 83 146)' /%3E%3Ccircle cx='83' cy='150' r='1' transform='rotate(60 83 146)' /%3E%3Cpath d='M 125 130 c 15 10 15 20 0 30' /%3E%3Cpath d='M 145 130 c -15 10 -15 20 0 30' /%3E%3Cline x1='128' y1='135' x2='142' y2='135' /%3E%3Cline x1='130' y1='145' x2='140' y2='145' /%3E%3Cline x1='128' y1='155' x2='142' y2='155' /%3E%3C/svg%3E");
+          background-size: 160px;
         }
       `}</style>
         </>

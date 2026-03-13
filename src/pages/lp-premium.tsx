@@ -610,51 +610,7 @@ export default function LPPremiumPage({ rooms }: LPPremiumPageProps) {
 
 
 
-                {/* Ideal for Section */}
-                <section className="py-24 bg-white border-t border-warm-100">
-                    <div className="max-w-6xl mx-auto px-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 bg-warm-50/50 rounded-[3rem] p-8 md:p-16 border border-warm-100">
-                            <div>
-                                <h3 className="text-2xl font-bold text-primary-950 mb-8 flex items-center gap-2">
-                                    <CheckCircle2 className="w-6 h-6 text-green-600" />
-                                    Ideal para:
-                                </h3>
-                                <ul className="space-y-4">
-                                    {[
-                                        "Psicólogos, Nutricionistas e Médicos",
-                                        "Fisioterapeutas e Esteticistas",
-                                        "Profissionais que buscam flexibilidade total",
-                                        "Quem quer reduzir custos fixos com consultório",
-                                        "Quem precisa de localização estratégica em BH"
-                                    ].map((text, i) => (
-                                        <li key={i} className="flex items-start gap-3 text-secondary-700 font-medium">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-accent-400 mt-2 flex-shrink-0" />
-                                            {text}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                            <div className="border-t md:border-t-0 md:border-l border-warm-200 pt-8 md:pt-0 md:pl-12">
-                                <h3 className="text-2xl font-bold text-primary-950 mb-8 flex items-center gap-2">
-                                    <HelpCircle className="w-6 h-6 text-secondary-400" />
-                                    Não é ideal para:
-                                </h3>
-                                <ul className="space-y-4">
-                                    {[
-                                        "Demandas que exigem internação ou estrutura hospitalar",
-                                        "Quem busca exclusividade de sala por meses no mesmo local",
-                                        "Procedimentos que exigem descarte de resíduos cirúrgicos pesados"
-                                    ].map((text, i) => (
-                                        <li key={i} className="flex items-start gap-3 text-secondary-500 font-medium">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-warm-300 mt-2 flex-shrink-0" />
-                                            {text}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+
 
                 {/* Segmented Section */}
                 <section className="py-24 bg-warm-50/30">

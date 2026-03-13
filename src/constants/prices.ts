@@ -9,9 +9,9 @@ export const PRICES_V3 = {
   // CONSULTÓRIO 1 – GRANDE (com maca)
   // ============================================
   SALA_A: {
-    name: 'Consultório 1',
-    subtitle: 'Grande (com maca)',
-    description: 'Consultório amplo com maca profissional, ideal para procedimentos e atendimentos que requerem mais espaço.',
+    name: 'Consultório 1 | Prime',
+    subtitle: 'Espaço Premium',
+    description: 'Nosso consultório mais amplo, com acabamento superior e opção de maca. Ideal para procedimentos e atendimentos que exigem mais espaço e presença.',
     capacity: 4,
     size: 20, // m²
     amenities: ['Maca profissional', 'Ar-condicionado', 'Wi-Fi', 'Pia', 'Armário', 'Espelho'],
@@ -33,9 +33,9 @@ export const PRICES_V3 = {
   // CONSULTÓRIO 2 – MÉDIA (com maca)
   // ============================================
   SALA_B: {
-    name: 'Consultório 2',
-    subtitle: 'Média (com maca)',
-    description: 'Consultório de tamanho médio com maca, perfeito para consultas e procedimentos padrão.',
+    name: 'Consultório 2 | Executive',
+    subtitle: 'Consultório amplo',
+    description: 'Consultório de excelente padrão, com opção de maca e ótimo custo-benefício. Ideal para consultas médicas, atendimentos clínicos e procedimentos simples.',
     capacity: 3,
     size: 15, // m²
     amenities: ['Maca profissional', 'Ar-condicionado', 'Wi-Fi', 'Pia', 'Armário'],
@@ -57,9 +57,9 @@ export const PRICES_V3 = {
   // CONSULTÓRIO 3 – PEQUENA (sem maca)
   // ============================================
   SALA_C: {
-    name: 'Consultório 3',
-    subtitle: 'Pequena (sem maca)',
-    description: 'Consultório compacto ideal para consultas, psicoterapia e atendimentos que não requerem maca.',
+    name: 'Consultório 3 | Essential',
+    subtitle: 'Espaço intimista',
+    description: 'Consultório compacto, acolhedor e funcional, sem maca. Ideal para psicoterapia, teleconsultas e outros atendimentos focados no diálogo.',
     capacity: 2,
     size: 10, // m²
     amenities: ['Ar-condicionado', 'Wi-Fi', 'Mesa de atendimento', 'Cadeiras confortáveis', 'Armário'],

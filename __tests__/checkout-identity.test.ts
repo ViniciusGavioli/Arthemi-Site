@@ -13,7 +13,7 @@ jest.mock('@/lib/prisma', () => ({
   __esModule: true,
   default: {
     room: { findUnique: jest.fn() },
-    booking: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
+    booking: { findMany: jest.fn(), updateMany: jest.fn(), findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
     credit: { create: jest.fn(), delete: jest.fn() },
     product: { findUnique: jest.fn() },
     user: { findUnique: jest.fn() },
@@ -134,8 +134,8 @@ describe('/api/bookings - Regra de Identidade', () => {
     userEmail: 'joao@email.com',
     userCpf: '12345678909', // CPF válido fake
     roomId: 'room-1',
-    startAt: '2026-03-10T10:00:00.000Z',
-    endAt: '2026-03-10T11:00:00.000Z',
+    startAt: '2030-03-10T10:00:00.000Z',
+    endAt: '2030-03-10T11:00:00.000Z',
     paymentMethod: 'PIX',
   };
 
@@ -163,12 +163,18 @@ describe('/api/bookings - Regra de Identidade', () => {
       (prisma.$transaction as jest.Mock).mockImplementation(async (callback) => {
         const tx = {
           booking: {
+            findMany: jest.fn().mockResolvedValue([]),
+            updateMany: jest.fn().mockResolvedValue({ count: 0 }),
             findFirst: jest.fn().mockResolvedValue(null), // Sem conflito
             create: jest.fn().mockResolvedValue({ ...mockBooking, userId: 'session-user-id' }),
           },
           product: { findUnique: jest.fn() },
           user: {
-            findUnique: jest.fn().mockResolvedValue({ email: 'joao@email.com', role: 'CUSTOMER' }),
+            findUnique: jest.fn().mockResolvedValue({
+              email: 'joao@email.com',
+              role: 'CUSTOMER',
+              professionalRegister: 'CRP-1234',
+            }),
           },
         };
         return callback(tx);
@@ -210,6 +216,8 @@ describe('/api/bookings - Regra de Identidade', () => {
       (prisma.$transaction as jest.Mock).mockImplementation(async (callback) => {
         const tx = {
           booking: {
+            findMany: jest.fn().mockResolvedValue([]),
+            updateMany: jest.fn().mockResolvedValue({ count: 0 }),
             findFirst: jest.fn().mockResolvedValue(null),
             create: jest.fn().mockImplementation(({ data }) => {
               capturedUserId = data.userId;
@@ -218,7 +226,11 @@ describe('/api/bookings - Regra de Identidade', () => {
           },
           product: { findUnique: jest.fn() },
           user: {
-            findUnique: jest.fn().mockResolvedValue({ email: 'joao@email.com', role: 'CUSTOMER' }),
+            findUnique: jest.fn().mockResolvedValue({
+              email: 'joao@email.com',
+              role: 'CUSTOMER',
+              professionalRegister: 'CRP-1234',
+            }),
           },
         };
         return callback(tx);
@@ -255,11 +267,19 @@ describe('/api/bookings - Regra de Identidade', () => {
       (prisma.$transaction as jest.Mock).mockImplementation(async (callback) => {
         const tx = {
           booking: {
+            findMany: jest.fn().mockResolvedValue([]),
+            updateMany: jest.fn().mockResolvedValue({ count: 0 }),
             findFirst: jest.fn().mockResolvedValue(null),
             create: jest.fn().mockResolvedValue({ ...mockBooking, userId: mockResolvedUser.id }),
           },
           product: { findUnique: jest.fn() },
-          user: { findUnique: jest.fn() },
+          user: {
+            findUnique: jest.fn().mockResolvedValue({
+              email: 'joao@email.com',
+              role: 'CUSTOMER',
+              professionalRegister: 'CRP-1234',
+            }),
+          },
         };
         return callback(tx);
       });
@@ -307,6 +327,8 @@ describe('/api/bookings - Regra de Identidade', () => {
       (prisma.$transaction as jest.Mock).mockImplementation(async (callback) => {
         const tx = {
           booking: {
+            findMany: jest.fn().mockResolvedValue([]),
+            updateMany: jest.fn().mockResolvedValue({ count: 0 }),
             findFirst: jest.fn().mockResolvedValue(null),
             create: jest.fn().mockImplementation(({ data }) => {
               capturedUserId = data.userId;
@@ -314,7 +336,13 @@ describe('/api/bookings - Regra de Identidade', () => {
             }),
           },
           product: { findUnique: jest.fn() },
-          user: { findUnique: jest.fn() },
+          user: {
+            findUnique: jest.fn().mockResolvedValue({
+              email: 'joao@email.com',
+              role: 'CUSTOMER',
+              professionalRegister: 'CRP-1234',
+            }),
+          },
         };
         return callback(tx);
       });

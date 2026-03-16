@@ -534,7 +534,7 @@ describe('normalizeAsaasError: Patterns específicos (sem falsos positivos)', ()
 // ============================================================
 
 import { toCents, fromCents, assertIntegerCents, formatBRL } from '@/lib/money';
-import { applyDiscount } from '@/lib/coupons';
+import { applyDiscountSync as applyDiscount } from '@/lib/coupons';
 
 describe('Money Helpers - Conversão REAIS <-> CENTAVOS', () => {
   describe('toCents()', () => {

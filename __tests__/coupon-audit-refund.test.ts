@@ -8,12 +8,22 @@
 // 4. Campos de auditoria (gross/discount/net/coupon) são persistidos
 
 import {
-  isValidCoupon,
-  applyDiscount,
-  getCouponInfo,
+  isValidCouponSync as isValidCoupon,
+  applyDiscountSync as applyDiscount,
+  getCouponInfoSync as getCouponInfo,
   createCouponSnapshot,
   VALID_COUPONS,
 } from '@/lib/coupons';
+
+jest.mock('@/lib/prisma', () => ({
+  __esModule: true,
+  default: {
+    coupon: { findUnique: jest.fn().mockResolvedValue(null) },
+  },
+  prisma: {
+    coupon: { findUnique: jest.fn().mockResolvedValue(null) },
+  },
+}));
 
 // ============================================================
 // 1. TESTES DE CUPOM - Validação básica
@@ -25,8 +35,8 @@ describe('Coupons - Basic Validation', () => {
     expect(isValidCoupon('arthemi10')).toBe(true); // case insensitive
     expect(isValidCoupon('PRIMEIRACOMPRA')).toBe(true);
     // DEV coupons também são válidos
-    expect(isValidCoupon('TESTE50')).toBe(true);
     expect(isValidCoupon('DEVTEST')).toBe(true);
+    expect(isValidCoupon('A95')).toBe(true);
   });
 
   test('isValidCoupon retorna false para cupons inválidos', () => {
@@ -64,11 +74,10 @@ describe('Coupons - Discount Application', () => {
     expect(result.couponApplied).toBe(true);
   });
 
-  // PRIMEIRACOMPRA10 não existe mais, testamos PRIMEIRACOMPRA (15%)
-  test('applyDiscount com TESTE50 (DEV coupon fixo R$5)', () => {
-    const result = applyDiscount(10000, 'TESTE50'); // R$100,00
-    expect(result.discountAmount).toBe(500); // R$5,00
-    expect(result.finalAmount).toBe(9500); // R$95,00
+  test('applyDiscount com DEVTEST (DEV coupon 50%)', () => {
+    const result = applyDiscount(10000, 'DEVTEST'); // R$100,00
+    expect(result.discountAmount).toBe(5000); // R$50,00
+    expect(result.finalAmount).toBe(5000); // R$50,00
     expect(result.couponApplied).toBe(true);
   });
 
@@ -98,8 +107,8 @@ describe('Coupons - Discount Application', () => {
 // ============================================================
 
 describe('Coupons - Snapshot for Audit', () => {
-  test('createCouponSnapshot gera snapshot correto', () => {
-    const snapshot = createCouponSnapshot('PRIMEIRACOMPRA');
+  test('createCouponSnapshot gera snapshot correto', async () => {
+    const snapshot = await createCouponSnapshot('PRIMEIRACOMPRA');
     
     expect(snapshot).toHaveProperty('code', 'PRIMEIRACOMPRA');
     expect(snapshot).toHaveProperty('discountType', 'percent');
@@ -109,8 +118,8 @@ describe('Coupons - Snapshot for Audit', () => {
     expect(snapshot).toHaveProperty('appliedAt');
   });
 
-  test('createCouponSnapshot retorna null para cupom inválido', () => {
-    const snapshot = createCouponSnapshot('INVALIDO');
+  test('createCouponSnapshot retorna null para cupom inválido', async () => {
+    const snapshot = await createCouponSnapshot('INVALIDO');
     expect(snapshot).toBeNull();
   });
 });

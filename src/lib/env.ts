@@ -47,8 +47,8 @@ const ENV_CONFIG: EnvVarConfig[] = [
     name: 'ADMIN_SESSION_SECRET',
     required: true,
     sensitive: true,
-    validator: (v) => v.length >= 16,
-    errorMessage: 'ADMIN_SESSION_SECRET deve ter pelo menos 16 caracteres',
+    validator: (v) => v.length >= 32,
+    errorMessage: 'ADMIN_SESSION_SECRET deve ter pelo menos 32 caracteres',
   },
   
   // === PAGAMENTOS ASAAS (obrigatórias se ASAAS_MOCK_MODE=false) ===
@@ -272,7 +272,7 @@ export const env = {
     return process.env.ADMIN_PASSWORD || '';
   },
   get ADMIN_SESSION_SECRET(): string {
-    return process.env.ADMIN_SESSION_SECRET || 'dev-secret-change-in-production';
+    return process.env.ADMIN_SESSION_SECRET || 'dev-admin-session-secret-change-in-production-2026';
   },
   
   // Auth

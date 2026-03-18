@@ -3,7 +3,7 @@
 // COM HARDENING OPERACIONAL + UX POLISH
 // ===========================================================
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { Modal, Button, Badge, Input, Select, Textarea } from './ui';
 import ConfirmationModal from './ConfirmationModal';
@@ -36,11 +36,11 @@ interface Props {
 
 type ConfirmAction = 'reschedule' | 'change-room' | 'cancel' | 'no-show' | 'retroactive' | null;
 
-const roomNames: Record<string, string> = {
-  'sala-a': 'Consultório 1 | Prime',
-  'sala-b': 'Consultório 2 | Executive',
-  'sala-c': 'Consultório 3 | Essential',
-};
+interface RoomOption {
+  id: string;
+  name: string;
+  slug: string;
+}
 
 export default function BookingDetailModal({ booking, onClose, onUpdate, showToast }: Props) {
   const router = useRouter();
@@ -69,6 +69,7 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
   // Loading states
   const [saving, setSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [rooms, setRooms] = useState<RoomOption[]>([]);
 
   // =====================================================
   // TRAVAS DE ESTADO
@@ -89,6 +90,34 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
                         editData.endHour !== new Date(booking.endTime).getHours();
   const hasRoomChange = editData.roomId !== booking.room.id;
   const hasOnlyNotesChange = !hasDateChange && !hasTimeChange && !hasRoomChange;
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadRooms() {
+      try {
+        const res = await fetch('/api/rooms');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (mounted) {
+          setRooms(data.rooms || []);
+        }
+      } catch (error) {
+        console.error('Error loading rooms:', error);
+      }
+    }
+
+    loadRooms();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  function getRoomLabel(roomId: string): string {
+    const room = rooms.find((r) => r.id === roomId);
+    if (!room) return roomId;
+    return `${room.name} (${room.slug})`;
+  }
 
   // =====================================================
   // HELPERS
@@ -112,7 +141,7 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
     
     return {
       client: booking.user.name,
-      room: roomNames[editData.roomId] || editData.roomId,
+      room: getRoomLabel(editData.roomId),
       date: editData.date,
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
@@ -610,11 +639,10 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
                   label="Consultório"
                   value={editData.roomId}
                   onChange={(e) => setEditData(d => ({ ...d, roomId: e.target.value }))}
-                  options={[
-                    { value: 'sala-a', label: 'Consultório 1 | Prime' },
-                    { value: 'sala-b', label: 'Consultório 2 | Executive' },
-                    { value: 'sala-c', label: 'Consultório 3 | Essential' },
-                  ]}
+                  options={(rooms.length > 0 ? rooms : [{ id: booking.room.id, name: booking.room.name, slug: booking.room.id }]).map((room) => ({
+                    value: room.id,
+                    label: `${room.name} (${room.slug})`,
+                  }))}
                   disabled={isCompleted}
                 />
                 <Textarea
@@ -631,7 +659,7 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
                     <ul className="text-blue-700 space-y-1">
                       {hasDateChange && <li>• Data: {formatDate(booking.startTime)} → {formatDate(editData.date)}</li>}
                       {hasTimeChange && <li>• Horário: {formatTime(booking.startTime)}-{formatTime(booking.endTime)} → {String(editData.startHour).padStart(2, '0')}:00-{String(editData.endHour).padStart(2, '0')}:00</li>}
-                      {hasRoomChange && <li>• Consultório: {booking.room.name} → {roomNames[editData.roomId]}</li>}
+                      {hasRoomChange && <li>• Consultório: {booking.room.name} → {getRoomLabel(editData.roomId)}</li>}
                     </ul>
                     {isRetroactive && (
                       <p className="mt-2 text-yellow-700 font-medium">⚠️ Esta é uma alteração retroativa (reserva no passado)</p>
@@ -817,7 +845,7 @@ export default function BookingDetailModal({ booking, onClose, onUpdate, showToa
         impact={
           <div>
             <p><strong>De:</strong> {booking.room.name}</p>
-            <p><strong>Para:</strong> {roomNames[editData.roomId]}</p>
+            <p><strong>Para:</strong> {getRoomLabel(editData.roomId)}</p>
           </div>
         }
       />

@@ -46,6 +46,13 @@ function handleAdminRoutes(request: NextRequest, pathname: string): NextResponse
   // Verificar admin_token (JWT de admin) primeiro
   const adminToken = request.cookies.get('admin_token')?.value;
   if (adminToken) {
+    if (!isProbablyJwt(adminToken)) {
+      const loginUrl = new URL('/admin/login', request.url);
+      loginUrl.searchParams.set('redirect', pathname);
+      const response = NextResponse.redirect(loginUrl);
+      response.cookies.delete('admin_token');
+      return response;
+    }
     // Token admin presente - permitir acesso (validação completa será feita no SSR)
     return NextResponse.next();
   }
@@ -54,6 +61,13 @@ function handleAdminRoutes(request: NextRequest, pathname: string): NextResponse
   // O SSR vai verificar se o usuário tem role ADMIN
   const jwtToken = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   if (jwtToken) {
+    if (!isProbablyJwt(jwtToken)) {
+      const loginUrl = new URL('/admin/login', request.url);
+      loginUrl.searchParams.set('redirect', pathname);
+      const response = NextResponse.redirect(loginUrl);
+      response.cookies.delete(AUTH_COOKIE_NAME);
+      return response;
+    }
     // JWT presente - permitir acesso (validação de role será feita no SSR)
     // Isso evita loop de redirecionamento quando usuário está logado mas não tem admin_token
     return NextResponse.next();
@@ -164,6 +178,13 @@ function isValidSessionTokenFormat(token: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Validação estrutural mínima de JWT.
+ */
+function isProbablyJwt(token: string): boolean {
+  return token.split('.').length === 3;
 }
 
 export const config = {

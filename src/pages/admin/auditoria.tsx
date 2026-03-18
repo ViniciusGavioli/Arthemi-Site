@@ -3,10 +3,12 @@
 // ===========================================================
 
 import { useState, useEffect, useCallback } from 'react';
+import { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, Button, Badge, Input, Select, Table, Spinner, Toast, Modal } from '@/components/admin/ui';
 import { useToast, formatDateTime } from '@/components/admin/helpers';
+import { requireAdminSSR } from '@/lib/auth';
 
 interface AuditLog {
   id: string;
@@ -81,6 +83,14 @@ const sourceLabels: Record<string, string> = {
   USER: 'Usuário',
   ADMIN: 'Admin',
   SYSTEM: 'Sistema',
+};
+
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const result = requireAdminSSR(ctx);
+  if ('redirect' in result) {
+    return result;
+  }
+  return { props: {} };
 };
 
 export default function AuditoriaPage() {

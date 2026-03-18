@@ -75,10 +75,10 @@ export interface ApiRateLimitResult {
   retryAfterSeconds?: number;  // Segundos até poder tentar novamente (quando bloqueado)
 }
 
-// Configuração padrão: 100 req / 60s (temporário para testes, original: 15)
+// Configuração padrão: 15 req / 60s
 const DEFAULT_CONFIG: ApiRateLimitConfig = {
   windowMs: 60 * 1000,   // 1 minuto
-  maxRequests: 100,      // 100 tentativas (temporário, original: 15)
+  maxRequests: 15,       // 15 tentativas por minuto
 };
 
 /**

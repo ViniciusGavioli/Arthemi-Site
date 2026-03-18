@@ -16,7 +16,7 @@ declare global {
     }
 }
 
-const PIXEL_ID = '1638076163885562';
+const PIXEL_ID = '1176899147656742';
 
 export default function MetaPixel() {
     const router = useRouter();

@@ -16,24 +16,27 @@ import {
   getCreditBalanceForRoom,
   consumeCreditsForBooking,
 } from '@/lib/business-rules';
-import { getBookingTotalByDate } from '@/lib/pricing';
+import { getBookingTotalCentsByDate } from '@/lib/pricing';
 import { createDateInBrazilTimezone, isBookingWithinBusinessHours } from '@/lib/business-hours';
+import { brazilianPhone } from '@/lib/validations';
 
 const createManualBookingSchema = z.object({
   userId: z.string().optional(),
-  userPhone: z.string().optional(),
+  userPhone: brazilianPhone.optional(),
   userName: z.string().optional(),
   userEmail: z.string().email().optional(),
+  professionalRegister: z.string().optional(),
   roomId: z.string().min(1, 'roomId é obrigatório'),
   date: z.string().datetime({ message: 'Data inválida' }),
   bookingType: z.enum(['HOURLY', 'SHIFT']).default('HOURLY'), // DAY_PASS descontinuado
   shiftType: z.enum(['MORNING', 'AFTERNOON']).optional(), // Para turno
   startHour: z.number().min(0).max(23).optional(), // Para HOURLY
   endHour: z.number().min(0).max(23).optional(), // Para HOURLY
-  amount: z.number().min(0).default(0), // Valor cobrado (pode ser 0 para cortesia)
+  useCredits: z.boolean().default(true),
+  amount: z.number().int().min(0).default(0), // Valor em centavos (pode ser 0 para cálculo automático/cortesia)
   notes: z.string().optional(),
   // Novos campos obrigatórios para controle financeiro
-  origin: z.enum(['COMMERCIAL', 'ADMIN_COURTESY']),
+  origin: z.enum(['COMMERCIAL', 'ADMIN_COURTESY']).default('COMMERCIAL'),
   courtesyReason: z.string().optional(),
 });
 
@@ -75,10 +78,15 @@ export default async function handler(
 
     const data = validation.data;
 
-    // Verificar sala
-    const room = await prisma.room.findUnique({
+    // Verificar sala por ID; fallback por slug para compatibilidade
+    let room = await prisma.room.findUnique({
       where: { id: data.roomId },
     });
+    if (!room) {
+      room = await prisma.room.findUnique({
+        where: { slug: data.roomId },
+      });
+    }
 
     if (!room || !room.isActive) {
       return res.status(404).json({
@@ -86,6 +94,7 @@ export default async function handler(
         error: 'Sala não encontrada ou inativa',
       });
     }
+    const realRoomId = room.id;
 
     // Buscar ou criar usuário (resolve por email > phone)
     let user;
@@ -96,6 +105,7 @@ export default async function handler(
         name: data.userName || 'Sem nome',
         email: data.userEmail,
         phone: data.userPhone,
+        professionalRegister: data.professionalRegister,
       });
       user = resolved.user;
     }
@@ -126,10 +136,16 @@ export default async function handler(
       endTime = createDateInBrazilTimezone(data.date, shift.end);
     } else {
       // HOURLY
-      if (!data.startHour || !data.endHour) {
+      if (data.startHour === undefined || data.endHour === undefined) {
         return res.status(400).json({
           success: false,
           error: 'startHour e endHour são obrigatórios para reservas por hora',
+        });
+      }
+      if (data.endHour <= data.startHour) {
+        return res.status(400).json({
+          success: false,
+          error: 'Horário de término deve ser maior que o horário de início',
         });
       }
       // P-010: Criar datas no timezone correto de São Paulo
@@ -148,7 +164,7 @@ export default async function handler(
 
     // Verificar disponibilidade
     const available = await isAvailable({
-      roomId: data.roomId,
+      roomId: realRoomId,
       startAt: startTime,
       endAt: endTime,
     });
@@ -162,15 +178,15 @@ export default async function handler(
 
     // Calcular valor da reserva baseado no tipo
     const hours = Math.ceil((endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60));
-    let calculatedAmount: number;
+    let calculatedAmountCents: number;
     
     if (data.amount > 0) {
-      // Valor informado manualmente
-      calculatedAmount = data.amount;
+      // Valor informado manualmente (já em centavos)
+      calculatedAmountCents = data.amount;
     } else {
-      // Calcular usando helper PRICES_V3 (respeita sábado)
+      // Calcular usando helper PRICES_V3 (respeita sábado), retornando CENTAVOS
       try {
-        calculatedAmount = getBookingTotalByDate(data.roomId, startTime, hours, room.slug);
+        calculatedAmountCents = getBookingTotalCentsByDate(realRoomId, startTime, hours, room.slug);
       } catch (err) {
         console.error('[ADMIN] Erro ao calcular preço:', err);
         return res.status(400).json({
@@ -182,15 +198,15 @@ export default async function handler(
 
     // Verificar saldo disponível antes da transação
     // P-008/P-011: Passar startTime/endTime para validar usageType
-    const availableCredits = await getCreditBalanceForRoom(user.id, data.roomId, startTime, startTime, endTime);
+    const availableCreditsCents = await getCreditBalanceForRoom(user.id, realRoomId, startTime, startTime, endTime);
 
     // VALIDAÇÃO prévia
     if (data.origin === 'COMMERCIAL') {
-      if (availableCredits > 0 && availableCredits < calculatedAmount) {
+      if (data.useCredits && availableCreditsCents > 0 && availableCreditsCents < calculatedAmountCents) {
         // Crédito parcial não permitido para admin
         return res.status(402).json({
           success: false,
-          error: `Crédito insuficiente. Disponível: R$ ${(availableCredits / 100).toFixed(2)}, Necessário: R$ ${(calculatedAmount / 100).toFixed(2)}. Use cortesia ou adicione créditos.`,
+          error: `Crédito insuficiente. Disponível: R$ ${(availableCreditsCents / 100).toFixed(2)}, Necessário: R$ ${(calculatedAmountCents / 100).toFixed(2)}. Use cortesia ou adicione créditos.`,
         });
       }
     }
@@ -207,14 +223,14 @@ export default async function handler(
         financialStatus = 'COURTESY';
         auditAction = 'BOOKING_COURTESY_CREATED';
       } else {
-        // COMMERCIAL: Exige crédito suficiente OU marca como PENDING_PAYMENT
-        if (availableCredits >= calculatedAmount) {
+        // COMMERCIAL: Pode usar créditos (opcional) ou marcar como PENDING_PAYMENT
+        if (data.useCredits && availableCreditsCents >= calculatedAmountCents) {
           // Tem crédito: debitar imediatamente (dentro da transação)
           // P-008/P-011: Passar startTime/endTime para validar usageType
           const consumeResult = await consumeCreditsForBooking(
             user.id,
-            data.roomId,
-            calculatedAmount,
+            realRoomId,
+            calculatedAmountCents,
             startTime,
             startTime, // startTime - validação de usageType
             endTime,   // endTime - validação de usageType
@@ -234,7 +250,7 @@ export default async function handler(
       const booking = await tx.booking.create({
         data: {
           userId: user.id,
-          roomId: data.roomId,
+          roomId: realRoomId,
           startTime,
           endTime,
           status: financialStatus === 'PENDING_PAYMENT' ? 'PENDING' : 'CONFIRMED',
@@ -262,10 +278,12 @@ export default async function handler(
       {
         userId: user.id,
         roomId: data.roomId,
+        roomIdResolved: realRoomId,
         bookingType: data.bookingType,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
-        amount: calculatedAmount,
+        amount: calculatedAmountCents,
+        useCredits: data.useCredits,
         origin: data.origin,
         financialStatus: result.booking.financialStatus,
         creditsUsed: result.creditsUsed,

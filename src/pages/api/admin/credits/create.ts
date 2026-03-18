@@ -10,12 +10,13 @@ import { requireAdminAuth } from '@/lib/admin-auth';
 import { createManualCredit } from '@/lib/business-rules';
 import { logAdminAction } from '@/lib/audit';
 import { isValidCoupon, applyDiscount, getCouponInfo } from '@/lib/coupons';
+import { formatBRL } from '@/lib/money';
 
 const createCreditSchema = z.object({
   userId: z.string().min(1, 'userId é obrigatório'),
   userPhone: z.string().optional(), // Alternativa ao userId
   roomId: z.string().optional(), // Se não informado, crédito genérico
-  amount: z.number().positive('Valor deve ser positivo'), // Em centavos (valor ORIGINAL)
+  amount: z.number().int().positive('Valor deve ser positivo'), // Em centavos (valor ORIGINAL)
   type: z.enum(['PROMO', 'MANUAL', 'SATURDAY']).default('MANUAL'),
   usageType: z.enum(['HOURLY', 'SHIFT', 'SATURDAY_HOURLY', 'SATURDAY_SHIFT']).optional(), // Regra de uso
   expiresInMonths: z.number().min(1).max(24).optional(),
@@ -115,7 +116,7 @@ export default async function handler(
     // Criar crédito com valor final (após desconto)
     // Inclui cupom nas notas para rastreabilidade
     const notesWithCoupon = couponApplied 
-      ? `${data.notes || ''} [Cupom: ${couponApplied}, Desconto: R$${discountAmount.toFixed(2)}]`.trim()
+      ? `${data.notes || ''} [Cupom: ${couponApplied}, Desconto: ${formatBRL(discountAmount)}]`.trim()
       : data.notes;
       
     const credit = await createManualCredit({

@@ -6,7 +6,7 @@
 // Decisões técnicas:
 // - JWT assinado com HS256 (jsonwebtoken)
 // - Sessão: 7 dias em cookie HttpOnly
-// - Rate limit: 100 tentativas, bloqueio 30 min (temporário para testes, original: 5)
+// - Rate limit por conta: 15 tentativas, bloqueio 30 min
 // - Mensagens genéricas (não revelar se email existe)
 
 import { NextApiRequest, NextApiResponse } from 'next';
@@ -58,8 +58,8 @@ const SCRYPT_N = 16384;
 const SCRYPT_R = 8;
 const SCRYPT_P = 1;
 
-/** Máximo de tentativas de login antes do bloqueio (temporário: 100, original: 5) */
-export const MAX_LOGIN_ATTEMPTS = 100;
+/** Máximo de tentativas de login antes do bloqueio */
+export const MAX_LOGIN_ATTEMPTS = 15;
 
 /** Duração do bloqueio em minutos */
 export const LOCKOUT_DURATION_MINUTES = 30;
@@ -270,6 +270,40 @@ export function requireRole(
 const HASH_VERSION = 'v1';
 
 /**
+ * Identifica hashes legados no formato bcrypt.
+ * Mantido para compatibilidade durante a migração para scrypt.
+ */
+function isLegacyBcryptHash(storedHash: string): boolean {
+  return (
+    storedHash.startsWith('$2a$') ||
+    storedHash.startsWith('$2b$') ||
+    storedHash.startsWith('$2y$')
+  );
+}
+
+/**
+ * Compara senha com hash bcrypt legado (import dinâmico para compatibilidade).
+ */
+async function compareLegacyBcrypt(password: string, storedHash: string): Promise<boolean> {
+  try {
+    const bcryptModule = await import('bcrypt');
+    const compareFn =
+      (bcryptModule as { compare?: (plain: string, hash: string) => Promise<boolean> }).compare ||
+      ((bcryptModule as unknown as { default?: { compare?: (plain: string, hash: string) => Promise<boolean> } }).default?.compare);
+
+    if (!compareFn) {
+      console.error('[AUTH] bcrypt.compare não disponível para hash legado');
+      return false;
+    }
+
+    return await compareFn(password, storedHash);
+  } catch (error) {
+    console.error('[AUTH] Erro ao comparar hash bcrypt legado:', error);
+    return false;
+  }
+}
+
+/**
  * Gera hash scrypt de uma senha
  * @param password - Senha em texto plano (mínimo 8 caracteres)
  * @returns Hash no formato: v1$scrypt$N$r$p$salt$derivedKey
@@ -303,6 +337,11 @@ export async function hashPassword(password: string): Promise<string> {
  */
 export async function comparePassword(password: string, storedHash: string): Promise<boolean> {
   try {
+    // Compatibilidade com hashes legados (bcrypt)
+    if (isLegacyBcryptHash(storedHash)) {
+      return compareLegacyBcrypt(password, storedHash);
+    }
+
     // Parse do hash armazenado
     const parts = storedHash.split('$');
 
@@ -387,33 +426,31 @@ export async function processLogin(
   if (!user || !user.passwordHash) {
     return {
       success: false,
-      error: 'Credenciais inválidas',
+      error: 'Email ou senha inválidos.',
       statusCode: 401,
     };
   }
 
-  // Conta desativada
+  // Conta desativada (mensagem genérica para evitar enumeração)
   if (!user.isActive) {
     return {
       success: false,
-      error: 'Conta desativada. Entre em contato com o suporte.',
-      statusCode: 403,
+      error: 'Email ou senha inválidos.',
+      statusCode: 401,
     };
   }
 
   // Verificar bloqueio temporário
   if (user.lockedUntil && user.lockedUntil > new Date()) {
-    const minutesRemaining = Math.ceil(
-      (user.lockedUntil.getTime() - Date.now()) / (1000 * 60)
-    );
     return {
       success: false,
-      error: `Conta bloqueada. Tente novamente em ${minutesRemaining} minutos.`,
+      error: 'Muitas tentativas. Tente novamente mais tarde.',
       statusCode: 429,
     };
   }
 
   // Verificar senha
+  const isLegacyHash = isLegacyBcryptHash(user.passwordHash);
   const passwordValid = await comparePassword(password, user.passwordHash);
 
   if (!passwordValid) {
@@ -434,27 +471,43 @@ export async function processLogin(
     if (shouldLock) {
       return {
         success: false,
-        error: `Muitas tentativas falhas. Conta bloqueada por ${LOCKOUT_DURATION_MINUTES} minutos.`,
+        error: 'Muitas tentativas. Tente novamente mais tarde.',
         statusCode: 429,
       };
     }
 
-    const attemptsRemaining = MAX_LOGIN_ATTEMPTS - newFailedAttempts;
     return {
       success: false,
-      error: `Credenciais inválidas. ${attemptsRemaining} tentativa(s) restante(s).`,
+      error: 'Email ou senha inválidos.',
       statusCode: 401,
     };
   }
 
   // Login bem-sucedido: zerar contadores
+  const updateData: {
+    failedAttempts: number;
+    lockedUntil: null;
+    lastLoginAt: Date;
+    passwordHash?: string;
+  } = {
+    failedAttempts: 0,
+    lockedUntil: null,
+    lastLoginAt: new Date(),
+  };
+
+  // Migração automática de hash legado bcrypt -> scrypt no primeiro login válido.
+  if (isLegacyHash) {
+    try {
+      updateData.passwordHash = await hashPassword(password);
+      console.log(`[AUTH] Hash legado migrado para scrypt: ${normalizedEmail}`);
+    } catch (hashError) {
+      console.error('[AUTH] Falha ao migrar hash legado (login segue):', hashError);
+    }
+  }
+
   await prisma.user.update({
     where: { id: user.id },
-    data: {
-      failedAttempts: 0,
-      lockedUntil: null,
-      lastLoginAt: new Date(),
-    },
+    data: updateData,
   });
 
   return {

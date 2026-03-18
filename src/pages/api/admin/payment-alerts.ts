@@ -1,6 +1,13 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
+import { requireAdminAuth } from '@/lib/admin-auth';
+
+function hasLegacyAdminToken(req: NextApiRequest): boolean {
+  const authHeader = req.headers.authorization;
+  const adminToken = process.env.ADMIN_TOKEN;
+  return !!adminToken && authHeader === `Bearer ${adminToken}`;
+}
 
 /**
  * API de Monitoramento Financeiro
@@ -16,12 +23,11 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // Autenticação
-  const authHeader = req.headers.authorization;
-  const adminToken = process.env.ADMIN_TOKEN;
-  
-  if (!adminToken || authHeader !== `Bearer ${adminToken}`) {
-    return res.status(401).json({ error: 'Não autorizado' });
+  // Autenticação:
+  // 1) Sessão admin via cookie JWT (novo padrão)
+  // 2) Bearer ADMIN_TOKEN (legado, para compatibilidade operacional)
+  if (!hasLegacyAdminToken(req) && !requireAdminAuth(req, res)) {
+    return; // requireAdminAuth já enviou 401
   }
 
   if (req.method === 'GET') {

@@ -3,8 +3,10 @@
 // ===========================================================
 
 import { useState, useEffect, useCallback } from 'react';
+import { GetServerSideProps } from 'next';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { CONTINGENCY_FLAGS } from '@/lib/contingency';
+import { requireAdminSSR } from '@/lib/auth';
 
 // ============================================================
 // TIPOS
@@ -32,6 +34,14 @@ interface SystemStatus {
     reservasPendentes: number;
   };
 }
+
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const result = requireAdminSSR(ctx);
+  if ('redirect' in result) {
+    return result;
+  }
+  return { props: {} };
+};
 
 // ============================================================
 // COMPONENTES

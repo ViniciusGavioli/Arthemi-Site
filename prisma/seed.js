@@ -6,9 +6,34 @@
 // Execute: npm run seed
 
 const { PrismaClient } = require('@prisma/client');
-const bcrypt = require('bcrypt');
+const { scrypt, randomBytes } = require('crypto');
 
 const prisma = new PrismaClient();
+
+function scryptAsync(password, salt, keylen, options) {
+  return new Promise((resolve, reject) => {
+    scrypt(password, salt, keylen, options, (err, derivedKey) => {
+      if (err) reject(err);
+      else resolve(derivedKey);
+    });
+  });
+}
+
+const SCRYPT_N = 16384;
+const SCRYPT_R = 8;
+const SCRYPT_P = 1;
+const SALT_LENGTH = 32;
+const KEY_LENGTH = 64;
+
+async function hashPassword(password) {
+  const salt = randomBytes(SALT_LENGTH);
+  const derivedKey = await scryptAsync(password, salt, KEY_LENGTH, {
+    N: SCRYPT_N,
+    r: SCRYPT_R,
+    p: SCRYPT_P,
+  });
+  return `v1$scrypt$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${salt.toString('base64')}$${derivedKey.toString('base64')}`;
+}
 
 // ============================================
 // CONFIGURAÇÃO DO ADMIN
@@ -108,9 +133,8 @@ async function main() {
   // ---- Criar Usuário Admin com Senha ----
   console.log('👤 Criando usuários...');
 
-  // Hash da senha do admin (bcrypt com salt rounds = 12)
-  const SALT_ROUNDS = 12;
-  const adminPasswordHash = await bcrypt.hash(ADMIN_PASSWORD, SALT_ROUNDS);
+  // Hash da senha do admin (scrypt v1, padrão do runtime)
+  const adminPasswordHash = await hashPassword(ADMIN_PASSWORD);
 
   const admin = await prisma.user.create({
     data: {
@@ -124,7 +148,7 @@ async function main() {
     },
   });
 
-  console.log(`  🔐 Admin criado com senha hashada (bcrypt, ${SALT_ROUNDS} rounds)`);
+  console.log('  🔐 Admin criado com senha hashada (scrypt v1)');
 
   const testUser = await prisma.user.create({
     data: {

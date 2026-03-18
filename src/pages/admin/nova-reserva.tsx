@@ -3,6 +3,7 @@
 // ===========================================================
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
 import AdminLayout from '@/components/admin/AdminLayout';
 import {
@@ -12,6 +13,7 @@ import {
   useToast, formatCurrency, fetchApi
 } from '@/components/admin/helpers';
 import { getHourOptionsForDate, getBusinessHoursForDate, isClosedDay } from '@/lib/business-hours';
+import { requireAdminSSR } from '@/lib/auth';
 
 interface User {
   id: string;
@@ -34,6 +36,21 @@ interface AvailabilitySlot {
   available: boolean;
 }
 
+interface RoomOption {
+  id: string;
+  name: string;
+  slug: string;
+  tier: number;
+}
+
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const result = requireAdminSSR(ctx);
+  if ('redirect' in result) {
+    return result;
+  }
+  return { props: {} };
+};
+
 export default function NovaReservaPage() {
   const router = useRouter();
   const { userId: queryUserId } = router.query;
@@ -43,6 +60,7 @@ export default function NovaReservaPage() {
   const [loading, setLoading] = useState(false);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [rooms, setRooms] = useState<RoomOption[]>([]);
 
   // Busca de cliente
   const [userSearch, setUserSearch] = useState('');
@@ -61,12 +79,14 @@ export default function NovaReservaPage() {
 
   // Dados da reserva
   const [formData, setFormData] = useState({
-    roomId: 'sala-a',
+    roomId: '',
     date: new Date().toISOString().split('T')[0],
     bookingType: 'HOURLY',
     shiftType: 'MORNING',
     startHour: '9',
     endHour: '10',
+    origin: 'COMMERCIAL',
+    courtesyReason: '',
     amount: '',
     useCredits: false,
     notes: '',
@@ -75,6 +95,32 @@ export default function NovaReservaPage() {
   // Disponibilidade
   const [availability, setAvailability] = useState<AvailabilitySlot[]>([]);
   const [availabilityError, setAvailabilityError] = useState('');
+
+  // Carregar consultórios ativos (usar IDs reais do banco)
+  const loadRooms = useCallback(async () => {
+    try {
+      const res = await fetch('/api/rooms');
+      if (!res.ok) return;
+
+      const data = await res.json();
+      const activeRooms: RoomOption[] = (data.rooms || []).map((room: RoomOption) => ({
+        id: room.id,
+        name: room.name,
+        slug: room.slug,
+        tier: room.tier,
+      }));
+
+      setRooms(activeRooms);
+
+      // Seleciona automaticamente a primeira sala ativa, se necessário
+      if (activeRooms.length > 0) {
+        setFormData(prev => (prev.roomId ? prev : { ...prev, roomId: activeRooms[0].id }));
+      }
+    } catch (error) {
+      console.error('Error loading rooms:', error);
+      showToast('Erro ao carregar consultórios', 'error');
+    }
+  }, [showToast]);
 
   // Buscar usuário por ID
   const loadUserById = useCallback(async (id: string) => {
@@ -94,6 +140,11 @@ export default function NovaReservaPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Carregar usuário da query
+  useEffect(() => {
+    loadRooms();
+  }, [loadRooms]);
 
   // Carregar usuário da query
   useEffect(() => {
@@ -153,6 +204,10 @@ export default function NovaReservaPage() {
 
   // Verificar disponibilidade
   const checkAvailability = useCallback(async () => {
+    if (!formData.roomId || !formData.date) {
+      return;
+    }
+
     setCheckingAvailability(true);
     setAvailabilityError('');
 
@@ -165,9 +220,17 @@ export default function NovaReservaPage() {
       const res = await fetch(`/api/availability?${params}`);
       if (res.ok) {
         const data = await res.json();
-        // Simular slots de disponibilidade (a API real deveria retornar isso)
+        // Simular slots de disponibilidade dentro da janela de funcionamento
         const slots: AvailabilitySlot[] = [];
-        for (let h = 7; h <= 21; h++) {
+        const selectedDate = new Date(`${formData.date}T12:00:00`);
+        const businessHours = getBusinessHoursForDate(selectedDate);
+        if (!businessHours) {
+          setAvailability([]);
+          setAvailabilityError('Consultório fechado na data selecionada');
+          return;
+        }
+
+        for (let h = businessHours.start; h < businessHours.end; h++) {
           // Verificar se há conflito com reservas existentes
           const hasConflict = (data.bookings || []).some((b: { startTime: string; endTime: string }) => {
             const start = new Date(b.startTime).getHours();
@@ -239,13 +302,23 @@ export default function NovaReservaPage() {
       return;
     }
 
+    if (formData.origin === 'ADMIN_COURTESY' && !formData.courtesyReason.trim()) {
+      showToast('Informe o motivo da cortesia', 'warning');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const payload: Record<string, unknown> = {
         roomId: formData.roomId,
         date: new Date(formData.date).toISOString(),
         bookingType: formData.bookingType,
-        amount: formData.amount ? Math.round(Number(formData.amount) * 100) : 0,
+        origin: formData.origin,
+        courtesyReason: formData.origin === 'ADMIN_COURTESY' ? formData.courtesyReason || undefined : undefined,
+        useCredits: formData.origin === 'COMMERCIAL' ? formData.useCredits : false,
+        amount: formData.origin === 'ADMIN_COURTESY'
+          ? 0
+          : (formData.amount ? Math.round(Number(formData.amount) * 100) : 0),
         notes: formData.notes || undefined,
       };
 
@@ -461,12 +534,16 @@ export default function NovaReservaPage() {
                   label="Consultório"
                   value={formData.roomId}
                   onChange={(e) => setFormData(d => ({ ...d, roomId: e.target.value }))}
-                  options={[
-                    { value: 'sala-a', label: 'Consultório 1 | Prime' },
-                    { value: 'sala-b', label: 'Consultório 2 | Executive' },
-                    { value: 'sala-c', label: 'Consultório 3 | Essential' },
-                  ]}
+                  options={rooms.map((room) => ({
+                    value: room.id,
+                    label: `${room.name} (${room.slug})`,
+                  }))}
                 />
+                {rooms.length === 0 && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm">
+                    Nenhum consultório ativo encontrado.
+                  </div>
+                )}
 
                 {/* Data */}
                 <Input
@@ -547,10 +624,37 @@ export default function NovaReservaPage() {
                   </div>
                 )}
 
+                {/* Origem financeira */}
+                <Select
+                  label="Origem Financeira"
+                  value={formData.origin}
+                  onChange={(e) =>
+                    setFormData(d => ({
+                      ...d,
+                      origin: e.target.value,
+                      useCredits: e.target.value === 'ADMIN_COURTESY' ? false : d.useCredits,
+                    }))
+                  }
+                  options={[
+                    { value: 'COMMERCIAL', label: 'Comercial (cobrar normalmente)' },
+                    { value: 'ADMIN_COURTESY', label: 'Cortesia administrativa' },
+                  ]}
+                />
+
+                {formData.origin === 'ADMIN_COURTESY' && (
+                  <Textarea
+                    label="Motivo da Cortesia *"
+                    value={formData.courtesyReason}
+                    onChange={(e) => setFormData(d => ({ ...d, courtesyReason: e.target.value }))}
+                    rows={2}
+                    placeholder="Descreva o motivo da cortesia..."
+                  />
+                )}
+
                 {/* Valor */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Valor (R$) <span className="text-gray-400">- deixe vazio para cortesia</span>
+                    Valor Manual (R$) <span className="text-gray-400">- opcional (0 = cálculo automático)</span>
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
@@ -562,6 +666,7 @@ export default function NovaReservaPage() {
                       onChange={(e) => setFormData(d => ({ ...d, amount: e.target.value }))}
                       className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="0,00"
+                      disabled={formData.origin === 'ADMIN_COURTESY'}
                     />
                   </div>
                 </div>
@@ -574,6 +679,7 @@ export default function NovaReservaPage() {
                       checked={formData.useCredits}
                       onChange={(e) => setFormData(d => ({ ...d, useCredits: e.target.checked }))}
                       className="w-4 h-4 rounded border-gray-300 text-primary-600"
+                      disabled={formData.origin === 'ADMIN_COURTESY'}
                     />
                     <div>
                       <p className="font-medium">Usar créditos do cliente</p>
@@ -616,10 +722,13 @@ export default function NovaReservaPage() {
             loading={submitting}
             disabled={
               submitting ||
+              !formData.roomId ||
+              rooms.length === 0 ||
               isClosed ||
               !!availabilityError ||
               (!selectedUser && !createNewUser) ||
-              (createNewUser && (!newUserData.name || !newUserData.phone))
+              (createNewUser && (!newUserData.name || !newUserData.phone)) ||
+              (formData.origin === 'ADMIN_COURTESY' && !formData.courtesyReason.trim())
             }
             icon="✅"
           >

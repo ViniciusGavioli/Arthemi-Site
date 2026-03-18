@@ -4,7 +4,9 @@
 // Gerenciar Meta Pixel, Google Analytics e Google Tag Manager
 
 import { useState, useEffect, useCallback } from 'react';
+import { GetServerSideProps } from 'next';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { requireAdminSSR } from '@/lib/auth';
 
 interface SettingData {
   value: string;
@@ -17,6 +19,14 @@ interface Settings {
   GA_MEASUREMENT_ID?: SettingData;
   GTM_ID?: SettingData;
 }
+
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const result = requireAdminSSR(ctx);
+  if ('redirect' in result) {
+    return result;
+  }
+  return { props: {} };
+};
 
 export default function MarketingPage() {
   const [settings, setSettings] = useState<Settings>({});

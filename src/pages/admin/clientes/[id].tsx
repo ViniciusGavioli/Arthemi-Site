@@ -3,6 +3,7 @@
 // ===========================================================
 
 import { useState, useEffect } from 'react';
+import { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { 
@@ -13,6 +14,7 @@ import {
   statusLabels, statusColors, creditTypeLabels, creditStatusLabels
 } from '@/components/admin/helpers';
 import CreditModal from '@/components/admin/CreditModal';
+import { requireAdminSSR } from '@/lib/auth';
 
 interface UserDetail {
   id: string;
@@ -62,6 +64,14 @@ interface Package {
   isActive: boolean;
   room?: { id: string; name: string } | null;
 }
+
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const result = requireAdminSSR(ctx);
+  if ('redirect' in result) {
+    return result;
+  }
+  return { props: {} };
+};
 
 export default function ClienteDetailPage() {
   const router = useRouter();

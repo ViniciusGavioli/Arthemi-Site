@@ -14,14 +14,17 @@ import { z } from 'zod';
 import { logAdminAction } from '@/lib/audit';
 import { getCreditBalanceForRoom, consumeCreditsForBooking } from '@/lib/business-rules';
 import { addMonths } from 'date-fns';
-import { getBookingTotalByDate } from '@/lib/pricing';
+import { getBookingTotalCentsByDate } from '@/lib/pricing';
+import { isAvailable } from '@/lib/availability';
+import { isBookingWithinBusinessHours } from '@/lib/business-hours';
 
 const CREDIT_VALIDITY_MONTHS = 6;
 
 const updateSchema = z.object({
-  status: z.enum(['PENDING', 'CONFIRMED', 'CANCELLED']).optional(),
+  status: z.enum(['PENDING', 'CONFIRMED', 'COMPLETED', 'NO_SHOW', 'CANCELLED']).optional(),
   startTime: z.string().datetime().optional(),
   endTime: z.string().datetime().optional(),
+  roomId: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -49,7 +52,7 @@ export default async function handler(
         return res.status(400).json({ error: 'Dados inválidos', details: validation.error.errors });
       }
 
-      const { status, startTime, endTime, notes } = validation.data;
+      const { status, startTime, endTime, roomId, notes } = validation.data;
 
       // ================================================================
       // 1. BUSCAR BOOKING ATUAL
@@ -106,13 +109,47 @@ export default async function handler(
       // ================================================================
       // 4. EDIÇÃO DE HORÁRIO - CALCULAR DIFERENÇA DE DURAÇÃO
       // ================================================================
-      if (startTime || endTime) {
+      if (startTime || endTime || roomId) {
         const newStartTime = startTime ? new Date(startTime) : booking.startTime;
         const newEndTime = endTime ? new Date(endTime) : booking.endTime;
+        let newRoomId = roomId ?? booking.roomId;
+        let newRoom = booking.room;
+
+        // Validar sala alvo quando houver mudança de roomId
+        if (roomId && roomId !== booking.roomId) {
+          const targetRoom = await prisma.room.findUnique({
+            where: { id: roomId },
+          });
+          if (!targetRoom || !targetRoom.isActive) {
+            return res.status(404).json({ error: 'Consultório de destino não encontrado ou inativo' });
+          }
+          newRoomId = targetRoom.id;
+          newRoom = targetRoom as typeof booking.room;
+        }
 
         // Validar horários
         if (newEndTime <= newStartTime) {
           return res.status(400).json({ error: 'Horário de término deve ser após o início' });
+        }
+
+        // Validar horário de funcionamento (mesma regra de criação)
+        if (!isBookingWithinBusinessHours(newStartTime, newEndTime)) {
+          return res.status(400).json({
+            error: 'Horário fora do expediente. Seg-Sex: 08h-20h, Sáb: 08h-12h, Dom: fechado.',
+          });
+        }
+
+        // Validar conflito de agenda (excluindo a própria reserva)
+        const available = await isAvailable({
+          roomId: newRoomId,
+          startAt: newStartTime,
+          endAt: newEndTime,
+          excludeBookingId: id,
+        });
+        if (!available) {
+          return res.status(409).json({
+            error: 'Horário não disponível. Já existe uma reserva neste período.',
+          });
         }
 
         const oldDurationHours = Math.ceil(
@@ -124,18 +161,18 @@ export default async function handler(
         const hoursDifference = newDurationHours - oldDurationHours;
         
         // Usar helper PRICES_V3 para calcular diferença de preço (respeita sábado)
-        let oldValue: number;
-        let newValue: number;
+        let oldValueCents: number;
+        let newValueCents: number;
         try {
-          oldValue = getBookingTotalByDate(booking.roomId, booking.startTime, oldDurationHours, booking.room?.slug);
-          newValue = getBookingTotalByDate(booking.roomId, newStartTime, newDurationHours, booking.room?.slug);
+          oldValueCents = getBookingTotalCentsByDate(booking.roomId, booking.startTime, oldDurationHours, booking.room?.slug);
+          newValueCents = getBookingTotalCentsByDate(newRoomId, newStartTime, newDurationHours, newRoom?.slug);
         } catch (err) {
           console.error('[ADMIN] Erro ao calcular preço:', err);
           return res.status(400).json({ 
             error: `Erro ao calcular o preço: ${err instanceof Error ? err.message : 'Desconhecido'}` 
           });
         }
-        const valueDifference = newValue - oldValue;
+        const valueDifferenceCents = newValueCents - oldValueCents;
 
         let creditAdjustment = 0;
         let adjustmentType: 'INCREASE' | 'DECREASE' | 'NONE' = 'NONE';
@@ -144,11 +181,12 @@ export default async function handler(
         // ================================================================
         // 4.1 PROTEÇÃO: COURTESY não pode ter impacto financeiro
         // ================================================================
-        if (booking.financialStatus === 'COURTESY' && valueDifference !== 0) {
+        if (booking.financialStatus === 'COURTESY' && valueDifferenceCents !== 0) {
           // Courtesy pode ter horário alterado, mas sem debitar/creditar
           const updatedBooking = await prisma.booking.update({
             where: { id },
             data: {
+              roomId: newRoomId,
               startTime: newStartTime,
               endTime: newEndTime,
               notes: notes ?? booking.notes,
@@ -182,20 +220,22 @@ export default async function handler(
         // ================================================================
         // 4.2 AUMENTO DE DURAÇÃO - DEBITAR CRÉDITO
         // ================================================================
-        if (valueDifference > 0) {
+        if (valueDifferenceCents > 0) {
           adjustmentType = 'INCREASE';
           
           // Verificar crédito disponível
           const availableCredit = await getCreditBalanceForRoom(
             booking.userId,
-            booking.roomId,
-            newStartTime
+            newRoomId,
+            newStartTime,
+            newStartTime,
+            newEndTime
           );
 
-          if (availableCredit < valueDifference) {
+          if (availableCredit < valueDifferenceCents) {
             return res.status(402).json({
               error: 'Crédito insuficiente para aumentar duração',
-              required: valueDifference,
+              required: valueDifferenceCents,
               available: availableCredit,
               hoursDifference,
             });
@@ -206,11 +246,11 @@ export default async function handler(
             // Consumir crédito adicional (dentro da transação)
             const consumeResult = await consumeCreditsForBooking(
               booking.userId,
-              booking.roomId,
-              valueDifference,
+              newRoomId,
+              valueDifferenceCents,
               newStartTime,
-              undefined,
-              undefined,
+              newStartTime,
+              newEndTime,
               tx // P-002: Passar transação
             );
 
@@ -218,6 +258,7 @@ export default async function handler(
             const updatedBooking = await tx.booking.update({
               where: { id },
               data: {
+                roomId: newRoomId,
                 startTime: newStartTime,
                 endTime: newEndTime,
                 creditsUsed: (booking.creditsUsed || 0) + consumeResult.totalConsumed,
@@ -259,9 +300,9 @@ export default async function handler(
         // ================================================================
         // 4.3 REDUÇÃO DE DURAÇÃO - DEVOLVER CRÉDITO
         // ================================================================
-        if (valueDifference < 0) {
+        if (valueDifferenceCents < 0) {
           adjustmentType = 'DECREASE';
-          creditAdjustment = Math.abs(valueDifference);
+          creditAdjustment = Math.abs(valueDifferenceCents);
 
           const now = new Date();
           const expiresAt = addMonths(now, CREDIT_VALIDITY_MONTHS);
@@ -270,7 +311,7 @@ export default async function handler(
           const credit = await prisma.credit.create({
             data: {
               userId: booking.userId,
-              roomId: booking.roomId,
+              roomId: newRoomId,
               amount: creditAdjustment,
               remainingAmount: creditAdjustment,
               type: 'CANCELLATION', // Usando CANCELLATION para devoluções parciais também
@@ -288,6 +329,7 @@ export default async function handler(
           const updatedBooking = await prisma.booking.update({
             where: { id },
             data: {
+              roomId: newRoomId,
               startTime: newStartTime,
               endTime: newEndTime,
               creditsUsed: Math.max(0, (booking.creditsUsed || 0) - creditAdjustment),
@@ -329,6 +371,7 @@ export default async function handler(
         const updatedBooking = await prisma.booking.update({
           where: { id },
           data: {
+            roomId: newRoomId,
             startTime: newStartTime,
             endTime: newEndTime,
             notes: notes ?? booking.notes,

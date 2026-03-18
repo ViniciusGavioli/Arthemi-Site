@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { hashPassword, hashResetToken } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
+import { checkApiRateLimit, getRateLimitMessage } from '@/lib/api-rate-limit';
 
 // ============================================================
 // SCHEMA DE VALIDAÇÃO
@@ -62,6 +63,16 @@ export default async function handler(
   }
 
   try {
+    // Rate limit por IP (5 req/min)
+    const memRateLimit = checkApiRateLimit('auth/reset-password', getClientIp(req), {
+      maxRequests: 5,
+      windowMs: 60 * 1000,
+    });
+    if (!memRateLimit.allowed) {
+      res.setHeader('Retry-After', memRateLimit.retryAfterSeconds || 60);
+      return res.status(429).json({ error: getRateLimitMessage(memRateLimit.retryAfterSeconds) });
+    }
+
     // Validar input
     const parseResult = ResetPasswordSchema.safeParse(req.body);
     

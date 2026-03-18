@@ -3,12 +3,14 @@
 // ===========================================================
 
 import { useState, useEffect, useCallback } from 'react';
+import { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, Button, Badge, Input, Table, Spinner, Toast } from '@/components/admin/ui';
 import { 
   useToast, formatDate, formatCurrency, getWhatsAppLink,
 } from '@/components/admin/helpers';
+import { requireAdminSSR } from '@/lib/auth';
 
 interface User {
   id: string;
@@ -24,6 +26,14 @@ interface User {
     status: string;
   } | null;
 }
+
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const result = requireAdminSSR(ctx);
+  if ('redirect' in result) {
+    return result;
+  }
+  return { props: {} };
+};
 
 export default function ClientesPage() {
   const router = useRouter();

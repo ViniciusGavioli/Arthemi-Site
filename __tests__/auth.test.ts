@@ -48,6 +48,15 @@ describe('Password Hashing', () => {
     expect(result).toBe(false);
   });
 
+  test('comparePassword aceita hash legado bcrypt (compatibilidade)', async () => {
+    const bcrypt = require('bcrypt');
+    const password = 'SenhaLegada123!';
+    const legacyHash = await bcrypt.hash(password, 10);
+
+    const result = await comparePassword(password, legacyHash);
+    expect(result).toBe(true);
+  });
+
   test('hashPassword gera hashes únicos para mesma senha', async () => {
     const password = 'SamePassword123';
     

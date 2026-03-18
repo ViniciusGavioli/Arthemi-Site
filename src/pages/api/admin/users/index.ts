@@ -20,8 +20,12 @@ export default async function handler(
   try {
     const { search, hasCredits, page = '1', limit = '50' } = req.query;
 
-    const pageNum = parseInt(page as string, 10);
-    const limitNum = parseInt(limit as string, 10);
+    const parsedPage = parseInt(page as string, 10);
+    const parsedLimit = parseInt(limit as string, 10);
+    const pageNum = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+    const limitNum = Number.isFinite(parsedLimit)
+      ? Math.min(100, Math.max(1, parsedLimit))
+      : 50;
     const skip = (pageNum - 1) * limitNum;
 
     // Construir filtros
@@ -36,6 +40,20 @@ export default async function handler(
         { email: { contains: search, mode: 'insensitive' } },
         { phone: { contains: search } },
       ];
+    }
+
+    // Filtrar apenas clientes com saldo de créditos (quando solicitado)
+    if (hasCredits === 'true') {
+      where.credits = {
+        some: {
+          status: 'CONFIRMED',
+          remainingAmount: { gt: 0 },
+          OR: [
+            { expiresAt: null },
+            { expiresAt: { gt: new Date() } },
+          ],
+        },
+      };
     }
 
     // Buscar usuários
@@ -99,14 +117,8 @@ export default async function handler(
       };
     });
 
-    // Filtrar por créditos se solicitado
-    let result = formattedUsers;
-    if (hasCredits === 'true') {
-      result = formattedUsers.filter(u => u.totalCredits > 0);
-    }
-
     return res.status(200).json({
-      users: result,
+      users: formattedUsers,
       total,
       page: pageNum,
       limit: limitNum,

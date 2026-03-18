@@ -5,7 +5,7 @@
 // Usado pelo frontend para verificar autenticação
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getAuthFromRequest } from '@/lib/auth';
+import { clearAuthCookie, getAuthFromRequest } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 interface MeResponse {
@@ -46,11 +46,15 @@ export default async function handler(
         email: true,
         name: true,
         role: true,
+        isActive: true,
         emailVerifiedAt: true,
       },
     });
 
-    if (!user) {
+    if (!user || !user.isActive) {
+      if (user && !user.isActive) {
+        clearAuthCookie(res);
+      }
       return res.status(200).json({ ok: true, authenticated: false });
     }
 

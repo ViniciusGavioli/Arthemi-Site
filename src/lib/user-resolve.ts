@@ -104,6 +104,7 @@ export async function resolveOrCreateUser(
         email: emailNorm,
         phone: phoneNorm,
         cpf: cpfNorm,
+        professionalRegister: registerNorm,
         role: 'CUSTOMER',
       },
       update: {
@@ -111,6 +112,7 @@ export async function resolveOrCreateUser(
         name: nameNorm,
         phone: phoneNorm,
         cpf: cpfNorm || undefined,
+        professionalRegister: registerNorm || undefined,
       },
     });
     return { user: result, isNew: false }; // Não sabemos se é novo, mas é seguro
@@ -124,12 +126,14 @@ export async function resolveOrCreateUser(
       email: `${phoneNorm}@temp.arthemi.com.br`,
       phone: phoneNorm,
       cpf: cpfNorm,
+      professionalRegister: registerNorm,
       role: 'CUSTOMER',
     },
     update: {
       // Se já existe por phone, atualiza outros campos
       name: nameNorm,
       cpf: cpfNorm || undefined,
+      professionalRegister: registerNorm || undefined,
     },
   });
   return { user: result, isNew: false };

@@ -7,7 +7,8 @@
 // Output: { ok: true, role } ou { error: string }
 // 
 // Rate limiting:
-// - Após 5 tentativas falhas: bloqueio de 30 minutos
+// - Limite de requests por IP na API (barreira rápida)
+// - Após 5 tentativas falhas por conta: bloqueio de 30 minutos
 // - Login OK: zera contadores
 
 import type { NextApiRequest, NextApiResponse } from 'next';
@@ -70,9 +71,12 @@ export default async function handler(
   try {
     console.log(`[API] POST /api/auth/login START`, JSON.stringify({ requestId }));
 
-    // RATE LIMIT EM MEMÓRIA (3 req/min por IP) - Barreira rápida
+    // RATE LIMIT EM MEMÓRIA (8 req/min por IP) - Barreira rápida
     const clientIp = getClientIpFromLib(req);
-    const memRateLimit = checkApiRateLimit('auth/login', clientIp);
+    const memRateLimit = checkApiRateLimit('auth/login', clientIp, {
+      maxRequests: 8,
+      windowMs: 60 * 1000,
+    });
     if (!memRateLimit.allowed) {
       res.setHeader('Retry-After', memRateLimit.retryAfterSeconds || 60);
       return res.status(429).json({ error: getRateLimitMessage(memRateLimit.retryAfterSeconds) });

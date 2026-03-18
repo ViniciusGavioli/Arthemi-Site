@@ -6,6 +6,7 @@
 import { addDays, differenceInHours, isBefore, addMonths, isSaturday, startOfDay, isAfter, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { prisma } from './prisma';
+import { assertIntegerCents } from './money';
 import type { Credit, Room, CreditUsageType, Prisma, PrismaClient } from '@prisma/client';
 
 // Tipo para transação Prisma (compatível com $transaction)
@@ -568,6 +569,14 @@ export async function consumeCreditsForBooking(
   endTime?: Date,
   tx?: PrismaTransaction
 ): Promise<{ creditIds: string[]; totalConsumed: number }> {
+  assertIntegerCents(amount, 'consumeCreditsForBooking.amount');
+  if (amount < 0) {
+    throw new Error('INVALID_CREDITS_AMOUNT: valor deve ser >= 0');
+  }
+  if (amount === 0) {
+    return { creditIds: [], totalConsumed: 0 };
+  }
+
   // Usar transação passada ou prisma global (fallback)
   const db = tx ?? prisma;
 
@@ -769,6 +778,11 @@ export async function createManualCredit(params: {
   expiresInMonths?: number;
   notes?: string;
 }): Promise<Credit> {
+  assertIntegerCents(params.amount, 'createManualCredit.amount');
+  if (params.amount <= 0) {
+    throw new Error('INVALID_CREDIT_AMOUNT: valor deve ser > 0');
+  }
+
   const now = new Date();
   const expiresAt = addMonths(now, params.expiresInMonths ?? CREDIT_VALIDITY_MONTHS);
 

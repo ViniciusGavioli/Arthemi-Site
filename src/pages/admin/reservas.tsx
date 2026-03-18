@@ -3,6 +3,7 @@
 // ===========================================================
 
 import { useState, useEffect, useCallback } from 'react';
+import { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
 import dynamic from 'next/dynamic';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -12,6 +13,7 @@ import {
   statusLabels, statusColors 
 } from '@/components/admin/helpers';
 import BookingDetailModal from '@/components/admin/BookingDetailModal';
+import { requireAdminSSR } from '@/lib/auth';
 
 // FullCalendar precisa de import dinâmico
 const FullCalendar = dynamic(() => import('@fullcalendar/react'), { ssr: false });
@@ -56,6 +58,14 @@ const statusColorsCalendar: Record<string, string> = {
   CANCELLED: '#ef4444',
   COMPLETED: '#3b82f6',
   NO_SHOW: '#ef4444',
+};
+
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const result = requireAdminSSR(ctx);
+  if ('redirect' in result) {
+    return result;
+  }
+  return { props: {} };
 };
 
 export default function ReservasPage() {

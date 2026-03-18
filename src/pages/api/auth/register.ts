@@ -12,6 +12,7 @@ import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth';
 import { sendWelcomeEmail } from '@/lib/mailer';
 import { logAudit } from '@/lib/audit';
+import { checkApiRateLimit, getRateLimitMessage } from '@/lib/api-rate-limit';
 
 // ============================================================
 // SCHEMA DE VALIDAÇÃO
@@ -67,6 +68,16 @@ export default async function handler(
   }
 
   try {
+    // Rate limit por IP (10 req/min)
+    const memRateLimit = checkApiRateLimit('auth/register', getClientIp(req), {
+      maxRequests: 10,
+      windowMs: 60 * 1000,
+    });
+    if (!memRateLimit.allowed) {
+      res.setHeader('Retry-After', memRateLimit.retryAfterSeconds || 60);
+      return res.status(429).json({ error: getRateLimitMessage(memRateLimit.retryAfterSeconds) });
+    }
+
     // Validar input
     const parseResult = RegisterSchema.safeParse(req.body);
 

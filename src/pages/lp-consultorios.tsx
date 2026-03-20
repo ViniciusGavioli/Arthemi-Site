@@ -70,11 +70,12 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
     const [isLeadFormOpen, setIsLeadFormOpen] = useState(false);
     const [selectedRoomName, setSelectedRoomName] = useState('');
     const [activeFaq, setActiveFaq] = useState<number | null>(0);
-    const [showPopup, setShowPopup] = useState(false);
+
 
     // Mini-triagem state
-    const [triagemArea, setTriagemArea] = useState('');
-    const [triagemMaca, setTriagemMaca] = useState('');
+    const [triagemNome, setTriagemNome] = useState('');
+    const [triagemProfissao, setTriagemProfissao] = useState('');
+    const [triagemConsultorio, setTriagemConsultorio] = useState('');
     const [triagemHoras, setTriagemHoras] = useState('');
     const [hideMobileCta, setHideMobileCta] = useState(false);
 
@@ -104,34 +105,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
         return () => { observer.disconnect(); ctaObserver.disconnect(); };
     }, []);
 
-    // Popup Logic — exit intent only OR após 50s
-    useEffect(() => {
-        let shown = false;
 
-        const showIt = () => {
-            if (!shown) {
-                setShowPopup(true);
-                shown = true;
-            }
-        };
-
-        // 50 segundos de delay (não 10)
-        const timer = setTimeout(showIt, 50000);
-
-        // Exit intent para desktop
-        const handleMouseLeave = (e: MouseEvent) => {
-            if (e.clientY <= 5 && !shown) {
-                showIt();
-            }
-        };
-
-        document.addEventListener('mouseleave', handleMouseLeave);
-
-        return () => {
-            clearTimeout(timer);
-            document.removeEventListener('mouseleave', handleMouseLeave);
-        };
-    }, []);
 
     // Tracking Scroll
     useEffect(() => {
@@ -249,10 +223,20 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
     ];
 
     const handleTriagemWhatsApp = () => {
-        const area = triagemArea || 'não informada';
-        const maca = triagemMaca || 'não informado';
+        const nome = triagemNome || 'não informado';
+        const profissao = triagemProfissao || 'não informada';
+        const consultorio = triagemConsultorio || 'não informado';
         const horas = triagemHoras || 'não informado';
-        const msg = `Olá! Minha área é *${area}*. Preciso de maca: *${maca}*. Pretendo reservar *${horas} horas/semana*. Queria ver horários e valores.`;
+        
+        const msg = `Olá! Gostaria de consultar a disponibilidade e valores. Aqui estão meus dados para agilizar o atendimento:
+
+👤 *Nome:* ${nome}
+💼 *Profissão:* ${profissao}
+🏢 *Consultório que mais gostei:* ${consultorio}
+⏱️ *Pretendo atender (por semana):* ${horas}
+
+Fico no aguardo!`;
+
         trackWhatsAppClick('mini_triagem', 'cta-triagem-whatsapp')(msg);
     };
 
@@ -340,11 +324,14 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                         />
                         <button
                             id="header-cta-whatsapp"
-                            onClick={scrollToTriagem}
+                            onClick={() => {
+                                const el = document.getElementById('secao-precos');
+                                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }}
                             className="flex items-center gap-2 bg-accent-600 hover:bg-accent-700 text-white text-xs font-bold px-5 py-2.5 rounded-full transition-colors shadow-md"
                         >
-                            <MessageCircle className="w-3.5 h-3.5" />
-                            Fazer triagem
+                            <Building2 className="w-3.5 h-3.5" />
+                            Ver consultórios
                         </button>
                     </div>
                 </header>
@@ -385,27 +372,22 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 Sem clínica própria, sem custo fixo alto. Reserve por hora na área hospitalar de BH e pague só pelo uso.
                             </p>
 
-                            {/* HERO: 2 CTAs */}
+                            {/* HERO: 1 CTA Principal */}
                             <div className="flex flex-col sm:flex-row gap-3">
                                 <button
-                                    id="cta-hero-visita"
-                                    onClick={scrollToTriagem}
-                                    className="w-full sm:w-auto cta-whatsapp px-8 py-[18px] rounded-2xl font-bold text-base sm:text-lg shadow-2xl shadow-green-900/25 flex items-center justify-center gap-2"
-                                >
-                                    <MessageCircle className="w-5 h-5" />
-                                    Fazer triagem rápida
-                                </button>
-                                <a
                                     id="cta-hero-precos"
-                                    href="#secao-precos"
-                                    className="w-full sm:w-auto bg-black/20 hover:bg-black/28 border border-white/25 text-white px-8 py-4 rounded-2xl font-semibold text-base sm:text-lg flex items-center justify-center gap-2 transition-all backdrop-blur-sm"
+                                    onClick={() => {
+                                        const el = document.getElementById('secao-precos');
+                                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                    }}
+                                    className="w-full sm:w-auto bg-accent-600 hover:bg-accent-700 text-white px-8 py-[18px] rounded-2xl font-bold text-base sm:text-lg shadow-2xl shadow-accent-900/25 flex items-center justify-center gap-2 transition-colors"
                                 >
-                                    <ArrowRight className="w-5 h-5" />
+                                    <Building2 className="w-5 h-5" />
                                     Ver preços e escolher consultório
-                                </a>
+                                </button>
                             </div>
                             <p className="text-sm text-white/75 mt-3 max-w-md">
-                                Responda 3 perguntas e receba indicação de sala e horários em minutos.
+                                Conheça nossos consultórios e encontre o espaço ideal para sua rotina.
                             </p>
 
                             {/* Quick proof */}
@@ -466,7 +448,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                     step: "04",
                                     icon: UserCheck,
                                     title: "Vem atender com tudo pronto",
-                                    desc: "No dia, a sala está pronta para uso. Recepção, limpeza e suporte já estão incluídos para você focar no paciente."
+                                    desc: "No dia, o consultório está pronto para uso. Recepção, limpeza e suporte já estão incluídos para você focar no paciente."
                                 },
                             ].map((item, i) => (
                                 <div key={i} className={`reveal reveal-delay-${i + 1} card-lift relative flex flex-col items-center text-center p-7 rounded-2xl border border-warm-200 group`} style={{ background: '#fff', boxShadow: '0 4px 16px rgba(0,0,0,0.07)' }}>
@@ -485,12 +467,15 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 Pode reagendar sem perda com 48h de antecedência. Em caso de dúvida, respondemos na hora pelo WhatsApp.
                             </p>
                             <button
-                                id="cta-como-funciona-visita"
-                                onClick={() => handleOpenWhatsApp('horarios', 'como-funciona')}
-                                className="inline-flex items-center gap-2 cta-whatsapp px-7 py-4 rounded-xl font-bold text-base shadow-lg"
+                                id="cta-como-funciona-precos"
+                                onClick={() => {
+                                    const el = document.getElementById('secao-precos');
+                                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                }}
+                                className="inline-flex items-center gap-2 bg-accent-600 hover:bg-accent-700 text-white px-7 py-4 rounded-xl font-bold text-base shadow-lg transition-colors"
                             >
-                                <MessageCircle className="w-5 h-5" />
-                                Quero ver horários e valores agora
+                                <Building2 className="w-5 h-5" />
+                                Ver consultórios disponíveis
                             </button>
                         </div>
                     </div>
@@ -733,41 +718,47 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                     <div aria-hidden="true" style={{ position: 'absolute', inset: 0, opacity: 0.025, pointerEvents: 'none', zIndex: 0, backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='160' viewBox='0 0 180 160' fill='none' stroke='white' stroke-width='1'%3E%3Cpolygon points='45,15 63,25 63,45 45,55 27,45 27,25'/%3E%3Cpolygon points='135,15 153,25 153,45 135,55 117,45 117,25'/%3E%3Cpolygon points='90,60 108,70 108,90 90,100 72,90 72,70'/%3E%3Cpolygon points='45,105 63,115 63,135 45,145 27,135 27,115'/%3E%3Cpolygon points='135,105 153,115 153,135 135,145 117,135 117,115'/%3E%3Cline x1='63' y1='35' x2='72' y2='70' stroke-width='0.7'/%3E%3Cline x1='117' y1='35' x2='108' y2='70' stroke-width='0.7'/%3E%3Cline x1='72' y1='90' x2='63' y2='115' stroke-width='0.7'/%3E%3Cline x1='108' y1='90' x2='117' y2='115' stroke-width='0.7'/%3E%3Ccircle cx='67.5' cy='52.5' r='2' fill='white' stroke='none'/%3E%3Ccircle cx='112.5' cy='52.5' r='2' fill='white' stroke='none'/%3E%3Ccircle cx='67.5' cy='102.5' r='2' fill='white' stroke='none'/%3E%3Ccircle cx='112.5' cy='102.5' r='2' fill='white' stroke='none'/%3E%3Crect x='42' y='30' width='6' height='2' fill='white' stroke='none'/%3E%3Crect x='44' y='28' width='2' height='6' fill='white' stroke='none'/%3E%3Crect x='87' y='78' width='6' height='2' fill='white' stroke='none'/%3E%3Crect x='89' y='76' width='2' height='6' fill='white' stroke='none'/%3E%3Cpath d='M131,28a4,4 0 0 1 8,0c0 5-8 10-8 10s-8-5-8-10a4,4 0 0 1 8,0z' fill='white' stroke='none'/%3E%3Cline x1='45' y1='118' x2='45' y2='131' stroke-width='1.5'/%3E%3Cline x1='38.5' y1='124.5' x2='51.5' y2='124.5' stroke-width='1.5'/%3E%3Cline x1='41' y1='120' x2='49' y2='129' stroke-width='1'/%3E%3Cline x1='49' y1='120' x2='41' y2='129' stroke-width='1'/%3E%3Crect x='132' y='121' width='6' height='2' fill='white' stroke='none'/%3E%3Crect x='134' y='119' width='2' height='6' fill='white' stroke='none'/%3E%3C/svg%3E")`, backgroundSize: '180px' }} />
                     <div className="max-w-3xl mx-auto px-4">
                         <div className="text-center mb-8">
-                            <h2 className="text-2xl font-extrabold text-white mb-2">Não sabe qual escolher?</h2>
-                            <p className="text-primary-200/70 text-sm">Responda 3 perguntas rápidas e receba indicação personalizada no WhatsApp.</p>
+                            <h2 className="text-2xl font-extrabold text-white mb-2">Já sabe o que precisa?</h2>
+                            <p className="text-primary-200/70 text-sm">Preencha seus dados rápidos para agilizarmos seu atendimento no WhatsApp.</p>
                         </div>
 
                         <div className="relative bg-gradient-to-b from-white/[0.10] to-white/[0.03] rounded-3xl border border-white/15 shadow-[0_20px_60px_rgba(0,0,0,0.30)] backdrop-blur-md p-6 sm:p-8 space-y-6 overflow-hidden">
                             <div className="pointer-events-none absolute -top-14 -right-14 w-40 h-40 rounded-full bg-accent-500/15 blur-3xl" />
                             <div className="pointer-events-none absolute -bottom-16 -left-16 w-44 h-44 rounded-full bg-green-500/15 blur-3xl" />
+                            
                             {/* Pergunta 1 */}
                             <div className="relative z-10 bg-white/[0.03] border border-white/10 rounded-2xl p-4 sm:p-5">
-                                <p className="text-sm font-bold text-white mb-3">Sua área de atuação:</p>
-                                <div className="flex flex-wrap gap-2">
-                                    {['Psicologia', 'Nutrição', 'Fisioterapia', 'Medicina', 'Outra'].map((opt) => (
-                                        <button
-                                            key={opt}
-                                            onClick={() => setTriagemArea(opt)}
-                                            className={`px-4 py-2.5 rounded-full text-sm font-semibold border transition-all ${triagemArea === opt
-                                                ? 'bg-accent-600 text-white border-accent-500 shadow-md shadow-accent-900/30'
-                                                : 'bg-white/5 text-white/85 border-white/20 hover:border-accent-300 hover:bg-white/10'
-                                                }`}
-                                        >
-                                            {opt}
-                                        </button>
-                                    ))}
-                                </div>
+                                <p className="text-sm font-bold text-white mb-3">Nome:</p>
+                                <input
+                                    type="text"
+                                    placeholder="Seu nome"
+                                    value={triagemNome}
+                                    onChange={(e) => setTriagemNome(e.target.value)}
+                                    className="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-accent-400 focus:bg-white/10 transition-colors"
+                                />
                             </div>
 
                             {/* Pergunta 2 */}
                             <div className="relative z-10 bg-white/[0.03] border border-white/10 rounded-2xl p-4 sm:p-5">
-                                <p className="text-sm font-bold text-white mb-3">Precisa de maca?</p>
-                                <div className="flex gap-2">
-                                    {['Sim', 'Não'].map((opt) => (
+                                <p className="text-sm font-bold text-white mb-3">Profissão:</p>
+                                <input
+                                    type="text"
+                                    placeholder="Ex: Psicólogo, Nutricionista..."
+                                    value={triagemProfissao}
+                                    onChange={(e) => setTriagemProfissao(e.target.value)}
+                                    className="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-accent-400 focus:bg-white/10 transition-colors"
+                                />
+                            </div>
+
+                            {/* Pergunta 3 */}
+                            <div className="relative z-10 bg-white/[0.03] border border-white/10 rounded-2xl p-4 sm:p-5">
+                                <p className="text-sm font-bold text-white mb-3">Qual consultório gostou mais?</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {['Consultório 1', 'Consultório 2', 'Consultório 3', 'Ainda não sei'].map((opt) => (
                                         <button
                                             key={opt}
-                                            onClick={() => setTriagemMaca(opt)}
-                                            className={`px-6 py-2.5 rounded-full text-sm font-semibold border transition-all ${triagemMaca === opt
+                                            onClick={() => setTriagemConsultorio(opt)}
+                                            className={`px-4 py-2.5 rounded-full text-sm font-semibold border transition-all ${triagemConsultorio === opt
                                                 ? 'bg-accent-600 text-white border-accent-500 shadow-md shadow-accent-900/30'
                                                 : 'bg-white/5 text-white/85 border-white/20 hover:border-accent-300 hover:bg-white/10'
                                                 }`}
@@ -778,10 +769,10 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 </div>
                             </div>
 
-                            {/* Pergunta 3 */}
+                            {/* Pergunta 4 */}
                             <div className="relative z-10 bg-white/[0.03] border border-white/10 rounded-2xl p-4 sm:p-5">
                                 <p className="text-sm font-bold text-white mb-3">Quantas horas por semana pretende atender?</p>
-                                <div className="flex gap-2">
+                                <div className="flex flex-wrap gap-2">
                                     {['1–2h', '3–5h', '6h+'].map((opt) => (
                                         <button
                                             key={opt}
@@ -846,7 +837,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                                 {
                                     initials: "FS",
                                     role: "Fisioterapeuta",
-                                    text: "Chego, abro a sala e começo a atender. Sem preocupação com limpeza, recepção ou manutenção. Isso vale muito quando você quer focar só nos pacientes.",
+                                    text: "Chego, abro o consultório e começo a atender. Sem preocupação com limpeza, recepção ou manutenção. Isso vale muito quando você quer focar só nos pacientes.",
                                     stars: 5
                                 }
                             ].map((item, i) => (
@@ -995,11 +986,14 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 < div className={`md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-md border-t border-warm-100 p-4 shadow-[0_-10px_20px_rgba(0,0,0,0.1)] transition-all duration-300 ${hideMobileCta ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
                     <button
                         id="mobile-cta-whatsapp"
-                        onClick={() => handleOpenWhatsApp('visita', 'mobile-sticky')}
-                        className="flex items-center justify-center gap-2 cta-whatsapp w-full py-4 rounded-xl font-bold text-[15px] shadow-lg shadow-green-700/20"
+                        onClick={() => {
+                            const el = document.getElementById('secao-precos');
+                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }}
+                        className="flex items-center justify-center gap-2 bg-accent-600 text-white w-full py-4 rounded-xl font-bold text-[15px] shadow-lg shadow-accent-700/20"
                     >
-                        <MessageCircle className="w-5 h-5" />
-                        Fazer triagem rápida
+                        <Building2 className="w-5 h-5" />
+                        Ver consultórios e preços
                     </button>
                 </div >
             </Layout >
@@ -1029,59 +1023,7 @@ export default function LPPromoPage({ rooms }: LPPromoPageProps) {
                 initialRoomName={selectedRoomName}
             />
 
-            {/* Popup — exit intent / após 50s */}
-            {
-                showPopup && (
-                    <div className="fixed inset-0 z-[999] bg-primary-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
-                        <div className="bg-gradient-to-br from-primary-950 via-primary-900 to-primary-950 rounded-[2.5rem] p-8 md:p-12 max-w-xl w-full shadow-[0_0_50px_rgba(0,0,0,0.4)] border border-primary-800 relative mt-auto mb-auto overflow-hidden">
-                            <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-accent-500/20 rounded-full blur-[60px] pointer-events-none" />
-                            <div className="absolute bottom-0 left-0 -mb-16 -ml-16 w-64 h-64 bg-accent-400/20 rounded-full blur-[60px] pointer-events-none" />
 
-                            <button
-                                onClick={() => setShowPopup(false)}
-                                className="absolute top-6 right-6 w-10 h-10 bg-white/5 text-white/60 hover:text-white hover:bg-white/10 rounded-full flex items-center justify-center transition-colors z-20 border border-white/10"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-
-                            <div className="relative z-10 flex flex-col items-center text-center">
-                                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 border border-white/20 text-white/90 rounded-full text-xs font-bold tracking-widest uppercase mb-6 shadow-sm">
-                                    <Sparkles className="w-4 h-4 text-accent-400" />
-                                    Condição de Lançamento
-                                </div>
-                                <h3 className="text-3xl md:text-4xl font-extrabold text-white mb-5 leading-tight tracking-tight px-2">
-                                    Quer conhecer antes de decidir?
-                                </h3>
-                                <p className="text-primary-100 mb-8 text-lg md:text-xl leading-relaxed max-w-md mx-auto font-light">
-                                    Agende uma visita gratuita. Você vê o espaço, conversa com a equipe e decide com calma — sem compromisso.
-                                </p>
-                                <div className="w-full flex flex-col gap-4">
-                                    <button
-                                        id="cta-whatsapp-popup-visita"
-                                        data-event="whatsapp_click"
-                                        data-intent="visita"
-                                        onClick={() => {
-                                            setShowPopup(false);
-                                            handleOpenWhatsApp('visita', 'popup');
-                                        }}
-                                        className="w-full bg-white text-primary-950 py-4 md:py-5 rounded-2xl font-bold text-lg hover:bg-warm-50 transition-all flex items-center justify-center gap-3 shadow-xl hover:-translate-y-1 group"
-                                    >
-                                        <MessageCircle className="w-5 h-5 text-accent-600" />
-                                        Fazer triagem rápida
-                                        <ArrowRight className="w-5 h-5 text-accent-600 group-hover:translate-x-1 transition-transform" />
-                                    </button>
-                                    <button
-                                        onClick={() => setShowPopup(false)}
-                                        className="w-full bg-transparent text-primary-400 py-3 rounded-xl font-medium text-sm hover:text-white transition-colors"
-                                    >
-                                        Fechar e continuar lendo
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
 
             <style jsx global>{`
         @keyframes fade-in {
